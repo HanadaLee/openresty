@@ -1,0 +1,525 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_otel_module - Module ngx_otel_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_otel_module> module (1.23.4) provides
+L<OpenTelemetry|https://opentelemetry.io>
+distributed tracing support.
+The module supports
+L<W3C|https://w3c.github.io/trace-context>
+context propagation and OTLPE<sol>gRPC export protocol.
+
+
+
+
+
+
+B<NOTE>
+
+This module is available as part of our
+commercial subscription
+in C<nginx-plus-module-otel> package.
+After installation, the module can be loaded
+L<dynamically|ngx_core_module>.
+
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    load_module modules/ngx_otel_module.so;
+    
+    events {
+    }
+    
+    http {
+    
+        otel_exporter {
+            endpoint localhost:4317;
+        }
+    
+        server {
+            listen 127.0.0.1:8080;
+    
+            location / {
+                otel_trace         on;
+                otel_trace_context inject;
+    
+                proxy_pass http://backend;
+            }
+        }
+    }
+
+
+
+
+
+
+=head1 Directives
+
+=head2 otel_exporter
+
+
+otel_exporter { B<...> }
+
+
+
+B<context:> I<http>
+
+
+
+
+
+Specifies OTel data export parameters:
+
+
+=over
+
+
+
+=item C<endpoint>
+
+
+
+
+the address of OTLPE<sol>gRPC endpoint that will accept telemetry data.
+
+
+
+=item C<interval>
+
+
+
+
+the maximum interval between two exports,
+by default is C<5> seconds.
+
+
+
+=item C<batch_size>
+
+
+
+
+the maximum number of spans to be sent in one batch per worker,
+by default is C<512>.
+
+
+
+=item C<batch_count>
+
+
+
+
+the number of pending batches per worker,
+spans exceeding the limit are dropped,
+by default is C<4>.
+
+
+
+
+=back
+
+
+Example:
+
+    
+    otel_exporter {
+        endpoint    localhost:4317;
+        interval    5s;
+        batch_size  512;
+        batch_count 4;
+    }
+
+
+
+
+
+
+
+
+
+=head2 otel_service_name
+
+
+B<syntax:> otel_service_name I<I<C<name>>>
+
+
+B<default:> I<unknown_service:nginx>
+
+
+B<context:> I<http>
+
+
+
+
+
+Sets the
+“L<C<service.name>|https://opentelemetry.io/docs/reference/specification/resource/semantic_conventions/#service>”
+attribute of the OTel resource.
+
+
+
+
+
+
+
+=head2 otel_trace
+
+
+B<syntax:> otel_trace I<C<on> E<verbar>
+        C<off> E<verbar>
+        C<$variable>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Enables or disables OpenTelemetry tracing.
+The directive can also be enabled by specifying a variable:
+
+    
+    split_clients "$otel_trace_id" $ratio_sampler {
+                  10%              on;
+                  *                off;
+    }
+    
+    server {
+        location / {
+            otel_trace         $ratio_sampler;
+            otel_trace_context inject;
+            proxy_pass         http://backend;
+        }
+    }
+
+
+
+
+
+
+
+
+
+=head2 otel_trace_context
+
+
+B<syntax:> otel_trace_context I<C<extract> E<verbar>
+        C<inject> E<verbar>
+        C<propagate> E<verbar>
+        C<ignore>>
+
+
+B<default:> I<ignore>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Specifies how to propagate
+L<traceparentE<sol>tracestate|https://www.w3.org/TR/trace-context/#design-overview> headers:
+
+
+=over
+
+
+
+=item C<extract>
+
+
+
+
+uses an existing trace context from the request,
+so that the identifiers of
+a trace and
+the parent span
+are inherited from the incoming request.
+
+
+
+=item C<inject>
+
+
+
+
+adds a new context to the request, overwriting existing headers, if any.
+
+
+
+=item C<propagate>
+
+
+
+
+updates the existing context
+(combines L</extract> and L</inject>).
+
+
+
+=item C<ignore>
+
+
+
+
+skips context headers processing.
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+
+=head2 otel_span_name
+
+
+B<syntax:> otel_span_name I<I<C<name>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Defines the name of the OTel
+L<span|https://opentelemetry.io/docs/concepts/observability-primer/#spans>.
+By default, it is a name of the location for a request.
+The name can contain variables.
+
+
+
+
+
+
+
+=head2 otel_span_attr
+
+
+B<syntax:> otel_span_attr I<I<C<name>> I<C<value>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Adds a custom OTel span attribute.
+The value can contain variables.
+
+
+
+
+
+
+
+=head1 Default span attributes
+
+
+
+The following L<span attributes|https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/semantic_conventions/http.md>
+are added automatically:
+
+
+=over
+
+
+
+
+=item *
+
+C<http.method>
+
+
+
+=item *
+
+C<http.target>
+
+
+
+=item *
+
+C<http.route>
+
+
+
+=item *
+
+C<http.scheme>
+
+
+
+=item *
+
+C<http.flavor>
+
+
+
+=item *
+
+C<http.user_agent>
+
+
+
+=item *
+
+C<http.request_content_length>
+
+
+
+=item *
+
+C<http.response_content_length>
+
+
+
+=item *
+
+C<http.status_code>
+
+
+
+=item *
+
+C<net.host.name>
+
+
+
+=item *
+
+C<net.host.port>
+
+
+
+=item *
+
+C<net.sock.peer.addr>
+
+
+
+=item *
+
+C<net.sock.peer.port>
+
+
+
+=back
+
+
+
+
+
+
+=head1 Embedded Variables
+
+
+
+
+=over
+
+
+
+=item C<$otel_trace_id>
+
+
+
+
+the identifier of the trace the current span belongs to,
+for example, C<56552bc4daa3bf39c08362527e1dd6c4>
+
+
+
+=item C<$otel_span_id>
+
+
+
+
+the identifier of the current span,
+for example, C<4c0b8531ec38ca59>
+
+
+
+=item C<$otel_parent_id>
+
+
+
+
+the identifier of the parent span,
+for example, C<dc94d281b0f884ea>
+
+
+
+=item C<$otel_parent_sampled>
+
+
+
+
+the “C<sampled>” flag of the parent span,
+can be “C<1>” or “C<0>”
+
+
+
+
+=back
+
+
+
+
+
+

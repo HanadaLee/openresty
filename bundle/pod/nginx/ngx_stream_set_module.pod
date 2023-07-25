@@ -1,0 +1,59 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_stream_set_module - Module ngx_stream_set_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_stream_set_module> module (1.19.3) allows
+setting a value for a variable.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    server {
+        listen 12345;
+        set    $true 1;
+    }
+
+
+
+
+
+
+=head1 Directives
+
+=head2 set
+
+
+B<syntax:> set I<I<C<$variable>> I<C<value>>>
+
+
+
+B<context:> I<server>
+
+
+
+
+
+Sets a I<C<value>> for the specified I<C<variable>>.
+The I<C<value>> can contain text, variables, and their combination.
+
+
+
+
+
+
+

@@ -1,0 +1,371 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_api_module_head - Module ngx_http_api_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_api_module> module (1.13.3) provides REST API
+for accessing various status information,
+configuring upstream server groups on-the-fly, and managing
+L<key-value pairs|ngx_http_keyval_module>
+without the need of reconfiguring nginx.
+
+
+
+
+
+
+B<NOTE>
+
+The module supersedes the
+L<ngx_http_status_module|ngx_http_status_module> and
+L<ngx_http_upstream_conf_module|ngx_http_upstream_conf_module>
+modules.
+
+
+
+
+
+
+When using the C<PATCH> or C<POST> methods,
+make sure that the payload does not exceed the
+L<buffer size|ngx_http_core_module>
+for reading the client request body, otherwise, the
+C<413> (C<Request Entity Too Large>)
+error may be returned.
+
+
+
+
+
+
+B<NOTE>
+
+This module is available as part of our
+commercial subscription.
+
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    http {
+        upstream backend {
+            zone http_backend 64k;
+    
+            server backend1.example.com weight=5;
+            server backend2.example.com;
+        }
+    
+        proxy_cache_path /data/nginx/cache_backend keys_zone=cache_backend:10m;
+    
+        server {
+            server_name backend.example.com;
+    
+            location / {
+                proxy_pass  http://backend;
+                proxy_cache cache_backend;
+    
+                health_check;
+            }
+    
+            status_zone server_backend;
+        }
+    
+        keyval_zone zone=one:32k state=one.keyval;
+        keyval $arg_text $text zone=one;
+    
+        server {
+            listen 127.0.0.1;
+    
+            location /api {
+                <emphasis>api</emphasis> write=on;
+                allow 127.0.0.1;
+                deny all;
+            }
+        }
+    }
+    
+    stream {
+        upstream backend {
+            zone stream_backend 64k;
+    
+            server backend1.example.com:12345 weight=5;
+            server backend2.example.com:12345;
+        }
+    
+        server {
+            listen      127.0.0.1:12345;
+            proxy_pass  backend;
+            status_zone server_backend;
+            health_check;
+        }
+    }
+
+
+All API requests include
+a supported API version in the URI.
+Examples of API requests with this configuration:
+
+    
+    http://127.0.0.1/api/8/
+    http://127.0.0.1/api/8/nginx
+    http://127.0.0.1/api/8/connections
+    http://127.0.0.1/api/8/http/requests
+    http://127.0.0.1/api/8/http/server_zones/server_backend
+    http://127.0.0.1/api/8/http/caches/cache_backend
+    http://127.0.0.1/api/8/http/upstreams/backend
+    http://127.0.0.1/api/8/http/upstreams/backend/servers/
+    http://127.0.0.1/api/8/http/upstreams/backend/servers/1
+    http://127.0.0.1/api/8/http/keyvals/one?key=arg1
+    http://127.0.0.1/api/8/stream/
+    http://127.0.0.1/api/8/stream/server_zones/server_backend
+    http://127.0.0.1/api/8/stream/upstreams/
+    http://127.0.0.1/api/8/stream/upstreams/backend
+    http://127.0.0.1/api/8/stream/upstreams/backend/servers/1
+
+
+
+
+
+
+=head1 Directives
+
+=head2 api
+
+
+B<syntax:> api I<
+[C<write>=C<on>E<verbar>C<off>]>
+
+
+
+B<context:> I<location>
+
+
+
+
+
+Turns on the REST API interface in the surrounding location.
+Access to this location should be
+L<limited|ngx_http_core_module>.
+
+
+
+
+
+The C<write> parameter determines whether the API
+is read-only or read-write.
+By default, the API is read-only.
+
+
+
+
+
+All API requests should contain a supported API version in the URI.
+If the request URI equals the location prefix,
+the list of supported API versions is returned.
+The current API version is “C<8>”.
+
+
+
+
+
+The optional “C<fields>” argument in the request line
+specifies which fields of the requested objects will be output:
+
+    
+    http://127.0.0.1/api/8/nginx?fields=version,build
+
+
+
+
+
+
+
+
+
+=head2 status_zone
+
+
+B<syntax:> status_zone I<I<C<zone>>>
+
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+B<context:> I<if in location>
+
+
+
+This directive appeared in version 1.13.12.
+
+
+
+
+
+Enables collection of virtual
+L<http|ngx_http_core_module>
+or
+L<stream|ngx_stream_core_module>
+server status information in the specified I<C<zone>>.
+Several servers may share the same zone.
+
+
+
+
+
+Starting from 1.17.0, status information can be collected
+per L<ngx_http_core_module>.
+The special value C<off> disables statistics collection
+in nested location blocks.
+Note that the statistics is collected
+in the context of a location where processing ends.
+It may be different from the original location, if an
+L<internal
+redirect|ngx_http_core_module> happens during request processing.
+
+
+
+
+
+
+
+=head1 Compatibility
+
+
+
+
+=over
+
+
+
+
+=item *
+
+Detailed failure counters were added to SSL statistics
+in version 8 (1.23.2).
+
+
+
+=item *
+
+The C<ssl> data
+for each HTTP
+upstream,
+server zone,
+and stream
+upstream,
+server zone,
+were added in version 8 (1.21.6).
+
+
+
+=item *
+
+The C<codes> data
+in C<responses> for each HTTP
+upstream,
+server zone, and
+location zone
+were added in version 7.
+
+
+
+=item *
+
+The E<sol>streamE<sol>limit_connsE<sol> data
+were added in version 6.
+
+
+
+=item *
+
+The E<sol>httpE<sol>limit_connsE<sol> data
+were added in version 6.
+
+
+
+=item *
+
+The E<sol>httpE<sol>limit_reqsE<sol> data
+were added in version 6.
+
+
+
+=item *
+
+The “C<expire>” parameter of a
+L<key-value|ngx_http_keyval_module> pair can be
+set or
+changed
+since version 5.
+
+
+
+=item *
+
+The E<sol>resolversE<sol> data
+were added in version 5.
+
+
+
+=item *
+
+The E<sol>httpE<sol>location_zonesE<sol> data
+were added in version 5.
+
+
+
+=item *
+
+The C<path> and C<method> fields of
+nginx error object
+were removed in version 4.
+These fields continue to exist in earlier api versions,
+but show an empty value.
+
+
+
+=item *
+
+The E<sol>streamE<sol>zone_syncE<sol> data
+were added in version 3.
+
+
+
+=item *
+
+The drain parameter
+was added in version 2.
+
+
+
+=item *
+
+The E<sol>streamE<sol>keyvalsE<sol> data
+were added in version 2.
+
+
+
+=back
+
+
+
+
+

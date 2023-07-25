@@ -1,0 +1,124 @@
+#! /bin/bash
+#
+# preamble
+# Copyright (C) 2016 Adrian Perez <aperez@igalia.com>
+#
+# SPDX-License-Identifier: BSD-2-Clause
+#
+
+function nginx_conf_generate () {
+	if ${DYNAMIC} ; then
+		echo 'load_module modules/ngx_http_fancyindex_module.so;'
+	fi
+	cat <<-EOF
+	worker_processes 1;
+	events { worker_connections 1024; }
+	http {
+		include mime.types;
+		default_type application/octet-stream;
+		sendfile on;
+		keepalive_timeout 65;
+		server {
+			server_name localhost;
+			listen 127.0.0.1:${NGINX_PORT};
+			root ${TESTDIR};
+			error_page 500 502 503 504 /50x.html;
+			location = /50x.html { root html; }
+			location / {
+				index index.html;
+				fancyindex on;
+				$*
+			}
+		}
+	}
+	EOF
+}
+
+readonly NGINX_CONF="${PREFIX}/conf/nginx.conf"
+readonly NGINX_PID="${PREFIX}/logs/nginx.pid"
+
+case $(uname -s) in
+	Darwin)
+		NGINX_PORT=$(netstat -a -n -finet -ptcp | awk '/LISTEN/ { sub(".+\\.", "", $4) ; seen[$4]=1 }
+			END { p=1025 ; while (seen[p]) p++; print p}')
+		;;
+	*)
+		NGINX_PORT=$(ss -4Htnl | awk '{ sub("[^:]+:", "", $4) ; seen[$4]=1 }
+			END { p=1025 ; while (seen[p]) p++; print p}')
+		;;
+esac
+readonly NGINX_PORT
+
+rm -f "${NGINX_CONF}" "${NGINX_PID}"
+mkdir -p "${PREFIX}/logs"
+
+function pup () {
+	if [[ -x ${TESTDIR}/pup ]] ; then
+		"${TESTDIR}/pup" "$@"
+	else
+		skip 'Test uses "pup", which is not available'
+	fi
+}
+
+function use () {
+	case $1 in
+		pup ) [[ -x ${TESTDIR}/pup ]] \
+			|| skip 'Test uses "pup", which is unavailable\n' ;;
+		* ) warn "Invalid 'use' flag: '%s'\n'" "$1" ;;
+	esac
+}
+
+function nginx () {
+	env - PATH="${PATH}" "${PREFIX}/sbin/nginx" "$@"
+}
+
+function nginx_conf () {
+	nginx_conf_generate "$@" > "${NGINX_CONF}"
+}
+
+function nginx_is_running () {
+	[[ -r ${NGINX_PID} ]] && kill -0 $(< "${NGINX_PID}")
+}
+
+function nginx_stop () {
+	if nginx_is_running ; then nginx -s stop ; fi
+	rm -f "${NGINX_PID}"
+}
+trap nginx_stop EXIT
+
+function nginx_start () {
+	if [[ $# -gt 0 || ! -r ${NGINX_CONF} ]] ; then nginx_conf "$@" ; fi
+	nginx_stop  # Ensure that it is not running.
+	nginx
+	local n=0
+	while [[ ! -r ${NGINX_PID} && n -lt 20 ]] ; do
+		sleep 0.1  # Wait until pid exists.
+		n=$((n+1))
+	done
+}
+
+function fetch () {
+	local -a opts=( -q )
+	if [[ $1 = --with-headers ]] ; then
+		opts+=( -S )
+		shift
+	fi
+	wget "${opts[@]}" -O- "http://localhost:${NGINX_PORT}${1:-/}" 2>&1
+}
+
+function skip () {
+	printf '(--) '
+	printf "$@"
+	exit 111
+} 1>&2
+
+function fail () {
+	printf '(FF) '
+	printf "$@"
+	exit 1
+} 1>&2
+
+function warn () {
+	printf '(WW) '
+	printf "$@"
+} 1>&2

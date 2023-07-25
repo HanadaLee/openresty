@@ -1,0 +1,27 @@
+
+<div class="intro_banner">
+    <div class="intro_banner_inner">
+        <div class="intro_text">
+        <p><b>opm</b> is the official OpenResty package manager, similar to Perl's CPAN and NodeJS's npm in rationale.</p>
+        <p>We provide both the opm client-side command-line utility and the server-side application for the central package repository.</p>
+        <p>Please read the <a href="/docs">opm documentation</a> for more details.</p>
+        <p>We already have <b>[% total_uploads %]</b> successful uploads across <b>[% package_count %]</b> distinct package names from <b>[% uploader_count %]</b> contributors. Come on, OPM authors!</p>
+        </div>
+    </div>
+</div>
+
+<div class="main_col">
+<div class="split_header">
+    <h2>Recent packages</h2>
+    <span class="header_sub">
+        (<a href="/packages">view all</a>)
+    </span>
+    <span class="right">
+        <a href="/uploads">Recent uploads</a>
+    </span>
+</div>
+
+<section>
+[% PROCESS "package_list.tt2" %]
+</section>
+</div>

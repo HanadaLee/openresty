@@ -1,0 +1,2045 @@
+=encoding utf-8
+
+
+=head1 Name
+
+
+configure - Building nginx from Sources
+
+
+=head1
+
+
+
+The build is configured using the C<configure> command.
+It defines various aspects of the system, including the methods nginx
+is allowed to use for connection processing.
+At the end it creates a F<Makefile>.
+
+
+
+
+
+The C<configure> command supports the following parameters:
+
+
+
+
+
+
+=over
+
+
+
+=item 
+C<--help>
+
+
+
+
+
+prints a help message.
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+=over
+
+
+
+=item 
+C<--prefix=I<C<path>>>
+
+
+
+
+
+defines a directory that will keep server files.
+This same directory will also be used for all relative paths set by
+C<configure> (except for paths to libraries sources)
+and in the F<nginx.conf> configuration file.
+It is set to the F<E<sol>usrE<sol>localE<sol>nginx> directory by default.
+
+
+
+=item 
+C<--sbin-path=I<C<path>>>
+
+
+
+
+
+sets the name of an nginx executable file.
+This name is used only during installation.
+By default the file is named
+F<I<C<prefix>>E<sol>sbinE<sol>nginx>.
+
+
+
+=item 
+C<--modules-path=I<C<path>>>
+
+
+
+
+
+defines a directory where nginx dynamic modules will be installed.
+By default the F<I<C<prefix>>E<sol>modules> directory is used.
+
+
+
+=item 
+C<--conf-path=I<C<path>>>
+
+
+
+
+
+sets the name of an F<nginx.conf> configuration file.
+If needs be, nginx can always be started with a different configuration file,
+by specifying it in the command-line parameter
+C<-c I<C<file>>>.
+By default the file is named
+F<I<C<prefix>>E<sol>confE<sol>nginx.conf>.
+
+
+
+=item 
+C<--error-log-path=I<C<path>>>
+
+
+
+
+
+sets the name of the primary error, warnings, and diagnostic file.
+After installation, the file name can always be changed in the
+F<nginx.conf> configuration file using the
+L<ngx_core_module> directive.
+By default the file is named
+F<I<C<prefix>>E<sol>logsE<sol>error.log>.
+
+
+
+=item 
+C<--pid-path=I<C<path>>>
+
+
+
+
+
+sets the name of an F<nginx.pid> file
+that will store the process ID of the main process.
+After installation, the file name can always be changed in the
+F<nginx.conf> configuration file using the
+L<ngx_core_module> directive.
+By default the file is named
+F<I<C<prefix>>E<sol>logsE<sol>nginx.pid>.
+
+
+
+=item 
+C<--lock-path=I<C<path>>>
+
+
+
+
+
+sets a prefix for the names of lock files.
+After installation, the value can always be changed in the
+F<nginx.conf> configuration file using the
+L<ngx_core_module> directive.
+By default the value is
+F<I<C<prefix>>E<sol>logsE<sol>nginx.lock>.
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+=over
+
+
+
+=item 
+C<--user=I<C<name>>>
+
+
+
+
+
+sets the name of an unprivileged user whose credentials will be used
+by worker processes.
+After installation, the name can always be changed in the
+F<nginx.conf> configuration file using the
+L<ngx_core_module> directive.
+The default user name is nobody.
+
+
+
+=item 
+C<--group=I<C<name>>>
+
+
+
+
+
+sets the name of a group whose credentials will be used
+by worker processes.
+After installation, the name can always be changed in the
+F<nginx.conf> configuration file using the
+L<ngx_core_module> directive.
+By default, a group name is set to the name of an unprivileged user.
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+=over
+
+
+
+=item 
+C<--build=I<C<name>>>
+
+
+
+
+
+sets an optional nginx build name.
+
+
+
+=item 
+C<--builddir=I<C<path>>>
+
+
+
+
+
+sets a build directory.
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+=over
+
+
+
+=item 
+C<--with-select_module>
+
+
+C<--without-select_module>
+
+
+
+
+
+enables or disables building a module that allows the server to work
+with the C<select> method.
+This module is built automatically if the platform does not appear
+to support more appropriate methods such as kqueue, epoll, or E<sol>devE<sol>poll.
+
+
+
+=item 
+C<--with-poll_module>
+
+
+C<--without-poll_module>
+
+
+
+
+
+enables or disables building a module that allows the server to work
+with the C<poll> method.
+This module is built automatically if the platform does not appear
+to support more appropriate methods such as kqueue, epoll, or E<sol>devE<sol>poll.
+
+
+
+=item 
+C<--with-threads>
+
+
+
+
+
+enables the use of
+L<thread pools|ngx_core_module>.
+
+
+
+=item 
+C<--with-file-aio>
+
+
+
+
+
+enables the use of
+L<asynchronous file IE<sol>O|ngx_http_core_module>
+(AIO) on FreeBSD and Linux.
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+=over
+
+
+
+=item 
+C<--with-http_ssl_module>
+
+
+
+
+
+enables building a module that adds the
+L<HTTPS protocol support|ngx_http_ssl_module>
+to an HTTP server.
+This module is not built by default.
+The OpenSSL library is required to build and run this module.
+
+
+
+=item 
+C<--with-http_v2_module>
+
+
+
+
+
+enables building a module that provides support for
+L<HTTPE<sol>2|ngx_http_v2_module>.
+This module is not built by default.
+
+
+
+=item 
+C<--with-http_v3_module>
+
+
+
+
+
+enables building a module that provides support for
+L<HTTPE<sol>3|ngx_http_v3_module>.
+This module is not built by default.
+An SSL library that provides HTTPE<sol>3 support
+is recommended to build and run this module, such as
+L<BoringSSL|https://boringssl.googlesource.com/boringssl>,
+L<LibreSSL|https://www.libressl.org>, or
+L<QuicTLS|https://github.com/quictls/openssl>.
+Otherwise, if using the OpenSSL library,
+OpenSSL compatibility layer will be used
+that does not support QUIC
+L<early data|ngx_http_ssl_module>.
+
+
+
+=item 
+C<--with-http_realip_module>
+
+
+
+
+
+enables building the
+L<ngx_http_realip_module|ngx_http_realip_module>
+module that changes the client address to the address
+sent in the specified header field.
+This module is not built by default.
+
+
+
+=item 
+C<--with-http_addition_module>
+
+
+
+
+
+enables building the
+L<ngx_http_addition_module|ngx_http_addition_module>
+module that adds text before and after a response.
+This module is not built by default.
+
+
+
+=item 
+C<--with-http_xslt_module>
+
+
+C<--with-http_xslt_module=dynamic>
+
+
+
+
+
+enables building the
+L<ngx_http_xslt_module|ngx_http_xslt_module>
+module that transforms XML responses using one or more XSLT stylesheets.
+This module is not built by default.
+The L<libxml2|http://xmlsoft.org> and
+L<libxslt|http://xmlsoft.org/XSLT/> libraries
+are required to build and run this module.
+
+
+
+=item 
+C<--with-http_image_filter_module>
+
+
+C<--with-http_image_filter_module=dynamic>
+
+
+
+
+
+enables building the
+L<ngx_http_image_filter_module|ngx_http_image_filter_module>
+module that transforms images in JPEG, GIF, PNG, and WebP formats.
+This module is not built by default.
+
+
+
+=item 
+C<--with-http_geoip_module>
+
+
+C<--with-http_geoip_module=dynamic>
+
+
+
+
+
+enables building the
+L<ngx_http_geoip_module|ngx_http_geoip_module>
+module that creates variables depending on the client IP address
+and the precompiled
+L<MaxMind|http://www.maxmind.com> databases.
+This module is not built by default.
+
+
+
+=item 
+C<--with-http_sub_module>
+
+
+
+
+
+enables building the
+L<ngx_http_sub_module|ngx_http_sub_module>
+module that modifies a response by replacing one specified string by another.
+This module is not built by default.
+
+
+
+=item 
+C<--with-http_dav_module>
+
+
+
+
+
+enables building the
+L<ngx_http_dav_module|ngx_http_dav_module>
+module that provides file management automation via the WebDAV protocol.
+This module is not built by default.
+
+
+
+=item 
+C<--with-http_flv_module>
+
+
+
+
+
+enables building the
+L<ngx_http_flv_module|ngx_http_flv_module>
+module that provides pseudo-streaming server-side support
+for Flash Video (FLV) files.
+This module is not built by default.
+
+
+
+=item 
+C<--with-http_mp4_module>
+
+
+
+
+
+enables building the
+L<ngx_http_mp4_module|ngx_http_mp4_module>
+module that provides pseudo-streaming server-side support
+for MP4 files.
+This module is not built by default.
+
+
+
+=item 
+C<--with-http_gunzip_module>
+
+
+
+
+
+enables building the
+L<ngx_http_gunzip_module|ngx_http_gunzip_module>
+module that decompresses responses
+with “C<Content-Encoding: gzip>”
+for clients that do not support “gzip” encoding method.
+This module is not built by default.
+
+
+
+=item 
+C<--with-http_gzip_static_module>
+
+
+
+
+
+enables building the
+L<ngx_http_gzip_static_module|ngx_http_gzip_static_module>
+module that enables sending precompressed files
+with the “C<.gz>” filename extension instead of regular files.
+This module is not built by default.
+
+
+
+=item 
+C<--with-http_auth_request_module>
+
+
+
+
+
+enables building the
+L<ngx_http_auth_request_module|ngx_http_auth_request_module>
+module that implements client authorization
+based on the result of a subrequest.
+This module is not built by default.
+
+
+
+=item 
+C<--with-http_random_index_module>
+
+
+
+
+
+enables building the
+L<ngx_http_random_index_module|ngx_http_random_index_module>
+module that processes requests
+ending with the slash character (‘C<E<sol>>’) and picks a random
+file in a directory to serve as an index file.
+This module is not built by default.
+
+
+
+=item 
+C<--with-http_secure_link_module>
+
+
+
+
+
+enables building the
+L<ngx_http_secure_link_module|ngx_http_secure_link_module>
+module.
+This module is not built by default.
+
+
+
+=item 
+C<--with-http_degradation_module>
+
+
+
+
+
+enables building the
+C<ngx_http_degradation_module> module.
+This module is not built by default.
+
+
+
+=item 
+C<--with-http_slice_module>
+
+
+
+
+
+enables building the
+L<ngx_http_slice_module|ngx_http_slice_module>
+module that splits a request into subrequests,
+each returning a certain range of response.
+The module provides more effective caching of big responses.
+This module is not built by default.
+
+
+
+=item 
+C<--with-http_stub_status_module>
+
+
+
+
+
+enables building the
+L<ngx_http_stub_status_module|ngx_http_stub_status_module>
+module that provides access to basic status information.
+This module is not built by default.
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+=over
+
+
+
+=item 
+C<--without-http_charset_module>
+
+
+
+
+
+disables building the
+L<ngx_http_charset_module|ngx_http_charset_module>
+module that adds the specified charset to the
+C<Content-Type> response header field
+and can additionally convert data from one charset to another.
+
+
+
+=item 
+C<--without-http_gzip_module>
+
+
+
+
+
+disables building a module
+that L<compresses responses|ngx_http_gzip_module>
+of an HTTP server.
+The zlib library is required to build and run this module.
+
+
+
+=item 
+C<--without-http_ssi_module>
+
+
+
+
+
+disables building the
+L<ngx_http_ssi_module|ngx_http_ssi_module>
+module that processes SSI (Server Side Includes) commands in responses
+passing through it.
+
+
+
+=item 
+C<--without-http_userid_module>
+
+
+
+
+
+disables building the
+L<ngx_http_userid_module|ngx_http_userid_module>
+module that sets cookies suitable for client identification.
+
+
+
+=item 
+C<--without-http_access_module>
+
+
+
+
+
+disables building the
+L<ngx_http_access_module|ngx_http_access_module>
+module that allows limiting access to certain client addresses.
+
+
+
+=item 
+C<--without-http_auth_basic_module>
+
+
+
+
+
+disables building the
+L<ngx_http_auth_basic_module|ngx_http_auth_basic_module>
+module that allows limiting access to resources by validating the user name
+and password using the “HTTP Basic Authentication” protocol.
+
+
+
+=item 
+C<--without-http_mirror_module>
+
+
+
+
+
+disables building the
+L<ngx_http_mirror_module|ngx_http_mirror_module>
+module that implements mirroring of an original request
+by creating background mirror subrequests.
+
+
+
+=item 
+C<--without-http_autoindex_module>
+
+
+
+
+
+disables building the
+L<ngx_http_autoindex_module|ngx_http_autoindex_module>
+module that processes requests
+ending with the slash character (‘C<E<sol>>’) and produces
+a directory listing in case the
+L<ngx_http_index_module|ngx_http_index_module> module
+cannot find an index file.
+
+
+
+=item 
+C<--without-http_geo_module>
+
+
+
+
+
+disables building the
+L<ngx_http_geo_module|ngx_http_geo_module>
+module that creates variables
+with values depending on the client IP address.
+
+
+
+=item 
+C<--without-http_map_module>
+
+
+
+
+
+disables building the
+L<ngx_http_map_module|ngx_http_map_module>
+module that creates variables
+with values depending on values of other variables.
+
+
+
+=item 
+C<--without-http_split_clients_module>
+
+
+
+
+
+disables building the
+L<ngx_http_split_clients_module|ngx_http_split_clients_module>
+module that creates variables for AE<sol>B testing.
+
+
+
+=item 
+C<--without-http_referer_module>
+
+
+
+
+
+disables building the
+L<ngx_http_referer_module|ngx_http_referer_module>
+module that can block access to a site for requests with invalid values
+in the C<Referer> header field.
+
+
+
+=item 
+C<--without-http_rewrite_module>
+
+
+
+
+
+disables building a module that allows an HTTP server to
+L<redirect requests and change URI
+of requests|ngx_http_rewrite_module>.
+The PCRE library is required to build and run this module.
+
+
+
+=item 
+C<--without-http_proxy_module>
+
+
+
+
+
+disables building an HTTP server
+L<proxying module|ngx_http_proxy_module>.
+
+
+
+=item 
+C<--without-http_fastcgi_module>
+
+
+
+
+
+disables building the
+L<ngx_http_fastcgi_module|ngx_http_fastcgi_module>
+module that passes requests to a FastCGI server.
+
+
+
+=item 
+C<--without-http_uwsgi_module>
+
+
+
+
+
+disables building the
+L<ngx_http_uwsgi_module|ngx_http_uwsgi_module>
+module that passes requests to a uwsgi server.
+
+
+
+=item 
+C<--without-http_scgi_module>
+
+
+
+
+
+disables building the
+L<ngx_http_scgi_module|ngx_http_scgi_module>
+module that passes requests to an SCGI server.
+
+
+
+=item 
+C<--without-http_grpc_module>
+
+
+
+
+
+disables building the
+L<ngx_http_grpc_module|ngx_http_grpc_module>
+module that passes requests to a gRPC server.
+
+
+
+=item 
+C<--without-http_memcached_module>
+
+
+
+
+
+disables building the
+L<ngx_http_memcached_module|ngx_http_memcached_module>
+module that obtains responses from a memcached server.
+
+
+
+=item 
+C<--without-http_limit_conn_module>
+
+
+
+
+
+disables building the
+L<ngx_http_limit_conn_module|ngx_http_limit_conn_module>
+module that limits the number of connections per key, for example,
+the number of connections from a single IP address.
+
+
+
+=item 
+C<--without-http_limit_req_module>
+
+
+
+
+
+disables building the
+L<ngx_http_limit_req_module|ngx_http_limit_req_module>
+module that limits the request processing rate per key, for example,
+the processing rate of requests coming from a single IP address.
+
+
+
+=item 
+C<--without-http_empty_gif_module>
+
+
+
+
+
+disables building a module that
+L<emits single-pixel
+transparent GIF|ngx_http_empty_gif_module>.
+
+
+
+=item 
+C<--without-http_browser_module>
+
+
+
+
+
+disables building the
+L<ngx_http_browser_module|ngx_http_browser_module>
+module that creates variables whose values depend on the value of the
+C<User-Agent> request header field.
+
+
+
+=item 
+C<--without-http_upstream_hash_module>
+
+
+
+
+
+disables building a module that implements the
+L<ngx_http_upstream_module>
+load balancing method.
+
+
+
+=item 
+C<--without-http_upstream_ip_hash_module>
+
+
+
+
+
+disables building a module that implements the
+L<ngx_http_upstream_module>
+load balancing method.
+
+
+
+=item 
+C<--without-http_upstream_least_conn_module>
+
+
+
+
+
+disables building a module that implements the
+L<ngx_http_upstream_module>
+load balancing method.
+
+
+
+=item 
+C<--without-http_upstream_random_module>
+
+
+
+
+
+disables building a module that implements the
+L<ngx_http_upstream_module>
+load balancing method.
+
+
+
+=item 
+C<--without-http_upstream_keepalive_module>
+
+
+
+
+
+disables building a module that provides
+L<caching of
+connections|ngx_http_upstream_module> to upstream servers.
+
+
+
+=item 
+C<--without-http_upstream_zone_module>
+
+
+
+
+
+disables building a module that makes it possible to store run-time state
+of an upstream group in a shared memory
+L<ngx_http_upstream_module>.
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+=over
+
+
+
+=item 
+C<--with-http_perl_module>
+
+
+C<--with-http_perl_module=dynamic>
+
+
+
+
+
+enables building the
+L<embedded Perl module|ngx_http_perl_module>.
+This module is not built by default.
+
+
+
+=item 
+C<--with-perl_modules_path=I<C<path>>>
+
+
+
+
+
+defines a directory that will keep Perl modules.
+
+
+
+=item 
+C<--with-perl=I<C<path>>>
+
+
+
+
+
+sets the name of the Perl binary.
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+=over
+
+
+
+=item 
+C<--http-log-path=I<C<path>>>
+
+
+
+
+
+sets the name of the primary request log file of the HTTP server.
+After installation, the file name can always be changed in the
+F<nginx.conf> configuration file using the
+L<ngx_http_log_module> directive.
+By default the file is named
+F<I<C<prefix>>E<sol>logsE<sol>access.log>.
+
+
+
+=item 
+C<--http-client-body-temp-path=I<C<path>>>
+
+
+
+
+
+defines a directory for storing temporary files
+that hold client request bodies.
+After installation, the directory can always be changed in the
+F<nginx.conf> configuration file using the
+L<ngx_http_core_module>
+directive.
+By default the directory is named
+F<I<C<prefix>>E<sol>client_body_temp>.
+
+
+
+=item 
+C<--http-proxy-temp-path=I<C<path>>>
+
+
+
+
+
+defines a directory for storing temporary files
+with data received from proxied servers.
+After installation, the directory can always be changed in the
+F<nginx.conf> configuration file using the
+L<ngx_http_proxy_module>
+directive.
+By default the directory is named
+F<I<C<prefix>>E<sol>proxy_temp>.
+
+
+
+=item 
+C<--http-fastcgi-temp-path=I<C<path>>>
+
+
+
+
+
+defines a directory for storing temporary files
+with data received from FastCGI servers.
+After installation, the directory can always be changed in the
+F<nginx.conf> configuration file using the
+L<ngx_http_fastcgi_module>
+directive.
+By default the directory is named
+F<I<C<prefix>>E<sol>fastcgi_temp>.
+
+
+
+=item 
+C<--http-uwsgi-temp-path=I<C<path>>>
+
+
+
+
+
+defines a directory for storing temporary files
+with data received from uwsgi servers.
+After installation, the directory can always be changed in the
+F<nginx.conf> configuration file using the
+L<ngx_http_uwsgi_module>
+directive.
+By default the directory is named
+F<I<C<prefix>>E<sol>uwsgi_temp>.
+
+
+
+=item 
+C<--http-scgi-temp-path=I<C<path>>>
+
+
+
+
+
+defines a directory for storing temporary files
+with data received from SCGI servers.
+After installation, the directory can always be changed in the
+F<nginx.conf> configuration file using the
+L<ngx_http_scgi_module>
+directive.
+By default the directory is named
+F<I<C<prefix>>E<sol>scgi_temp>.
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+=over
+
+
+
+=item 
+C<--without-http>
+
+
+
+
+
+disables the L<HTTP|ngx_http_core_module> server.
+
+
+
+=item 
+C<--without-http-cache>
+
+
+
+
+
+disables HTTP cache.
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+=over
+
+
+
+=item 
+C<--with-mail>
+
+
+C<--with-mail=dynamic>
+
+
+
+
+
+enables POP3E<sol>IMAP4E<sol>SMTP
+L<mail proxy|ngx_mail_core_module> server.
+
+
+
+=item 
+C<--with-mail_ssl_module>
+
+
+
+
+
+enables building a module that adds the
+L<SSLE<sol>TLS protocol support|ngx_mail_ssl_module>
+to the mail proxy server.
+This module is not built by default.
+The OpenSSL library is required to build and run this module.
+
+
+
+=item 
+C<--without-mail_pop3_module>
+
+
+
+
+
+disables the L<POP3|ngx_mail_pop3_module> protocol
+in mail proxy server.
+
+
+
+=item 
+C<--without-mail_imap_module>
+
+
+
+
+
+disables the L<IMAP|ngx_mail_imap_module> protocol
+in mail proxy server.
+
+
+
+=item 
+C<--without-mail_smtp_module>
+
+
+
+
+
+disables the L<SMTP|ngx_mail_smtp_module> protocol
+in mail proxy server.
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+=over
+
+
+
+=item 
+C<--with-stream>
+
+
+C<--with-stream=dynamic>
+
+
+
+
+
+enables building the
+L<stream module|ngx_stream_core_module>
+for generic TCPE<sol>UDP proxying and load balancing.
+This module is not built by default.
+
+
+
+=item 
+C<--with-stream_ssl_module>
+
+
+
+
+
+enables building a module that adds the
+L<SSLE<sol>TLS protocol support|ngx_stream_ssl_module>
+to the stream module.
+This module is not built by default.
+The OpenSSL library is required to build and run this module.
+
+
+
+=item 
+C<--with-stream_realip_module>
+
+
+
+
+
+enables building the
+L<ngx_stream_realip_module|ngx_stream_realip_module>
+module that changes the client address to the address
+sent in the PROXY protocol header.
+This module is not built by default.
+
+
+
+=item 
+C<--with-stream_geoip_module>
+
+
+C<--with-stream_geoip_module=dynamic>
+
+
+
+
+
+enables building the
+L<ngx_stream_geoip_module|ngx_stream_geoip_module>
+module that creates variables depending on the client IP address
+and the precompiled
+L<MaxMind|http://www.maxmind.com> databases.
+This module is not built by default.
+
+
+
+=item 
+C<--with-stream_ssl_preread_module>
+
+
+
+
+
+enables building the
+L<ngx_stream_ssl_preread_module|ngx_stream_ssl_preread_module>
+module that allows extracting information from the
+L<ClientHello|https://datatracker.ietf.org/doc/html/rfc5246#section-7.4.1.2>
+message without terminating SSLE<sol>TLS.
+This module is not built by default.
+
+
+
+=item 
+C<--without-stream_limit_conn_module>
+
+
+
+
+
+disables building the
+L<ngx_stream_limit_conn_module|ngx_stream_limit_conn_module>
+module that limits the number of connections per key, for example,
+the number of connections from a single IP address.
+
+
+
+=item 
+C<--without-stream_access_module>
+
+
+
+
+
+disables building the
+L<ngx_stream_access_module|ngx_stream_access_module>
+module that allows limiting access to certain client addresses.
+
+
+
+=item 
+C<--without-stream_geo_module>
+
+
+
+
+
+disables building the
+L<ngx_stream_geo_module|ngx_stream_geo_module>
+module that creates variables
+with values depending on the client IP address.
+
+
+
+=item 
+C<--without-stream_map_module>
+
+
+
+
+
+disables building the
+L<ngx_stream_map_module|ngx_stream_map_module>
+module that creates variables
+with values depending on values of other variables.
+
+
+
+=item 
+C<--without-stream_split_clients_module>
+
+
+
+
+
+disables building the
+L<ngx_stream_split_clients_module|ngx_stream_split_clients_module>
+module that creates variables for AE<sol>B testing.
+
+
+
+=item 
+C<--without-stream_return_module>
+
+
+
+
+
+disables building the
+L<ngx_stream_return_module|ngx_stream_return_module>
+module that sends some specified value to the client
+and then closes the connection.
+
+
+
+=item 
+C<--without-stream_set_module>
+
+
+
+
+
+disables building the
+L<ngx_stream_set_module|ngx_stream_set_module>
+module that sets a value for a variable.
+
+
+
+=item 
+C<--without-stream_upstream_hash_module>
+
+
+
+
+
+disables building a module that implements the
+L<ngx_stream_upstream_module>
+load balancing method.
+
+
+
+=item 
+C<--without-stream_upstream_least_conn_module>
+
+
+
+
+
+disables building a module that implements the
+L<ngx_stream_upstream_module>
+load balancing method.
+
+
+
+=item 
+C<--without-stream_upstream_random_module>
+
+
+
+
+
+disables building a module that implements the
+L<ngx_stream_upstream_module>
+load balancing method.
+
+
+
+=item 
+C<--without-stream_upstream_zone_module>
+
+
+
+
+
+disables building a module that makes it possible to store run-time state
+of an upstream group in a shared memory
+L<ngx_stream_upstream_module>.
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+=over
+
+
+
+=item 
+C<--with-google_perftools_module>
+
+
+
+
+
+enables building the
+L<ngx_google_perftools_module|ngx_google_perftools_module>
+module that enables profiling of nginx worker processes using
+L<Google Performance Tools|https://github.com/gperftools/gperftools>.
+The module is intended for nginx developers and is not built by default.
+
+
+
+=item 
+C<--with-cpp_test_module>
+
+
+
+
+
+enables building the
+C<ngx_cpp_test_module> module.
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+=over
+
+
+
+=item 
+C<--add-module=I<C<path>>>
+
+
+
+
+
+enables an external module.
+
+
+
+=item 
+C<--add-dynamic-module=I<C<path>>>
+
+
+
+
+
+enables an external dynamic module.
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+=over
+
+
+
+=item 
+C<--with-compat>
+
+
+
+
+
+enables dynamic modules compatibility.
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+=over
+
+
+
+=item 
+C<--with-cc=I<C<path>>>
+
+
+
+
+
+sets the name of the C compiler.
+
+
+
+=item 
+C<--with-cpp=I<C<path>>>
+
+
+
+
+
+sets the name of the C preprocessor.
+
+
+
+=item 
+C<--with-cc-opt=I<C<parameters>>>
+
+
+
+
+
+sets additional parameters that will be added to the CFLAGS variable.
+When using the system PCRE library under FreeBSD,
+C<--with-cc-opt="-I E<sol>usrE<sol>localE<sol>include">
+should be specified.
+If the number of files supported by C<select> needs to be
+increased it can also be specified here such as this:
+C<--with-cc-opt="-D FD_SETSIZE=2048">.
+
+
+
+=item 
+C<--with-ld-opt=I<C<parameters>>>
+
+
+
+
+
+sets additional parameters that will be used during linking.
+When using the system PCRE library under FreeBSD,
+C<--with-ld-opt="-L E<sol>usrE<sol>localE<sol>lib">
+should be specified.
+
+
+
+=item 
+C<--with-cpu-opt=I<C<cpu>>>
+
+
+
+
+
+enables building per specified CPU:
+C<pentium>, C<pentiumpro>,
+C<pentium3>, C<pentium4>,
+C<athlon>, C<opteron>,
+C<sparc32>, C<sparc64>,
+C<ppc64>.
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+=over
+
+
+
+=item 
+C<--without-pcre>
+
+
+
+
+
+disables the usage of the PCRE library.
+
+
+
+=item 
+C<--with-pcre>
+
+
+
+
+
+forces the usage of the PCRE library.
+
+
+
+=item 
+C<--with-pcre=I<C<path>>>
+
+
+
+
+
+sets the path to the sources of the PCRE library.
+The library distribution needs to be downloaded from the
+L<PCRE|http://www.pcre.org> site and extracted.
+The rest is done by nginx’s C<.E<sol>configure> and
+C<make>.
+The library is required for regular expressions support in the
+L<ngx_http_core_module> directive
+and for the
+L<ngx_http_rewrite_module|ngx_http_rewrite_module>
+module.
+
+
+
+=item 
+C<--with-pcre-opt=I<C<parameters>>>
+
+
+
+
+
+sets additional build options for PCRE.
+
+
+
+=item 
+C<--with-pcre-jit>
+
+
+
+
+
+builds the PCRE library with
+“just-in-time compilation” support (1.1.12, the
+L<ngx_core_module> directive).
+
+
+
+=item 
+C<--without-pcre2>
+
+
+
+
+
+disables use of the PCRE2 library
+instead of the original PCRE library (1.21.5).
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+=over
+
+
+
+=item 
+C<--with-zlib=I<C<path>>>
+
+
+
+
+
+sets the path to the sources of the zlib library.
+The library distribution (version
+1.1.3E<mdash>1.2.11) needs to be downloaded from the
+L<zlib|http://zlib.net> site and extracted.
+The rest is done by nginx’s C<.E<sol>configure> and
+C<make>.
+The library is required for the
+L<ngx_http_gzip_module|ngx_http_gzip_module> module.
+
+
+
+=item 
+C<--with-zlib-opt=I<C<parameters>>>
+
+
+
+
+
+sets additional build options for zlib.
+
+
+
+=item 
+C<--with-zlib-asm=I<C<cpu>>>
+
+
+
+
+
+enables the use of the zlib assembler sources optimized
+for one of the specified CPUs:
+C<pentium>, C<pentiumpro>.
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+=over
+
+
+
+=item 
+C<--with-libatomic>
+
+
+
+
+
+forces the libatomic_ops library usage.
+
+
+
+=item 
+C<--with-libatomic=I<C<path>>>
+
+
+
+
+
+sets the path to the libatomic_ops library sources.
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+=over
+
+
+
+=item 
+C<--with-openssl=I<C<path>>>
+
+
+
+
+
+sets the path to the OpenSSL library sources.
+
+
+
+=item 
+C<--with-openssl-opt=I<C<parameters>>>
+
+
+
+
+
+sets additional build options for OpenSSL.
+
+
+
+
+=back
+
+
+
+
+
+
+
+
+=over
+
+
+
+=item 
+C<--with-debug>
+
+
+
+
+
+enables the L<debugging log|debugging_log>.
+
+
+
+
+=back
+
+
+
+
+
+
+
+Example of parameters usage (all of this needs to be typed in one line):
+
+    
+    ./configure
+        --sbin-path=/usr/local/nginx/nginx
+        --conf-path=/usr/local/nginx/nginx.conf
+        --pid-path=/usr/local/nginx/nginx.pid
+        --with-http_ssl_module
+        --with-pcre=../pcre2-10.39
+        --with-zlib=../zlib-1.2.11
+
+
+
+
+
+
+
+After configuration,
+nginx is compiled and installed using C<make>.
+
+
+
+

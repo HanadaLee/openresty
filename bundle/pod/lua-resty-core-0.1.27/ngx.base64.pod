@@ -1,0 +1,168 @@
+=encoding utf-8
+
+
+=head1 Name
+
+C<ngx.base64> - urlsafe base64 encode/decode functions OpenResty/ngx\_lua.
+
+
+=head1 Status
+
+This Lua module is production ready.
+
+
+=head1 Synopsis
+
+
+    local b64 = require("ngx.base64")
+    local res, err
+    
+    res = b64.encode_base64url("foo")
+    
+    res, err = b64.decode_base64url(res)
+    if not res then
+        -- invalid input
+        ngx.log(ngx.ERR, err)
+    end
+    
+    assert(res == "foo")
+
+
+
+
+=head1 Methods
+
+
+=head2 encode\_base64url
+
+B<syntax:> I<encoded = base64.encode_base64url(input)>
+
+B<context:> I<any>
+
+Encode C<input> using base64url rules. Returns the encoded string.
+
+
+
+
+=head2 decode\_base64url
+
+B<syntax:> I<decoded, err = base64.decode_base64url(input)>
+
+B<context:> I<any>
+
+Decode C<input> using base64url rules. Returns the decoded string.
+
+If the C<input> is not a valid base64url encoded string, C<decoded >will be C<nil>
+and C<err> will be a string describing the error.
+
+
+
+
+=head1 Community
+
+
+
+
+=head2 English Mailing List
+
+The L<openresty-en|https://groups.google.com/group/openresty-en> mailing list is for English speakers.
+
+
+
+
+=head2 Chinese Mailing List
+
+The L<openresty|https://groups.google.com/group/openresty> mailing list is for Chinese speakers.
+
+
+
+
+=head1 Bugs and Patches
+
+Please report bugs or submit patches by
+
+
+=over
+
+
+=item 1.
+
+creating a ticket on the L<GitHub Issue Tracker|https://github.com/openresty/lua-resty-core/issues>,
+
+=item 2.
+
+or posting to the L<OpenResty community>.
+
+
+=back
+
+
+
+
+=head1 Author
+
+Datong Sun E<lt>datong@openresty.comE<gt> (dndx), OpenResty Inc.
+
+
+
+
+=head1 Copyright and License
+
+This module is licensed under the BSD license.
+
+Copyright (C) 2017, by Yichun "agentzh" Zhang, OpenResty Inc.
+
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+
+=over
+
+
+=item *
+
+Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+
+
+=back
+
+
+=over
+
+
+=item *
+
+Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+
+
+=back
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+
+=head1 See Also
+
+
+=over
+
+
+=item *
+
+the L<lua-resty-core|https://github.com/openresty/lua-resty-core> library.
+
+=item *
+
+the ngx_lua module: https://github.com/openresty/lua-nginx-module
+
+=item *
+
+OpenResty: https://openresty.org
+
+
+=back
+
+
+

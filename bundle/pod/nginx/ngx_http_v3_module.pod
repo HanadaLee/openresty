@@ -1,0 +1,393 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_v3_module - Module ngx_http_v3_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_v3_module> module (1.25.0) provides
+experimental support for
+L<HTTPE<sol>3|https://datatracker.ietf.org/doc/html/rfc9114>.
+
+
+
+
+
+This module is not built by default, it should be enabled with the
+L<C<--with-http_v3_module>|configure>
+configuration parameter.
+
+B<NOTE>
+
+An SSL library that provides QUIC support
+such as
+L<BoringSSL|https://boringssl.googlesource.com/boringssl>,
+L<LibreSSL|https://www.libressl.org>, or
+L<QuicTLS|https://github.com/quictls/openssl>
+is recommended to build and run this module.
+Otherwise,
+when using the L<OpenSSL|https://openssl.org> library,
+OpenSSL compatibility layer will be used that does not support
+L<early data|ngx_http_ssl_module>.
+
+
+
+
+
+=head1 Known Issues
+
+
+
+The module is experimental, caveat emptor applies.
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    http {
+        log_format quic '$remote_addr - $remote_user [$time_local] '
+                        '"$request" $status $body_bytes_sent '
+                        '"$http_referer" "$http_user_agent" "$http3"';
+    
+        access_log logs/access.log quic;
+    
+        server {
+            # for better compatibility it's recommended
+            # to use the same port for http/3 and https
+            listen 8443 quic reuseport;
+            listen 8443 ssl;
+    
+            ssl_certificate     certs/example.com.crt;
+            ssl_certificate_key certs/example.com.key;
+    
+            location / {
+                # used to advertise the availability of HTTP/3
+                add_header Alt-Svc 'h3=":8443"; ma=86400';
+            }
+        }
+    }
+
+
+Note that accepting HTTPE<sol>3 connections over TLS requires
+the TLSv1.3 protocol support, which is available since
+L<OpenSSL|http://www.openssl.org> version 1.1.1.
+
+
+
+
+=head1 Directives
+
+=head2 http3
+
+
+B<syntax:> http3 I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<on>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+
+
+
+Enables
+L<HTTPE<sol>3|https://datatracker.ietf.org/doc/html/rfc9114>
+protocol negotiation.
+
+
+
+
+
+
+
+ =head2 http3_hq
+
+
+B<syntax:> http3_hq I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+
+
+
+Enables HTTPE<sol>0.9 protocol negotiation
+used in
+L<QUIC
+interoperability tests|https://github.com/marten-seemann/quic-interop-runner>.
+
+
+
+
+
+
+
+=head2 http3_max_concurrent_streams
+
+
+B<syntax:> http3_max_concurrent_streams I<I<C<number>>>
+
+
+B<default:> I<128>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+
+
+
+Sets the maximum number of concurrent HTTPE<sol>3 request streams
+in a connection.
+
+
+
+
+
+
+
+=head2 http3_stream_buffer_size
+
+
+B<syntax:> http3_stream_buffer_size I<I<C<size>>>
+
+
+B<default:> I<64k>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+
+
+
+Sets the size of the buffer used for reading and writing of the
+QUIC streams.
+
+
+
+
+
+
+
+=head2 quic_active_connection_id_limit
+
+
+B<syntax:> quic_active_connection_id_limit I<I<C<number>>>
+
+
+B<default:> I<2>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+
+
+
+Sets the
+QUIC C<active_connection_id_limit> transport parameter value.
+This is the maximum number of client connection IDs
+which can be stored on the server.
+
+
+
+
+
+
+
+=head2 quic_bpf
+
+
+B<syntax:> quic_bpf I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<main>
+
+
+
+
+
+Enables routing of QUIC packets using
+L<eBPF|https://ebpf.io/>.
+When enabled, this allows supporting QUIC connection migration.
+
+
+
+
+
+
+B<NOTE>
+
+The directive is only supported on Linux 5.7+.
+
+
+
+
+
+
+
+
+=head2 quic_gso
+
+
+B<syntax:> quic_gso I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+
+
+
+Enables sending in optimized batch mode
+using segmentation offloading.
+
+
+
+
+
+
+B<NOTE>
+
+Optimized sending is supported only on Linux
+featuring C<UDP_SEGMENT>.
+
+
+
+
+
+
+
+
+=head2 quic_host_key
+
+
+B<syntax:> quic_host_key I<I<C<file>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+
+
+
+Sets a I<C<file>> with the secret key used to encrypt
+stateless reset and address validation tokens.
+By default, a random key is generated on each reload.
+Tokens generated with old keys are not accepted.
+
+
+
+
+
+
+
+=head2 quic_retry
+
+
+B<syntax:> quic_retry I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+
+
+
+Enables the
+L<QUIC
+Address Validation|https://datatracker.ietf.org/doc/html/rfc9000#name-address-validation> feature.
+This includes sending a new token in a C<Retry> packet
+or a C<NEW_TOKEN> frame
+and
+validating a token received in the C<Initial> packet.
+
+
+
+
+
+
+
+=head1 Embedded Variables
+
+
+
+The C<ngx_http_v3_module> module
+supports the following embedded variables:
+
+=over
+
+
+
+=item C<$http3>
+
+
+
+
+negotiated protocol identifier:
+“C<h3>” for HTTPE<sol>3 connections,
+“C<hq>” for hq connections,
+or an empty string otherwise.
+
+
+
+
+=back
+
+
+
+
+
+

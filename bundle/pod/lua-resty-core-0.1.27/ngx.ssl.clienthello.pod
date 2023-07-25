@@ -1,0 +1,306 @@
+=encoding utf-8
+
+
+=head1 Name
+
+ngx.ssl.clienthello - Lua API for post-processing SSL client hello message for NGINX downstream SSL connections.
+
+
+=head1 Status
+
+This Lua module is currently considered experimental.
+
+
+=head1 Synopsis
+
+
+    # nginx.conf
+    
+    server {
+        listen 443 ssl;
+        server_name   test.com;
+        ssl_certificate /path/to/cert.crt;
+        ssl_certificate_key /path/to/key.key;
+        ssl_client_hello_by_lua_block {
+            local ssl_clt = require "ngx.ssl.clienthello"
+            local host, err = ssl_clt.get_client_hello_server_name()
+            if host == "test.com" then
+                ssl_clt.set_protocols({"TLSv1", "TLSv1.1"})
+            elseif host == "test2.com" then
+                ssl_clt.set_protocols({"TLSv1.2", "TLSv1.3"})
+            elseif not host then
+                ngx.log(ngx.ERR, "failed to get the SNI name: ", err)
+                ngx.exit(ngx.ERROR)
+            else
+                ngx.log(ngx.ERR, "unknown SNI name: ", host)
+                ngx.exit(ngx.ERROR)
+            end
+        }
+        ...
+    }
+    server {
+        listen 443 ssl;
+        server_name   test2.com;
+        ssl_certificate /path/to/cert.crt;
+        ssl_certificate_key /path/to/key.key;
+        ...
+    }
+
+
+=head1 Description
+
+This Lua module provides API functions for post-processing SSL client hello message for NGINX downstream connections.
+
+It must to be used in the contexts L<ssl_client_hello_by_lua*|https://github.com/openresty/lua-nginx-module/#ssl_client_hello_by_lua_block>.
+
+This Lua API is particularly useful for dynamically setting the SSL protocols according to the SNI.
+
+It is also useful to do some custom operations according to the per-connection information in the client hello message.
+
+For example, one can parse the custom client hello extension and do the corresponding handling in pure Lua.
+
+To load the C<ngx.ssl.clienthello> module in Lua, just write
+
+
+    local ssl_clt = require "ngx.ssl.clienthello"
+
+
+
+
+=head1 Methods
+
+
+=head2 get_client_hello_server_name
+
+B<syntax:> I<host, err = ssl_clt.get_client_hello_server_name()>
+
+B<context:> I<ssl_client_hello_by_luaE<42>>
+
+Returns the TLS SNI (Server Name Indication) name set by the client.
+
+Return C<nil> when then the extension does not exist.
+
+In case of errors, it returns C<nil> and a string describing the error.
+
+Note that the SNI name is gotten from the raw extensions of the client hello message associated with the current downstream SSL connection.
+
+So this function can only be called in the context of L<ssl_client_hello_by_lua*|https://github.com/openresty/lua-nginx-module/#ssl_client_hello_by_lua_block>.
+
+
+
+
+=head2 get_supported_versions
+
+B<syntax:> I<types, err = ssl_clt.get_supported_versions()>
+
+B<context:> I<ssl_client_hello_by_luaE<42>>
+
+Returns the table of ssl hello supported versions set by the client.
+
+Return C<nil> when then the extension does not exist.
+
+In case of errors, it returns C<nil> and a string describing the error.
+
+Note that the types is gotten from the raw extensions of the client hello message associated with the current downstream SSL connection.
+
+So this function can only be called in the context of L<ssl_client_hello_by_lua*|https://github.com/openresty/lua-nginx-module/#ssl_client_hello_by_lua_block>.
+
+
+
+
+=head2 get_client_hello_ext
+
+B<syntax:> I<ext, err = ssl_clt.get_client_hello_ext(ext_type)>
+
+B<context:> I<ssl_client_hello_by_luaE<42>>
+
+Returns raw data of arbitrary SSL client hello extension including custom extensions.
+
+Returns C<nil> if the specified extension type does not exist.
+
+In case of errors, it returns C<nil> and a string describing the error.
+
+Note that the ext is gotten from the raw extensions of the client hello message associated with the current downstream SSL connection.
+
+So this function can only be called in the context of L<ssl_client_hello_by_lua*|https://github.com/openresty/lua-nginx-module/#ssl_client_hello_by_lua_block>.
+
+Example:
+
+Gets server name from raw extension data. The C<0> in C<ssl_clt.get_client_hello_ext(0)> denotes C<TLSEXT_TYPE_server_name>, and the C<0> in C<byte(ext, 3) ~= 0> denotes C<TLSEXT_NAMETYPE_host_name>.
+
+
+    # nginx.conf
+    server {
+        listen 443 ssl;
+        server_name   test.com;
+        ssl_client_hello_by_lua_block {
+            local ssl_clt = require "ngx.ssl.clienthello"
+            local byte = string.byte
+            local ext = ssl_clt.get_client_hello_ext(0)
+            if not ext then
+                print("failed to get_client_hello_ext(0)")
+                ngx.exit(ngx.ERROR)
+            end
+            local total_len = string.len(ext)
+            if total_len <= 2 then
+                print("bad SSL Client Hello Extension")
+                ngx.exit(ngx.ERROR)
+            end
+            local len = byte(ext, 1) * 256 + byte(ext, 2)
+            if len + 2 ~= total_len then
+                print("bad SSL Client Hello Extension")
+                ngx.exit(ngx.ERROR)
+            end
+            if byte(ext, 3) ~= 0 then
+                print("bad SSL Client Hello Extension")
+                ngx.exit(ngx.ERROR)
+            end
+            if total_len <= 5 then
+                print("bad SSL Client Hello Extension")
+                ngx.exit(ngx.ERROR)
+            end
+            len = byte(ext, 4) * 256 + byte(ext, 5)
+            if len + 5 > total_len then
+                print("bad SSL Client Hello Extension")
+                ngx.exit(ngx.ERROR)
+            end
+            local name = string.sub(ext, 6, 6 + len -1)
+    
+            print("read SNI name from Lua: ", name)
+        }
+        ssl_certificate test.crt;
+        ssl_certificate_key test.key;
+    }
+
+
+
+
+=head2 set_protocols
+
+B<syntax:> I<ok, err = ssl_clt.set_protocols(protocols)>
+
+B<context:> I<ssl_client_hello_by_luaE<42>>
+
+Sets the SSL protocols supported by the current downstream SSL connection.
+
+Returns C<true> on success, or a C<nil> value and a string describing the error otherwise.
+
+Considering it is meaningless to set ssl protocols after the protocol is determined,
+so this function may only be called in the context of L<ssl_client_hello_by_lua*|https://github.com/openresty/lua-nginx-module/#ssl_client_hello_by_lua_block>.
+
+Example: C<ssl_clt.set_protocols({"TLSv1.1", "TLSv1.2", "TLSv1.3"})>
+
+
+
+
+=head1 Community
+
+
+
+
+=head2 English Mailing List
+
+The L<openresty-en|https://groups.google.com/group/openresty-en> mailing list is for English speakers.
+
+
+
+
+=head2 Chinese Mailing List
+
+The L<openresty|https://groups.google.com/group/openresty> mailing list is for Chinese speakers.
+
+
+
+
+=head1 Bugs and Patches
+
+Please report bugs or submit patches by
+
+
+=over
+
+
+=item 1.
+
+creating a ticket on the L<GitHub Issue Tracker|https://github.com/openresty/lua-resty-core/issues>,
+
+=item 2.
+
+or posting to the L<OpenResty community>.
+
+
+=back
+
+
+
+
+=head1 Author
+
+Zhefeng Chen E<lt>chzf\_zju@163.comE<gt> (catbro666)
+
+
+
+
+=head1 Copyright and License
+
+This module is licensed under the BSD license.
+
+Copyright (C) 2016-2017, by Yichun "agentzh" Zhang, OpenResty Inc.
+
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+
+=over
+
+
+=item *
+
+Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+
+
+=back
+
+
+=over
+
+
+=item *
+
+Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+
+
+=back
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+
+=head1 See Also
+
+
+=over
+
+
+=item *
+
+the ngx_lua module: https://github.com/openresty/lua-nginx-module
+
+=item *
+
+the L<ssl_client_hello_by_lua*|https://github.com/openresty/lua-nginx-module/#ssl_client_hello_by_lua_block> directive.
+
+=item *
+
+the L<lua-resty-core|https://github.com/openresty/lua-resty-core> library.
+
+=item *
+
+OpenResty: https://openresty.org
+
+
+=back
+
+

@@ -1,0 +1,113 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_stream_mqtt_preread_module - Module ngx_stream_mqtt_preread_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_stream_mqtt_preread_module> module (1.23.4) allows
+extracting information from the CONNECT message
+of the Message Queuing Telemetry Transport protocol (MQTT) versions
+L<3.1.1|https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/mqtt-v3.1.1.html>
+and
+L<5.0|https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html>,
+for example, a username or a client ID.
+
+
+
+
+
+
+B<NOTE>
+
+This module is available as part of our
+commercial subscription.
+
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    mqtt_preread on;
+    return       $mqtt_preread_clientid;
+
+
+
+
+
+
+=head1 Directives
+
+=head2 mqtt_preread
+
+
+B<syntax:> mqtt_preread I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+
+
+Enables extracting information from the MQTT CONNECT message at
+the L<preread|stream_processing> phase.
+
+
+
+
+
+
+
+=head1 Embedded Variables
+
+
+
+
+=over
+
+
+
+=item C<$mqtt_preread_clientid>
+
+
+
+
+the C<clientid> value from the CONNECT message
+
+
+
+=item C<$mqtt_preread_username>
+
+
+
+
+the C<username> value from the CONNECT message
+
+
+
+
+=back
+
+
+
+
+
+

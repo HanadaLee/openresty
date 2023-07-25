@@ -1,0 +1,108 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_internal_redirect_module - Module ngx_http_internal_redirect_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_internal_redirect_module> module (1.23.4) allows
+making an internal redirect.
+In contrast to
+L<rewriting URIs|ngx_http_rewrite_module>,
+the redirection is made after checking
+L<request|ngx_http_limit_req_module> and
+L<connection|ngx_http_limit_conn_module> processing limits,
+and L<access|ngx_http_access_module> limits.
+
+
+
+
+
+
+B<NOTE>
+
+This module is available as part of our
+commercial subscription.
+
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    limit_req_zone $jwt_claim_sub zone=jwt_sub:10m rate=1r/s;
+    
+    server {
+        location / {
+            auth_jwt          "realm";
+            auth_jwt_key_file key.jwk;
+    
+            internal_redirect @rate_limited;
+        }
+    
+        location @rate_limited {
+            internal;
+    
+            limit_req  zone=jwt_sub burst=10;
+            proxy_pass http://backend;
+        }
+    }
+
+
+The example implements
+L<per-user|https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.2>
+L<rate limiting|ngx_http_limit_req_module>.
+Implementation without internal_redirect
+is vulnerable to DoS attacks by unsigned JWTs, as normally the
+L<limit_req|ngx_http_limit_req_module>
+check is performed
+L<before|development_guide>
+L<auth_jwt|ngx_http_auth_jwt_module> check.
+Using internal_redirect
+allows reordering these checks.
+
+
+
+
+=head1 Directives
+
+=head2 internal_redirect
+
+
+B<syntax:> internal_redirect I<I<C<uri>>>
+
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets the URI for internal redirection of the request.
+It is also possible to use a
+L<named location|ngx_http_core_module>
+instead of the URI.
+The I<C<uri>> value can contain variables.
+If the I<C<uri>> value is empty,
+then the redirect will not be made.
+
+
+
+
+
+
+

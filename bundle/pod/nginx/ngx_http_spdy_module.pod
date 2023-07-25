@@ -1,0 +1,20 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_spdy_module - Module ngx_http_spdy_module
+
+
+
+
+=head1
+
+
+
+This module was superseded by the
+L<ngx_http_v2_module|ngx_http_v2_module> module
+in 1.9.5.
+
+
+
+

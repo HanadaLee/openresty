@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  test:
+    name: 'build'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'checkout'
+        uses: actions/checkout@v3
+        with:
+          path: nginx-module-vts
+      - name: 'checkout nginx'
+        uses: actions/checkout@v3
+        with:
+          repository: nginx/nginx
+          path: nginx
+      - name: 'checkout luajit2'
+        uses: actions/checkout@v3
+        with:
+          repository: openresty/luajit2
+          path: luajit2
+      - name: 'checkout ngx_devel_kit'
+        uses: actions/checkout@v3
+        with:
+          repository: vision5/ngx_devel_kit
+          path: ngx_devel_kit
+      - name: 'checkout lua-nginx-module'
+        uses: actions/checkout@v3
+        with:
+          repository: openresty/lua-nginx-module
+          path: lua-nginx-module
+      - name: 'checkout lua-resty-core'
+        uses: actions/checkout@v3
+        with:
+          repository: openresty/lua-resty-core
+          path: lua-resty-core
+      - name: 'checkout lua-resty-lrucache'
+        uses: actions/checkout@v3
+        with:
+          repository: openresty/lua-resty-lrucache
+          path: lua-resty-lrucache
+      - name: 'build luajit2'
+        working-directory: luajit2
+        run: |
+          make
+          sudo make install
+          sudo mkdir /usr/local/share/lua/5.1/resty
+      - name: 'link resty lib'
+        working-directory: /usr/local/share/lua/5.1/resty
+        run: |
+          sudo ln -s /home/runner/work/nginx-module-vts/nginx-module-vts/lua-resty-core/lib/resty/core core
+          sudo ln -s /home/runner/work/nginx-module-vts/nginx-module-vts/lua-resty-core/lib/resty/core.lua core.lua
+          sudo ln -s /home/runner/work/nginx-module-vts/nginx-module-vts/lua-resty-lrucache/lib/resty/lrucache lrucache
+          sudo ln -s /home/runner/work/nginx-module-vts/nginx-module-vts/lua-resty-lrucache/lib/resty/lrucache.lua lrucache.lua
+      - name: 'prepare nginx_upstream_check'
+        uses: actions/checkout@v3
+        with:
+          repository: yaoweibin/nginx_upstream_check_module
+          path: nginx_upstream_check
+
+      - name: 'patch upstream_check'
+        working-directory: nginx
+        run: |
+          patch -p1 < /home/runner/work/nginx-module-vts/nginx-module-vts/nginx_upstream_check/check_1.20.1+.patch
+      - name: 'build nginx'
+        working-directory: nginx
+        run: |
+          ./auto/configure --with-ld-opt="-Wl,-rpath,/usr/local/lib" --without-pcre2 --add-module=/home/runner/work/nginx-module-vts/nginx-module-vts/ngx_devel_kit --add-module=/home/runner/work/nginx-module-vts/nginx-module-vts/lua-nginx-module --add-module=/home/runner/work/nginx-module-vts/nginx-module-vts/nginx-module-vts --add-module=/home/runner/work/nginx-module-vts/nginx-module-vts/nginx_upstream_check
+          make
+          sudo make install
+          /usr/local/nginx/sbin/nginx -V
+        env:
+          LUAJIT_LIB: /usr/local/lib
+          LUAJIT_INC: /usr/local/include/luajit-2.1
+      - name: 'prepare cpanm'
+        run: |
+          sudo apt install -y cpanminus
+          sudo cpanm --notest Test::Nginx::Socket > build.log 2>&1 || (cat build.log && exit 1)
+      - name: 'prepare promtool'
+        run: |
+          sudo apt-get update && sudo apt-get install -y curl
+          curl -L $(curl -s https://api.github.com/repos/prometheus/prometheus/releases/latest | grep browser_download_url | grep linux-amd64 | cut -d '"' -f 4) -o prometheus-latest.tar.gz
+          tar xvf prometheus-latest.tar.gz
+          sudo mv prometheus-*/promtool /usr/local/bin
+      - name: 'test'
+        working-directory: nginx-module-vts
+        run: |
+          echo "/usr/local/nginx/sbin/" >> $GITHUB_PATH
+          sudo PATH=/usr/local/nginx/sbin:$PATH prove -r t
+      - name: 'test upstream check'
+        working-directory: nginx-module-vts
+        run: |
+          echo "/usr/local/nginx/sbin/" >> $GITHUB_PATH
+          sudo TEST_UPSTREAM_CHECK=1 TEST_NGINX_SLEEP=1 PATH=/usr/local/nginx/sbin:$PATH prove t/024.upstream_check.t

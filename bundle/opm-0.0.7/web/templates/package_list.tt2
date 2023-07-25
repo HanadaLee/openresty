@@ -1,0 +1,62 @@
+
+<ul class="package_list">
+
+[%- FOREACH row IN packages %]
+<li class="package_row">
+
+    [% pkg_uploader_name = row.uploader_name;
+       org = row.org_name;
+       account = pkg_uploader_name;
+       IF org;
+        account = org;
+       END %]
+
+    <div class="main">
+        [%- IF row.raw_package_name %]
+        <a href="/package/[% account _ "/" _ row.raw_package_name %]/" class="title">
+        [%- ELSE %]
+        <a href="/package/[% account _ "/" _ row.package_name %]/" class="title">
+        [%- END %]
+
+            [% account _ "/" _ row.package_name %]
+        </a>
+        <span class="version_name">
+            [% row.version_s | html %]
+        </span>
+        [%- IF uploader_page and curr_user and uploader_name and uploader_name == curr_user.login %]
+
+        [%- IF not row.is_deleted %]
+        <span class="delete-pkg" item-pkg-name="[% row.package_name %]" item-pkg-account="[% account %]" title="delete this pkg"><img src="/images/delete.png" class="delete-btn"></span>
+        [%- END %]
+        [%- IF row.is_deleted %]
+            <span class="failed">pending deleting</span>
+            <span class="cancel-deleting-pkg" item-pkg-name="[% row.package_name %]" item-pkg-account="[% account %]" title="cancel deleting this pkg"><img src="/images/cancel.png" class="cancel-deleting-btn"></span>
+        [%- END %]
+
+        [%- END %]
+
+        [%- IF row.indexed %]
+
+        [%- ELSIF row.failed %]
+        <span class="failed">Failed</span>
+        [%- ELSE %]
+        <span class="pending">Pending</span>
+        [%- END %]
+        <span class="author">
+            by 
+            <a href="/uploader/[% pkg_uploader_name %]/">
+                [% pkg_uploader_name %]
+            </a>
+        </span>
+    </div>
+    <div class="summary">
+        [% row.abstract %]
+        <span class="updated_at">
+            [% row.upload_updated_at | html %]
+        </span>
+    </div>
+</li>
+[%- END %]
+</ul>
+
+[% page_info %]

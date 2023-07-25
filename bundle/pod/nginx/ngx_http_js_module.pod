@@ -1,0 +1,1122 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_http_js_module - Module ngx_http_js_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_http_js_module> module is used to implement
+location and variable handlers
+in L<njs|index> —
+a subset of the JavaScript language.
+
+
+
+
+
+Download and install instructions are available
+L<here|install>.
+
+
+
+
+=head1 Example Configuration
+
+
+
+The example works since
+L<0.4.0|changes>.
+
+    
+    http {
+        js_import http.js;
+    
+        js_set $foo     http.foo;
+        js_set $summary http.summary;
+        js_set $hash    http.hash;
+    
+        resolver 10.0.0.1;
+    
+        server {
+            listen 8000;
+    
+            location / {
+                add_header X-Foo $foo;
+                js_content http.baz;
+            }
+    
+            location = /summary {
+                return 200 $summary;
+            }
+    
+            location = /hello {
+                js_content http.hello;
+            }
+    
+            # since 0.7.0
+            location = /fetch {
+                js_content                   http.fetch;
+                js_fetch_trusted_certificate /path/to/ISRG_Root_X1.pem;
+            }
+    
+            # since 0.7.0
+            location = /crypto {
+                add_header Hash $hash;
+                return     200;
+            }
+        }
+    }
+
+
+
+
+
+
+
+The F<http.js> file:
+
+    
+    function foo(r) {
+        r.log("hello from foo() handler");
+        return "foo";
+    }
+    
+    function summary(r) {
+        var a, s, h;
+    
+        s = "JS summary\n\n";
+    
+        s += "Method: " + r.method + "\n";
+        s += "HTTP version: " + r.httpVersion + "\n";
+        s += "Host: " + r.headersIn.host + "\n";
+        s += "Remote Address: " + r.remoteAddress + "\n";
+        s += "URI: " + r.uri + "\n";
+    
+        s += "Headers:\n";
+        for (h in r.headersIn) {
+            s += "  header '" + h + "' is '" + r.headersIn[h] + "'\n";
+        }
+    
+        s += "Args:\n";
+        for (a in r.args) {
+            s += "  arg '" + a + "' is '" + r.args[a] + "'\n";
+        }
+    
+        return s;
+    }
+    
+    function baz(r) {
+        r.status = 200;
+        r.headersOut.foo = 1234;
+        r.headersOut['Content-Type'] = "text/plain; charset=utf-8";
+        r.headersOut['Content-Length'] = 15;
+        r.sendHeader();
+        r.send("nginx");
+        r.send("java");
+        r.send("script");
+    
+        r.finish();
+    }
+    
+    function hello(r) {
+        r.return(200, "Hello world!");
+    }
+    
+    // since 0.7.0
+    async function fetch(r) {
+        let results = await Promise.all([ngx.fetch('https://nginx.org/'),
+                                         ngx.fetch('https://nginx.org/en/')]);
+    
+        r.return(200, JSON.stringify(results, undefined, 4));
+    }
+    
+    // since 0.7.0
+    async function hash(r) {
+        let hash = await crypto.subtle.digest('SHA-512', r.headersIn.host);
+        r.setReturnValue(Buffer.from(hash).toString('hex'));
+    }
+    
+    export default {foo, summary, baz, hello, fetch, hash};
+
+
+
+
+
+
+=head1 Directives
+
+=head2 js_body_filter
+
+
+B<syntax:> js_body_filter I<I<C<function>> E<verbar> I<C<module.function>>
+[I<C<buffer_type>>=I<C<string>> E<verbar> I<C<buffer>>]>
+
+
+
+B<context:> I<location>
+
+
+B<context:> I<if in location>
+
+
+B<context:> I<limit_except>
+
+
+
+This directive appeared in version 0.5.2.
+
+
+
+
+
+Sets an njs function as a response body filter.
+The filter function is called for each data chunk of a response body
+with the following arguments:
+
+
+=over
+
+
+=item C<r>
+
+
+
+
+the L<HTTP request|reference> object
+
+
+
+=item C<data>
+
+
+
+
+the incoming data chunk,
+may be a string or Buffer
+depending on the C<buffer_type> value,
+by default is a string.
+
+
+
+=item C<flags>
+
+
+
+
+an object with the following properties:
+
+=over
+
+
+=item C<last>
+
+
+
+
+a boolean value, true if data is a last buffer.
+
+
+
+
+=back
+
+
+
+
+
+
+=back
+
+
+
+
+
+
+
+The filter function can pass its own modified version
+of the input data chunk to the next body filter by calling
+L<C<r.sendBuffer()>|reference>.
+For example, to transform all the lowercase letters in the response body:
+
+    
+    function filter(r, data, flags) {
+        r.sendBuffer(data.toLowerCase(), flags);
+    }
+
+
+To stop filtering (following data chunks will be passed to client
+without calling C<js_body_filter>),
+L<C<r.done()>|reference>
+can be used.
+
+
+
+
+
+If the filter function changes the length of the response body, then
+it is required to clear out the C<Content-Length> response header
+(if any) in
+C<js_header_filter>
+to enforce chunked transfer encoding.
+
+
+
+
+
+
+B<NOTE>
+
+As the C<js_body_filter> handler
+returns its result immediately, it supports
+only synchronous operations.
+Thus, asynchronous operations such as
+L<r.subrequest()|reference>
+or
+L<setTimeout()|reference>
+are not supported.
+
+
+
+
+
+
+
+B<NOTE>
+
+The directive can be specified inside the
+L<if|ngx_http_rewrite_module> block
+since L<0.7.7|changes>.
+
+
+
+
+
+
+
+
+=head2 js_content
+
+
+B<syntax:> js_content I<I<C<function>> E<verbar> I<C<module.function>>>
+
+
+
+B<context:> I<location>
+
+
+B<context:> I<if in location>
+
+
+B<context:> I<limit_except>
+
+
+
+
+
+Sets an njs function as a location content handler.
+Since L<0.4.0|changes>,
+a module function can be referenced.
+
+
+
+
+
+
+B<NOTE>
+
+The directive can be specified inside the
+L<if|ngx_http_rewrite_module> block
+since L<0.7.7|changes>.
+
+
+
+
+
+
+
+
+=head2 js_fetch_buffer_size
+
+
+B<syntax:> js_fetch_buffer_size I<I<C<size>>>
+
+
+B<default:> I<16k>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 0.7.4.
+
+
+
+
+
+Sets the I<C<size>> of the buffer used for reading and writing
+with L<Fetch API|reference>.
+
+
+
+
+
+
+
+=head2 js_fetch_ciphers
+
+
+B<syntax:> js_fetch_ciphers I<I<C<ciphers>>>
+
+
+B<default:> I<HIGH:!aNULL:!MD5>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 0.7.0.
+
+
+
+
+
+Specifies the enabled ciphers for HTTPS requests
+with L<Fetch API|reference>.
+The ciphers are specified in the format understood by the
+OpenSSL library.
+
+
+
+
+
+The full list can be viewed using the
+“C<openssl ciphers>” command.
+
+
+
+
+
+
+
+=head2 js_fetch_max_response_buffer_size
+
+
+B<syntax:> js_fetch_max_response_buffer_size I<I<C<size>>>
+
+
+B<default:> I<1m>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 0.7.4.
+
+
+
+
+
+Sets the maximum I<C<size>> of the response received
+with L<Fetch API|reference>.
+
+
+
+
+
+
+
+=head2 js_fetch_protocols
+
+
+B<syntax:> js_fetch_protocols I<
+    [C<TLSv1>]
+    [C<TLSv1.1>]
+    [C<TLSv1.2>]
+    [C<TLSv1.3>]>
+
+
+B<default:> I<TLSv1 TLSv1.1 TLSv1.2>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 0.7.0.
+
+
+
+
+
+Enables the specified protocols for HTTPS requests
+with L<Fetch API|reference>.
+
+
+
+
+
+
+
+=head2 js_fetch_timeout
+
+
+B<syntax:> js_fetch_timeout I<I<C<time>>>
+
+
+B<default:> I<60s>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 0.7.4.
+
+
+
+
+
+Defines a timeout for reading and writing
+for L<Fetch API|reference>.
+The timeout is set only between two successive readE<sol>write operations,
+not for the whole response.
+If no data is transmitted within this time, the connection is closed.
+
+
+
+
+
+
+
+=head2 js_fetch_trusted_certificate
+
+
+B<syntax:> js_fetch_trusted_certificate I<I<C<file>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 0.7.0.
+
+
+
+
+
+Specifies a I<C<file>> with trusted CA certificates in the PEM format
+used to
+L<verify|reference>
+the HTTPS certificate
+with L<Fetch API|reference>.
+
+
+
+
+
+
+
+=head2 js_fetch_verify
+
+
+B<syntax:> js_fetch_verify I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<on>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 0.7.4.
+
+
+
+
+
+Enables or disables verification of the HTTPS server certificate
+with L<Fetch API|reference>.
+
+
+
+
+
+
+
+=head2 js_fetch_verify_depth
+
+
+B<syntax:> js_fetch_verify_depth I<I<C<number>>>
+
+
+B<default:> I<100>
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 0.7.0.
+
+
+
+
+
+Sets the verification depth in the HTTPS server certificates chain
+with L<Fetch API|reference>.
+
+
+
+
+
+
+
+=head2 js_header_filter
+
+
+B<syntax:> js_header_filter I<I<C<function>> E<verbar> I<C<module.function>>>
+
+
+
+B<context:> I<location>
+
+
+B<context:> I<if in location>
+
+
+B<context:> I<limit_except>
+
+
+
+This directive appeared in version 0.5.1.
+
+
+
+
+
+Sets an njs function as a response header filter.
+The directive allows changing arbitrary header fields of a response header.
+
+
+
+
+
+
+B<NOTE>
+
+As the C<js_header_filter> handler
+returns its result immediately, it supports
+only synchronous operations.
+Thus, asynchronous operations such as
+L<r.subrequest()|reference>
+or
+L<setTimeout()|reference>
+are not supported.
+
+
+
+
+
+
+
+B<NOTE>
+
+The directive can be specified inside the
+L<if|ngx_http_rewrite_module> block
+since L<0.7.7|changes>.
+
+
+
+
+
+
+
+
+=head2 js_import
+
+
+B<syntax:> js_import I<I<C<module.js>> E<verbar>
+I<C<export_name from module.js>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 0.4.0.
+
+
+
+
+
+Imports a module that implements location and variable handlers in njs.
+The C<export_name> is used as a namespace
+to access module functions.
+If the C<export_name> is not specified,
+the module name will be used as a namespace.
+
+    
+    js_import http.js;
+
+
+Here, the module name C<http> is used as a namespace
+while accessing exports.
+If the imported module exports C<foo()>,
+C<http.foo> is used to refer to it.
+
+
+
+
+
+Several C<js_import> directives can be specified.
+
+
+
+
+
+
+B<NOTE>
+
+The directive can be specified on the
+C<server> and C<location> level
+since L<0.7.7|changes>.
+
+
+
+
+
+
+
+
+=head2 js_include
+
+
+B<syntax:> js_include I<I<C<file>>>
+
+
+
+B<context:> I<http>
+
+
+
+
+
+Specifies a file that implements location and variable handlers in njs:
+
+    
+    nginx.conf:
+    js_include http.js;
+    location   /version {
+        js_content version;
+    }
+    
+    http.js:
+    function version(r) {
+        r.return(200, njs.version);
+    }
+
+
+
+
+
+
+
+The directive was made obsolete in version
+L<0.4.0|changes>
+and was removed in version
+L<0.7.1|changes>.
+The L</js_import> directive should be used instead.
+
+
+
+
+
+
+
+=head2 js_path
+
+
+B<syntax:> js_path I<
+I<C<path>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 0.3.0.
+
+
+
+
+
+Sets an additional path for njs modules.
+
+
+
+
+
+
+B<NOTE>
+
+The directive can be specified on the
+C<server> and C<location> level
+since L<0.7.7|changes>.
+
+
+
+
+
+
+
+
+=head2 js_preload_object
+
+
+B<syntax:> js_preload_object I<I<C<name.json>> E<verbar>
+I<C<name>> from I<C<file.json>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 0.7.8.
+
+
+
+
+
+Preloads an immutable object at configure time.
+The C<name> is used a name of the global variable
+though which the object is available in njs code.
+If the C<name> is not specified,
+the file name will be used instead.
+
+    
+    js_preload_object map.json;
+
+
+Here, the C<map> is used as a name
+while accessing the preloaded object.
+
+
+
+
+
+Several C<js_preload_object> directives can be specified.
+
+
+
+
+
+
+
+=head2 js_set
+
+
+B<syntax:> js_set I<
+I<C<$variable>> I<C<function>> E<verbar>
+I<C<module.function>>>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+
+
+Sets an njs C<function>
+for the specified C<variable>.
+Since L<0.4.0|changes>,
+a module function can be referenced.
+
+
+
+
+
+The function is called when
+the variable is referenced for the first time for a given request.
+The exact moment depends on a
+L<phase|development_guide>
+at which the variable is referenced.
+This can be used to perform some logic
+not related to variable evaluation.
+For example, if the variable is referenced only in the
+L<ngx_http_log_module> directive,
+its handler will not be executed until the log phase.
+This handler can be used to do some cleanup
+right before the request is freed.
+
+
+
+
+
+
+B<NOTE>
+
+As the C<js_set> handler
+returns its result immediately, it supports
+only synchronous operations.
+Thus, asynchronous operations such as
+L<r.subrequest()|reference>
+or
+L<setTimeout()|reference>
+are not supported.
+
+
+
+
+
+
+
+B<NOTE>
+
+The directive can be specified on the
+C<server> and C<location> level
+since L<0.7.7|changes>.
+
+
+
+
+
+
+
+
+=head2 js_shared_dict_zone
+
+
+B<syntax:> js_shared_dict_zone I<
+    C<zone>=I<C<name>>:I<C<size>>
+    [C<timeout>=I<C<time>>]
+    [C<type>=C<string>E<verbar>C<number>]
+    [C<evict>]>
+
+
+
+B<context:> I<http>
+
+
+
+This directive appeared in version 0.8.0.
+
+
+
+
+
+Sets the I<C<name>> and I<C<size>> of the shared memory zone
+that keeps the key-value dictionary
+shared between worker processes.
+
+
+
+
+
+By default the shared dictionary uses a string as a key and a value.
+The optional C<type> parameter
+allows redefining the value type to number.
+
+
+
+
+
+The optional C<timeout> parameter sets
+the time after which all shared dictionary entries are removed from the zone.
+
+
+
+
+
+The optional C<evict> parameter removes the oldest
+key-value pair when the zone storage is exhausted.
+
+
+
+
+
+Examples:
+
+    
+    example.conf:
+        # Creates a 1Mb dictionary with string values,
+        # removes key-value pairs after 60 seconds of inactivity:
+        js_shared_dict_zone zone=foo:1M timeout=60s;
+    
+        # Creates a 512Kb dictionary with string values,
+        # forcibly removes oldest key-value pairs when the zone is exhausted:
+        js_shared_dict_zone zone=bar:512K timeout=30s evict;
+    
+        # Creates a 32Kb permanent dictionary with number values:
+        js_shared_dict_zone zone=num:32k type=number;
+    
+    example.js:
+        function get(r) {
+            r.return(200, ngx.shared.foo.get(r.args.key));
+        }
+    
+        function set(r) {
+            r.return(200, ngx.shared.foo.set(r.args.key, r.args.value));
+        }
+    
+        function delete(r) {
+            r.return(200, ngx.shared.bar.delete(r.args.key));
+        }
+    
+        function increment(r) {
+            r.return(200, ngx.shared.num.incr(r.args.key, 2));
+        }
+
+
+
+
+
+
+
+
+
+=head2 js_var
+
+
+B<syntax:> js_var I<I<C<$variable>> [I<C<value>>]>
+
+
+
+B<context:> I<http>
+
+
+B<context:> I<server>
+
+
+B<context:> I<location>
+
+
+
+This directive appeared in version 0.5.3.
+
+
+
+
+
+Declares
+a L<writable|reference>
+variable.
+The value can contain text, variables, and their combination.
+The variable is not overwritten after a redirect
+unlike variables created with the
+L<ngx_http_rewrite_module> directive.
+
+
+
+
+
+
+B<NOTE>
+
+The directive can be specified on the
+C<server> and C<location> level
+since L<0.7.7|changes>.
+
+
+
+
+
+
+
+
+=head1 Request Argument
+
+
+
+Each HTTP njs handler receives one argument, a request
+L<object|reference>.
+
+
+
+

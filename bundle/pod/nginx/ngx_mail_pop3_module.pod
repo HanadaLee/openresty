@@ -1,0 +1,149 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_mail_pop3_module - Module ngx_mail_pop3_module
+
+
+
+
+=head1 Directives
+
+=head2 pop3_auth
+
+
+B<syntax:> pop3_auth I<I<C<method>> ...>
+
+
+B<default:> I<plain>
+
+
+B<context:> I<mail>
+
+
+B<context:> I<server>
+
+
+
+
+
+Sets permitted methods of authentication for POP3 clients.
+Supported methods are:
+
+=over
+
+
+
+=item C<plain>
+
+
+
+
+L<USERE<sol>PASS|https://datatracker.ietf.org/doc/html/rfc1939>,
+L<AUTH PLAIN|https://datatracker.ietf.org/doc/html/rfc4616>,
+L<AUTH LOGIN|https://datatracker.ietf.org/doc/html/draft-murchison-sasl-login-00>
+
+
+
+=item C<apop>
+
+
+
+
+L<APOP|https://datatracker.ietf.org/doc/html/rfc1939>.
+In order for this method to work, the password must be stored unencrypted.
+
+
+
+=item C<cram-md5>
+
+
+
+
+L<AUTH CRAM-MD5|https://datatracker.ietf.org/doc/html/rfc2195>.
+In order for this method to work, the password must be stored unencrypted.
+
+
+
+=item C<external>
+
+
+
+
+L<AUTH EXTERNAL|https://datatracker.ietf.org/doc/html/rfc4422> (1.11.6).
+
+
+
+
+=back
+
+
+
+
+
+
+
+Plain text authentication methods
+(C<USERE<sol>PASS>, C<AUTH PLAIN>,
+and C<AUTH LOGIN>) are always enabled,
+though if the C<plain> method is not specified,
+C<AUTH PLAIN> and C<AUTH LOGIN>
+will not be automatically included in L</pop3_capabilities>.
+
+
+
+
+
+
+
+=head2 pop3_capabilities
+
+
+B<syntax:> pop3_capabilities I<I<C<extension>> ...>
+
+
+B<default:> I<TOP USER UIDL>
+
+
+B<context:> I<mail>
+
+
+B<context:> I<server>
+
+
+
+
+
+Sets the
+L<POP3 protocol|https://datatracker.ietf.org/doc/html/rfc2449>
+extensions list that is passed to the client in response to
+the C<CAPA> command.
+The authentication methods specified in the L</pop3_auth> directive
+(L<SASL|https://datatracker.ietf.org/doc/html/rfc2449> extension) and
+L<STLS|https://datatracker.ietf.org/doc/html/rfc2595>
+are automatically added to this list depending on the
+L<ngx_mail_ssl_module> directive value.
+
+
+
+
+
+It makes sense to specify the extensions
+supported by the POP3 backends
+to which the clients are proxied (if these extensions are related to commands
+used after the authentication, when nginx transparently proxies the client
+connection to the backend).
+
+
+
+
+
+The current list of standardized extensions is published at
+L<www.iana.org|http://www.iana.org/assignments/pop3-extension-mechanism>.
+
+
+
+
+
+
+

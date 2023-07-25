@@ -1,0 +1,850 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_stream_zone_sync_module - Module ngx_stream_zone_sync_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_stream_zone_sync_module> module (1.13.8)
+provides the necessary support for synchronizing contents of
+L<shared memory zones|ngx_stream_upstream_module>
+between nodes of a cluster.
+To enable synchronization for a particular zone, a corresponding module
+must support this feature.
+Currently, it is possible to synchronize HTTP
+L<sticky|ngx_http_upstream_module>
+sessions, information about
+L<excessive HTTP requests|ngx_http_limit_req_module>,
+and key-value pairs both in
+L<http|ngx_http_keyval_module>
+and L<stream|ngx_stream_keyval_module>.
+
+
+
+
+
+
+B<NOTE>
+
+This module is available as part of our
+commercial subscription.
+
+
+
+
+
+=head1 Example Configuration
+
+
+
+Minimal configuration:
+
+    
+    http {
+        ...
+    
+        upstream backend {
+           server backend1.example.com:8080;
+           server backend2.example.com:8081;
+    
+           sticky learn
+                  create=$upstream_cookie_examplecookie
+                  lookup=$cookie_examplecookie
+                  zone=client_sessions:1m <emphasis>sync</emphasis>;
+        }
+    
+        ...
+    }
+    
+    stream {
+        ...
+    
+    
+        server {
+            zone_sync;
+    
+            listen 127.0.0.1:12345;
+    
+            # cluster of 2 nodes
+            zone_sync_server a.example.com:12345;
+            zone_sync_server b.example.com:12345;
+    
+        }
+
+
+A more complex configuration with SSL enabled
+and with cluster members defined by DNS:
+
+    
+    ...
+    
+    stream {
+        ...
+    
+        resolver 127.0.0.1 valid=10s;
+    
+        server {
+            zone_sync;
+    
+            # the name resolves to multiple addresses that correspond to cluster nodes
+            zone_sync_server cluster.example.com:12345 resolve;
+    
+            listen 127.0.0.1:4433 ssl;
+    
+            ssl_certificate     localhost.crt;
+            ssl_certificate_key localhost.key;
+    
+            zone_sync_ssl on;
+    
+            zone_sync_ssl_certificate     localhost.crt;
+            zone_sync_ssl_certificate_key localhost.key;
+        }
+    }
+
+
+
+
+
+
+=head1 Directives
+
+=head2 zone_sync
+
+
+B<syntax:> zone_sync I<>
+
+
+B<default:> I<>
+
+
+B<context:> I<server>
+
+
+
+
+
+Enables the synchronization of shared memory zones between cluster nodes.
+Cluster nodes are defined using L</zone_sync_server> directives.
+
+
+
+
+
+
+
+=head2 zone_sync_buffers
+
+
+B<syntax:> zone_sync_buffers I<I<C<number>> I<C<size>>>
+
+
+B<default:> I<8 4kE<verbar>8k>
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+
+
+Sets the I<C<number>> and I<C<size>> of the
+per-zone buffers used for pushing zone contents.
+By default, the buffer size is equal to one memory page.
+This is either 4K or 8K, depending on a platform.
+
+
+
+
+
+
+B<NOTE>
+
+A single buffer must be large enough to hold any entry of each zone being
+synchronized.
+
+
+
+
+
+
+
+
+=head2 zone_sync_connect_retry_interval
+
+
+B<syntax:> zone_sync_connect_retry_interval I<I<C<time>>>
+
+
+B<default:> I<1s>
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+
+
+Defines an interval between connection attempts to another cluster node.
+
+
+
+
+
+
+
+=head2 zone_sync_connect_timeout
+
+
+B<syntax:> zone_sync_connect_timeout I<I<C<time>>>
+
+
+B<default:> I<5s>
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+
+
+Defines a timeout for establishing a connection with another cluster node.
+
+
+
+
+
+
+
+=head2 zone_sync_interval
+
+
+B<syntax:> zone_sync_interval I<I<C<time>>>
+
+
+B<default:> I<1s>
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+
+
+Defines an interval for polling updates in a shared memory zone.
+
+
+
+
+
+
+
+=head2 zone_sync_recv_buffer_size
+
+
+B<syntax:> zone_sync_recv_buffer_size I<I<C<size>>>
+
+
+B<default:> I<4kE<verbar>8k>
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+
+
+Sets I<C<size>> of a per-connection receive buffer used to parse
+incoming stream of synchronization messages.
+The buffer size must be equal or greater than one of the
+L</zone_sync_buffers>.
+By default, the buffer size is equal to
+zone_sync_buffers I<C<size>>
+multiplied by I<C<number>>.
+
+
+
+
+
+
+
+=head2 zone_sync_server
+
+
+B<syntax:> zone_sync_server I<I<C<address>> [C<resolve>]>
+
+
+B<default:> I<>
+
+
+B<context:> I<server>
+
+
+
+
+
+Defines the I<C<address>> of a cluster node.
+The address can be specified as a domain name or IP address
+with a mandatory port, or as a UNIX-domain socket path
+specified after the “C<unix:>” prefix.
+A domain name that resolves to several IP addresses defines
+multiple nodes at once.
+
+
+
+
+
+The C<resolve> parameter instructs nginx to monitor
+changes of the IP addresses that correspond to a domain name of the node
+and automatically modify the configuration
+without the need of restarting nginx.
+
+
+
+
+
+Cluster nodes are specified either dynamically as a single
+C<zone_sync_server> directive with
+the C<resolve> parameter, or statically as a series of several
+directives without the parameter.
+
+B<NOTE>
+
+Each cluster node should be specified only once.
+
+
+B<NOTE>
+
+All cluster nodes should use the same configuration.
+
+
+
+
+
+
+In order for the C<resolve> parameter to work,
+the L<ngx_stream_core_module> directive
+must be specified in the
+L<ngx_stream_core_module> block.
+Example:
+
+    
+    stream {
+        resolver 10.0.0.1;
+    
+        server {
+            zone_sync;
+            zone_sync_server cluster.example.com:12345 resolve;
+            ...
+        }
+    }
+
+
+
+
+
+
+
+
+
+=head2 zone_sync_ssl
+
+
+B<syntax:> zone_sync_ssl I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+
+
+Enables the SSLE<sol>TLS protocol for connections to another cluster server.
+
+
+
+
+
+
+
+=head2 zone_sync_ssl_certificate
+
+
+B<syntax:> zone_sync_ssl_certificate I<I<C<file>>>
+
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+
+
+Specifies a I<C<file>> with the certificate in the PEM format
+used for authentication to another cluster server.
+
+
+
+
+
+
+
+=head2 zone_sync_ssl_certificate_key
+
+
+B<syntax:> zone_sync_ssl_certificate_key I<I<C<file>>>
+
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+
+
+Specifies a I<C<file>> with the secret key in the PEM format
+used for authentication to another cluster server.
+
+
+
+
+
+
+
+=head2 zone_sync_ssl_ciphers
+
+
+B<syntax:> zone_sync_ssl_ciphers I<I<C<ciphers>>>
+
+
+B<default:> I<DEFAULT>
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+
+
+Specifies the enabled ciphers for connections to another cluster server.
+The ciphers are specified in the format understood by the OpenSSL library.
+
+
+
+
+
+The full list can be viewed using the
+“C<openssl ciphers>” command.
+
+
+
+
+
+
+
+=head2 zone_sync_ssl_conf_command
+
+
+B<syntax:> zone_sync_ssl_conf_command I<I<C<name>> I<C<value>>>
+
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+This directive appeared in version 1.19.4.
+
+
+
+
+
+Sets arbitrary OpenSSL configuration
+L<commands|https://www.openssl.org/docs/man1.1.1/man3/SSL_CONF_cmd.html>
+when establishing a connection with another cluster server.
+
+B<NOTE>
+
+The directive is supported when using OpenSSL 1.0.2 or higher.
+
+
+
+
+
+
+Several C<zone_sync_ssl_conf_command> directives
+can be specified on the same level.
+These directives are inherited from the previous configuration level
+if and only if there are
+no C<zone_sync_ssl_conf_command> directives
+defined on the current level.
+
+
+
+
+
+
+B<NOTE>
+
+Note that configuring OpenSSL directly
+might result in unexpected behavior.
+
+
+
+
+
+
+
+
+=head2 zone_sync_ssl_crl
+
+
+B<syntax:> zone_sync_ssl_crl I<I<C<file>>>
+
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+
+
+Specifies a I<C<file>> with revoked certificates (CRL)
+in the PEM format used to verify
+the certificate of another cluster server.
+
+
+
+
+
+
+
+=head2 zone_sync_ssl_name
+
+
+B<syntax:> zone_sync_ssl_name I<I<C<name>>>
+
+
+B<default:> I<host from zone_sync_server>
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+This directive appeared in version 1.15.7.
+
+
+
+
+
+Allows overriding the server name used to
+verify
+the certificate of a cluster server and to be
+passed through SNI
+when establishing a connection with the cluster server.
+
+
+
+
+
+By default, the host part of the L</zone_sync_server> address is used,
+or resolved IP address if the L</resolve> parameter is specified.
+
+
+
+
+
+
+
+=head2 zone_sync_ssl_password_file
+
+
+B<syntax:> zone_sync_ssl_password_file I<I<C<file>>>
+
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+
+
+Specifies a I<C<file>> with passphrases for
+secret keys
+where each passphrase is specified on a separate line.
+Passphrases are tried in turn when loading the key.
+
+
+
+
+
+
+
+=head2 zone_sync_ssl_protocols
+
+
+B<syntax:> zone_sync_ssl_protocols I<
+    [C<SSLv2>]
+    [C<SSLv3>]
+    [C<TLSv1>]
+    [C<TLSv1.1>]
+    [C<TLSv1.2>]
+    [C<TLSv1.3>]>
+
+
+B<default:> I<TLSv1 TLSv1.1 TLSv1.2>
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+
+
+Enables the specified protocols for connections to another cluster server.
+
+
+
+
+
+
+
+=head2 zone_sync_ssl_server_name
+
+
+B<syntax:> zone_sync_ssl_server_name I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+This directive appeared in version 1.15.7.
+
+
+
+
+
+Enables or disables passing of the server name through
+L<TLS
+Server Name Indication extension|http://en.wikipedia.org/wiki/Server_Name_Indication> (SNI, RFC 6066)
+when establishing a connection with another cluster server.
+
+
+
+
+
+
+
+=head2 zone_sync_ssl_trusted_certificate
+
+
+B<syntax:> zone_sync_ssl_trusted_certificate I<I<C<file>>>
+
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+
+
+Specifies a I<C<file>> with trusted CA certificates in the PEM format
+used to verify
+the certificate of another cluster server.
+
+
+
+
+
+
+
+=head2 zone_sync_ssl_verify
+
+
+B<syntax:> zone_sync_ssl_verify I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+
+
+Enables or disables verification of another cluster server certificate.
+
+
+
+
+
+
+
+=head2 zone_sync_ssl_verify_depth
+
+
+B<syntax:> zone_sync_ssl_verify_depth I<I<C<number>>>
+
+
+B<default:> I<1>
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+
+
+Sets the verification depth in another cluster server certificates chain.
+
+
+
+
+
+
+
+=head2 zone_sync_timeout
+
+
+B<syntax:> zone_sync_timeout I<I<C<timeout>>>
+
+
+B<default:> I<5s>
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+
+
+Sets the I<C<timeout>> between two successive
+read or write operations on connection to another cluster node.
+If no data is transmitted within this time, the connection is closed.
+
+
+
+
+
+
+
+=head1 API endpoints
+
+
+
+The synchronization status of a node is available via the
+L<E<sol>streamE<sol>zone_syncE<sol>|ngx_http_api_module>
+endpoint of the API which returns the
+L<following|ngx_http_api_module>
+metrics.
+
+
+
+
+=head1 Starting, stopping, removing a cluster node
+
+
+
+To start a new node, update a DNS record of a cluster hostname
+with the IP address of the new node and start an instance.
+The new node will discover other nodes from DNS or static configuration
+and will start sending updates to them.
+Other nodes will eventually discover the new node using DNS and
+start pushing updates to it.
+In case of static configuration,
+other nodes need to be reloaded in order to send updates to the new node.
+
+
+
+
+
+To stop a node, send the C<QUIT> signal to the instance.
+The node will finish zone synchronization
+and gracefully close open connections.
+
+
+
+
+
+To remove a node, update a DNS record of a cluster hostname
+and remove the IP address of the node.
+All other nodes will eventually discover that the node is removed,
+close connections to the node, and will no longer try to connect to it.
+After the node is removed, it can be stopped as described above.
+In case of static configuration, other nodes need to be reloaded
+in order to stop sending updates to the removed node.
+
+
+
+

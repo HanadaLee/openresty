@@ -1,0 +1,145 @@
+=encoding utf-8
+
+=head1 NAME
+
+ngx_stream_mqtt_filter_module - Module ngx_stream_mqtt_filter_module
+
+
+
+
+=head1
+
+
+
+The C<ngx_stream_mqtt_filter_module> module (1.23.4) provides
+support for Message Queuing Telemetry Transport protocol (MQTT) versions
+L<3.1.1|https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/mqtt-v3.1.1.html>
+and
+L<5.0|https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html>.
+
+
+
+
+
+
+B<NOTE>
+
+This module is available as part of our
+commercial subscription.
+
+
+
+
+
+=head1 Example Configuration
+
+
+
+
+    
+    listen            127.0.0.1:18883;
+    proxy_pass        backend;
+    proxy_buffer_size 16k;
+    
+    mqtt             on;
+    mqtt_set_connect clientid "$client";
+    mqtt_set_connect username "$name";
+
+
+
+
+
+
+=head1 Directives
+
+=head2 mqtt
+
+
+B<syntax:> mqtt I<C<on> E<verbar> C<off>>
+
+
+B<default:> I<off>
+
+
+B<context:> I<stream>
+
+
+B<context:> I<server>
+
+
+
+
+
+Enables the MQTT protocol for the given virtual server.
+
+
+
+
+
+
+=head2 mqtt_rewrite_buffer_size
+
+
+B<syntax:> mqtt_rewrite_buffer_size I<I<C<size>>>
+
+
+B<default:> I<4kE<verbar>8k>
+
+
+B<context:> I<server>
+
+
+
+
+
+Sets the I<C<size>> of the buffer
+used for writing a modified message.
+By default, the buffer size is equal to one memory page.
+This is either 4K or 8K, depending on a platform.
+It can be made smaller, however.
+
+
+
+
+
+
+=head2 mqtt_set_connect
+
+
+B<syntax:> mqtt_set_connect I<C<field> I<C<value>>>
+
+
+
+B<context:> I<server>
+
+
+
+
+
+Sets the message C<field>
+to the given C<value> for CONNECT message.
+The following fields are supported:
+C<clientid>,
+C<username>, and
+C<password>.
+The value can contain text, variables, and their combination.
+
+
+
+
+
+Several C<mqtt_set_connect> directives
+can be specified on the same level:
+
+    
+    mqtt_set_connect clientid "$client";
+    mqtt_set_connect username "$name";
+
+
+
+
+
+
+
+
+

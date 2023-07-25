@@ -1,0 +1,9 @@
+#! /bin/bash
+cat <<---
+This test checks if the output from using "fancyindex_exact_size off"
+looks sane.
+--
+nginx_start 'fancyindex_exact_size off;'
+content=$(fetch)
+grep -e '[1-9]\.[0-9] KiB'  <<< "${content}"
+grep -E '[0-9]+ B'  <<< "${content}"

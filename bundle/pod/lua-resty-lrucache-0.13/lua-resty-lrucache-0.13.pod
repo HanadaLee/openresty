@@ -1,0 +1,438 @@
+=encoding utf-8
+
+
+=head1 Name
+
+lua-resty-lrucache - Lua-land LRU cache based on the LuaJIT FFI.
+
+
+=head1 Status
+
+This library is considered production ready.
+
+
+=head1 Synopsis
+
+
+    -- file myapp.lua: example "myapp" module
+    
+    local _M = {}
+    
+    -- alternatively: local lrucache = require "resty.lrucache.pureffi"
+    local lrucache = require "resty.lrucache"
+    
+    -- we need to initialize the cache on the lua module level so that
+    -- it can be shared by all the requests served by each nginx worker process:
+    local c, err = lrucache.new(200)  -- allow up to 200 items in the cache
+    if not c then
+        error("failed to create the cache: " .. (err or "unknown"))
+    end
+    
+    function _M.go()
+        c:set("dog", 32)
+        c:set("cat", 56)
+        ngx.say("dog: ", c:get("dog"))
+        ngx.say("cat: ", c:get("cat"))
+    
+        c:set("dog", { age = 10 }, 0.1)  -- expire in 0.1 sec
+        c:delete("dog")
+    
+        c:flush_all()  -- flush all the cached data
+    end
+    
+    return _M
+
+
+    # nginx.conf
+    
+    http {
+        # only if not using an official OpenResty release
+        lua_package_path "/path/to/lua-resty-lrucache/lib/?.lua;;";
+    
+        server {
+            listen 8080;
+    
+            location = /t {
+                content_by_lua_block {
+                    require("myapp").go()
+                }
+            }
+        }
+    }
+
+
+=head1 Description
+
+This library implements a simple LRU cache for
+L<OpenResty|https://openresty.org> and the
+L<ngx_lua|https://github.com/openresty/lua-nginx-module> module.
+
+This cache also supports expiration time.
+
+The LRU cache resides completely in the Lua VM and is subject to Lua GC. As
+such, do not expect it to get shared across the OS process boundary. The upside
+is that you can cache arbitrary complex Lua values (such as deep nested Lua
+tables) without the overhead of serialization (as with C<ngx_lua>'s [shared
+dictionary
+API](https://github.com/openresty/lua-nginx-module#lua_shared_dict)).
+The downside is that your cache is always limited to the current OS process
+(i.e. the current Nginx worker process). It does not really make much sense to
+use this library in the context of
+L<init_by_lua|https://github.com/openresty/lua-nginx-module#lua_shared_dict>
+because the cache will not get shared by any of the worker processes (unless
+you just want to "warm up" the cache with predefined items which will get
+inherited by the workers via C<fork()>).
+
+This library offers two different implementations in the form of two classes:
+C<resty.lrucache> and C<resty.lrucache.pureffi>. Both implement the same API.
+The only difference is that the latter is a pure FFI implementation that also
+implements an FFI-based hash table for the cache lookup, while the former uses
+native Lua tables.
+
+If the cache hit rate is relatively high, you should use the C<resty.lrucache>
+class which is faster than C<resty.lrucache.pureffi>.
+
+However, if the cache hit rate is relatively low and there can be a I<lot> of
+variations of keys inserted into and removed from the cache, then you should
+use the C<resty.lrucache.pureffi> instead, because Lua tables are not good at
+removing keys frequently. You would likely see the C<resizetab> function call in
+the LuaJIT runtime being very hot in [on-CPU flame
+graphs](https://github.com/openresty/stapxx#lj-lua-stacks) if you use the
+C<resty.lrucache> class instead of C<resty.lrucache.pureffi> in such a use case.
+
+
+
+
+=head1 Methods
+
+To load this library,
+
+
+=over
+
+
+=item 1.
+
+use an official L<OpenResty release|https://openresty.org> or follow the
+L<Installation> instructions.
+
+=item 2.
+
+use C<require> to load the library into a local Lua variable:
+
+
+=back
+
+
+    local lrucache = require "resty.lrucache"
+
+or
+
+
+    local lrucache = require "resty.lrucache.pureffi"
+
+
+
+
+=head2 new
+
+C<syntax: cache, err = lrucache.new(max_items [, load_factor])>
+
+Creates a new cache instance. Upon failure, returns C<nil> and a string
+describing the error.
+
+The C<max_items> argument specifies the maximal number of items this cache can
+hold.
+
+The C<load-factor> argument designates the "load factor" of the FFI-based
+hash-table used internally by C<resty.lrucache.pureffi>; the default value is
+0.5 (i.e. 50%); if the load factor is specified, it will be clamped to the
+range of C<[0.1, 1]> (i.e. if load factor is greater than 1, it will be
+saturated to 1; likewise, if load-factor is smaller than C<0.1>, it will be
+clamped to C<0.1>). This argument is only meaningful for
+C<resty.lrucache.pureffi>.
+
+
+
+
+=head2 set
+
+C<syntax: cache:set(key, value, ttl?, flags?)>
+
+Sets a key with a value and an expiration time.
+
+When the cache is full, the cache will automatically evict the least recently
+used item.
+
+The optional C<ttl> argument specifies the expiration time. The time value is in
+seconds, but you can also specify the fraction number part (e.g. C<0.25>). A nil
+C<ttl> argument means the value would never expire (which is the default).
+
+The optional C<flags> argument specifies a user flags value associated with the
+item to be stored. It can be retrieved later with the item. The user flags are
+stored as an unsigned 32-bit integer internally, and thus must be specified as
+a Lua number. If not specified, flags will have a default value of C<0>. This
+argument was added in the C<v0.10> release.
+
+
+
+
+=head2 get
+
+C<syntax: data, stale_data, flags = cache:get(key)>
+
+Fetches a value with the key. If the key does not exist in the cache or has
+already expired, C<nil> will be returned.
+
+Starting from C<v0.03>, the stale data is also returned as the second return
+value if available.
+
+Starting from C<v0.10>, the user flags value associated with the stored item is
+also returned as the third return value. If no user flags were given to an
+item, its default flags will be C<0>.
+
+
+
+
+=head2 delete
+
+C<syntax: cache:delete(key)>
+
+Removes an item specified by the key from the cache.
+
+
+
+
+=head2 count
+
+C<syntax: count = cache:count()>
+
+Returns the number of items currently stored in the cache B<including>
+expired items if any.
+
+The returned C<count> value will always be greater or equal to 0 and smaller
+than or equal to the C<size> argument given to L<`cache:new`>.
+
+This method was added in the C<v0.10> release.
+
+
+
+
+=head2 capacity
+
+C<syntax: size = cache:capacity()>
+
+Returns the maximum number of items the cache can hold. The return value is the
+same as the C<size> argument given to L<`cache:new`> when the cache was
+created.
+
+This method was added in the C<v0.10> release.
+
+
+
+
+=head2 get_keys
+
+C<syntax: keys = cache:get_keys(max_count?, res?)>
+
+Fetch the list of keys currently inside the cache up to C<max_count>. The keys
+will be ordered in MRU fashion (Most-Recently-Used keys first).
+
+This function returns a Lua (array) table (with integer keys) containing the
+keys.
+
+When C<max_count> is C<nil> or C<0>, all keys (if any) will be returned.
+
+When provided with a C<res> table argument, this function will not allocate a
+table and will instead insert the keys in C<res>, along with a trailing C<nil>
+value.
+
+This method was added in the C<v0.10> release.
+
+
+
+
+=head2 flush_all
+
+C<syntax: cache:flush_all()>
+
+Flushes all the existing data (if any) in the current cache instance. This is
+an C<O(1)> operation and should be much faster than creating a brand new cache
+instance.
+
+Note however that the C<flush_all()> method of C<resty.lrucache.pureffi> is an
+C<O(n)> operation.
+
+
+
+
+=head1 Prerequisites
+
+
+=over
+
+
+=item *
+
+L<LuaJIT|http://luajit.org> 2.0+
+
+=item *
+
+L<ngx_lua|https://github.com/openresty/lua-nginx-module> 0.8.10+
+
+
+=back
+
+
+
+
+=head1 Installation
+
+It is recommended to use the latest L<OpenResty release|https://openresty.org>.
+At least OpenResty 1.4.2.9 is required. Recent versions of OpenResty only
+support LuaJIT, but if you are using an older version, make sure to enable
+LuaJIT when building OpenResty by passing the C<--with-luajit> option to its
+C<./configure> script. No extra Nginx configuration is required.
+
+If you want to use this library with your own Nginx build (with ngx_lua), then
+you need to ensure you are using ngx_lua 0.8.10 or greater. When not using an
+OpenResty release, you also need to configure the
+L<lua_package_path|https://github.com/openresty/lua-nginx-module#lua_package_path>
+directive to add the path to your lua-resty-lrucache source tree to ngx_lua's
+Lua module search path, as in:
+
+
+    # nginx.conf
+    
+        http {
+            # only if not using an official OpenResty release
+            lua_package_path "/path/to/lua-resty-lrucache/lib/?.lua;;";
+            ...
+        }
+
+and then load the library in Lua:
+
+
+    local lrucache = require "resty.lrucache"
+
+
+
+
+=head1 Community
+
+
+
+
+=head2 English Mailing List
+
+The L<openresty-en|https://groups.google.com/group/openresty-en> mailing list
+is for English speakers.
+
+
+
+
+=head2 Chinese Mailing List
+
+The L<openresty|https://groups.google.com/group/openresty> mailing list is for
+Chinese speakers.
+
+
+
+
+=head1 Bugs and Patches
+
+Please report bugs or submit patches by
+
+
+=over
+
+
+=item 1.
+
+creating a ticket on the [GitHub Issue
+Tracker](https://github.com/openresty/lua-resty-lrucache/issues),
+
+=item 2.
+
+or posting to the L<OpenResty community>.
+
+
+=back
+
+
+
+
+=head1 Author
+
+Yichun "agentzh" Zhang (章亦春) E<lt>agentzh@gmail.comE<gt>, OpenResty Inc.
+
+Shuxin Yang.
+
+
+
+
+=head1 Copyright and License
+
+This module is licensed under the BSD license.
+
+Copyright (C) 2014-2019, by Yichun "agentzh" Zhang, OpenResty Inc.
+
+Copyright (C) 2014-2017, by Shuxin Yang.
+
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+
+=over
+
+
+=item *
+
+Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+
+
+=back
+
+
+=over
+
+
+=item *
+
+Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+
+
+=back
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+
+=head1 See Also
+
+
+=over
+
+
+=item *
+
+OpenResty: https://openresty.org
+
+=item *
+
+the ngx_http_lua module: https://github.com/openresty/lua-nginx-module
+
+=item *
+
+the ngx_stream_lua module: https://github.com/openresty/stream-lua-nginx-module
+
+=item *
+
+the lua-resty-core library: https://github.com/openresty/lua-resty-core
+
+
+=back
+
+
