@@ -6,8 +6,8 @@ COPY . ./
 
 RUN sed -i 's@//.*archive.ubuntu.com@//mirrors.hanada.info@g' /etc/apt/sources.list && \
     sed -i 's@//security.ubuntu.com@//mirrors.hanada.info@g' /etc/apt/sources.list && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends \
+    DEBIAN_FRONTEND=noninteractive apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         git \
         curl \
         libpcre3-dev \
