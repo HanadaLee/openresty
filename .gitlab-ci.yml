@@ -1,0 +1,21 @@
+variables:
+  RESTY_VERSION: 1.21.4.2-11
+
+stages:
+  - build
+
+docker-build:
+  stage: build
+  tags:
+    - debian-x86_64
+  only:
+    refs:
+      - main
+  script:
+    - >
+      docker build \
+        -t $CI_REGISTRY_IMAGE:latest \
+        -t $CI_REGISTRY_IMAGE:$RESTY_VERSION \
+        --build-arg RESTY_VERSION=$RESTY_VERSION \
+        --push \
+        .
