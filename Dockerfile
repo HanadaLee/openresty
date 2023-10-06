@@ -44,7 +44,7 @@ RUN sed -i 's@//.*archive.ubuntu.com@//mirrors.hanada.info@g' /etc/apt/sources.l
     patch -p1 < /build/openresty/modules/ngx_http_upstream_check_module/check_1.20.1+.patch && \
     cd /build/openresty/modules/ngx_brotli && \
     git submodule update --init && \
-    cd /build/openresty
+    cd /build/openresty && \
     ./configure \
         --prefix=/usr/local/openresty \
         --sbin-path=/usr/local/openresty/sbin/nginx \
