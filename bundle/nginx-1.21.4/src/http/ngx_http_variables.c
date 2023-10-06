@@ -105,8 +105,6 @@ static ngx_int_t ngx_http_variable_request_time(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
 static ngx_int_t ngx_http_variable_request_id(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
-static ngx_int_t ngx_http_variable_x_request_id(ngx_http_request_t *r,
-    ngx_http_variable_value_t *v, uintptr_t data);
 static ngx_int_t ngx_http_variable_status(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
 
@@ -302,10 +300,6 @@ static ngx_http_variable_t  ngx_http_core_variables[] = {
 
     { ngx_string("request_id"), NULL,
       ngx_http_variable_request_id,
-      0, 0, 0 },
-
-    { ngx_string("x_request_id"), NULL,
-      ngx_http_variable_x_request_id,
       0, 0, 0 },
 
     { ngx_string("status"), NULL,
@@ -2220,57 +2214,6 @@ ngx_http_variable_request_id(ngx_http_request_t *r,
     ngx_sprintf(id, "%08xD%08xD%08xD%08xD",
                 (uint32_t) ngx_random(), (uint32_t) ngx_random(),
                 (uint32_t) ngx_random(), (uint32_t) ngx_random());
-
-    return NGX_OK;
-}
-
-
-static ngx_int_t
-ngx_http_variable_x_request_id(ngx_http_request_t *r,
-    ngx_http_variable_value_t *v, uintptr_t data)
-{
-    u_char      *id, *p;
-    ngx_time_t  *tp;
-
-#if (NGX_OPENSSL)
-    u_char       random_bytes[4];
-#endif
-
-    v->valid = 1;
-    v->no_cacheable = 0;
-    v->not_found = 0;
-
-    if (r->headers_in.x_request_id) {
-        v->len = r->headers_in.x_request_id->value.len;
-        v->data = r->headers_in.x_request_id->value.data;
-        return NGX_OK;
-    }
-
-    tp = ngx_timeofday();
-    id = ngx_pnalloc(r->pool, NGX_TIME_T_LEN + ngx_cycle->hostname.len + 10);
-    if (id == NULL) {
-        return NGX_ERROR;
-    }
-
-    p = ngx_sprintf(id, "%xT_%*s_", tp->sec, ngx_cycle->hostname.len, ngx_cycle->hostname.data);
-
-#if (NGX_OPENSSL)
-
-    if (RAND_bytes(random_bytes, 4) == 1) {
-        p = ngx_hex_dump(p, random_bytes, 4);
-        v->len = p - id;
-        v->data = id;
-        return NGX_OK;
-    }
-
-    ngx_ssl_error(NGX_LOG_ERR, r->connection->log, 0, "RAND_bytes() failed");
-
-#endif
-
-    p = ngx_sprintf(p, "%08xD", (uint32_t) ngx_random());
-
-    v->len = p - id;
-    v->data = id;
 
     return NGX_OK;
 }

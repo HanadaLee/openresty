@@ -38,10 +38,6 @@ struct ngx_http_upstream_rr_peer_s {
     ngx_msec_t                      slow_start;
     ngx_msec_t                      start_time;
 
-#if (NGX_HTTP_UPSTREAM_CHECK)
-    ngx_uint_t                      check_index;
-#endif
-
     ngx_uint_t                      down;
 
 #if (NGX_HTTP_SSL || NGX_COMPAT)

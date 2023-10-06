@@ -9,9 +9,6 @@
 #include <ngx_core.h>
 #include <ngx_http.h>
 
-#if (NGX_HTTP_UPSTREAM_CHECK)
-#include "ngx_http_upstream_check_module.h"
-#endif
 
 static ngx_int_t ngx_http_upstream_init_least_conn_peer(ngx_http_request_t *r,
     ngx_http_upstream_srv_conf_t *us);
@@ -150,16 +147,6 @@ ngx_http_upstream_get_least_conn_peer(ngx_peer_connection_t *pc, void *data)
             continue;
         }
 
-#if (NGX_HTTP_UPSTREAM_CHECK)
-        ngx_log_debug1(NGX_LOG_DEBUG_HTTP, pc->log, 0,
-                "get least_conn peer, check_index: %ui",
-                peer->check_index);
-
-        if (ngx_http_upstream_check_peer_down(peer->check_index)) {
-            continue;
-        }
-#endif
-
         if (peer->max_fails
             && peer->fails >= peer->max_fails
             && now - peer->checked <= peer->fail_timeout)
@@ -214,16 +201,6 @@ ngx_http_upstream_get_least_conn_peer(ngx_peer_connection_t *pc, void *data)
             if (peer->down) {
                 continue;
             }
-
-#if (NGX_HTTP_UPSTREAM_CHECK)
-            ngx_log_debug1(NGX_LOG_DEBUG_HTTP, pc->log, 0,
-                    "get least_conn peer, check_index: %ui",
-                    peer->check_index);
-
-            if (ngx_http_upstream_check_peer_down(peer->check_index)) {
-                continue;
-            }
-#endif
 
             if (peer->conns * best->weight != best->conns * peer->weight) {
                 continue;

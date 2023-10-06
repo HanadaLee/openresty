@@ -188,7 +188,6 @@ typedef struct {
     ngx_table_elt_t                  *if_unmodified_since;
     ngx_table_elt_t                  *if_match;
     ngx_table_elt_t                  *if_none_match;
-    ngx_table_elt_t                  *x_request_id;
     ngx_table_elt_t                  *user_agent;
     ngx_table_elt_t                  *referer;
     ngx_table_elt_t                  *content_length;

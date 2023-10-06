@@ -9,9 +9,6 @@
 #include <ngx_core.h>
 #include <ngx_http.h>
 
-#if (NGX_HTTP_UPSTREAM_CHECK)
-#include "ngx_http_upstream_check_module.h"
-#endif
 
 typedef struct {
     uint32_t                            hash;
@@ -240,14 +237,6 @@ ngx_http_upstream_get_hash_peer(ngx_peer_connection_t *pc, void *data)
             ngx_http_upstream_rr_peer_unlock(hp->rrp.peers, peer);
             goto next;
         }
-
-#if (NGX_HTTP_UPSTREAM_CHECK)
-        ngx_log_debug1(NGX_LOG_DEBUG_HTTP, pc->log, 0,
-                       "get hash peer, check_index: %ui", peer->check_index);
-        if (ngx_http_upstream_check_peer_down(peer->check_index)) {
-            goto next;
-        }
-#endif
 
         if (peer->max_fails
             && peer->fails >= peer->max_fails
@@ -570,15 +559,6 @@ ngx_http_upstream_get_chash_peer(ngx_peer_connection_t *pc, void *data)
             if (peer->max_conns && peer->conns >= peer->max_conns) {
                 continue;
             }
-
-#if (NGX_HTTP_UPSTREAM_CHECK)
-            ngx_log_debug1(NGX_LOG_DEBUG_HTTP, pc->log, 0,
-                           "get consistent_hash peer, check_index: %ui",
-                           peer->check_index);
-            if (ngx_http_upstream_check_peer_down(peer->check_index)) {
-                continue;
-            }
-#endif
 
             if (peer->server.len != server->len
                 || ngx_strncmp(peer->server.data, server->data, server->len)
