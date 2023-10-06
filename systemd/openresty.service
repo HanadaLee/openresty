@@ -1,5 +1,5 @@
 [Unit]
-Description=The NGINX HTTP and reverse proxy server
+Description=The OpenResty Application Platform
 After=syslog.target network-online.target remote-fs.target nss-lookup.target
 Wants=network-online.target
 
@@ -19,3 +19,4 @@ RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
+Alias=nginx.service
