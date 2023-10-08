@@ -1,13 +1,64 @@
 FROM dockerhub.hanada.info/library/ubuntu:20.04
 
+LABEL maintainer="Hanada <im@hanada.info>"
+
 WORKDIR /build/openresty
 
 COPY . ./
 
-RUN sed -i 's@//.*archive.ubuntu.com@//mirrors.hanada.info@g' /etc/apt/sources.list && \
-    sed -i 's@//security.ubuntu.com@//mirrors.hanada.info@g' /etc/apt/sources.list && \
-    DEBIAN_FRONTEND=noninteractive apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+# Docker Build Arguments
+ARG RESTY_VERSION="1.21.4.2"
+ARG RESTY_OPENSSL_VERSION="1.1.1u"
+ARG RESTY_OPENSSL_OPTIONS="-g enable-weak-ssl-ciphers enable-tls1_3"
+ARG RESTY_PCRE_VERSION="8.45"
+ARG RESTY_PCRE_OPTIONS="\
+    --with-pcre-jit
+    --with-pcre-conf-opt='--enable-utf --enable-unicode-properties --with-match-limit=200000'
+    --with-pcre-opt='-fPIC'
+"
+ARG RESTY_ZLIB_VERSION="1.2.13"
+ARG RESTY_LIBATOMIC_VERSION="7.8.0"
+ARG RESTY_CONFIG_OPTIONS="\
+    --with-compat \
+    --with-file-aio \
+    --with-poll_module \
+    --with-threads \
+    --with-http_ssl_module \
+    --with-http_v2_module \
+    --with-http_addition_module \
+    --with-http_auth_request_module \
+    --with-http_dav_module \
+    --with-http_flv_module \
+    --with-http_gunzip_module \
+    --with-http_gzip_static_module \
+    --with-http_mp4_module \
+    --with-http_random_index_module \
+    --with-http_realip_module \
+    --with-http_secure_link_module \
+    --with-http_degradation_module \
+    --with-http_slice_module \
+    --with-http_stub_status_module \
+    --with-http_sub_module \
+    --without-http_empty_gif_module \
+"
+ARG RESTY_CONFIG_OPTIONS_MORE="\
+    --add-module=/build/openresty/modules/ngx_http_cache_purge_module \
+    --add-module=/build/openresty/modules/ngx_http_brotli_module \
+    --add-module=/build/openresty/modules/ngx_http_geoip2_module \
+    --add-module=/build/openresty/modules/ngx_http_upstream_check_module \
+    --add-module=/build/openresty/modules/ngx_http_sorted_querystring_module \
+    --add-module=/build/openresty/modules/ngx_http_lua_cache_module \
+    --add-dynamic-module=/build/openresty/modules/ngx_http_dav_ext_module \
+    --add-dynamic-module=/build/openresty/modules/ngx_http_flv_module \
+    --add-dynamic-module=/build/openresty/modules/ngx_http_vhost_traffic_status_module \
+    --add-dynamic-module=/build/openresty/modules/ngx_http_fancyindex_module \
+    --add-dynamic-module=/build/openresty/modules/ngx_http_replace_filter_module \
+"
+
+RUN sed -i 's@//.*archive.ubuntu.com@//mirrors.hanada.info@g' /etc/apt/sources.list \
+    && sed -i 's@//security.ubuntu.com@//mirrors.hanada.info@g' /etc/apt/sources.list \
+    && DEBIAN_FRONTEND=noninteractive apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         git \
         curl \
         libpcre3-dev \
@@ -18,34 +69,34 @@ RUN sed -i 's@//.*archive.ubuntu.com@//mirrors.hanada.info@g' /etc/apt/sources.l
         libxml2 \
         libxml2-dev \
         libxslt-dev \
-        aptitude && \
-    aptitude install -y --without-recommends libgd-dev && \
-    cd /build/openresty/lib/jemalloc-5.3.0 && \
-    ./configure && \
-    make \
+        aptitude \
+    && aptitude install -y --without-recommends libgd-dev \
+    && cd /build/openresty/lib/jemalloc-5.3.0 \
+    && ./configure \
+    && make \
         EXTRA_CXXFLAGS="-Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIC" \
-        EXTRA_CFLAGS="-Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIC" && \
-    make install && \
-    ldconfig && \
-    cd /build/openresty/lib/libmaxminddb-1.7.1 && \
-    ./configure && \
-    make && \
-    make check && \
-    make install && \
-    ldconfig && \
-    cd /build/openresty/lib/sregex && \
-    make && \
-    make install && \
-    cd /build/openresty/lib/libatomic_ops-7.8.0/src && \
-    ln -s -f ./.libs/libatomic_ops.a . && \
-    cd /build/openresty/bundle/nginx-1.21.4 && \
-    patch -p1 < /build/openresty/patches/x_request_id_1.21.4+.patch && \
-    patch -p1 < /build/openresty/patches/nginx__dynamic_tls_records_1.17.7+.patch && \
-    patch -p1 < /build/openresty/modules/ngx_http_upstream_check_module/check_1.20.1+.patch && \
-    cd /build/openresty/modules/ngx_brotli && \
-    git submodule update --init && \
-    cd /build/openresty && \
-    ./configure \
+        EXTRA_CFLAGS="-Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIC" \
+    && make install \
+    && ldconfig \
+    && cd /build/openresty/lib/libmaxminddb-1.7.1 \
+    && ./configure \
+    && make \
+    && make check \
+    && make install \
+    && ldconfig \
+    && cd /build/openresty/lib/sregex \
+    && make \
+    && make install \
+    && cd /build/openresty/lib/libatomic_ops-7.8.0/src \
+    && ln -s -f ./.libs/libatomic_ops.a . \
+    && cd /build/openresty/bundle/nginx-1.21.4 \
+    && patch -p1 < /build/openresty/patches/x_request_id_1.21.4+.patch \
+    && patch -p1 < /build/openresty/patches/nginx__dynamic_tls_records_1.17.7+.patch \
+    && patch -p1 < /build/openresty/modules/ngx_http_upstream_check_module/check_1.20.1+.patch \
+    && cd /build/openresty/modules/ngx_brotli \
+    && git submodule update --init \
+    && cd /build/openresty \
+    && ./configure \
         --prefix=/usr/local/openresty \
         --sbin-path=/usr/local/openresty/sbin/nginx \
         --modules-path=/usr/local/openresty/modules \
@@ -104,31 +155,33 @@ RUN sed -i 's@//.*archive.ubuntu.com@//mirrors.hanada.info@g' /etc/apt/sources.l
         --add-dynamic-module=/build/openresty/modules/ngx_http_fancyindex_module \
         --add-dynamic-module=/build/openresty/modules/ngx_http_replace_filter_module \
         --with-cc-opt='-O2 -g -O2 -Wp,-D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIC' \
-        --with-ld-opt='-Wl,-rpath,/usr/local/openresty/lib -Wl,-Bsymbolic-functions -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-whole-archive -Wl,--gc-sections -pie -ljemalloc -Wl,-Bdynamic -lm -lstdc++ -pthread -ldl -Wl,-E' && \
-    make && \
-    make install && \
-    mv /usr/local/openresty/nginx/html /usr/local/openresty && \
-    rm -rf /usr/local/openresty/nginx && \
-    mkdir -p /usr/local/openresty/var/lib/tmp && \
-    mkdir -p /usr/local/openresty/cache && \
-    cd /usr/local/openresty/cache && \
-    mkdir fastcgi proxy scgi uwsgi && \
-    mkdir -p /usr/local/openresty/lib && \
-    cd /usr/local/openresty/lib && \
-    cp -d /usr/local/lib/* . && \
-    rm *.a *.la && \
-    cd /usr/local/openresty/lualib && \
-    ln -s ../lib/libmaxminddb.so . && \
-    cp -rfp /build/openresty/lualib /build/openresty/systemd /usr/local/openresty
-
+        --with-ld-opt='-Wl,-rpath,/usr/local/openresty/lib -Wl,-Bsymbolic-functions -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-whole-archive -Wl,--gc-sections -pie -ljemalloc -Wl,-Bdynamic -lm -lstdc++ -pthread -ldl -Wl,-E' \
+    && make \
+    && make install \
+    && mv /usr/local/openresty/nginx/html /usr/local/openresty \
+    && rm -rf /usr/local/openresty/nginx \
+    && mkdir -p /usr/local/openresty/var/lib/tmp \
+    && mkdir -p /usr/local/openresty/cache \
+    && cd /usr/local/openresty/cache \
+    && mkdir fastcgi proxy scgi uwsgi \
+    && mkdir -p /usr/local/openresty/lib \
+    && cd /usr/local/openresty/lib \
+    && cp -d /usr/local/lib/* . \
+    && rm *.a *.la \
+    && cd /usr/local/openresty/lualib \
+    && ln -s ../lib/libmaxminddb.so . \
+    && cp -rfp /build/openresty/lualib /build/openresty/systemd /usr/local/openresty
 
 WORKDIR /usr/local/openresty
 
+# Add additional binaries into PATH for convenience
 ENV PATH=$PATH:/usr/local/openresty/luajit/bin/:/usr/local/openresty/nginx/sbin/:/usr/local/openresty/bin/
+
+# Copy nginx configuration files
+# COPY etc /usr/local/openresty/nginx/etc
 
 CMD [ "/usr/local/openresty/sbin/nginx", "-g", "daemon off;"]
 
-
-
-
-
+# Use SIGQUIT instead of default SIGTERM to cleanly drain requests
+# See https://github.com/openresty/docker-openresty/blob/master/README.md#tips--pitfalls
+STOPSIGNAL SIGQUIT
