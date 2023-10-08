@@ -103,6 +103,7 @@ RUN mkdir /build \
         libxml2-dev \
         libxslt-dev \
         aptitude \
+        bison \
         ${RESTY_ADD_PACKAGE_BUILDDEPS} \
     && aptitude install -y --without-recommends libgd-dev \
     && cd /build \
