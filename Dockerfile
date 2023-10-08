@@ -91,6 +91,7 @@ RUN mkdir /build \
     && sed -i 's@//security.ubuntu.com@//mirrors.hanada.info@g' /etc/apt/sources.list \
     && DEBIAN_FRONTEND=noninteractive apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        ca-certificates \
         curl \
         libpcre3-dev \
         libssl-dev \
