@@ -12,9 +12,9 @@ ARG RESTY_OPENSSL_VERSION="1.1.1u"
 ARG RESTY_OPENSSL_OPTIONS="-g enable-weak-ssl-ciphers enable-tls1_3"
 ARG RESTY_PCRE_VERSION="8.45"
 ARG RESTY_PCRE_OPTIONS="\
-    --with-pcre-jit
-    --with-pcre-conf-opt='--enable-utf --enable-unicode-properties --with-match-limit=200000'
-    --with-pcre-opt='-fPIC'
+    --with-pcre-jit \
+    --with-pcre-conf-opt='--enable-utf --enable-unicode-properties --with-match-limit=200000' \
+    --with-pcre-opt='-fPIC' \
 "
 ARG RESTY_ZLIB_VERSION="1.2.13"
 ARG RESTY_LIBATOMIC_VERSION="7.8.0"
