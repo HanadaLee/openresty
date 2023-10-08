@@ -56,7 +56,6 @@ ARG RESTY_CONFIG_OPTIONS_MORE="\
     --add-dynamic-module=/build/openresty/modules/ngx_http_fancyindex_module \
     --add-dynamic-module=/build/openresty/modules/ngx_http_replace_filter_module \
 "
-
 ARG RESTY_ADD_PACKAGE_BUILDDEPS="git"
 ARG RESTY_ADD_PACKAGE_RUNDEPS=""
 ARG RESTY_EVAL_PRE_CONFIGURE=""
@@ -116,7 +115,7 @@ RUN mkdir /build \
     && curl -fSL ${RESTY_ZLIB_URL_BASE}/zlib-${RESTY_ZLIB_VERSION}.tar.gz -o zlib-${RESTY_ZLIB_VERSION}.tar.gz \
     && tar xzf zlib-${RESTY_ZLIB_VERSION}.tar.gz \
     && cd /build \
-    && curl -fSL https://github.com/ivmai/libatomic_ops/releases/download/v${RESTY_LIBATOMIC_VERSION}/libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz -o libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz \
+    && curl -fSL https://${RESTY_GIT_MIRROR}/ivmai/libatomic_ops/releases/download/v${RESTY_LIBATOMIC_VERSION}/libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz -o libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz \
     && tar xzf libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz \
     && cd libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION}/src \
     && ln -s -f ./.libs/libatomic_ops.a .
@@ -132,6 +131,12 @@ RUN mkdir /build \
     && git clone https://${RESTY_GIT_MIRROR}/wandenberg/nginx-sorted-querystring-module.git ngx_sorted_querystring_module \
     && git clone https://${RESTY_GIT_MIRROR}/yaoweibin/nginx_upstream_check_module.git ngx_upstream_check_module \
     && git clone https://${RESTY_GIT_MIRROR}/ledgetech/lua-resty-http.git lua-resty-http \
+
+
+
+
+
+
     && cd /build/openresty/bundle/nginx-1.21.4 \
     && patch -p1 < /build/openresty/patches/x_request_id_1.21.4+.patch \
     && patch -p1 < /build/openresty/patches/nginx__dynamic_tls_records_1.17.7+.patch \
