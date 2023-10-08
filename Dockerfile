@@ -124,12 +124,12 @@ RUN mkdir /build \
     && make check \
     && make install \
     && ldconfig \
-    && cd /build
-    && git clone https://${RESTY_GIT_MIRROR}/openresty/sregex.git sregex\
-    && cd sregex
+    && cd /build \
+    && git clone https://${RESTY_GIT_MIRROR}/openresty/sregex.git sregex \
+    && cd sregex \
     && make \
     && make install \
-    && cd /build
+    && cd /build \
     && curl -fSL "${RESTY_OPENSSL_URL_BASE}/openssl-${RESTY_OPENSSL_VERSION}.tar.gz" -o openssl-${RESTY_OPENSSL_VERSION}.tar.gz \
     && tar xzf openssl-${RESTY_OPENSSL_VERSION}.tar.gz \
     && cd /build \
