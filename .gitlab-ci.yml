@@ -1,5 +1,6 @@
 variables:
-  RESTY_VERSION: 1.21.4.2-11
+  RESTY_VERSION: 1.21.4.2
+  RESTY_RELEASE: 11
 
 stages:
   - build
@@ -15,7 +16,8 @@ docker-build:
     - >
       docker build \
         -t $CI_REGISTRY_IMAGE:latest \
-        -t $CI_REGISTRY_IMAGE:$RESTY_VERSION \
+        -t $CI_REGISTRY_IMAGE:$RESTY_VERSION-$RESTY_RELEASE \
         --build-arg RESTY_VERSION=$RESTY_VERSION \
+        --build-arg RESTY_RELEASE=$RESTY_RELEASE \
         --push \
         .
