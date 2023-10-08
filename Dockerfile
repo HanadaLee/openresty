@@ -3,7 +3,7 @@ FROM dockerhub.hanada.info/library/ubuntu:20.04
 LABEL maintainer="Hanada <im@hanada.info>"
 
 # Docker Build Arguments
-ARG RESTY_GIT_MIRROR="fastgit.hanada.info"
+ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.21.4.2"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
