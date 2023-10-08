@@ -142,7 +142,7 @@ RUN mkdir /build \
     && curl -fSL https://${RESTY_GIT_MIRROR}/ivmai/libatomic_ops/releases/download/v${RESTY_LIBATOMIC_VERSION}/libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz -o libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz \
     && tar xzf libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz \
     && cd libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION}/src \
-    && ln -s -f ./.libs/libatomic_ops.a .
+    && ln -s -f ./.libs/libatomic_ops.a . \
     && cd /build \
     && git clone --depth=100 https://${RESTY_GIT_MIRROR}/google/ngx_brotli.git ngx_brotli_module \
     && cd ngx_brotli_module \
