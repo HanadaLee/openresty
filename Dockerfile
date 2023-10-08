@@ -8,6 +8,7 @@ ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.21.4.2"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
+ARG RESTY_OPENSSL_URL_BASE="https://www.openssl.org/source"
 ARG RESTY_OPENSSL_VERSION="1.1.1u"
 ARG RESTY_OPENSSL_OPTIONS="\
     --with-openssl-opt='-g enable-weak-ssl-ciphers enable-tls1_3' \
@@ -19,7 +20,7 @@ ARG RESTY_PCRE_OPTIONS="\
     --with-pcre-conf-opt='--enable-utf --enable-unicode-properties --with-match-limit=200000' \
     --with-pcre-opt='-fPIC' \
 "
-ARG RESTY_ZLIB_URL_BASE="https://zlib.net/"
+ARG RESTY_ZLIB_URL_BASE="https://zlib.net"
 ARG RESTY_ZLIB_VERSION="1.2.13"
 ARG RESTY_ZLIB_OPTIONS=""
 ARG RESTY_LIBATOMIC_VERSION="7.8.0"
