@@ -9,7 +9,9 @@ ARG RESTY_VERSION="1.21.4.2"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
 ARG RESTY_OPENSSL_VERSION="1.1.1u"
-ARG RESTY_OPENSSL_OPTIONS="-g enable-weak-ssl-ciphers enable-tls1_3"
+ARG RESTY_OPENSSL_OPTIONS="\
+    --with-openssl-opt='-g enable-weak-ssl-ciphers enable-tls1_3' \
+"
 ARG RESTY_PCRE_URL_BASE="https://ftp.exim.org/pub/pcre"
 ARG RESTY_PCRE_VERSION="8.45"
 ARG RESTY_PCRE_OPTIONS="\
@@ -19,7 +21,24 @@ ARG RESTY_PCRE_OPTIONS="\
 "
 ARG RESTY_ZLIB_URL_BASE="https://zlib.net/"
 ARG RESTY_ZLIB_VERSION="1.2.13"
+ARG RESTY_ZLIB_OPTIONS=""
 ARG RESTY_LIBATOMIC_VERSION="7.8.0"
+ARG RESTY_PATH_OPTIONS="\
+    --prefix=/usr/local/openresty \
+    --sbin-path=/usr/local/openresty/sbin/nginx \
+    --modules-path=/usr/local/openresty/modules \
+    --conf-path=/usr/local/openresty/etc/nginx.conf \
+    --http-log-path=/usr/local/openresty/var/log/access.log \
+    --error-log-path=/usr/local/openresty/var/log/error.log \
+    --pid-path=/usr/local/openresty/var/run/nginx.pid \
+    --lock-path=/usr/local/openresty/var/run/nginx.lock \
+    --http-client-body-temp-path=/usr/local/openresty/var/lib/tmp/client_body \
+    --http-proxy-temp-path=/usr/local/openresty/var/lib/tmp/proxy \
+    --http-fastcgi-temp-path=/usr/local/openresty/var/lib/tmp/fastcgi \
+    --http-uwsgi-temp-path=/usr/local/openresty/var/lib/tmp/uwsgi \
+    --http-scgi-temp-path=/usr/local/openresty/var/lib/tmp/scgi \
+"
+ARG RESTY_USER_OPTIONS="--user=www-data --group=www-data"
 ARG RESTY_CONFIG_OPTIONS="\
     --with-compat \
     --with-file-aio \
@@ -44,23 +63,28 @@ ARG RESTY_CONFIG_OPTIONS="\
     --without-http_empty_gif_module \
 "
 ARG RESTY_CONFIG_OPTIONS_MORE="\
-    --add-module=/build/openresty/modules/ngx_http_cache_purge_module \
-    --add-module=/build/openresty/modules/ngx_http_brotli_module \
-    --add-module=/build/openresty/modules/ngx_http_geoip2_module \
-    --add-module=/build/openresty/modules/ngx_http_upstream_check_module \
-    --add-module=/build/openresty/modules/ngx_http_sorted_querystring_module \
-    --add-module=/build/openresty/modules/ngx_http_lua_cache_module \
-    --add-dynamic-module=/build/openresty/modules/ngx_http_dav_ext_module \
-    --add-dynamic-module=/build/openresty/modules/ngx_http_flv_module \
-    --add-dynamic-module=/build/openresty/modules/ngx_http_vhost_traffic_status_module \
-    --add-dynamic-module=/build/openresty/modules/ngx_http_fancyindex_module \
-    --add-dynamic-module=/build/openresty/modules/ngx_http_replace_filter_module \
+    --add-module=/build/ngx_http_cache_purge_module \
+    --add-module=/build/ngx_http_brotli_module \
+    --add-module=/build/ngx_http_geoip2_module \
+    --add-module=/build/ngx_http_upstream_check_module \
+    --add-module=/build/ngx_http_sorted_querystring_module \
+    --add-module=/build/ngx_http_lua_cache_module \
+    --add-dynamic-module=/build/ngx_http_dav_ext_module \
+    --add-dynamic-module=/build/ngx_http_flv_module \
+    --add-dynamic-module=/build/ngx_http_vhost_traffic_status_module \
+    --add-dynamic-module=/build/ngx_http_fancyindex_module \
+    --add-dynamic-module=/build/ngx_http_replace_filter_module \
 "
 ARG RESTY_ADD_PACKAGE_BUILDDEPS="git"
 ARG RESTY_ADD_PACKAGE_RUNDEPS=""
 ARG RESTY_EVAL_PRE_CONFIGURE=""
 ARG RESTY_EVAL_POST_DOWNLOAD_PRE_CONFIGURE=""
 ARG RESTY_EVAL_POST_MAKE=""
+
+ARG _RESTY_CONFIG_DEPS="\
+    --with-cc-opt='-O2 -g -O2 -Wp,-D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIC' \
+    --with-ld-opt='-Wl,-rpath,/usr/local/openresty/lib -Wl,-Bsymbolic-functions -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-whole-archive -Wl,--gc-sections -pie -ljemalloc -Wl,-Bdynamic -lm -lstdc++ -pthread -ldl -Wl,-E'
+    "
 
 RUN mkdir /build \
     && sed -i 's@//.*archive.ubuntu.com@//mirrors.hanada.info@g' /etc/apt/sources.list \
@@ -126,101 +150,62 @@ RUN mkdir /build \
     && sed -i "s|github.com|${RESTY_GIT_MIRROR}|g" .gitmodules \
     && git submodule update --init \
     && cd /build \
+    && git clone https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_cache_purge.git ngx_http_cache_purge_module \
+    && git clone https://${RESTY_GIT_MIRROR}/leev/ngx_http_geoip2_module.git ngx_http_geoip2_module \
+    && git clone https://${RESTY_GIT_MIRROR}/arut/nginx-dav-ext-module.git ngx_http_dav_ext_module \
+    && git clone https://${RESTY_GIT_MIRROR}/winshining/nginx-http-flv-module.git ngx_http_dav_ext_module \
     && git clone https://${RESTY_GIT_MIRROR}/vozlt/nginx-module-vts.git ngx_http_vhost_traffic_status_module \
-    && git clone https://${RESTY_GIT_MIRROR}/openresty/replace-filter-nginx-module.git ngx_http_replace_filter_module \
-    && git clone https://${RESTY_GIT_MIRROR}/wandenberg/nginx-sorted-querystring-module.git ngx_sorted_querystring_module \
     && git clone https://${RESTY_GIT_MIRROR}/yaoweibin/nginx_upstream_check_module.git ngx_upstream_check_module \
+    && git clone https://${RESTY_GIT_MIRROR}/wandenberg/nginx-sorted-querystring-module.git ngx_sorted_querystring_module \
+    && git clone https://${RESTY_GIT_MIRROR}/aperezdc/ngx-fancyindex.git ngx_http_fancyindex_module \
+    && git clone https://${RESTY_GIT_MIRROR}/openresty/replace-filter-nginx-module.git ngx_http_replace_filter_module \
     && git clone https://${RESTY_GIT_MIRROR}/ledgetech/lua-resty-http.git lua-resty-http \
-
-
-
-
-
-
-    && cd /build/openresty/bundle/nginx-1.21.4 \
-    && patch -p1 < /build/openresty/patches/x_request_id_1.21.4+.patch \
-    && patch -p1 < /build/openresty/patches/nginx__dynamic_tls_records_1.17.7+.patch \
-    && patch -p1 < /build/openresty/modules/ngx_http_upstream_check_module/check_1.20.1+.patch \
-    && cd /build/openresty/modules/ngx_brotli \
-    && git submodule update --init \
-    && cd /build/openresty \
-    && ./configure \
-        --prefix=/usr/local/openresty \
-        --sbin-path=/usr/local/openresty/sbin/nginx \
-        --modules-path=/usr/local/openresty/modules \
-        --conf-path=/usr/local/openresty/etc/nginx.conf \
-        --http-log-path=/usr/local/openresty/var/log/access.log \
-        --error-log-path=/usr/local/openresty/var/log/error.log \
-        --pid-path=/usr/local/openresty/var/run/nginx.pid \
-        --lock-path=/usr/local/openresty/var/run/nginx.lock \
-        --http-client-body-temp-path=/usr/local/openresty/var/lib/tmp/client_body \
-        --http-proxy-temp-path=/usr/local/openresty/var/lib/tmp/proxy \
-        --http-fastcgi-temp-path=/usr/local/openresty/var/lib/tmp/fastcgi \
-        --http-uwsgi-temp-path=/usr/local/openresty/var/lib/tmp/uwsgi \
-        --http-scgi-temp-path=/usr/local/openresty/var/lib/tmp/scgi \
-        --user=www-data \
-        --group=www-data \
-        --with-compat \
-        --with-file-aio \
-        --with-poll_module \
-        --with-threads \
-        --with-http_ssl_module \
-        --with-http_v2_module \
-        --with-http_addition_module \
-        --with-http_auth_request_module \
-        --with-http_dav_module \
-        --with-http_flv_module \
-        --with-http_gunzip_module \
-        --with-http_gzip_static_module \
-        --with-http_mp4_module \
-        --with-http_random_index_module \
-        --with-http_realip_module \
-        --with-http_secure_link_module \
-        --with-http_degradation_module \
-        --with-http_slice_module \
-        --with-http_stub_status_module \
-        --with-http_sub_module \
-        --without-http_empty_gif_module \
-        --with-pcre=/build/openresty/lib/pcre-8.45 \
-        --with-pcre-opt='-fPIC' \
-        --with-pcre-conf-opt='--enable-utf --enable-unicode-properties --with-match-limit=200000' \
-        --with-pcre-jit \
-        --with-pcre-opt=-g \
-        --with-zlib=/build/openresty/lib/zlib-1.2.13 \
-        --with-zlib-opt=-g \
-        --with-libatomic=/build/openresty/lib/libatomic_ops-7.8.0 \
-        --with-openssl=/build/openresty/lib/openssl-1.1.1u \
-        --with-openssl-opt='-g enable-weak-ssl-ciphers enable-tls1_3' \
-        --add-module=/build/openresty/modules/ngx_http_cache_purge_module \
-        --add-module=/build/openresty/modules/ngx_http_brotli_module \
-        --add-module=/build/openresty/modules/ngx_http_geoip2_module \
-        --add-module=/build/openresty/modules/ngx_http_upstream_check_module \
-        --add-module=/build/openresty/modules/ngx_http_sorted_querystring_module \
-        --add-module=/build/openresty/modules/ngx_http_lua_cache_module \
-        --add-dynamic-module=/build/openresty/modules/ngx_http_dav_ext_module \
-        --add-dynamic-module=/build/openresty/modules/ngx_http_flv_module \
-        --add-dynamic-module=/build/openresty/modules/ngx_http_vhost_traffic_status_module \
-        --add-dynamic-module=/build/openresty/modules/ngx_http_fancyindex_module \
-        --add-dynamic-module=/build/openresty/modules/ngx_http_replace_filter_module \
-        --with-cc-opt='-O2 -g -O2 -Wp,-D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIC' \
-        --with-ld-opt='-Wl,-rpath,/usr/local/openresty/lib -Wl,-Bsymbolic-functions -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-whole-archive -Wl,--gc-sections -pie -ljemalloc -Wl,-Bdynamic -lm -lstdc++ -pthread -ldl -Wl,-E' \
+    && git clone https://${RESTY_GIT_MIRROR}/AlticeLabsProjects/lua-upstream-cache-nginx-module ngx_http_lua_cache_module \
+    && git clone https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_http_tls_dyn_size ngx_http_tls_dyn_size \
+    && cd /build \
+    && curl -fSL https://openresty.org/download/openresty-${RESTY_VERSION}.tar.gz -o openresty-${RESTY_VERSION}.tar.gz \
+    && tar xzf openresty-${RESTY_VERSION}.tar.gz \
+    && cd openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) \
+    && curl -s https://${RESTY_GIT_REPO}/hanada/openresty/-/raw/main/patches/x_request_id_${RESTY_X_REQUEST_ID_PATCH_VERSION}.patch | patch -p1 \
+    && patch -p1 < /build/ngx_upstream_check_module/check_1.20.1+.patch \
+    && patch -p1 < /build/ngx_http_tls_dyn_size/nginx__dynamic_tls_records_1.25.1+.patch \
+    && cd /build/openresty-${RESTY_VERSION} \
+    && if [ -n "${RESTY_EVAL_POST_DOWNLOAD_PRE_CONFIGURE}" ]; then eval $(echo ${RESTY_EVAL_POST_DOWNLOAD_PRE_CONFIGURE}); fi \
+    && eval ./configure \
+    ${RESTY_PATH_OPTIONS} \
+    ${RESTY_USER_OPTIONS} \
+    ${RESTY_CONFIG_OPTIONS} \
+    --with-pcre=/build/pcre-${RESTY_PCRE_VERSION} \
+    ${RESTY_PCRE_OPTIONS} \
+    --with-zlib=/build/zlib-${RESTY_ZLIB_VERSION} \
+    ${RESTY_ZLIB_OPTIONS} \
+    --with-libatomic=/build/libatomic_ops-${RESTY_LIBATOMIC_VERSION} \
+    --with-openssl=/build/openssl-${RESTY_OPENSSL_VERSION} \
+    ${RESTY_OPENSSL_OPTIONS} \
+    ${RESTY_CONFIG_OPTIONS_MORE} \
+    ${_RESTY_CONFIG_DEPS} \
     && make \
     && make install \
     && mv /usr/local/openresty/nginx/html /usr/local/openresty \
     && rm -rf /usr/local/openresty/nginx \
     && mkdir -p /usr/local/openresty/var/lib/tmp \
-    && mkdir -p /usr/local/openresty/cache \
-    && cd /usr/local/openresty/cache \
-    && mkdir fastcgi proxy scgi uwsgi \
+    && mkdir -p /usr/local/openresty/cache/fastcgi \
+        /usr/local/openresty/cache/proxy \
+        /usr/local/openresty/cache/scgi \
+        /usr/local/openresty/cache/uwsgi \
     && mkdir -p /usr/local/openresty/lib \
     && cd /usr/local/openresty/lib \
     && cp -d /usr/local/lib/* . \
     && rm *.a *.la \
     && cd /usr/local/openresty/lualib \
     && ln -s ../lib/libmaxminddb.so . \
-    && cp -rfp /build/openresty/lualib /build/openresty/systemd /usr/local/openresty
-
-WORKDIR /usr/local/openresty
+    && cd /build \
+    && cp lua-resty-http/lib/resty/* /usr/local/openresty/lualib/resty \
+    && cd /usr/local/openresty/lualib/resty \
+    && curl -fSL https://${RESTY_GIT_REPO}/hanada/openresty/-/raw/main/lualib/resty/maxminddb.lua -o maxminddb.lua \
+    && mkdir multipart \
+    && cd multipart \
+    && curl -fSL https://${RESTY_GIT_REPO}/hanada/openresty/-/raw/main/lualib/resty/multipart/parser.lua -o parser.lua
 
 # Add additional binaries into PATH for convenience
 ENV PATH=$PATH:/usr/local/openresty/luajit/bin/:/usr/local/openresty/nginx/sbin/:/usr/local/openresty/bin/
