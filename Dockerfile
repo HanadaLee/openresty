@@ -167,7 +167,7 @@ RUN mkdir /build \
     && git clone https://${RESTY_GIT_MIRROR}/AlticeLabsProjects/lua-upstream-cache-nginx-module ngx_http_lua_cache_module \
     && git clone https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_http_tls_dyn_size ngx_http_tls_dyn_size \
     && cd /build \
-    && curl -fSL https://openresty.org/download/openresty-${RESTY_VERSION}.tar.gz -o openresty-${RESTY_VERSION}.tar.gz \
+    && curl -vfSL https://openresty.org/download/openresty-${RESTY_VERSION}.tar.gz -o openresty-${RESTY_VERSION}.tar.gz \
     && tar xzf openresty-${RESTY_VERSION}.tar.gz \
     && cd openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) \
     && curl -s https://${RESTY_GIT_REPO}/hanada/openresty/-/raw/main/patches/x_request_id_${RESTY_X_REQUEST_ID_PATCH_VERSION}.patch | patch -p1 \
