@@ -7,6 +7,8 @@ WORKDIR /build/openresty
 COPY . ./
 
 # Docker Build Arguments
+ARG RESTY_GIT_MIRROR="fastgit.hanada.info"
+ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.21.4.2"
 ARG RESTY_OPENSSL_VERSION="1.1.1u"
 ARG RESTY_OPENSSL_OPTIONS="-g enable-weak-ssl-ciphers enable-tls1_3"
