@@ -2,22 +2,22 @@ FROM dockerhub.hanada.info/library/ubuntu:20.04
 
 LABEL maintainer="Hanada <im@hanada.info>"
 
-WORKDIR /build/openresty
-
-COPY . ./
-
 # Docker Build Arguments
 ARG RESTY_GIT_MIRROR="fastgit.hanada.info"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.21.4.2"
+ARG RESTY_JEMALLOC_VERSION="5.3.0"
+ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
 ARG RESTY_OPENSSL_VERSION="1.1.1u"
 ARG RESTY_OPENSSL_OPTIONS="-g enable-weak-ssl-ciphers enable-tls1_3"
+ARG RESTY_PCRE_URL_BASE="https://ftp.exim.org/pub/pcre"
 ARG RESTY_PCRE_VERSION="8.45"
 ARG RESTY_PCRE_OPTIONS="\
     --with-pcre-jit \
     --with-pcre-conf-opt='--enable-utf --enable-unicode-properties --with-match-limit=200000' \
     --with-pcre-opt='-fPIC' \
 "
+ARG RESTY_ZLIB_URL_BASE="https://zlib.net/"
 ARG RESTY_ZLIB_VERSION="1.2.13"
 ARG RESTY_LIBATOMIC_VERSION="7.8.0"
 ARG RESTY_CONFIG_OPTIONS="\
@@ -57,11 +57,17 @@ ARG RESTY_CONFIG_OPTIONS_MORE="\
     --add-dynamic-module=/build/openresty/modules/ngx_http_replace_filter_module \
 "
 
-RUN sed -i 's@//.*archive.ubuntu.com@//mirrors.hanada.info@g' /etc/apt/sources.list \
+ARG RESTY_ADD_PACKAGE_BUILDDEPS="git"
+ARG RESTY_ADD_PACKAGE_RUNDEPS=""
+ARG RESTY_EVAL_PRE_CONFIGURE=""
+ARG RESTY_EVAL_POST_DOWNLOAD_PRE_CONFIGURE=""
+ARG RESTY_EVAL_POST_MAKE=""
+
+RUN mkdir /build \
+    && sed -i 's@//.*archive.ubuntu.com@//mirrors.hanada.info@g' /etc/apt/sources.list \
     && sed -i 's@//security.ubuntu.com@//mirrors.hanada.info@g' /etc/apt/sources.list \
     && DEBIAN_FRONTEND=noninteractive apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        git \
         curl \
         libpcre3-dev \
         libssl-dev \
@@ -72,25 +78,60 @@ RUN sed -i 's@//.*archive.ubuntu.com@//mirrors.hanada.info@g' /etc/apt/sources.l
         libxml2-dev \
         libxslt-dev \
         aptitude \
+        ${RESTY_ADD_PACKAGE_BUILDDEPS} \
     && aptitude install -y --without-recommends libgd-dev \
-    && cd /build/openresty/lib/jemalloc-5.3.0 \
+    && cd /build \
+    && if [ -n "${RESTY_EVAL_PRE_CONFIGURE}" ]; then eval $(echo ${RESTY_EVAL_PRE_CONFIGURE}); fi \
+    && cd /build \
+    && curl -fSL https://${RESTY_GIT_MIRROR}/jemalloc/jemalloc/releases/download/${RESTY_JEMALLOC_VERSION}/jemalloc-${RESTY_JEMALLOC_VERSION}.tar.bz2 -o jemalloc-${RESTY_JEMALLOC_VERSION}.tar.bz2
+    && tar xjf jemalloc-${RESTY_JEMALLOC_VERSION}.tar.bz2 \
+    && cd /build/jemalloc-${RESTY_JEMALLOC_VERSION} \
     && ./configure \
     && make \
         EXTRA_CXXFLAGS="-Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIC" \
         EXTRA_CFLAGS="-Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIC" \
     && make install \
     && ldconfig \
-    && cd /build/openresty/lib/libmaxminddb-1.7.1 \
+    && cd /build \
+    && curl -fSL https://${RESTY_GIT_MIRROR}/maxmind/libmaxminddb/releases/download/${RESTY_LIBMAXMINDDB_VERSION}/libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION}.tar.gz -o libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION}.tar.gz \
+    && tar xzf libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION}.tar.gz \
+    && cd libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION} \
     && ./configure \
     && make \
     && make check \
     && make install \
     && ldconfig \
-    && cd /build/openresty/lib/sregex \
+    && cd /build
+    && git clone https://${RESTY_GIT_MIRROR}/openresty/sregex.git sregex\
+    && cd sregex
     && make \
     && make install \
-    && cd /build/openresty/lib/libatomic_ops-7.8.0/src \
-    && ln -s -f ./.libs/libatomic_ops.a . \
+    && cd /build
+    && curl -fSL "${RESTY_OPENSSL_URL_BASE}/openssl-${RESTY_OPENSSL_VERSION}.tar.gz" -o openssl-${RESTY_OPENSSL_VERSION}.tar.gz \
+    && tar xzf openssl-${RESTY_OPENSSL_VERSION}.tar.gz \
+    && cd /build \
+    && curl -fSL ${RESTY_PCRE_URL_BASE}/pcre-${RESTY_PCRE_VERSION}.tar.gz -o pcre-${RESTY_PCRE_VERSION}.tar.gz \
+    && tar xzf pcre-${RESTY_PCRE_VERSION}.tar.gz \
+    && cd /build \
+    && curl -fSL ${RESTY_ZLIB_URL_BASE}/zlib-${RESTY_ZLIB_VERSION}.tar.gz -o zlib-${RESTY_ZLIB_VERSION}.tar.gz \
+    && tar xzf zlib-${RESTY_ZLIB_VERSION}.tar.gz \
+    && cd /build \
+    && curl -fSL https://github.com/ivmai/libatomic_ops/releases/download/v${RESTY_LIBATOMIC_VERSION}/libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz -o libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz \
+    && tar xzf libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz \
+    && cd libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION}/src \
+    && ln -s -f ./.libs/libatomic_ops.a .
+    && cd /build \
+    && git clone --depth=100 https://${RESTY_GIT_MIRROR}/google/ngx_brotli.git ngx_brotli_module \
+    && cd ngx_brotli_module \
+    && git reset --hard 63ca02abdcf79c9e788d2eedcc388d2335902e52 \
+    && sed -i "s|github.com|${RESTY_GIT_MIRROR}|g" .gitmodules \
+    && git submodule update --init \
+    && cd /build \
+    && git clone https://${RESTY_GIT_MIRROR}/vozlt/nginx-module-vts.git ngx_http_vhost_traffic_status_module \
+    && git clone https://${RESTY_GIT_MIRROR}/openresty/replace-filter-nginx-module.git ngx_http_replace_filter_module \
+    && git clone https://${RESTY_GIT_MIRROR}/wandenberg/nginx-sorted-querystring-module.git ngx_sorted_querystring_module \
+    && git clone https://${RESTY_GIT_MIRROR}/yaoweibin/nginx_upstream_check_module.git ngx_upstream_check_module \
+    && git clone https://${RESTY_GIT_MIRROR}/ledgetech/lua-resty-http.git lua-resty-http \
     && cd /build/openresty/bundle/nginx-1.21.4 \
     && patch -p1 < /build/openresty/patches/x_request_id_1.21.4+.patch \
     && patch -p1 < /build/openresty/patches/nginx__dynamic_tls_records_1.17.7+.patch \
