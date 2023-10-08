@@ -155,7 +155,7 @@ RUN mkdir /build \
     && git clone https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_cache_purge.git ngx_http_cache_purge_module \
     && git clone https://${RESTY_GIT_MIRROR}/leev/ngx_http_geoip2_module.git ngx_http_geoip2_module \
     && git clone https://${RESTY_GIT_MIRROR}/arut/nginx-dav-ext-module.git ngx_http_dav_ext_module \
-    && git clone https://${RESTY_GIT_MIRROR}/winshining/nginx-http-flv-module.git ngx_http_dav_ext_module \
+    && git clone https://${RESTY_GIT_MIRROR}/winshining/nginx-http-flv-module.git ngx_http_flv_module \
     && git clone https://${RESTY_GIT_MIRROR}/vozlt/nginx-module-vts.git ngx_http_vhost_traffic_status_module \
     && git clone https://${RESTY_GIT_MIRROR}/yaoweibin/nginx_upstream_check_module.git ngx_upstream_check_module \
     && git clone https://${RESTY_GIT_MIRROR}/wandenberg/nginx-sorted-querystring-module.git ngx_sorted_querystring_module \
