@@ -205,7 +205,7 @@ RUN mkdir /build \
         /usr/local/openresty/cache/uwsgi \
     && mkdir -p /usr/local/openresty/lib \
     && cd /usr/local/openresty/lib \
-    && cp -d /usr/local/lib/* . \
+    && cp -r -d /usr/local/lib/* . \
     && rm *.a *.la \
     && cd /usr/local/openresty/lualib \
     && ln -s ../lib/libmaxminddb.so . \
