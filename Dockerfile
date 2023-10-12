@@ -100,7 +100,7 @@ ARG _RESTY_CONFIG_DEPS="\
 RUN mkdir /build \
     && apk add -U tzdata \
     && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
-    && apk del tzdata
+    && apk del tzdata \
     && apk add --no-cache --virtual .build-deps \
         build-base \
         coreutils \
