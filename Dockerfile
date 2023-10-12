@@ -220,12 +220,15 @@ RUN mkdir /build \
     && mkdir multipart \
     && cd multipart \
     && curl -fSL https://${RESTY_GIT_RAW_MIRROR}/agentzh/lua-resty-multipart-parser/master/lib/resty/multipart/parser.lua -o parser.lua \
+    && delgroup www-data \
+    && deluser --remove-home $(getent passwd 33 | cut -d: -f1) \
+    && adduser -s /sbin/nologin -g www-data -D -h /var/www --uid 33 www-data \
     && rm -rf /build \
     && rm -rf /usr/local/lib/* \
     && apk del .build-deps
 
 # Add additional binaries into PATH for convenience
-ENV PATH=$PATH:/usr/local/openresty/luajit/bin/:/usr/local/openresty/nginx/sbin/:/usr/local/openresty/bin/
+ENV PATH=$PATH:/usr/local/openresty/luajit/bin/:/usr/local/openresty/sbin/:/usr/local/openresty/bin/
 
 # Copy nginx configuration files
 # COPY etc /usr/local/openresty/nginx/etc
