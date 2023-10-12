@@ -81,16 +81,11 @@ ARG RESTY_CONFIG_OPTIONS_MORE="\
     --add-dynamic-module=/build/ngx_http_fancyindex_module \
     --add-dynamic-module=/build/ngx_http_replace_filter_module \
 "
-ARG RESTY_ADD_PACKAGE_BUILDDEPS="git"
-ARG RESTY_ADD_PACKAGE_RUNDEPS=""
+ARG RESTY_ADD_PACKAGE_BUILDDEPS=""
+ARG RESTY_ADD_PACKAGE_RUNDEPS="git"
 ARG RESTY_EVAL_PRE_CONFIGURE=""
 ARG RESTY_EVAL_POST_DOWNLOAD_PRE_CONFIGURE=""
 ARG RESTY_EVAL_POST_MAKE=""
-
-#ARG _RESTY_CONFIG_DEPS="\
-#    --with-cc-opt='-O2 -g -O2 -Wp,-D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections #-fdata-sections -fPIC' \
-#    --with-ld-opt='-Wl,-rpath,/usr/local/openresty/lib -Wl,-Bsymbolic-functions -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-whole-archive -Wl,--gc-sections -pie -ljemalloc #-Wl,-Bdynamic -lm -lstdc++ -pthread -ldl -Wl,-E' \
-#"
 
 ARG _RESTY_CONFIG_DEPS="\
     --with-cc-opt='-O2 -g -O2 -Wp,-D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIC' \
