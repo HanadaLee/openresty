@@ -217,7 +217,7 @@ RUN mkdir /build \
     && curl -fSL https://${RESTY_GIT_REPO}/hanada/lua-resty-maxminddb/-/raw/master/lib/resty/maxminddb.lua -o maxminddb.lua \
     && mkdir multipart \
     && cd multipart \
-    && curl -fSL https://${RESTY_GIT_RAW_MIRROR}/agentzh/lua-resty-multipart-parser/master/lib/resty/multipart/parser.lua -o parser.lua
+    && curl -fSL https://${RESTY_GIT_RAW_MIRROR}/agentzh/lua-resty-multipart-parser/master/lib/resty/multipart/parser.lua -o parser.lua \
     && rm -rf /build \
     && apk del .build-deps
 
