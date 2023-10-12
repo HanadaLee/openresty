@@ -222,6 +222,7 @@ RUN mkdir /build \
     && cd multipart \
     && curl -fSL https://${RESTY_GIT_RAW_MIRROR}/agentzh/lua-resty-multipart-parser/master/lib/resty/multipart/parser.lua -o parser.lua \
     && rm -rf /build \
+    && rm -rf /usr/local/lib/* \
     && apk del .build-deps
 
 # Add additional binaries into PATH for convenience
