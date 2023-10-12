@@ -1,9 +1,13 @@
-FROM dockerhub.hanada.info/library/ubuntu:20.04
+ARG RESTY_IMAGE_BASE="alpine"
+ARG RESTY_IMAGE_TAG="3.18"
+
+FROM dockerhub.hanada.info/${RESTY_IMAGE_BASE}:${RESTY_IMAGE_TAG}
 
 LABEL maintainer="Hanada <im@hanada.info>"
 
 # Docker Build Arguments
 ARG RESTY_GIT_MIRROR="github.com"
+ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.21.4.2"
 ARG RESTY_X_REQUEST_ID_PATCH_VERSION="1.21.4+"
@@ -89,24 +93,28 @@ ARG _RESTY_CONFIG_DEPS="\
 "
 
 RUN mkdir /build \
-    && sed -i 's@//.*archive.ubuntu.com@//mirrors.hanada.info@g' /etc/apt/sources.list \
-    && sed -i 's@//security.ubuntu.com@//mirrors.hanada.info@g' /etc/apt/sources.list \
-    && DEBIAN_FRONTEND=noninteractive apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        ca-certificates \
+    && apk add --no-cache --virtual .build-deps \
+        build-base \
+        coreutils \
         curl \
-        libpcre3-dev \
-        libssl-dev \
-        perl \
-        make \
-        build-essential \
-        libxml2 \
-        libxml2-dev \
+        gd-dev \
+        geoip-dev \
         libxslt-dev \
-        aptitude \
+        linux-headers \
+        make \
+        perl-dev \
+        readline-dev \
+        zlib-dev \
         bison \
         ${RESTY_ADD_PACKAGE_BUILDDEPS} \
-    && aptitude install -y --without-recommends libgd-dev \
+    && apk add --no-cache \
+        gd \
+        geoip \
+        libgcc \
+        libxslt \
+        zlib \
+        curl \
+        ${RESTY_ADD_PACKAGE_RUNDEPS} \
     && cd /build \
     && if [ -n "${RESTY_EVAL_PRE_CONFIGURE}" ]; then eval $(echo ${RESTY_EVAL_PRE_CONFIGURE}); fi \
     && cd /build \
@@ -206,10 +214,12 @@ RUN mkdir /build \
     && cd /build \
     && cp lua-resty-http/lib/resty/* /usr/local/openresty/lualib/resty \
     && cd /usr/local/openresty/lualib/resty \
-    && curl -fSL https://${RESTY_GIT_REPO}/hanada/openresty/-/raw/main/lualib/resty/maxminddb.lua -o maxminddb.lua \
+    && curl -fSL https://${RESTY_GIT_REPO}/hanada/lua-resty-maxminddb/-/raw/master/lib/resty/maxminddb.lua -o maxminddb.lua \
     && mkdir multipart \
     && cd multipart \
-    && curl -fSL https://${RESTY_GIT_REPO}/hanada/openresty/-/raw/main/lualib/resty/multipart/parser.lua -o parser.lua
+    && curl -fSL https://${RESTY_GIT_RAW_MIRROR}/agentzh/lua-resty-multipart-parser/master/lib/resty/multipart/parser.lua -o parser.lua
+    && rm -rf /build \
+    && apk del .build-deps
 
 # Add additional binaries into PATH for convenience
 ENV PATH=$PATH:/usr/local/openresty/luajit/bin/:/usr/local/openresty/nginx/sbin/:/usr/local/openresty/bin/
