@@ -156,7 +156,6 @@ RUN mkdir /build \
     && cd /build \
     && git clone --depth=100 https://${RESTY_GIT_MIRROR}/google/ngx_brotli.git ngx_http_brotli_module \
     && cd ngx_http_brotli_module \
-    && git reset --hard 63ca02abdcf79c9e788d2eedcc388d2335902e52 \
     && sed -i "s|github.com|${RESTY_GIT_MIRROR}|g" .gitmodules \
     && git submodule update --init \
     && cd /build \
