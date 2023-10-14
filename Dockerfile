@@ -90,8 +90,8 @@ ARG RESTY_EVAL_POST_DOWNLOAD_PRE_CONFIGURE=""
 ARG RESTY_EVAL_POST_MAKE=""
 
 ARG _RESTY_CONFIG_DEPS="\
-    --with-cc-opt='-O2 -g -O2 -Wp,-D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIC' \
-    --with-ld-opt='-Wl,-rpath,/usr/local/openresty/lib -Wl,-Bsymbolic-functions -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-whole-archive -Wl,--gc-sections -static-libgcc -static-libstdc++ -Wl,-Bstatic -ljemalloc -Wl,-Bdynamic -lm -Wl,-Bstatic -pthread -Wl,-Bdynamic -ldl -Wl,-E' \
+    --with-cc-opt='-g -Wp,-D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIC' \
+    --with-ld-opt='-Wl,-rpath,/usr/local/openresty/lib -Wl,-Bsymbolic-functions -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-whole-archive -Wl,--gc-sections -pie -ljemalloc -Wl,-Bdynamic -lm -lstdc++ -pthread -ldl -Wl,-E' \
 "
 
 RUN mkdir /build \
@@ -102,8 +102,6 @@ RUN mkdir /build \
         build-base \
         coreutils \
         curl \
-        gd \
-        geoip \
         gd-dev \
         geoip-dev \
         libxslt-dev \
@@ -111,7 +109,6 @@ RUN mkdir /build \
         make \
         perl-dev \
         readline-dev \
-        zlib \
         zlib-dev \
         bison \
         ${RESTY_ADD_PACKAGE_BUILDDEPS} \
@@ -127,7 +124,7 @@ RUN mkdir /build \
     && tar xjf jemalloc-${RESTY_JEMALLOC_VERSION}.tar.bz2 \
     && cd /build/jemalloc-${RESTY_JEMALLOC_VERSION} \
     && ./configure \
-    && make \
+    && make -j${RESTY_J} \
         EXTRA_CXXFLAGS="-Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIC" \
         EXTRA_CFLAGS="-Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIC" \
     && make install \
@@ -136,13 +133,13 @@ RUN mkdir /build \
     && tar xzf libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION}.tar.gz \
     && cd libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION} \
     && ./configure \
-    && make \
+    && make -j${RESTY_J} \
     && make check \
     && make install \
     && cd /build \
     && git clone https://${RESTY_GIT_MIRROR}/openresty/sregex.git sregex \
     && cd sregex \
-    && make \
+    && make -j${RESTY_J} \
     && make install \
     && cd /build \
     && curl -fSL "${RESTY_OPENSSL_URL_BASE}/openssl-${RESTY_OPENSSL_VERSION}.tar.gz" -o openssl-${RESTY_OPENSSL_VERSION}.tar.gz \
@@ -159,7 +156,7 @@ RUN mkdir /build \
     && cd libatomic_ops-${RESTY_LIBATOMIC_VERSION}/src \
     && ln -s -f ./.libs/libatomic_ops.a . \
     && cd /build \
-    && git clone --depth=100 https://${RESTY_GIT_MIRROR}/google/ngx_brotli.git ngx_http_brotli_module \
+    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/google/ngx_brotli.git ngx_http_brotli_module \
     && cd ngx_http_brotli_module \
     && sed -i "s|github.com|${RESTY_GIT_MIRROR}|g" .gitmodules \
     && git submodule update --init \
@@ -210,6 +207,7 @@ RUN mkdir /build \
     && mkdir -p /usr/local/openresty/lib \
     && cd /usr/local/openresty/lib \
     && cp -r -d /usr/local/lib/*.so* . \
+    && cp -r -d /usr/lib/libstdc++.so* . \
     && cd /usr/local/openresty/lualib \
     && ln -s ../lib/libmaxminddb.so . \
     && cd /build \
