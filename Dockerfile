@@ -102,11 +102,16 @@ RUN mkdir /build \
         build-base \
         coreutils \
         curl \
+        gd \
+        geoip \
+        gd-dev \
+        geoip-dev \
         libxslt-dev \
         linux-headers \
         make \
         perl-dev \
         readline-dev \
+        zlib \
         zlib-dev \
         bison \
         ${RESTY_ADD_PACKAGE_BUILDDEPS} \
@@ -175,7 +180,6 @@ RUN mkdir /build \
     && curl -fSL https://openresty.org/download/openresty-${RESTY_VERSION}.tar.gz -o openresty-${RESTY_VERSION}.tar.gz \
     && tar xzf openresty-${RESTY_VERSION}.tar.gz \
     && cd openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) \
-    && sed -i "s/\(openresty\/.*\)\"/\1-${RESTY_RELEASE}\"/" src/core/nginx.h \
     && curl -s https://${RESTY_GIT_REPO}/hanada/openresty/-/raw/main/patches/x_request_id_${RESTY_X_REQUEST_ID_PATCH_VERSION}.patch | patch -p1 \
     && patch -p1 < /build/ngx_http_upstream_check_module/check_1.20.1+.patch \
     && patch -p1 < /build/ngx_http_tls_dyn_size/nginx__dynamic_tls_records_1.17.7+.patch \
