@@ -94,6 +94,17 @@ ARG _RESTY_CONFIG_DEPS="\
     --with-ld-opt='-Wl,-rpath,/usr/local/openresty/lib -Wl,-Bsymbolic-functions -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-whole-archive -Wl,--gc-sections -pie -ljemalloc -Wl,-Bdynamic -lm -lstdc++ -pthread -ldl -Wl,-E' \
 "
 
+LABEL resty_image_base="${RESTY_IMAGE_BASE}"
+LABEL resty_image_tag="${RESTY_IMAGE_TAG}"
+LABEL resty_version="${RESTY_VERSION}"
+LABEL resty_release="${RESTY_RELEASE}"
+LABEL resty_openssl_version="${RESTY_OPENSSL_VERSION}"
+LABEL resty_pcre_version="${RESTY_PCRE_VERSION}"
+LABEL resty_libatomic_version="${RESTY_LIBATOMIC_VERSION}"
+LABEL resty_zlib_version="${RESTY_ZLIB_VERSION}"
+LABEL resty_jemalloc_version="${RESTY_JEMALLOC_VERSION}"
+LABEL resty_libmaxminddb_version="${RESTY_LIBMAXMINDDB_VERSION}"
+
 RUN mkdir /build \
     && apk add -U tzdata \
     && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
