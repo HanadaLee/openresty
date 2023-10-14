@@ -10,13 +10,14 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.21.4.2"
+ARG RESTY_RELEASE="12"
 ARG RESTY_X_REQUEST_ID_PATCH_VERSION="1.21.4+"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
 ARG RESTY_OPENSSL_URL_BASE="https://www.openssl.org/source"
-ARG RESTY_OPENSSL_VERSION="1.1.1u"
+ARG RESTY_OPENSSL_VERSION="1.1.1w"
 ARG RESTY_OPENSSL_OPTIONS="\
-    --with-openssl-opt='-g enable-weak-ssl-ciphers enable-tls1_3' \
+    --with-openssl-opt='enable-weak-ssl-ciphers enable-tls1_3' \
 "
 ARG RESTY_PCRE_URL_BASE="https://ftp.exim.org/pub/pcre"
 ARG RESTY_PCRE_VERSION="8.45"
@@ -45,6 +46,7 @@ ARG RESTY_PATH_OPTIONS="\
     --http-scgi-temp-path=/usr/local/openresty/var/lib/tmp/scgi \
 "
 ARG RESTY_USER_OPTIONS="--user=www-data --group=www-data"
+ARG RESTY_J="4"
 ARG RESTY_CONFIG_OPTIONS="\
     --with-compat \
     --with-file-aio \
@@ -100,8 +102,6 @@ RUN mkdir /build \
         build-base \
         coreutils \
         curl \
-        gd-dev \
-        geoip-dev \
         libxslt-dev \
         linux-headers \
         make \
@@ -111,11 +111,8 @@ RUN mkdir /build \
         bison \
         ${RESTY_ADD_PACKAGE_BUILDDEPS} \
     && apk add --no-cache \
-        gd \
-        geoip \
         libgcc \
         libxslt \
-        zlib \
         curl \
         ${RESTY_ADD_PACKAGE_RUNDEPS} \
     && cd /build \
@@ -179,6 +176,7 @@ RUN mkdir /build \
     && curl -fSL https://openresty.org/download/openresty-${RESTY_VERSION}.tar.gz -o openresty-${RESTY_VERSION}.tar.gz \
     && tar xzf openresty-${RESTY_VERSION}.tar.gz \
     && cd openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) \
+    && sed -i "s/\(openresty\/.*\)\"/\1-${RESTY_RELEASE}\"/" src/core/nginx.h \
     && curl -s https://${RESTY_GIT_REPO}/hanada/openresty/-/raw/main/patches/x_request_id_${RESTY_X_REQUEST_ID_PATCH_VERSION}.patch | patch -p1 \
     && patch -p1 < /build/ngx_http_upstream_check_module/check_1.20.1+.patch \
     && patch -p1 < /build/ngx_http_tls_dyn_size/nginx__dynamic_tls_records_1.17.7+.patch \
@@ -197,7 +195,7 @@ RUN mkdir /build \
     ${RESTY_OPENSSL_OPTIONS} \
     ${RESTY_CONFIG_OPTIONS_MORE} \
     ${_RESTY_CONFIG_DEPS} \
-    && make \
+    && make -j${RESTY_J} \
     && make install \
     && mv /usr/local/openresty/nginx/html /usr/local/openresty \
     && rm -rf /usr/local/openresty/nginx \
@@ -231,7 +229,7 @@ ENV PATH=$PATH:/usr/local/openresty/luajit/bin/:/usr/local/openresty/sbin/:/usr/
 # Copy nginx configuration files
 # COPY etc /usr/local/openresty/nginx/etc
 
-CMD [ "/usr/local/openresty/sbin/nginx", "-g", "daemon off;"]
+CMD [ "/usr/local/openresty/sbin/nginx", "-p", "/usr/local/openresty/", "-g", "daemon off;"]
 
 # Use SIGQUIT instead of default SIGTERM to cleanly drain requests
 # See https://github.com/openresty/docker-openresty/blob/master/README.md#tips--pitfalls
