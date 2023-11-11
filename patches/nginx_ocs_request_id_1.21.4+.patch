@@ -6,7 +6,7 @@ index 013b715..0c3c6da 100644
                   offsetof(ngx_http_headers_in_t, if_none_match),
                   ngx_http_process_unique_header_line },
  
-+    { ngx_string("X-Request-Id"), offsetof(ngx_http_headers_in_t, x_request_id),
++    { ngx_string("X-Ocs-Request-Id"), offsetof(ngx_http_headers_in_t, x_ocs_request_id),
 +                 ngx_http_process_header_line },
 +
      { ngx_string("User-Agent"), offsetof(ngx_http_headers_in_t, user_agent),
@@ -22,7 +22,7 @@ index 013b715..0c3c6da 100644
 +        ngx_str_t                    name;
 +        ngx_http_variable_value_t   *vv;
 +        ngx_uint_t                   hash;
-+        p2 = (u_char *) "x_request_id";
++        p2 = (u_char *) "ocs_request_id";
 +        lowcase = ngx_pnalloc(r->pool, len2);
 +        if (lowcase == NULL) {
 +            return r->log_handler(r, ctx->current_request, p, len);
@@ -35,7 +35,7 @@ index 013b715..0c3c6da 100644
 +            text.data = vv->data;
 +            text.len = vv->len;
 +        	buf = p;
-+        	p = ngx_snprintf(buf, len, ", x_request_id: %V", &text);
++        	p = ngx_snprintf(buf, len, ", ocs_request_id: %V", &text);
 +            len -= p - buf;
 +        }
 +
@@ -50,7 +50,7 @@ index b1269d2..daf37cc 100644
      ngx_table_elt_t                  *if_unmodified_since;
      ngx_table_elt_t                  *if_match;
      ngx_table_elt_t                  *if_none_match;
-+    ngx_table_elt_t                  *x_request_id;
++    ngx_table_elt_t                  *x_ocs_request_id;
      ngx_table_elt_t                  *user_agent;
      ngx_table_elt_t                  *referer;
      ngx_table_elt_t                  *content_length;
@@ -62,7 +62,7 @@ index 942dacd..3d95723 100644
      ngx_http_variable_value_t *v, uintptr_t data);
  static ngx_int_t ngx_http_variable_request_id(ngx_http_request_t *r,
      ngx_http_variable_value_t *v, uintptr_t data);
-+static ngx_int_t ngx_http_variable_x_request_id(ngx_http_request_t *r,
++static ngx_int_t ngx_http_variable_ocs_request_id(ngx_http_request_t *r,
 +    ngx_http_variable_value_t *v, uintptr_t data);
  static ngx_int_t ngx_http_variable_status(ngx_http_request_t *r,
      ngx_http_variable_value_t *v, uintptr_t data);
@@ -71,8 +71,8 @@ index 942dacd..3d95723 100644
        ngx_http_variable_request_id,
        0, 0, 0 },
  
-+    { ngx_string("x_request_id"), NULL,
-+      ngx_http_variable_x_request_id,
++    { ngx_string("ocs_request_id"), NULL,
++      ngx_http_variable_ocs_request_id,
 +      0, 0, 0 },
 +
      { ngx_string("status"), NULL,
@@ -83,7 +83,7 @@ index 942dacd..3d95723 100644
  
  
 +static ngx_int_t
-+ngx_http_variable_x_request_id(ngx_http_request_t *r,
++ngx_http_variable_ocs_request_id(ngx_http_request_t *r,
 +    ngx_http_variable_value_t *v, uintptr_t data)
 +{
 +    u_char      *id, *p;
@@ -97,9 +97,9 @@ index 942dacd..3d95723 100644
 +    v->no_cacheable = 0;
 +    v->not_found = 0;
 +
-+    if (r->headers_in.x_request_id) {
-+        v->len = r->headers_in.x_request_id->value.len;
-+        v->data = r->headers_in.x_request_id->value.data;
++    if (r->headers_in.x_ocs_request_id) {
++        v->len = r->headers_in.x_ocs_request_id->value.len;
++        v->data = r->headers_in.x_ocs_request_id->value.data;
 +        return NGX_OK;
 +    }
 +

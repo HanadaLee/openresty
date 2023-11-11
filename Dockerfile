@@ -9,8 +9,8 @@ LABEL maintainer="Hanada <im@hanada.info>"
 ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
-ARG RESTY_VERSION="1.21.4.2"
-ARG RESTY_RELEASE="12"
+ARG RESTY_VERSION="1.21.4.3"
+ARG RESTY_RELEASE="14"
 ARG RESTY_X_REQUEST_ID_PATCH_VERSION="1.21.4+"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -188,7 +188,7 @@ RUN mkdir /build \
     && curl -fSL https://openresty.org/download/openresty-${RESTY_VERSION}.tar.gz -o openresty-${RESTY_VERSION}.tar.gz \
     && tar xzf openresty-${RESTY_VERSION}.tar.gz \
     && cd openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) \
-    && curl -s https://${RESTY_GIT_REPO}/hanada/openresty/-/raw/main/patches/x_request_id_${RESTY_X_REQUEST_ID_PATCH_VERSION}.patch | patch -p1 \
+    && curl -s https://${RESTY_GIT_REPO}/hanada/openresty/-/raw/main/patches/nginx_ocs_request_id_${RESTY_X_REQUEST_ID_PATCH_VERSION}.patch | patch -p1 \
     && sed -i "s/\(openresty\/.*\)\"/\1-${RESTY_RELEASE}\"/" src/core/nginx.h \
     && patch -p1 < /build/ngx_http_upstream_check_module/check_1.20.1+.patch \
     && patch -p1 < /build/ngx_http_tls_dyn_size/nginx__dynamic_tls_records_1.17.7+.patch \
