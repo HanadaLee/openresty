@@ -10,7 +10,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.21.4.3"
-ARG RESTY_RELEASE="14"
+ARG RESTY_RELEASE="15"
 ARG RESTY_X_REQUEST_ID_PATCH_VERSION="1.21.4+"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -77,6 +77,7 @@ ARG RESTY_CONFIG_OPTIONS_MORE="\
     --add-module=/build/ngx_http_upstream_check_module \
     --add-module=/build/ngx_http_sorted_querystring_module \
     --add-module=/build/ngx_http_lua_cache_module \
+    --add-module=/build/ngx_http_extra_vars_module \
     --add-dynamic-module=/build/ngx_http_dav_ext_module \
     --add-dynamic-module=/build/ngx_http_flv_module \
     --add-dynamic-module=/build/ngx_http_vhost_traffic_status_module \
@@ -183,6 +184,7 @@ RUN mkdir /build \
     && git clone https://${RESTY_GIT_MIRROR}/openresty/replace-filter-nginx-module.git ngx_http_replace_filter_module \
     && git clone https://${RESTY_GIT_MIRROR}/ledgetech/lua-resty-http.git lua-resty-http \
     && git clone https://${RESTY_GIT_MIRROR}/AlticeLabsProjects/lua-upstream-cache-nginx-module.git ngx_http_lua_cache_module \
+    && git clone https://${RESTY_GIT_REPO}/hanada/ngx_http_extra_vars_module.git ngx_http_extra_vars_module \
     && git clone https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_http_tls_dyn_size.git ngx_http_tls_dyn_size \
     && cd /build \
     && curl -fSL https://openresty.org/download/openresty-${RESTY_VERSION}.tar.gz -o openresty-${RESTY_VERSION}.tar.gz \
