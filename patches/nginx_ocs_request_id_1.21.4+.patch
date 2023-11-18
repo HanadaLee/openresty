@@ -18,11 +18,11 @@ index 013b715..0c3c6da 100644
      if (r) {
 +        ngx_str_t                    text;
 +        u_char                      *p2, *lowcase;
-+        size_t                       len2 = 12;
++        size_t                       len2 = 15;
 +        ngx_str_t                    name;
 +        ngx_http_variable_value_t   *vv;
 +        ngx_uint_t                   hash;
-+        p2 = (u_char *) "x_ocs_request_id";
++        p2 = (u_char *) "ocs_request_id";
 +        lowcase = ngx_pnalloc(r->pool, len2);
 +        if (lowcase == NULL) {
 +            return r->log_handler(r, ctx->current_request, p, len);
@@ -62,7 +62,7 @@ index 942dacd..3d95723 100644
      ngx_http_variable_value_t *v, uintptr_t data);
  static ngx_int_t ngx_http_variable_request_id(ngx_http_request_t *r,
      ngx_http_variable_value_t *v, uintptr_t data);
-+static ngx_int_t ngx_http_variable_x_ocs_request_id(ngx_http_request_t *r,
++static ngx_int_t ngx_http_variable_ocs_request_id(ngx_http_request_t *r,
 +    ngx_http_variable_value_t *v, uintptr_t data);
  static ngx_int_t ngx_http_variable_status(ngx_http_request_t *r,
      ngx_http_variable_value_t *v, uintptr_t data);
@@ -71,8 +71,8 @@ index 942dacd..3d95723 100644
        ngx_http_variable_request_id,
        0, 0, 0 },
  
-+    { ngx_string("x_ocs_request_id"), NULL,
-+      ngx_http_variable_x_ocs_request_id,
++    { ngx_string("ocs_request_id"), NULL,
++      ngx_http_variable_ocs_request_id,
 +      0, 0, 0 },
 +
      { ngx_string("status"), NULL,
@@ -83,7 +83,7 @@ index 942dacd..3d95723 100644
  
  
 +static ngx_int_t
-+ngx_http_variable_x_ocs_request_id(ngx_http_request_t *r,
++ngx_http_variable_ocs_request_id(ngx_http_request_t *r,
 +    ngx_http_variable_value_t *v, uintptr_t data)
 +{
 +    u_char      *id, *p;
