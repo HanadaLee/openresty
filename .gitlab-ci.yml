@@ -1,6 +1,6 @@
 variables:
   RESTY_VERSION: 1.21.4.3
-  RESTY_RELEASE: 20
+  RESTY_RELEASE: 21
 
 stages:
   - build
@@ -15,7 +15,7 @@ docker-build:
   script:
     - >
       docker buildx build \
-        --platform linux/amd64,linux/arm64 \
+        --platform linux/amd64 \
         -t $CI_REGISTRY_IMAGE:latest \
         -t $CI_REGISTRY_IMAGE:$RESTY_VERSION-$RESTY_RELEASE \
         --build-arg RESTY_VERSION=$RESTY_VERSION \
