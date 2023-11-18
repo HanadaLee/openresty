@@ -18,7 +18,7 @@ index 013b715..0c3c6da 100644
      if (r) {
 +        ngx_str_t                    text;
 +        u_char                      *p2, *lowcase;
-+        size_t                       len2 = 15;
++        size_t                       len2 = 14;
 +        ngx_str_t                    name;
 +        ngx_http_variable_value_t   *vv;
 +        ngx_uint_t                   hash;
