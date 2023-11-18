@@ -22,7 +22,7 @@ index 013b715..0c3c6da 100644
 +        ngx_str_t                    name;
 +        ngx_http_variable_value_t   *vv;
 +        ngx_uint_t                   hash;
-+        p2 = (u_char *) "ocs_request_id";
++        p2 = (u_char *) "x_ocs_request_id";
 +        lowcase = ngx_pnalloc(r->pool, len2);
 +        if (lowcase == NULL) {
 +            return r->log_handler(r, ctx->current_request, p, len);
