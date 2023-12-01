@@ -11,7 +11,7 @@ ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.21.4.3"
 ARG RESTY_RELEASE="24"
-ARG RESTY_X_REQUEST_ID_PATCH_VERSION="1.21.4+"
+ARG RESTY_REQUEST_ID_PATCH_VERSION="1.21.4+"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
 ARG RESTY_OPENSSL_URL_BASE="https://www.openssl.org/source"
@@ -182,15 +182,19 @@ RUN mkdir /build \
     && git clone https://${RESTY_GIT_MIRROR}/wandenberg/nginx-sorted-querystring-module.git ngx_http_sorted_querystring_module \
     && git clone https://${RESTY_GIT_MIRROR}/aperezdc/ngx-fancyindex.git ngx_http_fancyindex_module \
     && git clone https://${RESTY_GIT_MIRROR}/openresty/replace-filter-nginx-module.git ngx_http_replace_filter_module \
-    && git clone https://${RESTY_GIT_MIRROR}/ledgetech/lua-resty-http.git lua-resty-http \
-    && git clone https://${RESTY_GIT_MIRROR}/AlticeLabsProjects/lua-upstream-cache-nginx-module.git ngx_http_lua_cache_module \
     && git clone https://${RESTY_GIT_REPO}/hanada/ngx_http_extra_vars_module.git ngx_http_extra_vars_module \
+    && git clone https://${RESTY_GIT_MIRROR}/AlticeLabsProjects/lua-upstream-cache-nginx-module.git ngx_http_lua_cache_module \
     && git clone https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_http_tls_dyn_size.git ngx_http_tls_dyn_size \
+    && git clone https://${RESTY_GIT_MIRROR}/ledgetech/lua-resty-http.git lua-resty-http \
+    && git clone https://${RESTY_GIT_MIRROR}/SkyLothar/lua-resty-jwt.git lua-resty-jwt \
+    && git clone https://${RESTY_GIT_MIRROR}/jkeys089/lua-resty-hmac.git lua-resty-hmac \
+    && git clone https://${RESTY_GIT_MIRROR}/bungle/lua-resty-session.git lua-resty-session \
+    && git clone https://${RESTY_GIT_MIRROR}/zmartzone/lua-resty-openidc.git lua-resty-openidc \
     && cd /build \
     && curl -fSL https://openresty.org/download/openresty-${RESTY_VERSION}.tar.gz -o openresty-${RESTY_VERSION}.tar.gz \
     && tar xzf openresty-${RESTY_VERSION}.tar.gz \
     && cd openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) \
-    && curl -s https://${RESTY_GIT_REPO}/hanada/openresty/-/raw/main/patches/nginx_ocs_request_id_${RESTY_X_REQUEST_ID_PATCH_VERSION}.patch | patch -p1 \
+    && curl -s https://${RESTY_GIT_REPO}/hanada/openresty/-/raw/main/patches/nginx_resty_request_id_${RESTY_REQUEST_ID_PATCH_VERSION}.patch | patch -p1 \
     && sed -i "s/\(openresty\/.*\)\"/\1-${RESTY_RELEASE}\"/" src/core/nginx.h \
     && patch -p1 < /build/ngx_http_upstream_check_module/check_1.20.1+.patch \
     && patch -p1 < /build/ngx_http_tls_dyn_size/nginx__dynamic_tls_records_1.17.7+.patch \
@@ -226,6 +230,10 @@ RUN mkdir /build \
     && ln -s ../lib/libmaxminddb.so . \
     && cd /build \
     && cp lua-resty-http/lib/resty/* /usr/local/openresty/lualib/resty \
+    && cp lua-resty-jwt/lib/resty/* /usr/local/openresty/lualib/resty \
+    && cp lua-resty-hmac/lib/resty/* /usr/local/openresty/lualib/resty \
+    && cp lua-resty-session/lib/resty/* /usr/local/openresty/lualib/resty \
+    && cp lua-resty-openidc/lib/resty/* /usr/local/openresty/lualib/resty \
     && cd /usr/local/openresty/lualib/resty \
     && curl -fSL https://${RESTY_GIT_REPO}/hanada/lua-resty-maxminddb/-/raw/master/lib/resty/maxminddb.lua -o maxminddb.lua \
     && mkdir multipart \
