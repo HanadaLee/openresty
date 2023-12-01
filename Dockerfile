@@ -229,11 +229,11 @@ RUN mkdir /build \
     && cd /usr/local/openresty/lualib \
     && ln -s ../lib/libmaxminddb.so . \
     && cd /build \
-    && cp lua-resty-http/lib/resty/* /usr/local/openresty/lualib/resty \
-    && cp lua-resty-jwt/lib/resty/* /usr/local/openresty/lualib/resty \
-    && cp lua-resty-hmac/lib/resty/* /usr/local/openresty/lualib/resty \
-    && cp lua-resty-session/lib/resty/* /usr/local/openresty/lualib/resty \
-    && cp lua-resty-openidc/lib/resty/* /usr/local/openresty/lualib/resty \
+    && cp -r lua-resty-http/lib/resty/* /usr/local/openresty/lualib/resty \
+    && cp -r lua-resty-jwt/lib/resty/* /usr/local/openresty/lualib/resty \
+    && cp -r lua-resty-hmac/lib/resty/* /usr/local/openresty/lualib/resty \
+    && cp -r lua-resty-session/lib/resty/* /usr/local/openresty/lualib/resty \
+    && cp -r lua-resty-openidc/lib/resty/* /usr/local/openresty/lualib/resty \
     && cd /usr/local/openresty/lualib/resty \
     && curl -fSL https://${RESTY_GIT_REPO}/hanada/lua-resty-maxminddb/-/raw/master/lib/resty/maxminddb.lua -o maxminddb.lua \
     && mkdir multipart \
