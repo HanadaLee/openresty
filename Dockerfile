@@ -10,7 +10,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.21.4.3"
-ARG RESTY_RELEASE="24"
+ARG RESTY_RELEASE="26"
 ARG RESTY_REQUEST_ID_PATCH_VERSION="1.21.4+"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -189,6 +189,7 @@ RUN mkdir /build \
     && git clone https://${RESTY_GIT_MIRROR}/SkyLothar/lua-resty-jwt.git lua-resty-jwt \
     && git clone https://${RESTY_GIT_MIRROR}/jkeys089/lua-resty-hmac.git lua-resty-hmac \
     && git clone https://${RESTY_GIT_MIRROR}/bungle/lua-resty-session.git lua-resty-session \
+    && git clone https://${RESTY_GIT_MIRROR}/fffonion/lua-resty-openssl.git lua-resty-openssl \
     && git clone https://${RESTY_GIT_MIRROR}/zmartzone/lua-resty-openidc.git lua-resty-openidc \
     && cd /build \
     && curl -fSL https://openresty.org/download/openresty-${RESTY_VERSION}.tar.gz -o openresty-${RESTY_VERSION}.tar.gz \
@@ -233,6 +234,7 @@ RUN mkdir /build \
     && cp -r lua-resty-jwt/lib/resty/* /usr/local/openresty/lualib/resty \
     && cp -r lua-resty-hmac/lib/resty/* /usr/local/openresty/lualib/resty \
     && cp -r lua-resty-session/lib/resty/* /usr/local/openresty/lualib/resty \
+    && cp -r lua-resty-openssl/lib/resty/* /usr/local/openresty/lualib/resty \
     && cp -r lua-resty-openidc/lib/resty/* /usr/local/openresty/lualib/resty \
     && cd /usr/local/openresty/lualib/resty \
     && curl -fSL https://${RESTY_GIT_REPO}/hanada/lua-resty-maxminddb/-/raw/master/lib/resty/maxminddb.lua -o maxminddb.lua \
