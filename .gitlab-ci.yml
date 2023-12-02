@@ -16,7 +16,8 @@ docker-build:
     - >
       docker buildx build \
         --platform linux/amd64,linux/arm64 \
-        -t openresty:$RESTY_VERSION-$RESTY_RELEASE \
+        -t registry.hanada.info/hanada/openresty:latest \
+        -t registry.hanada.info/hanada/openresty:$RESTY_VERSION-$RESTY_RELEASE \
         --build-arg RESTY_VERSION=$RESTY_VERSION \
         --build-arg RESTY_RELEASE=$RESTY_RELEASE \
         --push \
