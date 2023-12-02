@@ -10,8 +10,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.21.4.3"
-ARG RESTY_RELEASE="26"
-ARG RESTY_REQUEST_ID_PATCH_VERSION="1.21.4+"
+ARG RESTY_RELEASE="27"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
 ARG RESTY_OPENSSL_URL_BASE="https://www.openssl.org/source"
@@ -74,10 +73,11 @@ ARG RESTY_CONFIG_OPTIONS_MORE="\
     --add-module=/build/ngx_http_cache_purge_module \
     --add-module=/build/ngx_http_brotli_module \
     --add-module=/build/ngx_http_geoip2_module \
-    --add-module=/build/ngx_http_upstream_check_module \
     --add-module=/build/ngx_http_sorted_querystring_module \
-    --add-module=/build/ngx_http_lua_cache_module \
+    --add-module=/build/ngx_http_upstream_dynamic_resolve_servers_module \
+    --add-module=/build/ngx_http_upstream_check_module \
     --add-module=/build/ngx_http_extra_vars_module \
+    --add-module=/build/ngx_http_lua_cache_module \
     --add-dynamic-module=/build/ngx_http_dav_ext_module \
     --add-dynamic-module=/build/ngx_http_flv_module \
     --add-dynamic-module=/build/ngx_http_vhost_traffic_status_module \
@@ -182,6 +182,7 @@ RUN mkdir /build \
     && git clone https://${RESTY_GIT_MIRROR}/wandenberg/nginx-sorted-querystring-module.git ngx_http_sorted_querystring_module \
     && git clone https://${RESTY_GIT_MIRROR}/aperezdc/ngx-fancyindex.git ngx_http_fancyindex_module \
     && git clone https://${RESTY_GIT_MIRROR}/openresty/replace-filter-nginx-module.git ngx_http_replace_filter_module \
+    && git clone https://${RESTY_GIT_MIRROR}/zhaofeng0019/nginx-upstream-dynamic-resolve-servers.git ngx_http_upstream_dynamic_resolve_servers_module \
     && git clone https://${RESTY_GIT_REPO}/hanada/ngx_http_extra_vars_module.git ngx_http_extra_vars_module \
     && git clone https://${RESTY_GIT_MIRROR}/AlticeLabsProjects/lua-upstream-cache-nginx-module.git ngx_http_lua_cache_module \
     && git clone https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_http_tls_dyn_size.git ngx_http_tls_dyn_size \
@@ -195,10 +196,11 @@ RUN mkdir /build \
     && curl -fSL https://openresty.org/download/openresty-${RESTY_VERSION}.tar.gz -o openresty-${RESTY_VERSION}.tar.gz \
     && tar xzf openresty-${RESTY_VERSION}.tar.gz \
     && cd openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) \
-    && curl -s https://${RESTY_GIT_REPO}/hanada/openresty/-/raw/main/patches/nginx_resty_request_id_${RESTY_REQUEST_ID_PATCH_VERSION}.patch | patch -p1 \
-    && sed -i "s/\(openresty\/.*\)\"/\1-${RESTY_RELEASE}\"/" src/core/nginx.h \
+    && curl -s https://${RESTY_GIT_REPO}/hanada/openresty/-/raw/main/patches/nginx_resty_request_id_1.21.4+.patch | patch -p1 \
+    && curl -s https://${RESTY_GIT_REPO}/hanada/openresty/-/raw/main/patches/ngx_http_upstream_dynamic_resolve_servers_1.21.4+.patch | patch -p1 \
     && patch -p1 < /build/ngx_http_upstream_check_module/check_1.20.1+.patch \
     && patch -p1 < /build/ngx_http_tls_dyn_size/nginx__dynamic_tls_records_1.17.7+.patch \
+    && sed -i "s/\(openresty\/.*\)\"/\1-${RESTY_RELEASE}\"/" src/core/nginx.h \
     && cd /build/openresty-${RESTY_VERSION} \
     && if [ -n "${RESTY_EVAL_POST_DOWNLOAD_PRE_CONFIGURE}" ]; then eval $(echo ${RESTY_EVAL_POST_DOWNLOAD_PRE_CONFIGURE}); fi \
     && eval ./configure \
