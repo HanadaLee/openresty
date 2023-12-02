@@ -16,7 +16,6 @@ docker-build:
     - >
       docker buildx build \
         --platform linux/amd64,linux/arm64 \
-        -t $CI_REGISTRY_IMAGE:latest \
         -t $CI_REGISTRY_IMAGE:$RESTY_VERSION-$RESTY_RELEASE \
         --build-arg RESTY_VERSION=$RESTY_VERSION \
         --build-arg RESTY_RELEASE=$RESTY_RELEASE \
