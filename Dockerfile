@@ -125,9 +125,11 @@ RUN mkdir /build \
         bison \
         ${RESTY_ADD_PACKAGE_BUILDDEPS} \
     && apk add --no-cache \
+        bash \
         libgcc \
         libxslt \
         curl \
+        perl \
         ${RESTY_ADD_PACKAGE_RUNDEPS} \
     && cd /build \
     && if [ -n "${RESTY_EVAL_PRE_CONFIGURE}" ]; then eval $(echo ${RESTY_EVAL_PRE_CONFIGURE}); fi \
@@ -172,17 +174,6 @@ RUN mkdir /build \
     && cd ngx_http_brotli_module \
     && sed -i "s|github.com|${RESTY_GIT_MIRROR}|g" .gitmodules \
     && git submodule update --init \
-    && cd /build \
-    && curl -fSL https://luarocks.github.io/luarocks/releases/luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz -o luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz \
-    && tar xzf luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz \
-    && cd luarocks-${RESTY_LUAROCKS_VERSION} \
-    && ./configure \
-        --prefix=/usr/local/openresty/luajit \
-        --with-lua=/usr/local/openresty/luajit \
-        --lua-suffix=jit-2.1.0-beta3 \
-        --with-lua-include=/usr/local/openresty/luajit/include/luajit-2.1 \
-    && make build \
-    && make install \
     && git clone https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_cache_purge.git ngx_http_cache_purge_module \
     && git clone https://${RESTY_GIT_MIRROR}/leev/ngx_http_geoip2_module.git ngx_http_geoip2_module \
     && git clone https://${RESTY_GIT_MIRROR}/arut/nginx-dav-ext-module.git ngx_http_dav_ext_module \
@@ -235,6 +226,17 @@ RUN mkdir /build \
     && cp -r -d /usr/lib/libstdc++.so* . \
     && cd /usr/local/openresty/lualib \
     && ln -s ../lib/libmaxminddb.so . \
+    && cd /build \
+    && curl -fSL https://luarocks.github.io/luarocks/releases/luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz -o luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz \
+    && tar xzf luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz \
+    && cd luarocks-${RESTY_LUAROCKS_VERSION} \
+    && ./configure \
+        --prefix=/usr/local/openresty/luajit \
+        --with-lua=/usr/local/openresty/luajit \
+        --lua-suffix=jit-2.1.0-beta3 \
+        --with-lua-include=/usr/local/openresty/luajit/include/luajit-2.1 \
+    && make build \
+    && make install \
     && cd /build \
     && cp -r lua-resty-maxminddb/lib/resty/* /usr/local/openresty/lualib/resty \
     && cp -r lua-resty-multipart-parser/lib/resty/* /usr/local/openresty/lualib/resty \
