@@ -125,7 +125,6 @@ RUN mkdir /build \
         bison \
         ${RESTY_ADD_PACKAGE_BUILDDEPS} \
     && apk add --no-cache \
-        bash \
         libgcc \
         libxslt \
         curl \
