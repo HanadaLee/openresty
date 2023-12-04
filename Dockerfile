@@ -125,6 +125,7 @@ RUN mkdir /build \
         bison \
         ${RESTY_ADD_PACKAGE_BUILDDEPS} \
     && apk add --no-cache \
+        bash \
         libgcc \
         libxslt \
         curl \
@@ -173,6 +174,7 @@ RUN mkdir /build \
     && cd ngx_http_brotli_module \
     && sed -i "s|github.com|${RESTY_GIT_MIRROR}|g" .gitmodules \
     && git submodule update --init \
+    && cd /build \
     && git clone https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_cache_purge.git ngx_http_cache_purge_module \
     && git clone https://${RESTY_GIT_MIRROR}/leev/ngx_http_geoip2_module.git ngx_http_geoip2_module \
     && git clone https://${RESTY_GIT_MIRROR}/arut/nginx-dav-ext-module.git ngx_http_dav_ext_module \
