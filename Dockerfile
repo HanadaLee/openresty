@@ -113,7 +113,6 @@ RUN mkdir /build \
     && apk add --no-cache --virtual .build-deps \
         build-base \
         coreutils \
-        curl \
         gd-dev \
         geoip-dev \
         libxslt-dev \
@@ -123,6 +122,7 @@ RUN mkdir /build \
         readline-dev \
         zlib-dev \
         bison \
+        perl-dev \
         ${RESTY_ADD_PACKAGE_BUILDDEPS} \
     && apk add --no-cache \
         bash \
@@ -130,6 +130,12 @@ RUN mkdir /build \
         libxslt \
         curl \
         perl \
+        libintl \
+        linux-headers \
+        musl \
+        outils-md5 \
+        unzip \
+        wget \
         ${RESTY_ADD_PACKAGE_RUNDEPS} \
     && cd /build \
     && if [ -n "${RESTY_EVAL_PRE_CONFIGURE}" ]; then eval $(echo ${RESTY_EVAL_PRE_CONFIGURE}); fi \
