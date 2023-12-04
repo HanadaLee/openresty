@@ -241,11 +241,11 @@ RUN mkdir /build \
     && cd /build \
     && cp -r lua-resty-maxminddb/lib/resty/* /usr/local/openresty/lualib/resty \
     && cp -r lua-resty-multipart-parser/lib/resty/* /usr/local/openresty/lualib/resty \
-    && luarocks install lua-resty-http \
-    && luarocks install lua-resty-hmac-ffi \
-    && luarocks install lua-resty-jwt \
-    && luarocks install lua-resty-openidc \
-    && luarocks install lua-resty-dns-client \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-http \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-hmac-ffi \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-jwt \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-openidc \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-dns-client \
     && cd /build \
     && if [ -n "${RESTY_EVAL_POST_MAKE}" ]; then eval $(echo ${RESTY_EVAL_POST_MAKE}); fi \
     && delgroup www-data \
