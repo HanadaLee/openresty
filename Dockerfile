@@ -10,7 +10,7 @@ ARG RESTY_GIT_MIRROR="fastgit.hanada.info"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.21.4.3"
-ARG RESTY_RELEASE="28"
+ARG RESTY_RELEASE="29"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
 ARG RESTY_OPENSSL_URL_BASE="https://www.openssl.org/source"
@@ -192,6 +192,7 @@ RUN mkdir /build \
     && git clone https://${RESTY_GIT_MIRROR}/fffonion/lua-resty-openssl.git lua-resty-openssl \
     && git clone https://${RESTY_GIT_MIRROR}/zmartzone/lua-resty-openidc.git lua-resty-openidc \
     && git clone https://${RESTY_GIT_MIRROR}/agentzh/lua-resty-multipart-parser.git lua-resty-multipart-parser \
+    && git clone https://${RESTY_GIT_MIRROR}/Kong/lua-resty-dns-client.git lua-resty-dns-client \
     && cd /build \
     && curl -fSL https://openresty.org/download/openresty-${RESTY_VERSION}.tar.gz -o openresty-${RESTY_VERSION}.tar.gz \
     && tar xzf openresty-${RESTY_VERSION}.tar.gz \
@@ -239,6 +240,7 @@ RUN mkdir /build \
     && cp -r lua-resty-openssl/lib/resty/* /usr/local/openresty/lualib/resty \
     && cp -r lua-resty-openidc/lib/resty/* /usr/local/openresty/lualib/resty \
     && cp -r lua-resty-multipart-parser/lib/resty/* /usr/local/openresty/lualib/resty \
+    && cp -r lua-resty-dns-client/src/resty/* /usr/local/openresty/lualib/resty \
     && delgroup www-data \
     && deluser --remove-home $(getent passwd 33 | cut -d: -f1) \
     && adduser -s /sbin/nologin -g www-data -D -h /var/www --uid 33 www-data \
