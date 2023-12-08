@@ -1,5 +1,5 @@
 diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
-index a386ad7..1bea84c 100644
+index a386ad7..d1f66e4 100644
 --- a/src/event/ngx_event_openssl.c
 +++ b/src/event/ngx_event_openssl.c
 @@ -1711,9 +1711,10 @@ ngx_ssl_set_session(ngx_connection_t *c, ngx_ssl_session_t *session)
@@ -26,7 +26,7 @@ index a386ad7..1bea84c 100644
          return NGX_OK;
      }
  
-@@ -5581,6 +5585,77 @@ ngx_ssl_get_client_v_remain(ngx_connection_t *c, ngx_pool_t *pool, ngx_str_t *s)
+@@ -5581,6 +5585,90 @@ ngx_ssl_get_client_v_remain(ngx_connection_t *c, ngx_pool_t *pool, ngx_str_t *s)
  }
  
  
@@ -66,35 +66,48 @@ index a386ad7..1bea84c 100644
 +
 +
 +ngx_int_t
-+ngx_ssl_get_handshake_time_msec(ngx_connection_t *c, ngx_pool_t *pool, ngx_str_t *s)
-+{
++ngx_ssl_get_handshake_start_ts(ngx_connection_t *c, ngx_pool_t *pool, ngx_str_t *s) {
 +    ngx_msec_int_t   ms;
 +    u_char          *p;
-+    ngx_time_t      *tp;
 +
-+    if (c->ssl == NULL) {
++    if (c->ssl == NULL || c->ssl->handshake_start_msec == 0) {
 +        ngx_str_null(s);
 +
 +        return NGX_OK;
 +    }
 +
-+    tp = ngx_timeofday();
++    ms = c->ssl->handshake_start_msec;
 +
-+    if (c->ssl->handshake_end_msec == 0) {
-+        ms = tp->sec * 1000 + tp->msec - c->ssl->handshake_start_msec;
-+
-+    } else {
-+        ms = c->ssl->handshake_end_msec - c->ssl->handshake_start_msec;
-+    }
-+
-+    ms = ngx_max(ms, 0);
-+
-+    p = ngx_pnalloc(pool, NGX_TIME_T_LEN);
++    p = ngx_pnalloc(pool, NGX_TIME_T_LEN + 4);
 +    if (p == NULL) {
 +        return NGX_ERROR;
 +    }
 +
-+    s->len = ngx_sprintf(p, "%i", ms) - p;
++    s->len = ngx_sprintf(p, "%T.%03M", (time_t) ms / 1000, ms % 1000) - p;
++    s->data = p;
++
++    return NGX_OK;
++}
++
++ngx_int_t
++ngx_ssl_get_handshake_end_ts(ngx_connection_t *c, ngx_pool_t *pool, ngx_str_t *s) {
++    ngx_msec_int_t   ms;
++    u_char          *p;
++
++    if (c->ssl == NULL || c->ssl->handshake_end_msec == 0) {
++        ngx_str_null(s);
++
++        return NGX_OK;
++    }
++
++    ms = c->ssl->handshake_end_msec;
++
++    p = ngx_pnalloc(pool, NGX_TIME_T_LEN + 4);
++    if (p == NULL) {
++        return NGX_ERROR;
++    }
++
++    s->len = ngx_sprintf(p, "%T.%03M", (time_t) ms / 1000, ms % 1000) - p;
 +    s->data = p;
 +
 +    return NGX_OK;
@@ -105,7 +118,7 @@ index a386ad7..1bea84c 100644
  ngx_ssl_parse_time(
  #if OPENSSL_VERSION_NUMBER > 0x10100000L
 diff --git a/src/event/ngx_event_openssl.h b/src/event/ngx_event_openssl.h
-index 4afdfad..5d045b8 100644
+index 4afdfad..4fa8247 100644
 --- a/src/event/ngx_event_openssl.h
 +++ b/src/event/ngx_event_openssl.h
 @@ -101,6 +101,9 @@ struct ngx_ssl_connection_s {
@@ -118,31 +131,36 @@ index 4afdfad..5d045b8 100644
      ngx_ssl_ocsp_t             *ocsp;
  
      u_char                      early_buf;
-@@ -294,7 +297,10 @@ ngx_int_t ngx_ssl_get_client_v_end(ngx_connection_t *c, ngx_pool_t *pool,
+@@ -294,7 +297,12 @@ ngx_int_t ngx_ssl_get_client_v_end(ngx_connection_t *c, ngx_pool_t *pool,
      ngx_str_t *s);
  ngx_int_t ngx_ssl_get_client_v_remain(ngx_connection_t *c, ngx_pool_t *pool,
      ngx_str_t *s);
 -
 +ngx_int_t ngx_ssl_get_handshake_time(ngx_connection_t *c, ngx_pool_t *pool,
 +    ngx_str_t *s);
-+ngx_int_t ngx_ssl_get_handshake_time_msec(ngx_connection_t *c, ngx_pool_t *pool,
++ngx_int_t ngx_ssl_get_handshake_start_ts(ngx_connection_t *c, ngx_pool_t *pool,
++    ngx_str_t *s);
++ngx_int_t ngx_ssl_get_handshake_end_ts(ngx_connection_t *c, ngx_pool_t *pool,
 +    ngx_str_t *s);
  
  ngx_int_t ngx_ssl_handshake(ngx_connection_t *c);
  ssize_t ngx_ssl_recv(ngx_connection_t *c, u_char *buf, size_t size);
 diff --git a/src/http/modules/ngx_http_ssl_module.c b/src/http/modules/ngx_http_ssl_module.c
-index c633f34..2027639 100644
+index c633f34..026d411 100644
 --- a/src/http/modules/ngx_http_ssl_module.c
 +++ b/src/http/modules/ngx_http_ssl_module.c
-@@ -402,6 +402,12 @@ static ngx_http_variable_t  ngx_http_ssl_vars[] = {
+@@ -402,6 +402,15 @@ static ngx_http_variable_t  ngx_http_ssl_vars[] = {
      { ngx_string("ssl_client_v_remain"), NULL, ngx_http_ssl_variable,
        (uintptr_t) ngx_ssl_get_client_v_remain, NGX_HTTP_VAR_CHANGEABLE, 0 },
  
 +    { ngx_string("ssl_handshake_time"), NULL, ngx_http_ssl_variable,
 +      (uintptr_t) ngx_ssl_get_handshake_time, NGX_HTTP_VAR_CHANGEABLE, 0 },
 +
-+    { ngx_string("ssl_handshake_time_msec"), NULL, ngx_http_ssl_variable,
-+      (uintptr_t) ngx_ssl_get_handshake_time_msec, NGX_HTTP_VAR_CHANGEABLE, 0 },
++    { ngx_string("ssl_handshake_start_ts"), NULL, ngx_http_ssl_variable,
++      (uintptr_t) ngx_ssl_get_handshake_start_ts, NGX_HTTP_VAR_CHANGEABLE, 0 },
++
++    { ngx_string("ssl_handshake_end_ts"), NULL, ngx_http_ssl_variable,
++      (uintptr_t) ngx_ssl_get_handshake_start_ts, NGX_HTTP_VAR_CHANGEABLE, 0 },
 +
        ngx_http_null_variable
  };
@@ -170,18 +188,21 @@ index 013b715..c990530 100644
  
              rc = ngx_ssl_handshake(c);
 diff --git a/src/stream/ngx_stream_ssl_module.c b/src/stream/ngx_stream_ssl_module.c
-index 530fe8b..716eda9 100644
+index 530fe8b..b96fc4a 100644
 --- a/src/stream/ngx_stream_ssl_module.c
 +++ b/src/stream/ngx_stream_ssl_module.c
-@@ -319,6 +319,12 @@ static ngx_stream_variable_t  ngx_stream_ssl_vars[] = {
+@@ -319,6 +319,15 @@ static ngx_stream_variable_t  ngx_stream_ssl_vars[] = {
      { ngx_string("ssl_client_v_remain"), NULL, ngx_stream_ssl_variable,
        (uintptr_t) ngx_ssl_get_client_v_remain, NGX_STREAM_VAR_CHANGEABLE, 0 },
  
 +    { ngx_string("ssl_handshake_time"), NULL, ngx_stream_ssl_variable,
 +      (uintptr_t) ngx_ssl_get_handshake_time, NGX_STREAM_VAR_CHANGEABLE, 0 },
 +
-+    { ngx_string("ssl_handshake_time_msec"), NULL, ngx_stream_ssl_variable,
-+      (uintptr_t) ngx_ssl_get_handshake_time_msec, NGX_STREAM_VAR_CHANGEABLE, 0 },
++    { ngx_string("ssl_handshake_start_ts"), NULL, ngx_stream_ssl_variable,
++      (uintptr_t) ngx_ssl_get_handshake_start_ts, NGX_STREAM_VAR_CHANGEABLE, 0 },
++
++    { ngx_string("ssl_handshake_end_ts"), NULL, ngx_stream_ssl_variable,
++      (uintptr_t) ngx_ssl_get_handshake_start_ts, NGX_STREAM_VAR_CHANGEABLE, 0 },
 +
        ngx_stream_null_variable
  };
