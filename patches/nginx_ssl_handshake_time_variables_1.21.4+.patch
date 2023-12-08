@@ -1,5 +1,5 @@
 diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
-index a386ad7..d1f66e4 100644
+index a386ad7..9c5c325 100644
 --- a/src/event/ngx_event_openssl.c
 +++ b/src/event/ngx_event_openssl.c
 @@ -1711,9 +1711,10 @@ ngx_ssl_set_session(ngx_connection_t *c, ngx_ssl_session_t *session)
@@ -26,7 +26,7 @@ index a386ad7..d1f66e4 100644
          return NGX_OK;
      }
  
-@@ -5581,6 +5585,90 @@ ngx_ssl_get_client_v_remain(ngx_connection_t *c, ngx_pool_t *pool, ngx_str_t *s)
+@@ -5581,6 +5585,91 @@ ngx_ssl_get_client_v_remain(ngx_connection_t *c, ngx_pool_t *pool, ngx_str_t *s)
  }
  
  
@@ -89,6 +89,7 @@ index a386ad7..d1f66e4 100644
 +    return NGX_OK;
 +}
 +
++
 +ngx_int_t
 +ngx_ssl_get_handshake_end_ts(ngx_connection_t *c, ngx_pool_t *pool, ngx_str_t *s) {
 +    ngx_msec_int_t   ms;
@@ -118,7 +119,7 @@ index a386ad7..d1f66e4 100644
  ngx_ssl_parse_time(
  #if OPENSSL_VERSION_NUMBER > 0x10100000L
 diff --git a/src/event/ngx_event_openssl.h b/src/event/ngx_event_openssl.h
-index 4afdfad..4fa8247 100644
+index 4afdfad..4137dd3 100644
 --- a/src/event/ngx_event_openssl.h
 +++ b/src/event/ngx_event_openssl.h
 @@ -101,6 +101,9 @@ struct ngx_ssl_connection_s {
@@ -131,11 +132,10 @@ index 4afdfad..4fa8247 100644
      ngx_ssl_ocsp_t             *ocsp;
  
      u_char                      early_buf;
-@@ -294,7 +297,12 @@ ngx_int_t ngx_ssl_get_client_v_end(ngx_connection_t *c, ngx_pool_t *pool,
+@@ -294,6 +297,12 @@ ngx_int_t ngx_ssl_get_client_v_end(ngx_connection_t *c, ngx_pool_t *pool,
      ngx_str_t *s);
  ngx_int_t ngx_ssl_get_client_v_remain(ngx_connection_t *c, ngx_pool_t *pool,
      ngx_str_t *s);
--
 +ngx_int_t ngx_ssl_get_handshake_time(ngx_connection_t *c, ngx_pool_t *pool,
 +    ngx_str_t *s);
 +ngx_int_t ngx_ssl_get_handshake_start_ts(ngx_connection_t *c, ngx_pool_t *pool,
@@ -143,10 +143,10 @@ index 4afdfad..4fa8247 100644
 +ngx_int_t ngx_ssl_get_handshake_end_ts(ngx_connection_t *c, ngx_pool_t *pool,
 +    ngx_str_t *s);
  
+ 
  ngx_int_t ngx_ssl_handshake(ngx_connection_t *c);
- ssize_t ngx_ssl_recv(ngx_connection_t *c, u_char *buf, size_t size);
 diff --git a/src/http/modules/ngx_http_ssl_module.c b/src/http/modules/ngx_http_ssl_module.c
-index c633f34..026d411 100644
+index c633f34..0822838 100644
 --- a/src/http/modules/ngx_http_ssl_module.c
 +++ b/src/http/modules/ngx_http_ssl_module.c
 @@ -402,6 +402,15 @@ static ngx_http_variable_t  ngx_http_ssl_vars[] = {
@@ -160,7 +160,7 @@ index c633f34..026d411 100644
 +      (uintptr_t) ngx_ssl_get_handshake_start_ts, NGX_HTTP_VAR_CHANGEABLE, 0 },
 +
 +    { ngx_string("ssl_handshake_end_ts"), NULL, ngx_http_ssl_variable,
-+      (uintptr_t) ngx_ssl_get_handshake_start_ts, NGX_HTTP_VAR_CHANGEABLE, 0 },
++      (uintptr_t) ngx_ssl_get_handshake_end_ts, NGX_HTTP_VAR_CHANGEABLE, 0 },
 +
        ngx_http_null_variable
  };
@@ -188,7 +188,7 @@ index 013b715..c990530 100644
  
              rc = ngx_ssl_handshake(c);
 diff --git a/src/stream/ngx_stream_ssl_module.c b/src/stream/ngx_stream_ssl_module.c
-index 530fe8b..b96fc4a 100644
+index 530fe8b..0c1ba29 100644
 --- a/src/stream/ngx_stream_ssl_module.c
 +++ b/src/stream/ngx_stream_ssl_module.c
 @@ -319,6 +319,15 @@ static ngx_stream_variable_t  ngx_stream_ssl_vars[] = {
@@ -202,7 +202,7 @@ index 530fe8b..b96fc4a 100644
 +      (uintptr_t) ngx_ssl_get_handshake_start_ts, NGX_STREAM_VAR_CHANGEABLE, 0 },
 +
 +    { ngx_string("ssl_handshake_end_ts"), NULL, ngx_stream_ssl_variable,
-+      (uintptr_t) ngx_ssl_get_handshake_start_ts, NGX_STREAM_VAR_CHANGEABLE, 0 },
++      (uintptr_t) ngx_ssl_get_handshake_end_ts, NGX_STREAM_VAR_CHANGEABLE, 0 },
 +
        ngx_stream_null_variable
  };
