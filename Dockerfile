@@ -201,9 +201,9 @@ RUN mkdir /build \
     && cd openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) \
     && curl -s https://${RESTY_GIT_REPO}/hanada/openresty/-/raw/main/patches/nginx_resty_request_id_1.21.4+.patch | patch -p1 \
     && curl -s https://${RESTY_GIT_REPO}/hanada/openresty/-/raw/main/patches/nginx_ssl_handshake_time_variables_1.21.4+.patch | patch -p1 \
+    && patch -p1 < /build/ngx_http_extra_vars_module/nginx_http_extra_vars_1.21.4+.patch \
     && patch -p1 < /build/ngx_http_upstream_check_module/check_1.20.1+.patch \
     && patch -p1 < /build/ngx_http_tls_dyn_size/nginx__dynamic_tls_records_1.17.7+.patch \
-    && patch -p1 < /build/ngx_http_extra_vars_module/nginx_http_extra_vars_1.21.4+.patch \
     && sed -i "s/\(openresty\/.*\)\"/\1-${RESTY_RELEASE}\"/" src/core/nginx.h \
     && cd /build/openresty-${RESTY_VERSION} \
     && if [ -n "${RESTY_EVAL_POST_DOWNLOAD_PRE_CONFIGURE}" ]; then eval $(echo ${RESTY_EVAL_POST_DOWNLOAD_PRE_CONFIGURE}); fi \
