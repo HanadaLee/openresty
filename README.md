@@ -6,15 +6,16 @@ OpenResty - Turning Nginx into a Full-Fledged Scriptable Web Platform
 Table of Contents
 =================
 
-* [Name](#name)
-* [Description](#description)
-    * [For Users](#for-users)
-    * [For Bundle Maintainers](#for-bundle-maintainers)
-* [Additional Features](#additional-features)
-    * [resolv.conf parsing](#resolvconf-parsing)
-* [Mailing List](#mailing-list)
-* [Report Bugs](#report-bugs)
-* [Copyright & License](#copyright--license)
+- [Name](#name)
+- [Table of Contents](#table-of-contents)
+- [Description](#description)
+  - [For Users](#for-users)
+  - [For Bundle Maintainers](#for-bundle-maintainers)
+- [Additional Features](#additional-features)
+  - [resolv.conf parsing](#resolvconf-parsing)
+- [Mailing List](#mailing-list)
+- [Report Bugs](#report-bugs)
+- [Copyright \& License](#copyright--license)
 
 Description
 ===========
