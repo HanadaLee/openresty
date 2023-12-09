@@ -10,7 +10,7 @@ ARG RESTY_GIT_MIRROR="fastgit.hanada.info"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.21.4.3"
-ARG RESTY_RELEASE="33"
+ARG RESTY_RELEASE="34"
 ARG RESTY_LUAROCKS_VERSION="3.9.2"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -203,6 +203,7 @@ RUN mkdir /build \
     && curl -s https://${RESTY_GIT_REPO}/hanada/openresty/-/raw/main/patches/nginx_ssl_handshake_time_variables_1.21.4+.patch | patch -p1 \
     && patch -p1 < /build/ngx_http_upstream_check_module/check_1.20.1+.patch \
     && patch -p1 < /build/ngx_http_tls_dyn_size/nginx__dynamic_tls_records_1.17.7+.patch \
+    && patch -p1 < /build/ngx_http_extra_vars_module/nginx_http_extra_vars_1.21.4+.patch \
     && sed -i "s/\(openresty\/.*\)\"/\1-${RESTY_RELEASE}\"/" src/core/nginx.h \
     && cd /build/openresty-${RESTY_VERSION} \
     && if [ -n "${RESTY_EVAL_POST_DOWNLOAD_PRE_CONFIGURE}" ]; then eval $(echo ${RESTY_EVAL_POST_DOWNLOAD_PRE_CONFIGURE}); fi \
