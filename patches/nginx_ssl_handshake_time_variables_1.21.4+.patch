@@ -67,7 +67,7 @@ index a386ad7..9c5c325 100644
 +
 +ngx_int_t
 +ngx_ssl_get_handshake_start_ts(ngx_connection_t *c, ngx_pool_t *pool, ngx_str_t *s) {
-+    ngx_msec_int_t   ms;
++    ngx_msec_t       ms;
 +    u_char          *p;
 +
 +    if (c->ssl == NULL || c->ssl->handshake_start_msec == 0) {
@@ -92,7 +92,7 @@ index a386ad7..9c5c325 100644
 +
 +ngx_int_t
 +ngx_ssl_get_handshake_end_ts(ngx_connection_t *c, ngx_pool_t *pool, ngx_str_t *s) {
-+    ngx_msec_int_t   ms;
++    ngx_msec_t       ms;
 +    u_char          *p;
 +
 +    if (c->ssl == NULL || c->ssl->handshake_end_msec == 0) {
