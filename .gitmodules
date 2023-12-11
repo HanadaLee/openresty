@@ -1,0 +1,3 @@
+[submodule "modules/ngx_http_extra_vars_module"]
+	path = modules/ngx_http_extra_vars_module
+	url = https://git.hanada.info/hanada/ngx_http_extra_vars_module
