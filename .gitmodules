@@ -31,15 +31,15 @@
 [submodule "modules/ngx_http_lua_cache_module"]
 	path = modules/ngx_http_lua_cache_module
 	url = https://github.com/AlticeLabsProjects/lua-upstream-cache-nginx-module.git
+[submodule "modules/ngx_http_qrcode_module"]
+	path = modules/ngx_http_qrcode_module
+	url = https://github.com/soulteary/ngx_http_qrcode_module.git
 [submodule "lualib/lua-resty-maxminddb"]
 	path = lualib/lua-resty-maxminddb
 	url = https://git.hanada.info/hanada/lua-resty-maxminddb.git
 [submodule "lualib/lua-resty-multipart-parser"]
 	path = lualib/lua-resty-multipart-parser
 	url = https://github.com/agentzh/lua-resty-multipart-parser.git
-[submodule "patches/ngx_http_slice_filter_variable_ext"]
-	path = patches/ngx_http_tls_dyn_size
-	url = https://git.hanada.info/hanada/ngx_http_slice_filter_variable_ext.git
 [submodule "patches/ngx_http_tls_dyn_size"]
 	path = patches/ngx_http_tls_dyn_size
 	url = https://github.com/nginx-modules/ngx_http_tls_dyn_size.git
