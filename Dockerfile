@@ -178,7 +178,7 @@ RUN apk add -U tzdata \
     && cd /build/lib \
     && curl -fSL https://${RESTY_GIT_MIRROR}/fukuchi/libqrencode/archive/refs/tags/v${RESTY_LIBQRENCODE_VERSION}.tar.gz -o libqrencode-${RESTY_LIBQRENCODE_VERSION}.tar.gz \
     && tar xzf libqrencode-${RESTY_LIBQRENCODE_VERSION}.tar.gz \
-    && cd libqrencode-${LIBQRENCODE_VERSION}
+    && cd libqrencode-${LIBQRENCODE_VERSION} \
     && cmake . \
     && make -j${RESTY_J} \
     && make install \
