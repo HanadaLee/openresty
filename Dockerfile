@@ -204,6 +204,7 @@ RUN apk add -U tzdata \
     && mv ngx_http_qrcode_module_full/src ngx_http_qrcode_module \
     && rm -rf ngx_http_qrcode_module_full \
     && cd /build/patches \
+    && git clone https://${RESTY_GIT_REPO}/hanada/ngx_http_slice_filter_module_patches.git ngx_http_slice_filter_module_patches \
     && git clone https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_http_tls_dyn_size.git ngx_http_tls_dyn_size \
     && cd /build/lualib \
     && git clone https://${RESTY_GIT_REPO}/hanada/lua-resty-maxminddb.git lua-resty-maxminddb \
@@ -214,6 +215,7 @@ RUN apk add -U tzdata \
     && cd openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) \
     && patch -p1 < /build/modules/ngx_http_extra_vars_module/nginx_http_extra_vars_1.21.4+.patch \
     && patch -p1 < /build/modules/ngx_http_upstream_check_module/check_1.20.1+.patch \
+    && patch -p1 < /build/patches/ngx_http_slice_filter_module_patches/ngx_http_slice_allow_methods_directive_1.21.4+.patch \
     && patch -p1 < /build/patches/ngx_http_tls_dyn_size/nginx__dynamic_tls_records_1.17.7+.patch \
     && sed -i "s/\(openresty\/.*\)\"/\1-${RESTY_RELEASE}\"/" src/core/nginx.h \
     && cd /build/openresty-${RESTY_VERSION} \
