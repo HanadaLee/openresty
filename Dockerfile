@@ -10,7 +10,7 @@ ARG RESTY_GIT_MIRROR="fastgit.hanada.info"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.21.4.3"
-ARG RESTY_RELEASE="52"
+ARG RESTY_RELEASE="53"
 ARG RESTY_LUAROCKS_VERSION="3.9.2"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -130,6 +130,7 @@ RUN apk add -U tzdata \
         bash \
         libgcc \
         libxslt \
+        libgd \
         curl \
         perl \
         libintl \
