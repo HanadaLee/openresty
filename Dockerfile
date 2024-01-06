@@ -10,7 +10,7 @@ ARG RESTY_GIT_MIRROR="fastgit.hanada.info"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.21.4.3"
-ARG RESTY_RELEASE="50"
+ARG RESTY_RELEASE="51"
 ARG RESTY_LUAROCKS_VERSION="3.9.2"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -19,7 +19,7 @@ ARG RESTY_OPENSSL_VERSION="1.1.1w"
 ARG RESTY_OPENSSL_OPTIONS="\
     --with-openssl-opt='enable-weak-ssl-ciphers enable-tls1_3' \
 "
-ARG RESTY_PCRE_URL_BASE="https://ftp.exim.org/pub/pcre"
+ARG RESTY_PCRE_URL_BASE="https://downloads.sourceforge.net/project/pcre/pcre/"
 ARG RESTY_PCRE_VERSION="8.45"
 ARG RESTY_PCRE_OPTIONS="\
     --with-pcre-jit \
@@ -71,25 +71,19 @@ ARG RESTY_CONFIG_OPTIONS="\
     --without-http_empty_gif_module \
 "
 ARG RESTY_CONFIG_OPTIONS_MORE="\
-    --add-module=/build/ngx_http_cache_purge_module \
-    --add-module=/build/ngx_http_brotli_module \
-    --add-module=/build/ngx_http_geoip2_module \
-    --add-module=/build/ngx_http_sorted_querystring_module \
-    --add-module=/build/ngx_http_upstream_check_module \
-    --add-module=/build/ngx_http_extra_vars_module \
-    --add-module=/build/ngx_http_lua_cache_module \
-    --add-dynamic-module=/build/ngx_http_dav_ext_module \
-    --add-dynamic-module=/build/ngx_http_flv_live_module \
-    --add-dynamic-module=/build/ngx_http_vhost_traffic_status_module \
-    --add-dynamic-module=/build/ngx_http_fancyindex_module \
-    --add-dynamic-module=/build/ngx_http_replace_filter_module \
+    --add-module=/build/modules/ngx_http_cache_purge_module \
+    --add-module=/build/modules/ngx_http_brotli_module \
+    --add-module=/build/modules/ngx_http_geoip2_module \
+    --add-module=/build/modules/ngx_http_sorted_querystring_module \
+    --add-module=/build/modules/ngx_http_upstream_check_module \
+    --add-module=/build/modules/ngx_http_extra_vars_module \
+    --add-module=/build/modules/ngx_http_lua_cache_module \
+    --add-dynamic-module=/build/modules/ngx_http_dav_ext_module \
+    --add-dynamic-module=/build/modules/ngx_http_flv_live_module \
+    --add-dynamic-module=/build/modules/ngx_http_vhost_traffic_status_module \
+    --add-dynamic-module=/build/modules/ngx_http_fancyindex_module \
+    --add-dynamic-module=/build/modules/ngx_http_replace_filter_module \
 "
-ARG RESTY_ADD_PACKAGE_BUILDDEPS=""
-ARG RESTY_ADD_PACKAGE_RUNDEPS="git"
-ARG RESTY_EVAL_PRE_CONFIGURE=""
-ARG RESTY_EVAL_POST_DOWNLOAD_PRE_CONFIGURE=""
-ARG RESTY_EVAL_POST_MAKE=""
-
 ARG _RESTY_CONFIG_DEPS="\
     --with-cc-opt='-g -Wp,-D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIC' \
     --with-ld-opt='-Wl,-rpath,/usr/local/openresty/lib -Wl,-Bsymbolic-functions -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-whole-archive -Wl,--gc-sections -pie -ljemalloc -Wl,-Bdynamic -lm -lstdc++ -pthread -ldl -Wl,-E' \
@@ -106,8 +100,7 @@ LABEL resty_zlib_version="${RESTY_ZLIB_VERSION}"
 LABEL resty_jemalloc_version="${RESTY_JEMALLOC_VERSION}"
 LABEL resty_libmaxminddb_version="${RESTY_LIBMAXMINDDB_VERSION}"
 
-RUN mkdir /build \
-    && apk add -U tzdata \
+RUN apk add -U tzdata \
     && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && apk del tzdata \
     && apk add --no-cache --virtual .build-deps \
@@ -123,7 +116,7 @@ RUN mkdir /build \
         zlib-dev \
         bison \
         perl-dev \
-        ${RESTY_ADD_PACKAGE_BUILDDEPS} \
+        git \
     && apk add --no-cache \
         bash \
         libgcc \
@@ -136,19 +129,17 @@ RUN mkdir /build \
         outils-md5 \
         unzip \
         wget \
-        ${RESTY_ADD_PACKAGE_RUNDEPS} \
-    && cd /build \
-    && if [ -n "${RESTY_EVAL_PRE_CONFIGURE}" ]; then eval $(echo ${RESTY_EVAL_PRE_CONFIGURE}); fi \
-    && cd /build \
+    && mkdir -p /build/lib /build/lualib /build/modules /build/patches \
+    && cd /build/lib \
     && curl -fSL https://${RESTY_GIT_MIRROR}/jemalloc/jemalloc/releases/download/${RESTY_JEMALLOC_VERSION}/jemalloc-${RESTY_JEMALLOC_VERSION}.tar.bz2 -o jemalloc-${RESTY_JEMALLOC_VERSION}.tar.bz2 \
     && tar xjf jemalloc-${RESTY_JEMALLOC_VERSION}.tar.bz2 \
-    && cd /build/jemalloc-${RESTY_JEMALLOC_VERSION} \
+    && cd jemalloc-${RESTY_JEMALLOC_VERSION} \
     && ./configure \
     && make -j${RESTY_J} \
         EXTRA_CXXFLAGS="-Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIC" \
         EXTRA_CFLAGS="-Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIC" \
     && make install \
-    && cd /build \
+    && cd /build/lib \
     && curl -fSL https://${RESTY_GIT_MIRROR}/maxmind/libmaxminddb/releases/download/${RESTY_LIBMAXMINDDB_VERSION}/libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION}.tar.gz -o libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION}.tar.gz \
     && tar xzf libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION}.tar.gz \
     && cd libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION} \
@@ -156,31 +147,31 @@ RUN mkdir /build \
     && make -j${RESTY_J} \
     && make check \
     && make install \
-    && cd /build \
+    && cd /build/lib \
     && git clone https://${RESTY_GIT_MIRROR}/openresty/sregex.git sregex \
     && cd sregex \
     && make -j${RESTY_J} \
     && make install \
-    && cd /build \
+    && cd /build/lib \
     && curl -fSL "${RESTY_OPENSSL_URL_BASE}/openssl-${RESTY_OPENSSL_VERSION}.tar.gz" -o openssl-${RESTY_OPENSSL_VERSION}.tar.gz \
     && tar xzf openssl-${RESTY_OPENSSL_VERSION}.tar.gz \
-    && cd /build \
-    && curl -fSL ${RESTY_PCRE_URL_BASE}/pcre-${RESTY_PCRE_VERSION}.tar.gz -o pcre-${RESTY_PCRE_VERSION}.tar.gz \
+    && cd /build/lib \
+    && curl -fSL ${RESTY_PCRE_URL_BASE}/${RESTY_PCRE_VERSION}/pcre-${RESTY_PCRE_VERSION}.tar.gz -o pcre-${RESTY_PCRE_VERSION}.tar.gz \
     && tar xzf pcre-${RESTY_PCRE_VERSION}.tar.gz \
-    && cd /build \
+    && cd /build/lib \
     && curl -fSL ${RESTY_ZLIB_URL_BASE}/zlib-${RESTY_ZLIB_VERSION}.tar.gz -o zlib-${RESTY_ZLIB_VERSION}.tar.gz \
     && tar xzf zlib-${RESTY_ZLIB_VERSION}.tar.gz \
-    && cd /build \
+    && cd /build/lib \
     && curl -fSL https://${RESTY_GIT_MIRROR}/ivmai/libatomic_ops/releases/download/v${RESTY_LIBATOMIC_VERSION}/libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz -o libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz \
     && tar xzf libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz \
     && cd libatomic_ops-${RESTY_LIBATOMIC_VERSION}/src \
     && ln -s -f ./.libs/libatomic_ops.a . \
-    && cd /build \
+    && cd /build/modules \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/google/ngx_brotli.git ngx_http_brotli_module \
     && cd ngx_http_brotli_module \
     && sed -i "s|github.com|${RESTY_GIT_MIRROR}|g" .gitmodules \
     && git submodule update --init \
-    && cd /build \
+    && cd /build/modules \
     && git clone https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_cache_purge.git ngx_http_cache_purge_module \
     && git clone https://${RESTY_GIT_MIRROR}/leev/ngx_http_geoip2_module.git ngx_http_geoip2_module \
     && git clone https://${RESTY_GIT_MIRROR}/arut/nginx-dav-ext-module.git ngx_http_dav_ext_module \
@@ -192,29 +183,32 @@ RUN mkdir /build \
     && git clone https://${RESTY_GIT_MIRROR}/openresty/replace-filter-nginx-module.git ngx_http_replace_filter_module \
     && git clone https://${RESTY_GIT_REPO}/hanada/ngx_http_extra_vars_module.git ngx_http_extra_vars_module \
     && git clone https://${RESTY_GIT_MIRROR}/AlticeLabsProjects/lua-upstream-cache-nginx-module.git ngx_http_lua_cache_module \
+    && cd /build/patches \
+    && git clone https://${RESTY_GIT_REPO}/hanada/ngx_http_slice_filter_variable_ext.git ngx_http_slice_filter_variable_ext \
     && git clone https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_http_tls_dyn_size.git ngx_http_tls_dyn_size \
+    && cd /build/lualib \
     && git clone https://${RESTY_GIT_REPO}/hanada/lua-resty-maxminddb.git lua-resty-maxminddb \
     && git clone https://${RESTY_GIT_MIRROR}/agentzh/lua-resty-multipart-parser.git lua-resty-multipart-parser \
     && cd /build \
     && curl -fSL https://openresty.org/download/openresty-${RESTY_VERSION}.tar.gz -o openresty-${RESTY_VERSION}.tar.gz \
     && tar xzf openresty-${RESTY_VERSION}.tar.gz \
     && cd openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) \
-    && patch -p1 < /build/ngx_http_extra_vars_module/nginx_http_extra_vars_1.21.4+.patch \
-    && patch -p1 < /build/ngx_http_upstream_check_module/check_1.20.1+.patch \
-    && patch -p1 < /build/ngx_http_tls_dyn_size/nginx__dynamic_tls_records_1.17.7+.patch \
+    && patch -p1 < /build/modules/ngx_http_extra_vars_module/nginx_http_extra_vars_1.21.4+.patch \
+    && patch -p1 < /build/modules/ngx_http_upstream_check_module/check_1.20.1+.patch \
+    && patch -p1 < /build/patches/ngx_http_slice_filter_variable_ext/ngx_http_slice_filter_variable_ext_1.21.4+.patch \
+    && patch -p1 < /build/patches/ngx_http_tls_dyn_size/nginx__dynamic_tls_records_1.17.7+.patch \
     && sed -i "s/\(openresty\/.*\)\"/\1-${RESTY_RELEASE}\"/" src/core/nginx.h \
     && cd /build/openresty-${RESTY_VERSION} \
-    && if [ -n "${RESTY_EVAL_POST_DOWNLOAD_PRE_CONFIGURE}" ]; then eval $(echo ${RESTY_EVAL_POST_DOWNLOAD_PRE_CONFIGURE}); fi \
     && eval ./configure \
     ${RESTY_PATH_OPTIONS} \
     ${RESTY_USER_OPTIONS} \
     ${RESTY_CONFIG_OPTIONS} \
-    --with-pcre=/build/pcre-${RESTY_PCRE_VERSION} \
+    --with-pcre=/build/lib/pcre-${RESTY_PCRE_VERSION} \
     ${RESTY_PCRE_OPTIONS} \
-    --with-zlib=/build/zlib-${RESTY_ZLIB_VERSION} \
+    --with-zlib=/build/lib/zlib-${RESTY_ZLIB_VERSION} \
     ${RESTY_ZLIB_OPTIONS} \
-    --with-libatomic=/build/libatomic_ops-${RESTY_LIBATOMIC_VERSION} \
-    --with-openssl=/build/openssl-${RESTY_OPENSSL_VERSION} \
+    --with-libatomic=/build/lib/libatomic_ops-${RESTY_LIBATOMIC_VERSION} \
+    --with-openssl=/build/lib/openssl-${RESTY_OPENSSL_VERSION} \
     ${RESTY_OPENSSL_OPTIONS} \
     ${RESTY_CONFIG_OPTIONS_MORE} \
     ${_RESTY_CONFIG_DEPS} \
@@ -244,7 +238,7 @@ RUN mkdir /build \
         --with-lua-include=/usr/local/openresty/luajit/include/luajit-2.1 \
     && make build \
     && make install \
-    && cd /build \
+    && cd /build/lualib \
     && cp -r lua-resty-maxminddb/lib/resty/* /usr/local/openresty/lualib/resty \
     && cp -r lua-resty-multipart-parser/lib/resty/* /usr/local/openresty/lualib/resty \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-http \
@@ -252,8 +246,6 @@ RUN mkdir /build \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-jwt \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-openidc \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-dns-client \
-    && cd /build \
-    && if [ -n "${RESTY_EVAL_POST_MAKE}" ]; then eval $(echo ${RESTY_EVAL_POST_MAKE}); fi \
     && delgroup www-data \
     && deluser --remove-home $(getent passwd 33 | cut -d: -f1) \
     && adduser -s /sbin/nologin -g www-data -D -h /var/www --uid 33 www-data \
@@ -265,9 +257,6 @@ RUN mkdir /build \
 ENV PATH=$PATH:/usr/local/openresty/luajit/bin/:/usr/local/openresty/sbin/:/usr/local/openresty/bin/
 ENV LUA_PATH="/usr/local/openresty/site/lualib/?.ljbc;/usr/local/openresty/site/lualib/?/init.ljbc;/usr/local/openresty/lualib/?.ljbc;/usr/local/openresty/lualib/?/init.ljbc;/usr/local/openresty/site/lualib/?.lua;/usr/local/openresty/site/lualib/?/init.lua;/usr/local/openresty/lualib/?.lua;/usr/local/openresty/lualib/?/init.lua;./?.lua;/usr/local/openresty/luajit/share/luajit-2.1.0-beta3/?.lua;/usr/local/share/lua/5.1/?.lua;/usr/local/share/lua/5.1/?/init.lua;/usr/local/openresty/luajit/share/lua/5.1/?.lua;/usr/local/openresty/luajit/share/lua/5.1/?/init.lua"
 ENV LUA_CPATH="/usr/local/openresty/site/lualib/?.so;/usr/local/openresty/lualib/?.so;./?.so;/usr/local/lib/lua/5.1/?.so;/usr/local/openresty/luajit/lib/lua/5.1/?.so;/usr/local/lib/lua/5.1/loadall.so;/usr/local/openresty/luajit/lib/lua/5.1/?.so"
-
-# Copy nginx configuration files
-# COPY etc /usr/local/openresty/nginx/etc
 
 CMD [ "/usr/local/openresty/sbin/nginx", "-p", "/usr/local/openresty/", "-g", "daemon off;"]
 

@@ -37,6 +37,9 @@
 [submodule "lualib/lua-resty-multipart-parser"]
 	path = lualib/lua-resty-multipart-parser
 	url = https://github.com/agentzh/lua-resty-multipart-parser.git
+[submodule "patches/ngx_http_slice_filter_variable_ext"]
+	path = patches/ngx_http_tls_dyn_size
+	url = https://git.hanada.info/hanada/ngx_http_slice_filter_variable_ext.git
 [submodule "patches/ngx_http_tls_dyn_size"]
 	path = patches/ngx_http_tls_dyn_size
 	url = https://github.com/nginx-modules/ngx_http_tls_dyn_size.git
