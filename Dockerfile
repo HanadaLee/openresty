@@ -163,6 +163,7 @@ RUN apk add -U tzdata \
     && apk add --no-cache \
         bash \
         libgcc \
+        pcre \
         libxslt \
         libgd \
         curl \
