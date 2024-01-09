@@ -70,6 +70,7 @@ ARG RESTY_CONFIG_OPTIONS="\
     --with-threads \
     --with-http_ssl_module \
     --with-http_v2_module \
+    --with-http_v3_module \
     --with-http_addition_module \
     --with-http_auth_request_module \
     --with-http_dav_module \
