@@ -6,11 +6,11 @@ FROM dockerhub.hanada.info/${RESTY_IMAGE_BASE}:${RESTY_IMAGE_TAG}
 LABEL maintainer="Hanada <im@hanada.info>"
 
 # Docker Build Arguments
-ARG RESTY_GIT_MIRROR="fastgit.hanada.info"
+ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
-ARG RESTY_VERSION="1.21.4.3"
-ARG RESTY_RELEASE="58"
+ARG RESTY_VERSION="1.25.3.1"
+ARG RESTY_RELEASE="59"
 ARG RESTY_LUAROCKS_VERSION="3.9.2"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -19,8 +19,8 @@ ARG RESTY_OPENSSL_VERSION="1.1.1w"
 ARG RESTY_OPENSSL_OPTIONS="\
     --with-openssl-opt='enable-weak-ssl-ciphers enable-tls1_3' \
 "
-ARG RESTY_PCRE_URL_BASE="https://downloads.sourceforge.net/project/pcre/pcre/"
-ARG RESTY_PCRE_VERSION="8.45"
+ARG RESTY_PCRE_LIBRARY="PCRE2"
+ARG RESTY_PCRE_VERSION="10.42"
 ARG RESTY_PCRE_OPTIONS="\
     --with-pcre-jit \
     --with-pcre-conf-opt='--enable-utf --enable-unicode-properties --with-match-limit=200000' \
@@ -96,6 +96,7 @@ LABEL resty_image_tag="${RESTY_IMAGE_TAG}"
 LABEL resty_version="${RESTY_VERSION}"
 LABEL resty_release="${RESTY_RELEASE}"
 LABEL resty_openssl_version="${RESTY_OPENSSL_VERSION}"
+LABEL resty_pcre_library="${RESTY_PCRE_LIBRARY}"
 LABEL resty_pcre_version="${RESTY_PCRE_VERSION}"
 LABEL resty_libatomic_version="${RESTY_LIBATOMIC_VERSION}"
 LABEL resty_zlib_version="${RESTY_ZLIB_VERSION}"
@@ -166,8 +167,8 @@ RUN apk add -U tzdata \
     && curl -fSL "${RESTY_OPENSSL_URL_BASE}/openssl-${RESTY_OPENSSL_VERSION}.tar.gz" -o openssl-${RESTY_OPENSSL_VERSION}.tar.gz \
     && tar xzf openssl-${RESTY_OPENSSL_VERSION}.tar.gz \
     && cd /build/lib \
-    && curl -fSL ${RESTY_PCRE_URL_BASE}/${RESTY_PCRE_VERSION}/pcre-${RESTY_PCRE_VERSION}.tar.gz -o pcre-${RESTY_PCRE_VERSION}.tar.gz \
-    && tar xzf pcre-${RESTY_PCRE_VERSION}.tar.gz \
+    && curl -fSL https://${RESTY_GIT_MIRROR}/PCRE2Project/pcre2/releases/download/pcre2-${RESTY_PCRE_VERSION}/pcre2-${RESTY_PCRE_VERSION}.tar.gz -o pcre2-${RESTY_PCRE_VERSION}.tar.gz \
+    && tar xzf pcre2-${RESTY_PCRE_VERSION}.tar.gz \
     && cd /build/lib \
     && curl -fSL ${RESTY_ZLIB_URL_BASE}/zlib-${RESTY_ZLIB_VERSION}.tar.gz -o zlib-${RESTY_ZLIB_VERSION}.tar.gz \
     && tar xzf zlib-${RESTY_ZLIB_VERSION}.tar.gz \
@@ -213,18 +214,18 @@ RUN apk add -U tzdata \
     && curl -fSL https://openresty.org/download/openresty-${RESTY_VERSION}.tar.gz -o openresty-${RESTY_VERSION}.tar.gz \
     && tar xzf openresty-${RESTY_VERSION}.tar.gz \
     && cd openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) \
-    && patch -p1 < /build/modules/ngx_http_extra_vars_module/nginx_http_extra_vars_1.21.4+.patch \
+    && patch -p1 < /build/modules/ngx_http_extra_vars_module/nginx_http_extra_vars_1.25.3+.patch \
     && patch -p1 < /build/modules/ngx_http_upstream_check_module/check_1.20.1+.patch \
     && patch -p1 < /build/patches/ngx_core_patches/ngx_http_slice_allow_methods_directive_1.21.4+.patch \
-    && patch -p1 < /build/patches/ngx_core_patches/ngx_http_listen_https_allow_http_1.21.4+.patch \
-    && patch -p1 < /build/patches/ngx_http_tls_dyn_size/nginx__dynamic_tls_records_1.17.7+.patch \
+    && patch -p1 < /build/patches/ngx_core_patches/ngx_http_listen_https_allow_http_1.25.3+.patch \
+    && patch -p1 < /build/patches/ngx_http_tls_dyn_size/nginx__dynamic_tls_records_1.25.1+.patch \
     && sed -i "s/\(openresty\/.*\)\"/\1-${RESTY_RELEASE}\"/" src/core/nginx.h \
     && cd /build/openresty-${RESTY_VERSION} \
     && eval ./configure \
     ${RESTY_PATH_OPTIONS} \
     ${RESTY_USER_OPTIONS} \
     ${RESTY_CONFIG_OPTIONS} \
-    --with-pcre=/build/lib/pcre-${RESTY_PCRE_VERSION} \
+    --with-pcre=/build/lib/pcre2-${RESTY_PCRE_VERSION} \
     ${RESTY_PCRE_OPTIONS} \
     --with-zlib=/build/lib/zlib-${RESTY_ZLIB_VERSION} \
     ${RESTY_ZLIB_OPTIONS} \
