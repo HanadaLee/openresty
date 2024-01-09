@@ -44,8 +44,6 @@ ARG RESTY_PCRE_OPTIONS="\
         --enable-newline-is-lf \
         --enable-newline-is-lf \
         --enable-pcre2-8 \
-        --enable-pcre2-16 \
-        --enable-pcre2-32 \
         --enable-pcre2grep-callout \
         --enable-pcre2grep-callout-fork \
         --disable-pcre2grep-libbz2 \
@@ -53,8 +51,8 @@ ARG RESTY_PCRE_OPTIONS="\
         --disable-pcre2test-libedit \
         --enable-percent-zt \
         --disable-rebuild-chartables \
-        --enable-shared \
-        --disable-static \
+        --disable-shared \
+        --enable-static \
         --disable-silent-rules \
         --enable-unicode \
         --disable-valgrind \
