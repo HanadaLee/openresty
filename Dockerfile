@@ -28,34 +28,16 @@ ARG RESTY_OPENSSL_OPTIONS="\
         enable-ssl3 \
         enable-ssl3-method' \
 "
-ARG RESTY_PCRE_LIBRARY="PCRE2"
-ARG RESTY_PCRE_VERSION="10.42"
+ARG RESTY_PCRE_URL_BASE="https://downloads.sourceforge.net/project/pcre/pcre/"
+ARG RESTY_PCRE_LIBRARY="PCRE"
+ARG RESTY_PCRE_VERSION="8.45"
 ARG RESTY_PCRE_OPTIONS="\
     --with-pcre-jit \
     --with-pcre-conf-opt='\
+        --disable-cpp \
         --enable-jit \
-        --enable-pcre2grep-jit \
-        --disable-bsr-anycrlf \
-        --disable-coverage \
-        --disable-ebcdic \
-        --disable-fuzz-support \
-        --disable-jit-sealloc \
-        --disable-never-backslash-C \
-        --enable-newline-is-lf \
-        --enable-newline-is-lf \
-        --enable-pcre2-8 \
-        --enable-pcre2grep-callout \
-        --enable-pcre2grep-callout-fork \
-        --disable-pcre2grep-libbz2 \
-        --disable-pcre2grep-libz \
-        --disable-pcre2test-libedit \
-        --enable-percent-zt \
-        --disable-rebuild-chartables \
-        --disable-shared \
-        --enable-static \
-        --disable-silent-rules \
-        --enable-unicode \
-        --disable-valgrind \
+        --enable-utf \
+        --enable-unicode-properties \
         --with-match-limit=200000' \
     --with-pcre-opt='-fPIC' \
 "
@@ -80,7 +62,7 @@ ARG RESTY_PATH_OPTIONS="\
     --http-scgi-temp-path=/usr/local/openresty/var/lib/tmp/scgi \
 "
 ARG RESTY_USER_OPTIONS="--user=www-data --group=www-data"
-ARG RESTY_J="1"
+ARG RESTY_J="4"
 ARG RESTY_CONFIG_OPTIONS="\
     --with-compat \
     --with-file-aio \
@@ -201,8 +183,8 @@ RUN apk add -U tzdata \
     && curl -fSL "${RESTY_OPENSSL_URL_BASE}/openssl-${RESTY_OPENSSL_VERSION}.tar.gz" -o openssl-${RESTY_OPENSSL_VERSION}.tar.gz \
     && tar xzf openssl-${RESTY_OPENSSL_VERSION}.tar.gz \
     && cd /build/lib \
-    && curl -fSL https://${RESTY_GIT_MIRROR}/PCRE2Project/pcre2/releases/download/pcre2-${RESTY_PCRE_VERSION}/pcre2-${RESTY_PCRE_VERSION}.tar.gz -o pcre2-${RESTY_PCRE_VERSION}.tar.gz \
-    && tar xzf pcre2-${RESTY_PCRE_VERSION}.tar.gz \
+    && curl -fSL ${RESTY_PCRE_URL_BASE}/${RESTY_PCRE_VERSION}/pcre-${RESTY_PCRE_VERSION}.tar.gz -o pcre-${RESTY_PCRE_VERSION}.tar.gz \
+    && tar xzf pcre-${RESTY_PCRE_VERSION}.tar.gz \
     && cd /build/lib \
     && curl -fSL ${RESTY_ZLIB_URL_BASE}/zlib-${RESTY_ZLIB_VERSION}.tar.gz -o zlib-${RESTY_ZLIB_VERSION}.tar.gz \
     && tar xzf zlib-${RESTY_ZLIB_VERSION}.tar.gz \
@@ -259,8 +241,9 @@ RUN apk add -U tzdata \
     ${RESTY_PATH_OPTIONS} \
     ${RESTY_USER_OPTIONS} \
     ${RESTY_CONFIG_OPTIONS} \
-    --with-pcre=/build/lib/pcre2-${RESTY_PCRE_VERSION} \
+    --with-pcre=/build/lib/pcre-${RESTY_PCRE_VERSION} \
     ${RESTY_PCRE_OPTIONS} \
+    --without-pcre2 \
     --with-zlib=/build/lib/zlib-${RESTY_ZLIB_VERSION} \
     ${RESTY_ZLIB_OPTIONS} \
     --with-libatomic=/build/lib/libatomic_ops-${RESTY_LIBATOMIC_VERSION} \
