@@ -17,13 +17,48 @@ ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
 ARG RESTY_OPENSSL_URL_BASE="https://www.openssl.org/source"
 ARG RESTY_OPENSSL_VERSION="1.1.1w"
 ARG RESTY_OPENSSL_OPTIONS="\
-    --with-openssl-opt='enable-weak-ssl-ciphers enable-tls1_3' \
+    --with-openssl-opt='\
+        enable-camellia \
+        enable-seed \
+        enable-rfc3779 \
+        enable-cms \
+        enable-md2 \
+        enable-rc5 \
+        enable-weak-ssl-ciphers \
+        enable-ssl3 \
+        enable-ssl3-method' \
 "
 ARG RESTY_PCRE_LIBRARY="PCRE2"
 ARG RESTY_PCRE_VERSION="10.42"
 ARG RESTY_PCRE_OPTIONS="\
     --with-pcre-jit \
-    --with-pcre-conf-opt='--enable-utf --enable-unicode-properties --with-match-limit=200000' \
+    --with-pcre-conf-opt='\
+        --enable-jit \
+        --enable-pcre2grep-jit \
+        --disable-bsr-anycrlf \
+        --disable-coverage \
+        --disable-ebcdic \
+        --disable-fuzz-support \
+        --disable-jit-sealloc \
+        --disable-never-backslash-C \
+        --enable-newline-is-lf \
+        --enable-newline-is-lf \
+        --enable-pcre2-8 \
+        --enable-pcre2-16 \
+        --enable-pcre2-32 \
+        --enable-pcre2grep-callout \
+        --enable-pcre2grep-callout-fork \
+        --disable-pcre2grep-libbz2 \
+        --disable-pcre2grep-libz \
+        --disable-pcre2test-libedit \
+        --enable-percent-zt \
+        --disable-rebuild-chartables \
+        --enable-shared \
+        --disable-static \
+        --disable-silent-rules \
+        --enable-unicode \
+        --disable-valgrind \
+        --with-match-limit=200000' \
     --with-pcre-opt='-fPIC' \
 "
 ARG RESTY_ZLIB_URL_BASE="https://zlib.net"
