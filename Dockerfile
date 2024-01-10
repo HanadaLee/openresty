@@ -93,6 +93,7 @@ ARG RESTY_CONFIG_OPTIONS_MORE="\
     --add-module=/build/modules/ngx_http_dav_ext_module \
     --add-module=/build/modules/ngx_http_extra_vars_module \
     --add-module=/build/modules/ngx_http_fancyindex_module \
+    --add-module=/build/modules/ngx_http_flv_live_module \
     --add-module=/build/modules/ngx_http_geoip2_module \
     --add-module=/build/modules/ngx_http_lua_cache_module \
     --add-module=/build/modules/ngx_http_qrcode_module \
@@ -100,7 +101,6 @@ ARG RESTY_CONFIG_OPTIONS_MORE="\
     --add-module=/build/modules/ngx_http_sorted_querystring_module \
     --add-module=/build/modules/ngx_http_upstream_check_module \
     --add-module=/build/modules/ngx_http_vhost_traffic_status_module \
-    --add-module=/build/modules/ngx_http_flv_live_module \
 "
 ARG _RESTY_CONFIG_DEPS="\
     --with-cc-opt='-g -Wp,-D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIC' \
