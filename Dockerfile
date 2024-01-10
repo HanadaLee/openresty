@@ -10,7 +10,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.25.3.1"
-ARG RESTY_RELEASE="60"
+ARG RESTY_RELEASE="61"
 ARG RESTY_LUAROCKS_VERSION="3.9.2"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -88,19 +88,19 @@ ARG RESTY_CONFIG_OPTIONS="\
     --without-http_empty_gif_module \
 "
 ARG RESTY_CONFIG_OPTIONS_MORE="\
-    --add-module=/build/modules/ngx_http_cache_purge_module \
     --add-module=/build/modules/ngx_http_brotli_module \
-    --add-module=/build/modules/ngx_http_geoip2_module \
-    --add-module=/build/modules/ngx_http_sorted_querystring_module \
-    --add-module=/build/modules/ngx_http_upstream_check_module \
+    --add-module=/build/modules/ngx_http_cache_purge_module \
+    --add-module=/build/modules/ngx_http_dav_ext_module \
     --add-module=/build/modules/ngx_http_extra_vars_module \
+    --add-module=/build/modules/ngx_http_fancyindex_module \
+    --add-module=/build/modules/ngx_http_geoip2_module \
     --add-module=/build/modules/ngx_http_lua_cache_module \
     --add-module=/build/modules/ngx_http_qrcode_module \
-    --add-dynamic-module=/build/modules/ngx_http_dav_ext_module \
-    --add-dynamic-module=/build/modules/ngx_http_flv_live_module \
-    --add-dynamic-module=/build/modules/ngx_http_vhost_traffic_status_module \
-    --add-dynamic-module=/build/modules/ngx_http_fancyindex_module \
-    --add-dynamic-module=/build/modules/ngx_http_replace_filter_module \
+    --add-module=/build/modules/ngx_http_replace_filter_module
+    --add-module=/build/modules/ngx_http_sorted_querystring_module \
+    --add-module=/build/modules/ngx_http_upstream_check_module \
+    --add-module=/build/modules/ngx_http_vhost_traffic_status_module \
+    --add-module=/build/modules/ngx_http_flv_live_module \
 "
 ARG _RESTY_CONFIG_DEPS="\
     --with-cc-opt='-g -Wp,-D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIC' \
