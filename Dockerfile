@@ -255,7 +255,7 @@ RUN apk add -U tzdata \
     && patch -p1 < /build/patches/ngx_core_patches/ngx_http_listen_https_allow_http_1.25.3+.patch \
     && patch -p1 < /build/patches/ngx_http_tls_dyn_size/nginx__dynamic_tls_records_1.25.1+.patch \
     && sed -i "s/\(openresty\/.*\)\"/\1-${RESTY_RELEASE}\"/" src/core/nginx.h \
-    && cd /build/openresty-${RESTY_VERSION}/bundle/ngx_stream_lua-0.0.14 \
+    && cd /build/openresty-${RESTY_VERSION}/ngx_stream_lua-0.0.14 \
     && patch -p1 < /build/patches/ngx_stream_lua_remove_useless_pcre_config_0.0.14.patch \
     && cd /build/openresty-${RESTY_VERSION} \
     && eval ./configure \
