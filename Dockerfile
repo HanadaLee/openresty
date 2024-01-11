@@ -241,7 +241,7 @@ RUN apk add -U tzdata \
     && cd /build/patches \
     && git clone https://${RESTY_GIT_REPO}/hanada/ngx_core_patches.git ngx_core_patches \
     && git clone https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_http_tls_dyn_size.git ngx_http_tls_dyn_size \
-    && curl -fSL https://${RESTY_GIT_REPO}/hanada/openresty/patches/ngx_stream_lua_remove_useless_pcre_config_0.0.14.patch -o ngx_stream_lua_remove_useless_pcre_config_0.0.14.patch \
+    && curl -fSL https://${RESTY_GIT_REPO}/hanada/openresty/patches/ngx_stream_lua_remove_useless_pcre_config_0.0.14.patch ngx_stream_lua_remove_useless_pcre_config_0.0.14.patch \
     && cd /build/lualib \
     && git clone https://${RESTY_GIT_REPO}/hanada/lua-resty-maxminddb.git lua-resty-maxminddb \
     && git clone https://${RESTY_GIT_MIRROR}/agentzh/lua-resty-multipart-parser.git lua-resty-multipart-parser \
