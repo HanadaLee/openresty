@@ -285,6 +285,10 @@ RUN apk add -U tzdata \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-jwt \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-openidc \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-dns-client \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-kafka \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-template \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-mlcache \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-jit-uuid \
     && delgroup www-data \
     && deluser --remove-home $(getent passwd 33 | cut -d: -f1) \
     && adduser -s /sbin/nologin -g www-data -D -h /var/www --uid 33 www-data \
