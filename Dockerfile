@@ -10,7 +10,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.25.3.1"
-ARG RESTY_RELEASE="66"
+ARG RESTY_RELEASE="67"
 ARG RESTY_LUAROCKS_VERSION="3.9.2"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -226,6 +226,11 @@ RUN apk add -U tzdata \
     && cd /build/lualib \
     && git clone https://${RESTY_GIT_REPO}/hanada/lua-resty-maxminddb.git lua-resty-maxminddb \
     && git clone https://${RESTY_GIT_MIRROR}/agentzh/lua-resty-multipart-parser.git lua-resty-multipart-parser \
+    && git clone https://${RESTY_GIT_MIRROR}/openresty/lua-resty-balancer.git lua-resty-balancer \
+    && cd lua-resty-balancer \
+    && git checkout v0.05 \
+    && make -j${RESTY_J} \
+    && make install \
     && cd /build \
     && curl -fSL https://openresty.org/download/openresty-${RESTY_VERSION}.tar.gz -o openresty-${RESTY_VERSION}.tar.gz \
     && tar xzf openresty-${RESTY_VERSION}.tar.gz \
@@ -266,6 +271,7 @@ RUN apk add -U tzdata \
     && cp -r -d /usr/lib/libstdc++.so* . \
     && cd /usr/local/openresty/lualib \
     && ln -s ../lib/libmaxminddb.so . \
+    && cp -r -d /usr/local/lib/lua/*.so* . \
     && cd /build \
     && curl -fSL https://luarocks.github.io/luarocks/releases/luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz -o luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz \
     && tar xzf luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz \
@@ -280,6 +286,7 @@ RUN apk add -U tzdata \
     && cd /build/lualib \
     && cp -r lua-resty-maxminddb/lib/resty/* /usr/local/openresty/lualib/resty \
     && cp -r lua-resty-multipart-parser/lib/resty/* /usr/local/openresty/lualib/resty \
+    && cp -r lua-resty-balancer/lib/resty/* /usr/local/openresty/lualib/resty \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-http \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-hmac-ffi \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-jwt \
