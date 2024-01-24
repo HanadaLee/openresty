@@ -10,7 +10,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.25.3.1"
-ARG RESTY_RELEASE="67"
+ARG RESTY_RELEASE="68"
 ARG RESTY_LUAROCKS_VERSION="3.9.2"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -28,7 +28,7 @@ ARG RESTY_OPENSSL_OPTIONS="\
         enable-ssl3 \
         enable-ssl3-method' \
 "
-ARG RESTY_PCRE_URL_BASE="https://downloads.sourceforge.net/project/pcre/pcre/"
+ARG RESTY_PCRE_URL_BASE="https://downloads.sourceforge.net/project/pcre/pcre"
 ARG RESTY_PCRE_LIBRARY="PCRE"
 ARG RESTY_PCRE_VERSION="8.45"
 ARG RESTY_PCRE_OPTIONS="\
@@ -41,8 +41,8 @@ ARG RESTY_PCRE_OPTIONS="\
         --with-match-limit=200000' \
     --with-pcre-opt='-fPIC' \
 "
-ARG RESTY_ZLIB_URL_BASE="https://zlib.net"
-ARG RESTY_ZLIB_VERSION="1.3"
+ARG RESTY_ZLIB_URL_BASE="https://zlib.net/fossils"
+ARG RESTY_ZLIB_VERSION="1.3.1"
 ARG RESTY_ZLIB_OPTIONS=""
 ARG RESTY_LIBATOMIC_VERSION="7.8.0"
 ARG RESTY_LIBQRENCODE_VERSION="4.1.1"
