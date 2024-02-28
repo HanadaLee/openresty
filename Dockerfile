@@ -10,7 +10,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.25.3.1"
-ARG RESTY_RELEASE="69"
+ARG RESTY_RELEASE="70"
 ARG RESTY_LUAROCKS_VERSION="3.9.2"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -227,6 +227,7 @@ RUN apk add -U tzdata \
     && git clone https://${RESTY_GIT_REPO}/hanada/lua-resty-maxminddb.git lua-resty-maxminddb \
     && git clone https://${RESTY_GIT_MIRROR}/agentzh/lua-resty-multipart-parser.git lua-resty-multipart-parser \
     && git clone https://${RESTY_GIT_MIRROR}/openresty/lua-resty-balancer.git lua-resty-balancer \
+    && git clone https://${RESTY_GIT_MIRROR}/Kong/kong.git kong \
     && cd lua-resty-balancer \
     && git checkout v0.05 \
     && make -j${RESTY_J} \
@@ -237,6 +238,7 @@ RUN apk add -U tzdata \
     && cd openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) \
     && patch -p1 < /build/modules/ngx_http_extra_vars_module/ngx_http_extra_vars_1.25.3+.patch \
     && patch -p1 < /build/modules/ngx_http_upstream_check_module/check_1.20.1+.patch \
+    && patch -p1 < /build/patches/ngx_core_patches/ngx_http_slice_allow_methods_directive_1.21.4+.patch \
     && patch -p1 < /build/patches/ngx_core_patches/ngx_http_listen_https_allow_http_1.25.3+.patch \
     && patch -p1 < /build/patches/ngx_http_tls_dyn_size/nginx__dynamic_tls_records_1.25.1+.patch \
     && sed -i "s/\(openresty\/.*\)\"/\1-${RESTY_RELEASE}\"/" src/core/nginx.h \
@@ -286,6 +288,7 @@ RUN apk add -U tzdata \
     && cp -r lua-resty-maxminddb/lib/resty/* /usr/local/openresty/lualib/resty \
     && cp -r lua-resty-multipart-parser/lib/resty/* /usr/local/openresty/lualib/resty \
     && cp -r lua-resty-balancer/lib/resty/* /usr/local/openresty/lualib/resty \
+    && cp -r kong/kong/resty/ctx.lua /usr/local/openresty/lualib/resty \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-http \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-hmac-ffi \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-jwt \
