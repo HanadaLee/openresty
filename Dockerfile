@@ -10,7 +10,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.25.3.1"
-ARG RESTY_RELEASE="70"
+ARG RESTY_RELEASE="71"
 ARG RESTY_LUAROCKS_VERSION="3.9.2"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -212,7 +212,7 @@ RUN apk add -U tzdata \
     && git clone https://${RESTY_GIT_MIRROR}/winshining/nginx-http-flv-module.git ngx_http_flv_live_module \
     && git clone https://${RESTY_GIT_MIRROR}/vozlt/nginx-module-vts.git ngx_http_vhost_traffic_status_module \
     && git clone https://${RESTY_GIT_MIRROR}/yaoweibin/nginx_upstream_check_module.git ngx_http_upstream_check_module \
-    && git clone https://${RESTY_GIT_MIRROR}/wandenberg/nginx-sorted-querystring-module.git ngx_http_sorted_querystring_module \
+    && git clone https://${RESTY_GIT_REPO}/hanada/ngx_http_sorted_querystring_module.git ngx_http_sorted_querystring_module \
     && git clone https://${RESTY_GIT_MIRROR}/aperezdc/ngx-fancyindex.git ngx_http_fancyindex_module \
     && git clone https://${RESTY_GIT_MIRROR}/openresty/replace-filter-nginx-module.git ngx_http_replace_filter_module \
     && git clone https://${RESTY_GIT_REPO}/hanada/ngx_http_extra_vars_module.git ngx_http_extra_vars_module \
@@ -298,6 +298,8 @@ RUN apk add -U tzdata \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-template \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-mlcache \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-jit-uuid \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-cookie \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-healthcheck \
     && delgroup www-data \
     && deluser --remove-home $(getent passwd 33 | cut -d: -f1) \
     && adduser -s /sbin/nologin -g www-data -D -h /var/www --uid 33 www-data \
