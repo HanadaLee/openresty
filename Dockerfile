@@ -44,6 +44,8 @@ ARG RESTY_PCRE_OPTIONS="\
 ARG RESTY_ZLIB_URL_BASE="https://zlib.net/fossils"
 ARG RESTY_ZLIB_VERSION="1.3.1"
 ARG RESTY_ZLIB_OPTIONS=""
+ARG RESTY_ZSTD_VERSION="1.5.6"
+ARG RESTY_ZSTD_OPTIONS=""
 ARG RESTY_LIBATOMIC_VERSION="7.8.0"
 ARG RESTY_LIBQRENCODE_VERSION="4.1.1"
 ARG RESTY_PATH_OPTIONS="\
@@ -102,6 +104,7 @@ ARG RESTY_CONFIG_OPTIONS_MORE="\
     --add-module=/build/modules/ngx_http_sorted_querystring_module \
     --add-module=/build/modules/ngx_http_upstream_check_module \
     --add-module=/build/modules/ngx_http_vhost_traffic_status_module \
+    --add-module=/build/modules/ngx_http_zstd_module \
 "
 ARG _RESTY_CONFIG_DEPS="\
     --with-cc-opt='-g -Wp,-D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIC' \
@@ -117,6 +120,7 @@ LABEL resty_pcre_library="${RESTY_PCRE_LIBRARY}"
 LABEL resty_pcre_version="${RESTY_PCRE_VERSION}"
 LABEL resty_libatomic_version="${RESTY_LIBATOMIC_VERSION}"
 LABEL resty_zlib_version="${RESTY_ZLIB_VERSION}"
+LABEL resty_zstd_version="${RESTY_ZSTD_VERSION}"
 LABEL resty_jemalloc_version="${RESTY_JEMALLOC_VERSION}"
 LABEL resty_libmaxminddb_version="${RESTY_LIBMAXMINDDB_VERSION}"
 LABEL resty_libqrencode_version="${RESTY_LIBQRENCODE_VERSION}"
@@ -176,7 +180,7 @@ RUN apk add -U tzdata \
     && make check \
     && make install \
     && cd /build/lib \
-    && git clone https://${RESTY_GIT_MIRROR}/openresty/sregex.git sregex \
+    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/openresty/sregex.git sregex \
     && cd sregex \
     && make -j${RESTY_J} \
     && make install \
@@ -189,6 +193,12 @@ RUN apk add -U tzdata \
     && cd /build/lib \
     && curl -fSL ${RESTY_ZLIB_URL_BASE}/zlib-${RESTY_ZLIB_VERSION}.tar.gz -o zlib-${RESTY_ZLIB_VERSION}.tar.gz \
     && tar xzf zlib-${RESTY_ZLIB_VERSION}.tar.gz \
+    && cd /build/lib \
+    && curl -fSL https://${RESTY_GIT_MIRROR}/facebook/zstd/releases/download/v${RESTY_ZSTD_VERSION}/zstd-${RESTY_ZSTD_VERSION}.tar.gz -o zstd-${RESTY_ZSTD_VERSION}.tar.gz \
+    && tar xzf zstd-${RESTY_ZSTD_VERSION}.tar.gz \
+    && cd zstd \
+    && make -j${RESTY_J} \
+    && make install \
     && cd /build/lib \
     && curl -fSL https://${RESTY_GIT_MIRROR}/ivmai/libatomic_ops/releases/download/v${RESTY_LIBATOMIC_VERSION}/libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz -o libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz \
     && tar xzf libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz \
@@ -207,29 +217,30 @@ RUN apk add -U tzdata \
     && sed -i "s|github.com|${RESTY_GIT_MIRROR}|g" .gitmodules \
     && git submodule update --init \
     && cd /build/modules \
-    && git clone https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_cache_purge.git ngx_http_cache_purge_module \
-    && git clone https://${RESTY_GIT_MIRROR}/leev/ngx_http_geoip2_module.git ngx_http_geoip2_module \
-    && git clone https://${RESTY_GIT_MIRROR}/arut/nginx-dav-ext-module.git ngx_http_dav_ext_module \
-    && git clone https://${RESTY_GIT_MIRROR}/winshining/nginx-http-flv-module.git ngx_http_flv_live_module \
-    && git clone https://${RESTY_GIT_MIRROR}/vozlt/nginx-module-vts.git ngx_http_vhost_traffic_status_module \
-    && git clone https://${RESTY_GIT_MIRROR}/yaoweibin/nginx_upstream_check_module.git ngx_http_upstream_check_module \
-    && git clone https://${RESTY_GIT_REPO}/hanada/ngx_http_sorted_querystring_module.git ngx_http_sorted_querystring_module \
-    && git clone https://${RESTY_GIT_REPO}/hanada/ngx_http_conf_block_module.git ngx_http_conf_block_module \
-    && git clone https://${RESTY_GIT_MIRROR}/aperezdc/ngx-fancyindex.git ngx_http_fancyindex_module \
-    && git clone https://${RESTY_GIT_MIRROR}/openresty/replace-filter-nginx-module.git ngx_http_replace_filter_module \
-    && git clone https://${RESTY_GIT_REPO}/hanada/ngx_http_extra_vars_module.git ngx_http_extra_vars_module \
-    && git clone https://${RESTY_GIT_MIRROR}/AlticeLabsProjects/lua-upstream-cache-nginx-module.git ngx_http_lua_cache_module \
-    && git clone https://${RESTY_GIT_MIRROR}/soulteary/ngx_http_qrcode_module.git ngx_http_qrcode_module_full \
+    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_cache_purge.git ngx_http_cache_purge_module \
+    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/leev/ngx_http_geoip2_module.git ngx_http_geoip2_module \
+    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/arut/nginx-dav-ext-module.git ngx_http_dav_ext_module \
+    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/winshining/nginx-http-flv-module.git ngx_http_flv_live_module \
+    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/vozlt/nginx-module-vts.git ngx_http_vhost_traffic_status_module \
+    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/yaoweibin/nginx_upstream_check_module.git ngx_http_upstream_check_module \
+    && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_sorted_querystring_module.git ngx_http_sorted_querystring_module \
+    && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_conf_block_module.git ngx_http_conf_block_module \
+    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/aperezdc/ngx-fancyindex.git ngx_http_fancyindex_module \
+    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/openresty/replace-filter-nginx-module.git ngx_http_replace_filter_module \
+    && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_extra_vars_module.git ngx_http_extra_vars_module \
+    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/AlticeLabsProjects/lua-upstream-cache-nginx-module.git ngx_http_lua_cache_module \
+    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/HanadaLee/ngx_http_zstd_module.git ngx_http_zstd_module \
+    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/soulteary/ngx_http_qrcode_module.git ngx_http_qrcode_module_full \
     && mv ngx_http_qrcode_module_full/src ngx_http_qrcode_module \
     && rm -rf ngx_http_qrcode_module_full \
     && cd /build/patches \
-    && git clone https://${RESTY_GIT_REPO}/hanada/ngx_core_patches.git ngx_core_patches \
-    && git clone https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_http_tls_dyn_size.git ngx_http_tls_dyn_size \
+    && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_core_patches.git ngx_core_patches \
+    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_http_tls_dyn_size.git ngx_http_tls_dyn_size \
     && cd /build/lualib \
-    && git clone https://${RESTY_GIT_REPO}/hanada/lua-resty-maxminddb.git lua-resty-maxminddb \
-    && git clone https://${RESTY_GIT_MIRROR}/agentzh/lua-resty-multipart-parser.git lua-resty-multipart-parser \
-    && git clone https://${RESTY_GIT_MIRROR}/openresty/lua-resty-balancer.git lua-resty-balancer \
-    && git clone https://${RESTY_GIT_MIRROR}/Kong/kong.git kong \
+    && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/lua-resty-maxminddb.git lua-resty-maxminddb \
+    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/agentzh/lua-resty-multipart-parser.git lua-resty-multipart-parser \
+    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/openresty/lua-resty-balancer.git lua-resty-balancer \
+    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/Kong/kong.git kong \
     && cd lua-resty-balancer \
     && git checkout v0.05 \
     && make -j${RESTY_J} \
