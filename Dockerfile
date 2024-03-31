@@ -196,7 +196,7 @@ RUN apk add -U tzdata \
     && cd /build/lib \
     && curl -fSL https://${RESTY_GIT_MIRROR}/facebook/zstd/releases/download/v${RESTY_ZSTD_VERSION}/zstd-${RESTY_ZSTD_VERSION}.tar.gz -o zstd-${RESTY_ZSTD_VERSION}.tar.gz \
     && tar xzf zstd-${RESTY_ZSTD_VERSION}.tar.gz \
-    && cd zstd \
+    && cd zstd-${RESTY_ZSTD_VERSION} \
     && make -j${RESTY_J} \
     && make install \
     && cd /build/lib \
