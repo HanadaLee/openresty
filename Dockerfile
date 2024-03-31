@@ -92,7 +92,6 @@ ARG RESTY_CONFIG_OPTIONS="\
 ARG RESTY_CONFIG_OPTIONS_MORE="\
     --add-module=/build/modules/ngx_http_brotli_module \
     --add-module=/build/modules/ngx_http_cache_purge_module \
-    --add-module=/build/modules/ngx_http_conf_block_module \
     --add-module=/build/modules/ngx_http_dav_ext_module \
     --add-module=/build/modules/ngx_http_extra_vars_module \
     --add-module=/build/modules/ngx_http_fancyindex_module \
@@ -224,7 +223,6 @@ RUN apk add -U tzdata \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/vozlt/nginx-module-vts.git ngx_http_vhost_traffic_status_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/yaoweibin/nginx_upstream_check_module.git ngx_http_upstream_check_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_sorted_querystring_module.git ngx_http_sorted_querystring_module \
-    && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_conf_block_module.git ngx_http_conf_block_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/aperezdc/ngx-fancyindex.git ngx_http_fancyindex_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/openresty/replace-filter-nginx-module.git ngx_http_replace_filter_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_extra_vars_module.git ngx_http_extra_vars_module \
