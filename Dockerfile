@@ -10,12 +10,12 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.25.3.1"
-ARG RESTY_RELEASE="76"
+ARG RESTY_RELEASE="77"
 ARG RESTY_LUAROCKS_VERSION="3.9.2"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
-ARG RESTY_OPENSSL_URL_BASE="https://www.openssl.org/source"
-ARG RESTY_OPENSSL_VERSION="1.1.1w"
+ARG RESTY_OPENSSL_FORK="quictls"
+ARG RESTY_OPENSSL_VERSION="1.1.1w-quic1"
 ARG RESTY_OPENSSL_OPTIONS="\
     --with-openssl-opt='\
         enable-camellia \
@@ -114,6 +114,7 @@ LABEL resty_image_base="${RESTY_IMAGE_BASE}"
 LABEL resty_image_tag="${RESTY_IMAGE_TAG}"
 LABEL resty_version="${RESTY_VERSION}"
 LABEL resty_release="${RESTY_RELEASE}"
+LABEL resty_openssl_fork="${RESTY_OPENSSL_FORK}"
 LABEL resty_openssl_version="${RESTY_OPENSSL_VERSION}"
 LABEL resty_pcre_library="${RESTY_PCRE_LIBRARY}"
 LABEL resty_pcre_version="${RESTY_PCRE_VERSION}"
@@ -184,8 +185,10 @@ RUN apk add -U tzdata \
     && make -j${RESTY_J} \
     && make install \
     && cd /build/lib \
-    && curl -fSL "${RESTY_OPENSSL_URL_BASE}/openssl-${RESTY_OPENSSL_VERSION}.tar.gz" -o openssl-${RESTY_OPENSSL_VERSION}.tar.gz \
-    && tar xzf openssl-${RESTY_OPENSSL_VERSION}.tar.gz \
+    && openssl_version_path=`echo -n ${RESTY_OPENSSL_VERSION} | sed 's/\./_/g'` \
+    && curl -fSL https://${RESTY_GIT_MIRROR}/quictls/openssl/archive/refs/tags/OpenSSL_${openssl_version_path}.tar.gz -o OpenSSL_${openssl_version_path}.tar.gz \
+    && tar xzf OpenSSL_${openssl_version_path}.tar.gz \
+    && mv openssl-OpenSSL_${openssl_version_path} openssl-${RESTY_OPENSSL_VERSION} \
     && cd /build/lib \
     && curl -fSL ${RESTY_PCRE_URL_BASE}/${RESTY_PCRE_VERSION}/pcre-${RESTY_PCRE_VERSION}.tar.gz -o pcre-${RESTY_PCRE_VERSION}.tar.gz \
     && tar xzf pcre-${RESTY_PCRE_VERSION}.tar.gz \
