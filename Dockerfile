@@ -93,6 +93,7 @@ ARG RESTY_CONFIG_OPTIONS_MORE="\
     --add-module=/build/modules/ngx_http_brotli_module \
     --add-module=/build/modules/ngx_http_cache_purge_module \
     --add-module=/build/modules/ngx_http_dav_ext_module \
+    --add-module=/build/modules/ngx_http_dechunk_module \
     --add-module=/build/modules/ngx_http_extra_vars_module \
     --add-module=/build/modules/ngx_http_fancyindex_module \
     --add-module=/build/modules/ngx_http_flv_live_module \
@@ -231,6 +232,7 @@ RUN apk add -U tzdata \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_extra_vars_module.git ngx_http_extra_vars_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/AlticeLabsProjects/lua-upstream-cache-nginx-module.git ngx_http_lua_cache_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/HanadaLee/ngx_http_zstd_module.git ngx_http_zstd_module \
+    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/maruyama-tomo/nginx-dechunk-module.git ngx_http_dechunk_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/soulteary/ngx_http_qrcode_module.git ngx_http_qrcode_module_full \
     && mv ngx_http_qrcode_module_full/src ngx_http_qrcode_module \
     && rm -rf ngx_http_qrcode_module_full \
