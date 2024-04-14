@@ -256,6 +256,7 @@ RUN apk add -U tzdata \
     && cd openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) \
     && patch -p1 < /build/modules/ngx_http_extra_vars_module/ngx_http_extra_vars_1.25.3+.patch \
     && patch -p1 < /build/modules/ngx_http_upstream_check_module/check_1.20.1+.patch \
+    && patch -p1 < /build/modules/ngx_http_proxy_connect_module/patch/proxy_connect_rewrite_102101.patch \
     && patch -p1 < /build/patches/ngx_core_patches/ngx_http_slice_allow_methods_directive_1.21.4+.patch \
     && patch -p1 < /build/patches/ngx_core_patches/ngx_http_listen_https_allow_http_1.25.3+.patch \
     && patch -p1 < /build/patches/ngx_http_tls_dyn_size/nginx__dynamic_tls_records_1.25.1+.patch \
