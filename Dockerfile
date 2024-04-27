@@ -149,7 +149,7 @@ RUN apk add -U tzdata \
         pkgconf \
         libpng-dev \
         cmake \
-        ffpmeg4-dev \
+        ffmpeg4-dev \
     && apk add --no-cache \
         ca-certificates \
         bash \
@@ -164,7 +164,7 @@ RUN apk add -U tzdata \
         outils-md5 \
         unzip \
         wget \
-        ffpmeg4 \
+        ffmpeg4 \
         gnu-libiconv \
     && mkdir -p /build/lib /build/lualib /build/modules /build/patches \
     && cd /build/lib \
