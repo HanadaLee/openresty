@@ -1,6 +1,6 @@
 variables:
   RESTY_VERSION: 1.25.3.1
-  RESTY_RELEASE: 84
+  RESTY_RELEASE: 85
 
 stages:
   - build
@@ -15,7 +15,7 @@ build:
   script:
     - >
       docker buildx build \
-        --platform linux/amd64 \
+        --platform linux/amd64,linux/arm64 \
         -t registry.hanada.info/hanada/openresty \
         -t registry.hanada.info/hanada/openresty:$RESTY_VERSION-$RESTY_RELEASE \
         --build-arg RESTY_VERSION=$RESTY_VERSION \

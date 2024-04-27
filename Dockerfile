@@ -10,7 +10,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.25.3.1"
-ARG RESTY_RELEASE="84"
+ARG RESTY_RELEASE="85"
 ARG RESTY_LUAROCKS_VERSION="3.11.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -109,7 +109,7 @@ ARG RESTY_CONFIG_OPTIONS_MORE="\
     --add-module=/build/modules/ngx_http_zstd_module \
 "
 ARG _RESTY_CONFIG_DEPS="\
-    --with-cc-opt='-g -O3 -mpopcnt -Wp,-D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIC' \
+    --with-cc-opt='-g -mpopcnt -Wp,-D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIC' \
     --with-ld-opt='-Wl,-rpath,/usr/local/openresty/lib -Wl,-Bsymbolic-functions -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-whole-archive -Wl,--gc-sections -pie -ljemalloc -Wl,-Bdynamic -lm -lstdc++ -pthread -ldl -Wl,-E' \
 "
 
