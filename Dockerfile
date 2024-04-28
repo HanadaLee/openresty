@@ -140,6 +140,7 @@ RUN apk add -U tzdata \
         make \
         perl-dev \
         readline-dev \
+        linux-headers \
         zlib-dev \
         bison \
         git \
@@ -158,7 +159,6 @@ RUN apk add -U tzdata \
         curl \
         perl \
         libintl \
-        linux-headers \
         musl \
         outils-md5 \
         unzip \
