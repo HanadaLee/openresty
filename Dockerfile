@@ -10,7 +10,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.25.3.1"
-ARG RESTY_RELEASE="86"
+ARG RESTY_RELEASE="87"
 ARG RESTY_LUAROCKS_VERSION="3.11.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -149,7 +149,6 @@ RUN apk add -U tzdata \
         pkgconf \
         libpng-dev \
         cmake \
-        ffmpeg4-dev \
     && apk add --no-cache \
         ca-certificates \
         bash \
@@ -165,6 +164,7 @@ RUN apk add -U tzdata \
         unzip \
         wget \
         ffmpeg4 \
+        ffmpeg4-dev \
         gnu-libiconv \
     && mkdir -p /build/lib /build/lualib /build/modules /build/patches \
     && cd /build/lib \
