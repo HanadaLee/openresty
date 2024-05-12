@@ -3,7 +3,7 @@ Name
 
 OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx and LuaJIT
 
-This image adds luarock, more patches, modules or lua libraries to the original OpenResty bundle (https://github.com/openresty/openresty).
+This image adds luarocks, more patches, modules or lua libraries to the original OpenResty bundle (https://github.com/openresty/openresty).
 
 This bundle is maintained by Hanada (im@hanada.info)
 
@@ -13,13 +13,14 @@ Table of Contents
 - [Name](#name)
 - [Table of Contents](#table-of-contents)
 - [Description](#description)
-  - [For Users](#for-users)
-  - [For Bundle Maintainers](#for-bundle-maintainers)
+  - [Components of riginal OpenResty bundule](#components-of-riginal-openresty-bundule)
+  - [Extra components of current OpenResty bundule](#extra-components-of-current-openresty-bundule)
 - [Additional Features](#additional-features)
   - [resolv.conf parsing](#resolvconf-parsing)
-- [Mailing List](#mailing-list)
-- [Report Bugs](#report-bugs)
-- [Copyright \& License](#copyright--license)
+  - [ngx_http_slice_allow_methods_directive patch](#ngx_http_slice_allow_methods_directive-patch)
+  - [ngx_http_listen_https_allow_http patch](#ngx_http_listen_https_allow_http-patch)
+  - [ngx_http_tls_dyn_size](#ngx_http_tls_dyn_size)
+- [Copyright \& License](#copyright-license)
 
 Description
 ===========
@@ -29,6 +30,11 @@ OpenResty is a full-fledged web application server by bundling the standard ngin
 This bundle is maintained by Hanada (im@hanada.info), and the original OpenResty bundle is maintained by Yichun Zhang (agentzh).
 
 The bundled software components are copyrighted by the respective copyright holders.
+
+[Back to TOC](#table-of-contents)
+
+Components of riginal OpenResty bundule
+--------------------
 
 Below lists all the components bundled in original OpenResty.
 
@@ -86,6 +92,10 @@ Since the 1.15.8.1 release, the standard Lua 5.1 interpreter is not supported an
 * [StreamLuaNginxModule](https://openresty.org/en/https://github.com/openresty/stream-lua-nginx-module#readme)
 * [XssNginxModule](https://openresty.org/en/xss-nginx-module.html)
 
+[Back to TOC](#table-of-contents)
+
+Extra components of current OpenResty bundule
+--------------------
 
 Listed below are all components currently bundled additionally with OpenResty. These components are bundled by Hanada.
 
@@ -107,6 +117,7 @@ Listed below are all components currently bundled additionally with OpenResty. T
 * [ngx_http_vhost_traffic_status_module](https://github.com/vozlt/nginx-module-vts)
 * [ngx_http_vod_module](https://github.com/kaltura/nginx-vod-module)
 * [ngx_http_zstd_module](https://git.hanada.info/hanada/ngx_http_zstd_module)
+* [luarocks](https://luarocks.org/)
 * [lua-resty-maxminddb](https://git.hanada.info/hanada/lua-resty-maxminddb)
 * [lua-resty-multipart-parser](https://github.com/agentzh/lua-resty-multipart-parser)
 * [lua-resty-balancer](https://github.com/openresty/lua-resty-balancer)
@@ -153,7 +164,9 @@ When `local=off`, parsing will be disabled (this is the default).
 
 This feature is not available on Windows platforms.
 
-[ngx_http_slice_allow_methods_directive_1.21.4+.patch](https://git.hanada.info/hanada/ngx_core_patches)
+[Back to TOC](#table-of-contents)
+
+[ngx_http_slice_allow_methods_directive patch](https://git.hanada.info/hanada/ngx_core_patches)
 --------------------
 
 **syntax:** *slice_allow_methods GET | HEAD ...;*
@@ -164,9 +177,9 @@ This feature is not available on Windows platforms.
 
 Allow splitting responses into slices if the client request method is listed in this directive. Note that if the slice directive is unset or has the zero value, splitting the response into slices will still be disabled.
 
-Test pass: Nginx 1.21.4 with OpenResty
+[Back to TOC](#table-of-contents)
 
-[ngx_http_listen_https_allow_http_1.21.4+.patch](https://git.hanada.info/hanada/ngx_core_patches)
+[ngx_http_listen_https_allow_http patch](https://git.hanada.info/hanada/ngx_core_patches)
 --------------------
 
 **syntax:** *listen address[:port] [ssl] [https_allow_http] ...;*
@@ -177,7 +190,7 @@ Test pass: Nginx 1.21.4 with OpenResty
 
 When both the ssl and https_allow_http parameters are enabled for the listen directive, both https or http requests will be allowed. This patch comes from Tengine.
 
-Test pass: Nginx 1.21.4 with OpenResty
+[Back to TOC](#table-of-contents)
 
 [ngx_http_tls_dyn_size](https://github.com/nginx-modules/ngx_http_tls_dyn_size)
 --------------------
