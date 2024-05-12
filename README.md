@@ -263,19 +263,6 @@ TLS + IPv6 overhead in a single TCP segment for lo and 3 segments for hi:
 
 [Back to TOC](#table-of-contents)
 
-Mailing List
-============
-
-You're very welcome to join the English OpenResty mailing list hosted on Google Groups:
-
-https://groups.google.com/group/openresty-en
-
-The Chinese mailing list is here:
-
-https://groups.google.com/group/openresty
-
-[Back to TOC](#table-of-contents)
-
 Copyright & License
 ===========
 
