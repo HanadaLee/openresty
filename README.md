@@ -13,7 +13,7 @@ Table of Contents
 - [Name](#name)
 - [Table of Contents](#table-of-contents)
 - [Description](#description)
-  - [Components of riginal OpenResty bundule](#components-of-riginal-openresty-bundule)
+  - [Components of original OpenResty bundule](#components-of-original-openresty-bundule)
   - [Extra components of current OpenResty bundule](#extra-components-of-current-openresty-bundule)
 - [Additional Features](#additional-features)
   - [resolv.conf parsing](#resolvconf-parsing)
@@ -33,7 +33,7 @@ The bundled software components are copyrighted by the respective copyright hold
 
 [Back to TOC](#table-of-contents)
 
-Components of riginal OpenResty bundule
+Components of original OpenResty bundule
 --------------------
 
 Below lists all the components bundled in original OpenResty.
