@@ -243,7 +243,6 @@ RUN apk add -U tzdata \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/chobits/ngx_http_proxy_connect_module.git ngx_http_proxy_connect_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/kaltura/nginx-vod-module.git ngx_http_vod_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_upstream_log_module.git ngx_http_upstream_log_module \
-    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/api7/apisix-nginx-module.git ngx_http_apisix_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/soulteary/ngx_http_qrcode_module.git ngx_http_qrcode_module_full \
     && mv ngx_http_qrcode_module_full/src ngx_http_qrcode_module \
     && rm -rf ngx_http_qrcode_module_full \
@@ -270,7 +269,6 @@ RUN apk add -U tzdata \
     && patch -p1 < /build/patches/ngx_core_patches/ngx_http_slice_allow_methods_directive_1.21.4+.patch \
     && patch -p1 < /build/patches/ngx_core_patches/ngx_http_listen_https_allow_http_1.25.3+.patch \
     && patch -p1 < /build/patches/ngx_core_patches/ngx_http_proxy_and_grpc_header_control_inherit_1.25.3+.patch \
-    && patch -p1 < /build/modules/ngx_http_apisix_module/patch/1.25.3.1/nginx-grpc_set_header_authority.patch \
     && patch -p1 < /build/patches/ngx_http_tls_dyn_size/nginx__dynamic_tls_records_1.25.1+.patch \
     && sed -i "s/\(openresty\/.*\)\"/\1-${RESTY_RELEASE}\"/" src/core/nginx.h \
     && cd /build/openresty-${RESTY_VERSION} \
