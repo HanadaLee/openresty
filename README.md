@@ -17,7 +17,7 @@ Table of Contents
   - [Extra components of current OpenResty bundule](#extra-components-of-current-openresty-bundule)
 - [Additional Features](#additional-features)
   - [resolv.conf parsing](#resolvconf-parsing)
-  - [ngx_http_slice_allow_methods_directive patch](#ngx_http_slice_allow_methods_directive-patch)
+  - [ngx_http_slice_module_ext patch](#ngx_http_slice_module_ext-patch)
   - [ngx_http_listen_https_allow_http patch](#ngx_http_listen_https_allow_http-patch)
   - [ngx_http_tls_dyn_size](#ngx_http_tls_dyn_size)
 - [Copyright \& License](#copyright-license)
@@ -107,6 +107,8 @@ Listed below are all components currently bundled additionally with OpenResty. T
 * [ngx_http_fancyindex_module](https://github.com/aperezdc/ngx-fancyindex)
 * [ngx_http_flv_live_module](https://github.com/winshining/nginx-http-flv-module)
 * [ngx_http_geoip2_module](https://github.com/leev/ngx_http_geoip2_module)
+* [ngx_http_let_module](https://git.hanada.info/hanada/ngx_http_let_module)
+* [ngx_http_lower_upper_case_module](https://git.hanada.info/hanada/ngx_http_lower_upper_case_module)
 * [ngx_http_lua_cache_module](https://github.com/AlticeLabsProjects/lua-upstream-cache-nginx-module)
 * [ngx_http_proxy_connect_module](https://github.com/chobits/ngx_http_proxy_connect_module)
 * [ngx_http_qrcode_module](https://github.com/soulteary/ngx_http_qrcode_module)
@@ -166,7 +168,7 @@ This feature is not available on Windows platforms.
 
 [Back to TOC](#table-of-contents)
 
-[ngx_http_slice_allow_methods_directive patch](https://git.hanada.info/hanada/ngx_core_patches)
+[ngx_http_slice_module_ext patch](https://git.hanada.info/hanada/ngx_core_patches)
 --------------------
 
 **syntax:** *slice_allow_methods GET | HEAD ...;*
@@ -176,6 +178,22 @@ This feature is not available on Windows platforms.
 **context:** *http, server, location*
 
 Allow splitting responses into slices if the client request method is listed in this directive. Note that if the slice directive is unset or has the zero value, splitting the response into slices will still be disabled.
+
+* **Syntax:** *slice_check_etag on | off;*
+
+* **Default:** *slice_check_etag on;*
+
+* **Context:** *http, server, location*
+
+Whether to check the consistency of the Etag header in the slice. If it is enabled, the request will be terminated and an error will be reported when Etag mismatch in slice response occurs.
+
+* **Syntax:** *slice_check_last_modified on | off;*
+
+* **Default:** *slice_check_last_modified off;*
+
+* **Context:** *http, server, location*
+
+Whether to check the consistency of the Last-Modified header in the slice. If it is enabled, the request will be terminated and an error will be reported when Last-Modified mismatch in slice response occurs.
 
 [Back to TOC](#table-of-contents)
 
