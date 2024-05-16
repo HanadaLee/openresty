@@ -245,8 +245,9 @@ RUN apk add -U tzdata \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/chobits/ngx_http_proxy_connect_module.git ngx_http_proxy_connect_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/kaltura/nginx-vod-module.git ngx_http_vod_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_upstream_log_module.git ngx_http_upstream_log_module \
-    && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_let_module.git ngx_http_let_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_lower_upper_case_module.git ngx_http_lower_upper_case_module \
+    && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_let_module.git ngx_http_let_module \
+    && sed -i "s/-lcrypto//g" ngx_http_let_module/config \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/soulteary/ngx_http_qrcode_module.git ngx_http_qrcode_module_full \
     && mv ngx_http_qrcode_module_full/src ngx_http_qrcode_module \
     && rm -rf ngx_http_qrcode_module_full \
