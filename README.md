@@ -17,7 +17,8 @@ Table of Contents
   - [Extra components of current OpenResty bundule](#extra-components-of-current-openresty-bundule)
 - [Additional Features](#additional-features)
   - [resolv.conf parsing](#resolvconf-parsing)
-  - [ngx_http_slice_module_ext patch](#ngx_http_slice_module_ext-patch)
+  - [ngx_http_slice_filter_module_ext patch](#ngx_http_slice_filter_module_ext-patch)
+  - [ngx_http_sub_filter_module_ext patch](#ngx_http_sub_filter_module_ext-patch)
   - [ngx_http_listen_https_allow_http patch](#ngx_http_listen_https_allow_http-patch)
   - [ngx_http_tls_dyn_size](#ngx_http_tls_dyn_size)
 - [Copyright \& License](#copyright-license)
@@ -167,7 +168,7 @@ This feature is not available on Windows platforms.
 
 [Back to TOC](#table-of-contents)
 
-[ngx_http_slice_module_ext patch](https://git.hanada.info/hanada/ngx_core_patches)
+[ngx_http_slice_filter_module_ext patch](https://git.hanada.info/hanada/ngx_core_patches)
 --------------------
 
 **syntax:** *slice_allow_methods GET | HEAD ...;*
@@ -193,6 +194,24 @@ Whether to check the consistency of the Etag header in the slice. If it is enabl
 * **Context:** *http, server, location*
 
 Whether to check the consistency of the Last-Modified header in the slice. If it is enabled, the request will be terminated and an error will be reported when Last-Modified mismatch in slice response occurs.
+
+[Back to TOC](#table-of-contents)
+
+[ngx_http_sub_filter_module_ext patch](https://git.hanada.info/hanada/ngx_core_patches)
+--------------------
+
+* **Syntax:** *sub_filter_bypass string ...;*
+
+* **Default:** *—*
+
+* **Context:** *http, server, location*
+
+Defines conditions under which the response will not be replaced. If at least one value of the string parameters is not empty and is not equal to “0” then the response will not be replaced.
+
+```
+sub_filter_bypass $cookie_nocache $arg_nocache$arg_comment;
+sub_filter_bypass $http_pragma    $http_authorization;
+```
 
 [Back to TOC](#table-of-contents)
 
