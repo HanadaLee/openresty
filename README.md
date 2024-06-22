@@ -19,6 +19,7 @@ Table of Contents
   - [resolv.conf parsing](#resolvconf-parsing)
   - [ngx_http_slice_filter_module_ext patch](#ngx_http_slice_filter_module_ext-patch)
   - [ngx_http_sub_filter_module_ext patch](#ngx_http_sub_filter_module_ext-patch)
+  - [ngx_http_realip_module_ext patch](#ngx_http_realip_module_ext-patch)
   - [ngx_http_listen_https_allow_http patch](#ngx_http_listen_https_allow_http-patch)
   - [ngx_http_tls_dyn_size](#ngx_http_tls_dyn_size)
 - [Copyright \& License](#copyright-license)
@@ -212,6 +213,28 @@ Defines conditions under which the response will not be replaced. If at least on
 sub_filter_bypass $cookie_nocache $arg_nocache$arg_comment;
 sub_filter_bypass $http_pragma    $http_authorization;
 ```
+
+[Back to TOC](#table-of-contents)
+
+[ngx_http_realip_module_ext patch](https://git.hanada.info/hanada/ngx_core_patches)
+--------------------
+
+* **Syntax:** *real_ip_header field | X-Real-IP | X-Forwarded-For | proxy_protocol;*
+* **Default:** *real_ip_header X-Real-IP;*
+* **Context:** *http, server, location*
+
+Defines the request header fields whose value will be used to replace the client address. 
+
+If multiple request fields are defined, the header values ​​will be checked in the order defined in the configuration, and the first header with a valid value will be used:
+
+```
+real_ip_header X-Real-IP Cdn-Src-Ip X-Forwarded-For;
+```
+The values ​​of the above headers will be checked in turn until a valid value is found.
+
+The request header field value that contains an optional port is also used to replace the client port. The address and port should be specified according to RFC 3986.
+
+The proxy_protocol parameter changes the client address to the one from the PROXY protocol header. The PROXY protocol must be previously enabled by setting the proxy_protocol parameter in the listen directive.
 
 [Back to TOC](#table-of-contents)
 

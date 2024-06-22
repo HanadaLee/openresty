@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.25.3.1"
-ARG RESTY_RELEASE="100"
+ARG RESTY_RELEASE="101"
 ARG RESTY_LUAROCKS_VERSION="3.11.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -273,6 +273,7 @@ RUN apk add -U tzdata \
     && patch -p1 < /build/patches/ngx_core_patches/ngx_http_sub_filter_module_ext_1.25.3+.patch \
     && patch -p1 < /build/patches/ngx_core_patches/ngx_http_listen_https_allow_http_1.25.3+.patch \
     && patch -p1 < /build/patches/ngx_core_patches/ngx_http_proxy_and_grpc_header_control_inherit_1.25.3+.patch \
+    && patch -p1 < /build/patches/ngx_core_patches/ngx_http_realip_module_ext_1.25.3+.patch \
     && patch -p1 < /build/patches/ngx_http_tls_dyn_size/nginx__dynamic_tls_records_1.25.1+.patch \
     && sed -i "s/\(openresty\/.*\)\"/\1-${RESTY_RELEASE}\"/" src/core/nginx.h \
     && cd /build/openresty-${RESTY_VERSION} \
