@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.25.3.1"
-ARG RESTY_RELEASE="101"
+ARG RESTY_RELEASE="102"
 ARG RESTY_LUAROCKS_VERSION="3.11.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -100,7 +100,6 @@ ARG RESTY_CONFIG_OPTIONS_MORE="\
     --add-module=/build/modules/ngx_http_fancyindex_module \
     --add-module=/build/modules/ngx_http_flv_live_module \
     --add-module=/build/modules/ngx_http_geoip2_module \
-    --add-module=/build/modules/ngx_http_let_module \
     --add-module=/build/modules/ngx_http_lua_cache_module \
     --add-module=/build/modules/ngx_http_proxy_connect_module \
     --add-module=/build/modules/ngx_http_qrcode_module \
@@ -244,8 +243,6 @@ RUN apk add -U tzdata \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/chobits/ngx_http_proxy_connect_module.git ngx_http_proxy_connect_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/kaltura/nginx-vod-module.git ngx_http_vod_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_upstream_log_module.git ngx_http_upstream_log_module \
-    && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_let_module.git ngx_http_let_module \
-    && sed -i "s/-lcrypto//g" ngx_http_let_module/config \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/soulteary/ngx_http_qrcode_module.git ngx_http_qrcode_module_full \
     && mv ngx_http_qrcode_module_full/src ngx_http_qrcode_module \
     && rm -rf ngx_http_qrcode_module_full \
