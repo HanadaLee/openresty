@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.25.3.2"
-ARG RESTY_RELEASE="104"
+ARG RESTY_RELEASE="105"
 ARG RESTY_LUAROCKS_VERSION="3.11.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -303,7 +303,7 @@ RUN apk add -U tzdata \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-hmac-ffi \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-jwt \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-openidc \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-dns-client \
+    && /usr/local/openresty/luajit/bin/luarocks install api7-lua-resty-dns-client \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-kafka \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-template \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-mlcache \
