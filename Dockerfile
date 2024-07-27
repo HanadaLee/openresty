@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.25.3.2"
-ARG RESTY_RELEASE="103"
+ARG RESTY_RELEASE="104"
 ARG RESTY_LUAROCKS_VERSION="3.11.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -68,37 +68,25 @@ ARG RESTY_PATH_OPTIONS="\
 ARG RESTY_USER_OPTIONS="--user=www-data --group=www-data"
 ARG RESTY_J="8"
 ARG RESTY_CONFIG_OPTIONS="\
-    --with-compat \
     --with-file-aio \
-    --with-poll_module \
     --with-threads \
     --with-http_ssl_module \
     --with-http_v2_module \
     --with-http_v3_module \
-    --with-http_addition_module \
     --with-http_auth_request_module \
-    --with-http_dav_module \
-    --with-http_flv_module \
     --with-http_gunzip_module \
     --with-http_gzip_static_module \
-    --with-http_mp4_module \
-    --with-http_random_index_module \
     --with-http_realip_module \
-    --with-http_secure_link_module \
     --with-http_degradation_module \
     --with-http_slice_module \
-    --with-http_stub_status_module \
     --with-http_sub_module \
     --without-http_empty_gif_module \
 "
 ARG RESTY_CONFIG_OPTIONS_MORE="\
     --add-module=/build/modules/ngx_http_brotli_module \
     --add-module=/build/modules/ngx_http_cache_purge_module \
-    --add-module=/build/modules/ngx_http_dav_ext_module \
     --add-module=/build/modules/ngx_http_dechunk_module \
     --add-module=/build/modules/ngx_http_extra_vars_module \
-    --add-module=/build/modules/ngx_http_fancyindex_module \
-    --add-module=/build/modules/ngx_http_flv_live_module \
     --add-module=/build/modules/ngx_http_geoip2_module \
     --add-module=/build/modules/ngx_http_lua_cache_module \
     --add-module=/build/modules/ngx_http_proxy_connect_module \
@@ -108,7 +96,6 @@ ARG RESTY_CONFIG_OPTIONS_MORE="\
     --add-module=/build/modules/ngx_http_upstream_check_module \
     --add-module=/build/modules/ngx_http_upstream_log_module \
     --add-module=/build/modules/ngx_http_vhost_traffic_status_module \
-    --add-module=/build/modules/ngx_http_vod_module \
     --add-module=/build/modules/ngx_http_zstd_module \
 "
 ARG _RESTY_CONFIG_DEPS="\
@@ -159,16 +146,13 @@ RUN apk add -U tzdata \
         libgcc \
         libxslt \
         libgd \
+        wget \
         curl \
         perl \
         libintl \
         musl \
         outils-md5 \
         unzip \
-        wget \
-        ffmpeg4 \
-        ffmpeg4-dev \
-        gnu-libiconv \
     && mkdir -p /build/lib /build/lualib /build/modules /build/patches \
     && cd /build/lib \
     && curl -fSL https://${RESTY_GIT_MIRROR}/jemalloc/jemalloc/releases/download/${RESTY_JEMALLOC_VERSION}/jemalloc-${RESTY_JEMALLOC_VERSION}.tar.bz2 -o jemalloc-${RESTY_JEMALLOC_VERSION}.tar.bz2 \
@@ -229,19 +213,15 @@ RUN apk add -U tzdata \
     && cd /build/modules \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_cache_purge.git ngx_http_cache_purge_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/leev/ngx_http_geoip2_module.git ngx_http_geoip2_module \
-    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/arut/nginx-dav-ext-module.git ngx_http_dav_ext_module \
-    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/winshining/nginx-http-flv-module.git ngx_http_flv_live_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/vozlt/nginx-module-vts.git ngx_http_vhost_traffic_status_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/yaoweibin/nginx_upstream_check_module.git ngx_http_upstream_check_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_sorted_querystring_module.git ngx_http_sorted_querystring_module \
-    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/aperezdc/ngx-fancyindex.git ngx_http_fancyindex_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/openresty/replace-filter-nginx-module.git ngx_http_replace_filter_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_extra_vars_module.git ngx_http_extra_vars_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/AlticeLabsProjects/lua-upstream-cache-nginx-module.git ngx_http_lua_cache_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/HanadaLee/ngx_http_zstd_module.git ngx_http_zstd_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_dechunk_module.git ngx_http_dechunk_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/chobits/ngx_http_proxy_connect_module.git ngx_http_proxy_connect_module \
-    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/kaltura/nginx-vod-module.git ngx_http_vod_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_upstream_log_module.git ngx_http_upstream_log_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/soulteary/ngx_http_qrcode_module.git ngx_http_qrcode_module_full \
     && mv ngx_http_qrcode_module_full/src ngx_http_qrcode_module \
