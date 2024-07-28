@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.25.3.2"
-ARG RESTY_RELEASE="105"
+ARG RESTY_RELEASE="106"
 ARG RESTY_LUAROCKS_VERSION="3.11.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -311,6 +311,9 @@ RUN apk add -U tzdata \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-cookie \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-worker-events \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-healthcheck \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-expr \
+    && /usr/local/openresty/luajit/bin/luarocks install api7-lua-tinyyaml \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-redis-connector \
     && delgroup www-data \
     && deluser --remove-home $(getent passwd 33 | cut -d: -f1) \
     && adduser -s /sbin/nologin -g www-data -D -h /var/www --uid 33 www-data \

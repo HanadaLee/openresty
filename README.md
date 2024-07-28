@@ -134,6 +134,9 @@ Listed below are all components currently bundled additionally with OpenResty. T
 * [lua-resty-cookie](https://luarocks.org/modules/utix/lua-resty-cookie)
 * [lua-resty-worker-events](https://luarocks.org/modules/kong/lua-resty-worker-events)
 * [lua-resty-healthcheck](https://luarocks.org/modules/kong/lua-resty-healthcheck)
+* [lua-resty-expr](https://luarocks.org/modules/membphis/lua-resty-expr)
+* [lua-tinyyaml](https://luarocks.org/modules/membphis/api7-lua-tinyyaml)
+* [lua-resty-redis-connector](https://luarocks.org/modules/pintsized/lua-resty-redis-connector)
 
 [Back to TOC](#table-of-contents)
 
