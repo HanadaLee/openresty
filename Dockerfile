@@ -312,7 +312,7 @@ RUN apk add -U tzdata \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-worker-events \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-healthcheck \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-expr \
-    && /usr/local/openresty/luajit/bin/luarocks install api7-lua-tinyyaml \
+    && /usr/local/openresty/luajit/bin/luarocks install lyaml \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-redis-connector \
     && delgroup www-data \
     && deluser --remove-home $(getent passwd 33 | cut -d: -f1) \
