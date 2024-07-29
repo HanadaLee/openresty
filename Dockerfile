@@ -153,6 +153,7 @@ RUN apk add -U tzdata \
         musl \
         outils-md5 \
         unzip \
+        yaml-dev \
     && mkdir -p /build/lib /build/lualib /build/modules /build/patches \
     && cd /build/lib \
     && curl -fSL https://${RESTY_GIT_MIRROR}/jemalloc/jemalloc/releases/download/${RESTY_JEMALLOC_VERSION}/jemalloc-${RESTY_JEMALLOC_VERSION}.tar.bz2 -o jemalloc-${RESTY_JEMALLOC_VERSION}.tar.bz2 \
