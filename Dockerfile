@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.25.3.2"
-ARG RESTY_RELEASE="107"
+ARG RESTY_RELEASE="108"
 ARG RESTY_LUAROCKS_VERSION="3.11.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -230,6 +230,7 @@ RUN apk add -U tzdata \
     && cd /build/patches \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_core_patches.git ngx_core_patches \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_http_tls_dyn_size.git ngx_http_tls_dyn_size \
+    && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/openresty.git openresty \
     && cd /build/lualib \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/lua-resty-maxminddb.git lua-resty-maxminddb \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/agentzh/lua-resty-multipart-parser.git lua-resty-multipart-parser \
@@ -254,6 +255,8 @@ RUN apk add -U tzdata \
     && patch -p1 < /build/patches/ngx_core_patches/ngx_http_realip_module_ext_1.25.3+.patch \
     && patch -p1 < /build/patches/ngx_http_tls_dyn_size/nginx__dynamic_tls_records_1.25.1+.patch \
     && sed -i "s/\(openresty\/.*\)\"/\1-${RESTY_RELEASE}\"/" src/core/nginx.h \
+    && cd /build/openresty-${RESTY_VERSION}/bundle/ngx_lua-* \
+    && patch -p1 < /build/patches/openresty/patches/ngx_lua-remove_h2_subrequest.patch \
     && cd /build/openresty-${RESTY_VERSION} \
     && eval ./configure \
     ${RESTY_PATH_OPTIONS} \
