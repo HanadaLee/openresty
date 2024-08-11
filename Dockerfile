@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.25.3.2"
-ARG RESTY_RELEASE="110"
+ARG RESTY_RELEASE="111"
 ARG RESTY_LUAROCKS_VERSION="3.11.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -87,6 +87,7 @@ ARG RESTY_CONFIG_OPTIONS_MORE="\
     --add-module=/build/modules/ngx_http_cache_purge_module \
     --add-module=/build/modules/ngx_http_dechunk_module \
     --add-module=/build/modules/ngx_http_extra_vars_module \
+    --add-module=/build/modules/ngx_http_flv_live_module \
     --add-module=/build/modules/ngx_http_geoip2_module \
     --add-module=/build/modules/ngx_http_lua_cache_module \
     --add-module=/build/modules/ngx_http_proxy_connect_module \
@@ -215,6 +216,7 @@ RUN apk add -U tzdata \
     && cd /build/modules \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_cache_purge.git ngx_http_cache_purge_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/leev/ngx_http_geoip2_module.git ngx_http_geoip2_module \
+    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/winshining/nginx-http-flv-module.git ngx_http_flv_live_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/vozlt/nginx-module-vts.git ngx_http_vhost_traffic_status_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/yaoweibin/nginx_upstream_check_module.git ngx_http_upstream_check_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_sorted_querystring_module.git ngx_http_sorted_querystring_module \
