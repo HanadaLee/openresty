@@ -21,6 +21,7 @@ Table of Contents
   - [ngx_http_sub_filter_module_ext patch](#ngx_http_sub_filter_module_ext-patch)
   - [ngx_http_realip_module_ext patch](#ngx_http_realip_module_ext-patch)
   - [ngx_http_listen_https_allow_http patch](#ngx_http_listen_https_allow_http-patch)
+  - [ngx_http_rewrite_module_if_extend patch](#ngx_http_rewrite_module_if_extend-patch)
   - [ngx_http_tls_dyn_size](#ngx_http_tls_dyn_size)
 - [Copyright \& License](#copyright-license)
 
@@ -220,7 +221,9 @@ sub_filter_bypass $http_pragma    $http_authorization;
 --------------------
 
 * **Syntax:** *real_ip_header field | X-Real-IP | X-Forwarded-For | proxy_protocol;*
+
 * **Default:** *real_ip_header X-Real-IP;*
+
 * **Context:** *http, server, location*
 
 Defines the request header fields whose value will be used to replace the client address. 
@@ -248,6 +251,67 @@ The proxy_protocol parameter changes the client address to the one from the PROX
 **context:** *server*
 
 When both the ssl and https_allow_http parameters are enabled for the listen directive, both https or http requests will be allowed. This patch comes from Tengine.
+
+[ngx_http_rewrite_module_if_extend patch](https://git.hanada.info/hanada/ngx_core_patches)
+
+The original work is from [SEnginx](https://github.com/NeusoftSecurity/SEnginx).
+
+This patch extends the "if" directive of the original NGINX "rewrite" module. It has the following features:
+
+more conditions for "if" directive
+
+Supports matching multiple conditions and the matching conditions can be "and" or "or".
+Except for the original "if" condition operators, also supports:
+* <
+* \>
+* !< or >=
+* !> or <=
+
+"if" with multi conditions
+
+* **syntax:** *if_all (condition 1) (condition 2) ... {...}*
+
+* **default:** *-*
+
+* **context:** *server, location*
+
+Specify multiple conditions. If all conditions are true, then execute the directives inside the braces"{}". This directive has the same behavior as the original "if" directive, but the following condition operators are added:
+* <
+* \>
+* !< or >=
+* !> or <=
+
+Example:
+```
+if_all ($remote_addr = 192.168.1.1) ($http_user_agent ~ 'Mozilla') ($server_port > 808) {
+    return 404;
+}
+```
+
+* **syntax:** *if_any (condition 1) (condition 2) ... {...}*
+
+* **default:** *-*
+
+* **context:** *server, location*
+
+Specify multiple conditions. If any condition is true, then execute the directives inside the braces "{}". The other parts are the same as the "if_all" directive.
+
+Known limits: 
+
+The last character of a conditional statement cannot be ')', even if it is enclosed in quotes. For example, the following expression will cause a configuration test error.
+```
+if_all ($test_var = "test)") ($http_user_agent ~ 'Mozilla') ($server_port > 808) {
+    return 404
+}
+```
+If you must use a string ending with ')'， you might consider using a variable to back it up.
+```
+set $value "test)";
+if_all ($test_var = $value) ($http_user_agent ~ 'Mozilla') ($server_port > 808) {
+    return 404
+}
+```
+If it is a regular expression, we can avoid using ')' at the end in many ways.
 
 [Back to TOC](#table-of-contents)
 
