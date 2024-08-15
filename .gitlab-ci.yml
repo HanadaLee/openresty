@@ -1,6 +1,6 @@
 variables:
   RESTY_VERSION: 1.25.3.2
-  RESTY_RELEASE: 112
+  RESTY_RELEASE: 113
 
 stages:
   - build
