@@ -127,7 +127,9 @@ LABEL resty_libqrencode_version="${RESTY_LIBQRENCODE_VERSION}"
 
 ENV TZ="Asia/Shanghai"
 
-RUN DEBIAN_FRONTEND=noninteractive apt-get update \
+RUN groupmod -n nginx www-data \
+    && usermod -l nginx www-data \
+    && DEBIAN_FRONTEND=noninteractive apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         libgd3 \
         libgd-dev \
@@ -323,7 +325,6 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-expr \
     && /usr/local/openresty/luajit/bin/luarocks install lyaml \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-redis-connector \
-    && adduser -s /sbin/nologin -g nginx -D -h /var/www --uid 33 nginx \
     && apt-get purge -y \
         libgd-dev \
         make \
