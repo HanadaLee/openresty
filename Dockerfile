@@ -1,18 +1,18 @@
-ARG RESTY_IMAGE_BASE="alpine"
-ARG RESTY_IMAGE_TAG="3.18"
+ARG RESTY_IMAGE_BASE="debian"
+ARG RESTY_IMAGE_TAG="bookworm-slim"
 
 FROM dockerhub.hanada.info/${RESTY_IMAGE_BASE}:${RESTY_IMAGE_TAG}
 
 LABEL maintainer="Hanada <im@hanada.info>"
 
 # Docker Build Arguments
-ARG RESTY_IMAGE_BASE="alpine"
-ARG RESTY_IMAGE_TAG="3.18"
+ARG RESTY_IMAGE_BASE="debian"
+ARG RESTY_IMAGE_TAG="bookworm-slim"
 ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.25.3.2"
-ARG RESTY_RELEASE="113"
+ARG RESTY_RELEASE="114"
 ARG RESTY_LUAROCKS_VERSION="3.11.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -65,7 +65,7 @@ ARG RESTY_PATH_OPTIONS="\
     --http-uwsgi-temp-path=/usr/local/openresty/var/lib/tmp/uwsgi \
     --http-scgi-temp-path=/usr/local/openresty/var/lib/tmp/scgi \
 "
-ARG RESTY_USER_OPTIONS="--user=www-data --group=www-data"
+ARG RESTY_USER_OPTIONS="--user=nginx --group=nginx"
 ARG RESTY_J="8"
 ARG RESTY_CONFIG_OPTIONS="\
     --with-file-aio \
@@ -81,8 +81,12 @@ ARG RESTY_CONFIG_OPTIONS="\
     --with-http_slice_module \
     --with-http_sub_module \
     --without-http_empty_gif_module \
+    --with-ipv6 \
+    --with-stream_ssl_module \
+    --with-stream_ssl_preread_module \
 "
 ARG RESTY_CONFIG_OPTIONS_MORE="\
+    --add-module=/build/modules/ngx_backtrace_module \
     --add-module=/build/modules/ngx_http_brotli_module \
     --add-module=/build/modules/ngx_http_cache_purge_module \
     --add-module=/build/modules/ngx_http_dechunk_module \
@@ -98,7 +102,6 @@ ARG RESTY_CONFIG_OPTIONS_MORE="\
     --add-module=/build/modules/ngx_http_upstream_check_module \
     --add-module=/build/modules/ngx_http_upstream_log_module \
     --add-module=/build/modules/ngx_http_vhost_traffic_status_module \
-    --add-module=/build/modules/ngx_http_vod_module \
     --add-module=/build/modules/ngx_http_zstd_module \
 "
 ARG _RESTY_CONFIG_DEPS="\
@@ -110,8 +113,9 @@ LABEL resty_image_base="${RESTY_IMAGE_BASE}"
 LABEL resty_image_tag="${RESTY_IMAGE_TAG}"
 LABEL resty_version="${RESTY_VERSION}"
 LABEL resty_release="${RESTY_RELEASE}"
-LABEL resty_openssl_fork="${RESTY_OPENSSL_FORK}"
+LABEL resty_luarocks_version="${RESTY_LUAROCKS_VERSION}"
 LABEL resty_openssl_version="${RESTY_OPENSSL_VERSION}"
+LABEL resty_openssl_fork="${RESTY_OPENSSL_FORK}"
 LABEL resty_pcre_library="${RESTY_PCRE_LIBRARY}"
 LABEL resty_pcre_version="${RESTY_PCRE_VERSION}"
 LABEL resty_libatomic_version="${RESTY_LIBATOMIC_VERSION}"
@@ -121,45 +125,35 @@ LABEL resty_jemalloc_version="${RESTY_JEMALLOC_VERSION}"
 LABEL resty_libmaxminddb_version="${RESTY_LIBMAXMINDDB_VERSION}"
 LABEL resty_libqrencode_version="${RESTY_LIBQRENCODE_VERSION}"
 
-RUN apk add -U tzdata \
-    && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
-    && apk del tzdata \
-    && apk add --no-cache --virtual .build-deps \
-        build-base \
-        coreutils \
-        gd-dev \
-        geoip-dev \
-        libxslt-dev \
-        make \
-        perl-dev \
-        readline-dev \
-        linux-headers \
-        zlib-dev \
-        bison \
+ENV TZ="Asia/Shanghai"
+
+RUN DEBIAN_FRONTEND=noninteractive apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        libgd3 \
+        libgd-dev \
+        libyaml-dev \
+        tzdata \
+        unzip \
+        wget \
         git \
+        curl \
+        ca-certificates \
+        bison \
+        build-essential \
+        gettext-base \
+        libncurses5-dev \
+        libperl-dev \
+        libreadline-dev \
+        libxslt1-dev \
+        make \
+        perl \
         autoconf \
         automake \
         libtool \
         pkgconf \
-        libpng-dev \
         cmake \
-    && apk add --no-cache \
-        ca-certificates \
-        bash \
-        libgcc \
-        libxslt \
-        libgd \
-        wget \
-        curl \
-        perl \
-        libintl \
-        musl \
-        outils-md5 \
-        unzip \
-        yaml-dev \
-        ffmpeg4 \
-        ffmpeg4-dev \
-        gnu-libiconv \
+    && ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+    && dpkg-reconfigure -f noninteractive tzdata \
     && mkdir -p /build/lib /build/lualib /build/modules /build/patches \
     && cd /build/lib \
     && curl -fSL https://${RESTY_GIT_MIRROR}/jemalloc/jemalloc/releases/download/${RESTY_JEMALLOC_VERSION}/jemalloc-${RESTY_JEMALLOC_VERSION}.tar.bz2 -o jemalloc-${RESTY_JEMALLOC_VERSION}.tar.bz2 \
@@ -231,8 +225,10 @@ RUN apk add -U tzdata \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_dechunk_module.git ngx_http_dechunk_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_resty_request_id_module.git ngx_http_resty_request_id_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/chobits/ngx_http_proxy_connect_module.git ngx_http_proxy_connect_module \
-    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/kaltura/nginx-vod-module.git ngx_http_vod_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_upstream_log_module.git ngx_http_upstream_log_module \
+    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/alibaba/tengine.git tengine \
+    && mv tengine/modules/ngx_backtrace_module ngx_backtrace_module \
+    && rm -rf tengine \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/soulteary/ngx_http_qrcode_module.git ngx_http_qrcode_module_full \
     && mv ngx_http_qrcode_module_full/src ngx_http_qrcode_module \
     && rm -rf ngx_http_qrcode_module_full \
@@ -275,7 +271,6 @@ RUN apk add -U tzdata \
     ${RESTY_CONFIG_OPTIONS} \
     --with-pcre=/build/lib/pcre-${RESTY_PCRE_VERSION} \
     ${RESTY_PCRE_OPTIONS} \
-    --without-pcre2 \
     --with-zlib=/build/lib/zlib-${RESTY_ZLIB_VERSION} \
     ${RESTY_ZLIB_OPTIONS} \
     --with-libatomic=/build/lib/libatomic_ops-${RESTY_LIBATOMIC_VERSION} \
@@ -295,7 +290,6 @@ RUN apk add -U tzdata \
     && mkdir -p /usr/local/openresty/lib \
     && cd /usr/local/openresty/lib \
     && cp -r -d /usr/local/lib/*.so* . \
-    && cp -r -d /usr/lib/libstdc++.so* . \
     && cd /usr/local/openresty/lualib \
     && ln -s ../lib/libmaxminddb.so . \
     && cp -r -d /usr/local/lib/lua/*.so* . \
@@ -329,19 +323,39 @@ RUN apk add -U tzdata \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-expr \
     && /usr/local/openresty/luajit/bin/luarocks install lyaml \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-redis-connector \
-    && delgroup www-data \
-    && deluser --remove-home $(getent passwd 33 | cut -d: -f1) \
-    && adduser -s /sbin/nologin -g www-data -D -h /var/www --uid 33 www-data \
+    && adduser -s /sbin/nologin -g nginx -D -h /var/www --uid 33 nginx \
+    && apt-get purge -y \
+        libgd-dev \
+        make \
+        autoconf \
+        automake \
+        libtool \
+        pkgconf \
+        cmake \
+        git \
+        wget \
+        unzip \
+        bison \
+    && DEBIAN_FRONTEND=noninteractive apt-get autoremove -y \
+    && DEBIAN_FRONTEND=noninteractive apt-get clean -y \
+    && rm -rf /var/lib/apt/lists/* \
     && rm -rf /build \
     && rm -rf /usr/local/lib/* \
-    && apk del .build-deps
+    && rm -rf /var/cache/* \
+    && rm -rf /var/log/apt/* \
+    && rm -rf /var/log/*.log \
+    && rm -rf /tmp/*
+WORKDIR /usr/local/openresty
 
 # Add additional binaries into PATH for convenience
 ENV PATH=$PATH:/usr/local/openresty/luajit/bin/:/usr/local/openresty/sbin/:/usr/local/openresty/bin/
 ENV LUA_PATH="/usr/local/openresty/site/lualib/?.ljbc;/usr/local/openresty/site/lualib/?/init.ljbc;/usr/local/openresty/lualib/?.ljbc;/usr/local/openresty/lualib/?/init.ljbc;/usr/local/openresty/site/lualib/?.lua;/usr/local/openresty/site/lualib/?/init.lua;/usr/local/openresty/lualib/?.lua;/usr/local/openresty/lualib/?/init.lua;./?.lua;/usr/local/openresty/luajit/share/luajit-2.1/?.lua;/usr/local/share/lua/5.1/?.lua;/usr/local/share/lua/5.1/?/init.lua;/usr/local/openresty/luajit/share/lua/5.1/?.lua;/usr/local/openresty/luajit/share/lua/5.1/?/init.lua"
 ENV LUA_CPATH="/usr/local/openresty/site/lualib/?.so;/usr/local/openresty/lualib/?.so;./?.so;/usr/local/lib/lua/5.1/?.so;/usr/local/openresty/luajit/lib/lua/5.1/?.so;/usr/local/lib/lua/5.1/loadall.so;/usr/local/openresty/luajit/lib/lua/5.1/?.so"
 
-CMD [ "/usr/local/openresty/sbin/nginx", "-p", "/usr/local/openresty/", "-g", "daemon off;"]
+COPY nginx.conf /usr/local/openresty/etc/nginx.conf
+COPY nginx.vh.default.conf /usr/local/openresty/etc/conf.d/default.conf
+
+CMD ["/usr/local/openresty/sbin/nginx", "-p", "/usr/local/openresty/", "-g", "daemon off;"]
 
 # Use SIGQUIT instead of default SIGTERM to cleanly drain requests
 # See https://github.com/openresty/docker-openresty/blob/master/README.md#tips--pitfalls
