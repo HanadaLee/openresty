@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.25.3.2"
-ARG RESTY_RELEASE="114"
+ARG RESTY_RELEASE="115"
 ARG RESTY_LUAROCKS_VERSION="3.11.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -293,8 +293,9 @@ RUN groupmod -n nginx www-data \
     && cd /usr/local/openresty/lib \
     && cp -r -d /usr/local/lib/*.so* . \
     && cd /usr/local/openresty/lualib \
-    && ln -s ../lib/libmaxminddb.so . \
     && cp -r -d /usr/local/lib/lua/*.so* . \
+    && echo "/usr/local/openresty/lib" > /etc/ld.so.conf.d/openresty.conf \
+    && ldconfig \
     && cd /build \
     && curl -fSL https://luarocks.github.io/luarocks/releases/luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz -o luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz \
     && tar xzf luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz \
