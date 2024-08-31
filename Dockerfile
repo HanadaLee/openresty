@@ -256,7 +256,7 @@ RUN groupmod -n nginx www-data \
     && patch -p1 < /build/modules/ngx_http_upstream_log_module/ngx_http_upstream_log_1.25.3+.patch \
     && patch -p1 < /build/modules/ngx_http_upstream_check_module/check_1.20.1+.patch \
     && patch -p1 < /build/modules/ngx_http_proxy_connect_module/patch/proxy_connect_rewrite_102101.patch \
-    && patch -p1 < /build/modules/ngx_core_patches/ngx_http_default_error_page_optimize_1.25.3+.patch \
+    && patch -p1 < /build/patches/ngx_core_patches/ngx_http_default_error_page_optimize_1.25.3+.patch \
     && patch -p1 < /build/patches/ngx_core_patches/ngx_http_slice_filter_module_ext_1.21.4+.patch \
     && patch -p1 < /build/patches/ngx_core_patches/ngx_http_sub_filter_module_ext_1.25.3+.patch \
     && patch -p1 < /build/patches/ngx_core_patches/ngx_http_listen_https_allow_http_1.25.3+.patch \
