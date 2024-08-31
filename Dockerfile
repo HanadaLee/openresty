@@ -295,7 +295,6 @@ RUN groupmod -n nginx www-data \
     && cd /usr/local/openresty/lualib \
     && cp -r -d /usr/local/lib/lua/*.so* . \
     && echo "/usr/local/openresty/lib" > /etc/ld.so.conf.d/openresty.conf \
-    && ldconfig \
     && cd /build \
     && curl -fSL https://luarocks.github.io/luarocks/releases/luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz -o luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz \
     && tar xzf luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz \
@@ -346,7 +345,9 @@ RUN groupmod -n nginx www-data \
     && rm -rf /var/cache/* \
     && rm -rf /var/log/apt/* \
     && rm -rf /var/log/*.log \
-    && rm -rf /tmp/*
+    && rm -rf /tmp/* \
+    && ldconfig
+
 WORKDIR /usr/local/openresty
 
 # Add additional binaries into PATH for convenience
