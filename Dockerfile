@@ -18,36 +18,37 @@ ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
 ARG RESTY_OPENSSL_FORK="quictls"
 ARG RESTY_OPENSSL_VERSION="1.1.1w-quic1"
-ARG RESTY_OPENSSL_OPTIONS="\
-    --with-openssl-opt='\
-        enable-camellia \
-        enable-seed \
-        enable-rfc3779 \
-        enable-cms \
-        enable-md2 \
-        enable-rc5 \
-        enable-weak-ssl-ciphers \
-        enable-ssl3 \
-        enable-ssl3-method' \
+ARG RESTY_OPENSSL_PATCH_VERSION="1.1.1f"
+ARG RESTY_OPENSSL_BUILD_OPTIONS="\
+    no-threads \
+    shared \
+    zlib \
+    -g \
+    enable-camellia \
+    enable-seed \
+    enable-rfc3779 \
+    enable-cms \
+    enable-md2 \
+    enable-rc5 \
+    enable-weak-ssl-ciphers \
+    enable-ssl3 \
+    enable-ssl3-method \
 "
 ARG RESTY_PCRE_URL_BASE="https://downloads.sourceforge.net/project/pcre/pcre"
 ARG RESTY_PCRE_LIBRARY="PCRE"
 ARG RESTY_PCRE_VERSION="8.45"
-ARG RESTY_PCRE_OPTIONS="\
-    --with-pcre-jit \
-    --with-pcre-conf-opt='\
-        --disable-cpp \
-        --enable-jit \
-        --enable-utf \
-        --enable-unicode-properties \
-        --with-match-limit=200000' \
-    --with-pcre-opt='-fPIC' \
+ARG RESTY_PCRE_BUILD_OPTIONS="\
+    --enable-jit \
+    --disable-cpp \
+    --enable-jit \
+    --enable-utf \
+    --enable-unicode-properties \
+    --with-match-limit=200000 \
 "
+ARG RESTY_PCRE_OPTIONS="--with-pcre-jit"
 ARG RESTY_ZLIB_URL_BASE="https://zlib.net/fossils"
 ARG RESTY_ZLIB_VERSION="1.3.1"
-ARG RESTY_ZLIB_OPTIONS=""
 ARG RESTY_ZSTD_VERSION="1.5.6"
-ARG RESTY_ZSTD_OPTIONS=""
 ARG RESTY_LIBATOMIC_VERSION="7.8.0"
 ARG RESTY_LIBQRENCODE_VERSION="4.1.1"
 ARG RESTY_PATH_OPTIONS="\
@@ -105,7 +106,7 @@ ARG RESTY_CONFIG_OPTIONS_MORE="\
     --add-module=/build/modules/ngx_http_zstd_module \
 "
 ARG _RESTY_CONFIG_DEPS="\
-    --with-cc-opt='-g -Wp,-D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIC' \
+    --with-cc-opt='-DNGX_LUA_ABORT_AT_PANIC -Wp,-D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIC' \
     --with-ld-opt='-Wl,-rpath,/usr/local/openresty/lib -Wl,-Bsymbolic-functions -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-whole-archive -Wl,--gc-sections -pie -ljemalloc -Wl,-Bdynamic -lm -lstdc++ -pthread -ldl -Wl,-E' \
 "
 
@@ -114,6 +115,7 @@ LABEL resty_image_tag="${RESTY_IMAGE_TAG}"
 LABEL resty_version="${RESTY_VERSION}"
 LABEL resty_release="${RESTY_RELEASE}"
 LABEL resty_luarocks_version="${RESTY_LUAROCKS_VERSION}"
+LABEL resty_openssl_patch_version="${RESTY_OPENSSL_PATCH_VERSION}"
 LABEL resty_openssl_version="${RESTY_OPENSSL_VERSION}"
 LABEL resty_openssl_fork="${RESTY_OPENSSL_FORK}"
 LABEL resty_pcre_library="${RESTY_PCRE_LIBRARY}"
@@ -180,16 +182,39 @@ RUN groupmod -n nginx www-data \
     && make -j${RESTY_J} \
     && make install \
     && cd /build/lib \
+    && curl -fSL ${RESTY_ZLIB_URL_BASE}/zlib-${RESTY_ZLIB_VERSION}.tar.gz -o zlib-${RESTY_ZLIB_VERSION}.tar.gz \
+    && tar xzf zlib-${RESTY_ZLIB_VERSION}.tar.gz \
+    && cd zlib-${RESTY_ZLIB_VERSION} \
+    && ./configure \
+    && make -j${RESTY_J} \
+    && make install \
+    && cd /build/lib \
     && openssl_version_path=`echo -n ${RESTY_OPENSSL_VERSION} | sed 's/\./_/g'` \
     && curl -fSL https://${RESTY_GIT_MIRROR}/quictls/openssl/archive/refs/tags/OpenSSL_${openssl_version_path}.tar.gz -o OpenSSL_${openssl_version_path}.tar.gz \
     && tar xzf OpenSSL_${openssl_version_path}.tar.gz \
     && mv openssl-OpenSSL_${openssl_version_path} openssl-${RESTY_OPENSSL_VERSION} \
+    && cd openssl-${RESTY_OPENSSL_VERSION} \
+    && if [ $(echo ${RESTY_OPENSSL_VERSION} | cut -c 1-5) = "1.1.1" ] ; then \
+        echo 'patching OpenSSL 1.1.1 for OpenResty' \
+        && curl -fSL https://raw.githubusercontent.com/openresty/openresty/master/patches/openssl-${RESTY_OPENSSL_PATCH_VERSION}-sess_set_get_cb_yield.patch | patch -p1 ; \
+    fi \
+    && if [ $(echo ${RESTY_OPENSSL_VERSION} | cut -c 1-5) = "1.1.0" ] ; then \
+        echo 'patching OpenSSL 1.1.0 for OpenResty' \
+        && curl -fSL https://raw.githubusercontent.com/openresty/openresty/ed328977028c3ec3033bc25873ee360056e247cd/patches/openssl-1.1.0j-parallel_build_fix.patch | patch -p1 \
+        && curl -fSL https://raw.githubusercontent.com/openresty/openresty/master/patches/openssl-${RESTY_OPENSSL_PATCH_VERSION}-sess_set_get_cb_yield.patch | patch -p1 ; \
+    fi \
+    && ./config \
+        ${RESTY_OPENSSL_BUILD_OPTIONS} \
+    && make -j${RESTY_J} \
+    && make install_sw \
     && cd /build/lib \
     && curl -fSL ${RESTY_PCRE_URL_BASE}/${RESTY_PCRE_VERSION}/pcre-${RESTY_PCRE_VERSION}.tar.gz -o pcre-${RESTY_PCRE_VERSION}.tar.gz \
     && tar xzf pcre-${RESTY_PCRE_VERSION}.tar.gz \
-    && cd /build/lib \
-    && curl -fSL ${RESTY_ZLIB_URL_BASE}/zlib-${RESTY_ZLIB_VERSION}.tar.gz -o zlib-${RESTY_ZLIB_VERSION}.tar.gz \
-    && tar xzf zlib-${RESTY_ZLIB_VERSION}.tar.gz \
+    && cd pcre-${RESTY_PCRE_VERSION} \
+    && ./configure \
+        ${RESTY_PCRE_BUILD_OPTIONS} \
+    && make -j${RESTY_J} \
+    && make install \
     && cd /build/lib \
     && curl -fSL https://${RESTY_GIT_MIRROR}/facebook/zstd/releases/download/v${RESTY_ZSTD_VERSION}/zstd-${RESTY_ZSTD_VERSION}.tar.gz -o zstd-${RESTY_ZSTD_VERSION}.tar.gz \
     && tar xzf zstd-${RESTY_ZSTD_VERSION}.tar.gz \
@@ -201,6 +226,10 @@ RUN groupmod -n nginx www-data \
     && tar xzf libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz \
     && cd libatomic_ops-${RESTY_LIBATOMIC_VERSION}/src \
     && ln -s -f ./.libs/libatomic_ops.a . \
+    && cd .. \
+    && ./configure \
+    && make -j${RESTY_J} \
+    && make install \
     && cd /build/lib \
     && curl -fSL https://${RESTY_GIT_MIRROR}/fukuchi/libqrencode/archive/refs/tags/v${RESTY_LIBQRENCODE_VERSION}.tar.gz -o libqrencode-${RESTY_LIBQRENCODE_VERSION}.tar.gz \
     && tar xzf libqrencode-${RESTY_LIBQRENCODE_VERSION}.tar.gz \
@@ -272,13 +301,11 @@ RUN groupmod -n nginx www-data \
     ${RESTY_PATH_OPTIONS} \
     ${RESTY_USER_OPTIONS} \
     ${RESTY_CONFIG_OPTIONS} \
-    --with-pcre=/build/lib/pcre-${RESTY_PCRE_VERSION} \
+    --with-pcre \
     ${RESTY_PCRE_OPTIONS} \
-    --with-zlib=/build/lib/zlib-${RESTY_ZLIB_VERSION} \
-    ${RESTY_ZLIB_OPTIONS} \
-    --with-libatomic=/build/lib/libatomic_ops-${RESTY_LIBATOMIC_VERSION} \
-    --with-openssl=/build/lib/openssl-${RESTY_OPENSSL_VERSION} \
-    ${RESTY_OPENSSL_OPTIONS} \
+    --with-zlib \
+    --with-libatomic \
+    --with-openssl \
     ${RESTY_CONFIG_OPTIONS_MORE} \
     ${_RESTY_CONFIG_DEPS} \
     && make -j${RESTY_J} \
@@ -353,6 +380,10 @@ RUN groupmod -n nginx www-data \
     && rm -rf /var/lib/apt/lists/* \
     && rm -rf /build \
     && rm -rf /usr/local/lib/* \
+    && rm -rf /usr/local/share/man/man1/* \
+    && rm -rf /usr/local/share/man/man3/* \
+    && rm -rf /usr/local/share/doc/* \
+    && rm -rf /usr/local/include/* \
     && rm -rf /var/cache/* \
     && rm -rf /var/log/apt/* \
     && rm -rf /var/log/*.log \
