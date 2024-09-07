@@ -304,7 +304,6 @@ RUN groupmod -n nginx www-data \
     --with-pcre \
     ${RESTY_PCRE_OPTIONS} \
     --with-libatomic \
-    --with-openssl \
     ${RESTY_CONFIG_OPTIONS_MORE} \
     ${_RESTY_CONFIG_DEPS} \
     && make -j${RESTY_J} \
