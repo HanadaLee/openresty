@@ -303,7 +303,6 @@ RUN groupmod -n nginx www-data \
     ${RESTY_CONFIG_OPTIONS} \
     --with-pcre \
     ${RESTY_PCRE_OPTIONS} \
-    --with-zlib \
     --with-libatomic \
     --with-openssl \
     ${RESTY_CONFIG_OPTIONS_MORE} \
