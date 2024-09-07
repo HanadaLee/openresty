@@ -358,7 +358,6 @@ RUN groupmod -n nginx www-data \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-ipmatcher \
     && /usr/local/openresty/luajit/bin/luarocks install binaryheap \
     && /usr/local/openresty/luajit/bin/luarocks install penlight \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-ldap \
     && /usr/local/openresty/luajit/bin/luarocks install xml2lua \
     && /usr/local/openresty/luajit/bin/luarocks install api7-lua-resty-aws \
     && apt-get purge -y \
