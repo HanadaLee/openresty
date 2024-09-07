@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.25.3.2"
-ARG RESTY_RELEASE="117"
+ARG RESTY_RELEASE="118"
 ARG RESTY_LUAROCKS_VERSION="3.11.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -326,6 +326,16 @@ RUN groupmod -n nginx www-data \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-expr \
     && /usr/local/openresty/luajit/bin/luarocks install lyaml \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-redis-connector \
+    && /usr/local/openresty/luajit/bin/luarocks install api7-dkjson \
+    && /usr/local/openresty/luajit/bin/luarocks install net-url \
+    && /usr/local/openresty/luajit/bin/luarocks install luafilesystem \
+    && /usr/local/openresty/luajit/bin/luarocks install jsonschema \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-ipmatcher \
+    && /usr/local/openresty/luajit/bin/luarocks install binaryheap \
+    && /usr/local/openresty/luajit/bin/luarocks install penlight \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-ldap \
+    && /usr/local/openresty/luajit/bin/luarocks install xml2lua \
+    && /usr/local/openresty/luajit/bin/luarocks install api7-lua-resty-aws \
     && apt-get purge -y \
         libgd-dev \
         make \
