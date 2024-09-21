@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.25.3.2"
-ARG RESTY_RELEASE="118"
+ARG RESTY_RELEASE="119"
 ARG RESTY_LUAROCKS_VERSION="3.11.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -95,6 +95,7 @@ ARG RESTY_CONFIG_OPTIONS_MORE="\
     --add-module=/build/modules/ngx_http_flv_live_module \
     --add-module=/build/modules/ngx_http_geoip2_module \
     --add-module=/build/modules/ngx_http_lua_cache_module \
+    --add-module=/build/modules/ngx_http_lua_var_module \
     --add-module=/build/modules/ngx_http_proxy_connect_module \
     --add-module=/build/modules/ngx_http_qrcode_module \
     --add-module=/build/modules/ngx_http_replace_filter_module \
@@ -252,6 +253,7 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/openresty/replace-filter-nginx-module.git ngx_http_replace_filter_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_extra_vars_module.git ngx_http_extra_vars_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/AlticeLabsProjects/lua-upstream-cache-nginx-module.git ngx_http_lua_cache_module \
+    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/api7/lua-var-nginx-module.git ngx_http_lua_var_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/HanadaLee/ngx_http_zstd_module.git ngx_http_zstd_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_dechunk_module.git ngx_http_dechunk_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_resty_request_id_module.git ngx_http_resty_request_id_module \
@@ -349,6 +351,7 @@ RUN groupmod -n nginx www-data \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-worker-events \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-healthcheck \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-expr \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-ngxvar \
     && /usr/local/openresty/luajit/bin/luarocks install lyaml \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-redis-connector \
     && /usr/local/openresty/luajit/bin/luarocks install api7-dkjson \
