@@ -336,7 +336,6 @@ RUN groupmod -n nginx www-data \
     && make build \
     && make install \
     && cd /build/modules \
-    && cd ngx_lua_events_module \
     && mkdir -p /usr/local/openresty/lualib/resty/events/compat \
     && cp -r ngx_lua_events_module/lualib/resty/events/*.lua /usr/local/openresty/lualib/resty/events \
     && cp -r ngx_lua_events_module/lualib/resty/events/compat/*.lua /usr/local/openresty/lualib/resty/events/compat \
