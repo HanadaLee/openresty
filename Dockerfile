@@ -228,10 +228,10 @@ RUN groupmod -n nginx www-data \
     && curl -fSL https://${RESTY_GIT_MIRROR}/PCRE2Project/pcre2/releases/download/pcre2-${RESTY_PCRE_VERSION}/pcre2-${RESTY_PCRE_VERSION}.tar.gz -o pcre2-${RESTY_PCRE_VERSION}.tar.gz \
     && tar xzf pcre2-${RESTY_PCRE_VERSION}.tar.gz \
     && cd pcre2-${RESTY_PCRE_VERSION} \
-    && CFLAGS="-g -O3" ./configure \
+    && ./configure \
         ${RESTY_PCRE_BUILD_OPTIONS} \
-    && CFLAGS="-g -O3" make -j${RESTY_J} \
-    && CFLAGS="-g -O3" make install \
+    && make -j${RESTY_J} \
+    && make install \
     && cd /build/lib \
     && curl -fSL https://${RESTY_GIT_MIRROR}/facebook/zstd/releases/download/v${RESTY_ZSTD_VERSION}/zstd-${RESTY_ZSTD_VERSION}.tar.gz -o zstd-${RESTY_ZSTD_VERSION}.tar.gz \
     && tar xzf zstd-${RESTY_ZSTD_VERSION}.tar.gz \
