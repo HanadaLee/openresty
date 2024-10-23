@@ -36,30 +36,30 @@ ARG RESTY_OPENSSL_BUILD_OPTIONS="\
 "
 ARG RESTY_PCRE_VERSION="10.44"
 ARG RESTY_PCRE_BUILD_OPTIONS="\
-    enable-jit \
-    enable-pcre2grep-jit \
-    disable-bsr-anycrlf \
-    disable-coverage \
-    disable-ebcdic \
-    disable-fuzz-support \
-    disable-jit-sealloc \
-    disable-never-backslash-C \
-    enable-newline-is-lf \
-    enable-pcre2-8 \
-    enable-pcre2-16 \
-    enable-pcre2-32 \
-    enable-pcre2grep-callout \
-    enable-pcre2grep-callout-fork \
-    disable-pcre2grep-libbz2 \
-    disable-pcre2grep-libz \
-    disable-pcre2test-libedit \
-    enable-percent-zt \
-    disable-rebuild-chartables \
-    enable-shared \
-    disable-static \
-    disable-silent-rules \
-    enable-unicode \
-    disable-valgrind \
+    --enable-jit \
+    --enable-pcre2grep-jit \
+    --disable-bsr-anycrlf \
+    --disable-coverage \
+    --disable-ebcdic \
+    --disable-fuzz-support \
+    --disable-jit-sealloc \
+    --disable-never-backslash-C \
+    --enable-newline-is-lf \
+    --enable-pcre2-8 \
+    --enable-pcre2-16 \
+    --enable-pcre2-32 \
+    --enable-pcre2grep-callout \
+    --enable-pcre2grep-callout-fork \
+    --disable-pcre2grep-libbz2 \
+    --disable-pcre2grep-libz \
+    --disable-pcre2test-libedit \
+    --enable-percent-zt \
+    --disable-rebuild-chartables \
+    --enable-shared \
+    --disable-static \
+    --disable-silent-rules \
+    --enable-unicode \
+    --disable-valgrind \
 "
 ARG RESTY_PCRE_OPTIONS="--with-pcre-jit"
 ARG RESTY_ZLIB_URL_BASE="https://zlib.net/fossils"
