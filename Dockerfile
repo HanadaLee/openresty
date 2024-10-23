@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.27.1.1"
-ARG RESTY_RELEASE="123"
+ARG RESTY_RELEASE="124"
 ARG RESTY_LUAROCKS_VERSION="3.11.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -34,16 +34,32 @@ ARG RESTY_OPENSSL_BUILD_OPTIONS="\
     enable-ssl3 \
     enable-ssl3-method \
 "
-ARG RESTY_PCRE_URL_BASE="https://downloads.sourceforge.net/project/pcre/pcre"
-ARG RESTY_PCRE_LIBRARY="PCRE"
-ARG RESTY_PCRE_VERSION="8.45"
+ARG RESTY_PCRE_VERSION="10.44"
 ARG RESTY_PCRE_BUILD_OPTIONS="\
-    --enable-jit \
-    --disable-cpp \
-    --enable-jit \
-    --enable-utf \
-    --enable-unicode-properties \
-    --with-match-limit=200000 \
+    enable-jit \
+    enable-pcre2grep-jit \
+    disable-bsr-anycrlf \
+    disable-coverage \
+    disable-ebcdic \
+    disable-fuzz-support \
+    disable-jit-sealloc \
+    disable-never-backslash-C \
+    enable-newline-is-lf \
+    enable-pcre2-8 \
+    enable-pcre2-16 \
+    enable-pcre2-32 \
+    enable-pcre2grep-callout \
+    enable-pcre2grep-callout-fork \
+    disable-pcre2grep-libbz2 \
+    disable-pcre2grep-libz \
+    disable-pcre2test-libedit \
+    enable-percent-zt \
+    disable-rebuild-chartables \
+    enable-shared \
+    disable-static \
+    disable-silent-rules \
+    enable-unicode \
+    disable-valgrind \
 "
 ARG RESTY_PCRE_OPTIONS="--with-pcre-jit"
 ARG RESTY_ZLIB_URL_BASE="https://zlib.net/fossils"
@@ -120,7 +136,6 @@ LABEL resty_luarocks_version="${RESTY_LUAROCKS_VERSION}"
 LABEL resty_openssl_patch_version="${RESTY_OPENSSL_PATCH_VERSION}"
 LABEL resty_openssl_version="${RESTY_OPENSSL_VERSION}"
 LABEL resty_openssl_fork="${RESTY_OPENSSL_FORK}"
-LABEL resty_pcre_library="${RESTY_PCRE_LIBRARY}"
 LABEL resty_pcre_version="${RESTY_PCRE_VERSION}"
 LABEL resty_libatomic_version="${RESTY_LIBATOMIC_VERSION}"
 LABEL resty_zlib_version="${RESTY_ZLIB_VERSION}"
@@ -210,13 +225,13 @@ RUN groupmod -n nginx www-data \
     && make -j${RESTY_J} \
     && make install_sw \
     && cd /build/lib \
-    && curl -fSL ${RESTY_PCRE_URL_BASE}/${RESTY_PCRE_VERSION}/pcre-${RESTY_PCRE_VERSION}.tar.gz -o pcre-${RESTY_PCRE_VERSION}.tar.gz \
-    && tar xzf pcre-${RESTY_PCRE_VERSION}.tar.gz \
-    && cd pcre-${RESTY_PCRE_VERSION} \
-    && ./configure \
+    && curl -fSL https://${RESTY_GIT_MIRROR}/PCRE2Project/pcre2/releases/download/pcre2-${RESTY_PCRE_VERSION}/pcre2-${RESTY_PCRE_VERSION}.tar.gz -o pcre2-${RESTY_PCRE_VERSION}.tar.gz \
+    && tar xzf pcre2-${RESTY_PCRE_VERSION}.tar.gz \
+    && cd pcre2-${RESTY_PCRE_VERSION} \
+    && CFLAGS="-g -O3" ./configure \
         ${RESTY_PCRE_BUILD_OPTIONS} \
-    && make -j${RESTY_J} \
-    && make install \
+    && CFLAGS="-g -O3" make -j${RESTY_J} \
+    && CFLAGS="-g -O3" make install \
     && cd /build/lib \
     && curl -fSL https://${RESTY_GIT_MIRROR}/facebook/zstd/releases/download/v${RESTY_ZSTD_VERSION}/zstd-${RESTY_ZSTD_VERSION}.tar.gz -o zstd-${RESTY_ZSTD_VERSION}.tar.gz \
     && tar xzf zstd-${RESTY_ZSTD_VERSION}.tar.gz \
