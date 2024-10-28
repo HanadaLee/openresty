@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.27.1.1"
-ARG RESTY_RELEASE="124"
+ARG RESTY_RELEASE="125"
 ARG RESTY_LUAROCKS_VERSION="3.11.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -88,9 +88,11 @@ ARG RESTY_CONFIG_OPTIONS="\
 "
 ARG RESTY_CONFIG_OPTIONS_MORE="\
     --add-module=/build/modules/ngx_backtrace_module \
+    --add-module=/build/modules/ngx_lua_events_module \
     --add-module=/build/modules/ngx_http_brotli_module \
     --add-module=/build/modules/ngx_http_cache_purge_module \
     --add-module=/build/modules/ngx_http_dechunk_module \
+    --add-module=/build/modules/ngx_http_delay_module \
     --add-module=/build/modules/ngx_http_extra_vars_module \
     --add-module=/build/modules/ngx_http_flv_live_module \
     --add-module=/build/modules/ngx_http_geoip2_module \
@@ -101,11 +103,11 @@ ARG RESTY_CONFIG_OPTIONS_MORE="\
     --add-module=/build/modules/ngx_http_replace_filter_module \
     --add-module=/build/modules/ngx_http_resty_request_id_module \
     --add-module=/build/modules/ngx_http_sorted_querystring_module \
+    --add-module=/build/modules/ngx_http_unbrotli_filter_module \
     --add-module=/build/modules/ngx_http_upstream_check_module \
     --add-module=/build/modules/ngx_http_upstream_log_module \
     --add-module=/build/modules/ngx_http_vhost_traffic_status_module \
     --add-module=/build/modules/ngx_http_zstd_module \
-    --add-module=/build/modules/ngx_lua_events_module \
 "
 ARG _RESTY_CONFIG_DEPS="\
     --with-cc-opt='-DNGX_LUA_ABORT_AT_PANIC -Wp,-D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIC' \
@@ -244,6 +246,10 @@ RUN groupmod -n nginx www-data \
     && cd ngx_http_brotli_module \
     && sed -i "s|github.com|${RESTY_GIT_MIRROR}|g" .gitmodules \
     && git submodule update --init \
+    && mkdir -p deps/brotli/out \
+    && cd deps/brotli/out \
+    && cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DCMAKE_C_FLAGS="-Ofast -m64 -march=native -mtune=native -flto -funroll-loops -ffunction-sections -fdata-sections -Wl,--gc-sections" -DCMAKE_CXX_FLAGS="-Ofast -m64 -march=native -mtune=native -flto -funroll-loops -ffunction-sections -fdata-sections -Wl,--gc-sections" .. \
+    && cmake --build . --config Release --target install \
     && cd /build/modules \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_cache_purge.git ngx_http_cache_purge_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/leev/ngx_http_geoip2_module.git ngx_http_geoip2_module \
@@ -259,6 +265,8 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_dechunk_module.git ngx_http_dechunk_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_resty_request_id_module.git ngx_http_resty_request_id_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/chobits/ngx_http_proxy_connect_module.git ngx_http_proxy_connect_module \
+    && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_unbrotli_filter_module.git ngx_http_unbrotli_filter_module \
+    && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_delay_module.git ngx_http_delay_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_upstream_log_module.git ngx_http_upstream_log_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/Kong/lua-resty-events.git ngx_lua_events_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/alibaba/tengine.git tengine \
