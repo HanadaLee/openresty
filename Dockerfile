@@ -306,6 +306,7 @@ RUN groupmod -n nginx www-data \
     && patch -p1 < /build/patches/ngx_core_patches/ngx_http_proxy_module_ext_1.25.3+.patch \
     && patch -p1 < /build/patches/ngx_core_patches/ngx_http_realip_module_ext_1.25.3+.patch \
     && patch -p1 < /build/patches/ngx_core_patches/ngx_http_rewrite_module_if_extend_1.25.3+.patch \
+    && patch -p1 < /build/patches/ngx_core_patches/ngx_http_gunzip_force_1.25.3+.patch \
     && patch -p1 < /build/patches/ngx_http_tls_dyn_size/nginx__dynamic_tls_records_1.25.1+.patch \
     && sed -i "s/\(openresty\/.*\)\"/\1-${RESTY_RELEASE}\"/" src/core/nginx.h \
     && cd /build/openresty-${RESTY_VERSION}/bundle/ngx_lua-* \
