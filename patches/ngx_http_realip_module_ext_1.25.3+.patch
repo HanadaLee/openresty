@@ -1,0 +1,282 @@
+diff --git a/src/http/modules/ngx_http_realip_module.c b/src/http/modules/ngx_http_realip_module.c
+index f6731e7..dd92e20 100644
+--- a/src/http/modules/ngx_http_realip_module.c
++++ b/src/http/modules/ngx_http_realip_module.c
+@@ -15,12 +15,15 @@
+ #define NGX_HTTP_REALIP_HEADER   2
+ #define NGX_HTTP_REALIP_PROXY    3
+ 
++typedef struct {
++    ngx_uint_t type;
++    ngx_uint_t hash;
++    ngx_str_t  name;
++} ngx_http_realip_header_t;
+ 
+ typedef struct {
+     ngx_array_t       *from;     /* array of ngx_cidr_t */
+-    ngx_uint_t         type;
+-    ngx_uint_t         hash;
+-    ngx_str_t          header;
++    ngx_array_t       *headers;
+     ngx_flag_t         recursive;
+ } ngx_http_realip_loc_conf_t;
+ 
+@@ -65,7 +68,7 @@ static ngx_command_t  ngx_http_realip_commands[] = {
+       NULL },
+ 
+     { ngx_string("real_ip_header"),
+-      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
++      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_1MORE,
+       ngx_http_realip,
+       NGX_HTTP_LOC_CONF_OFFSET,
+       0,
+@@ -132,13 +135,14 @@ ngx_http_realip_handler(ngx_http_request_t *r)
+     u_char                      *p;
+     size_t                       len;
+     ngx_str_t                   *value;
+-    ngx_uint_t                   i, hash;
++    ngx_uint_t                   i, j, hash;
+     ngx_addr_t                   addr;
+     ngx_list_part_t             *part;
+     ngx_table_elt_t             *header, *xfwd;
+     ngx_connection_t            *c;
+     ngx_http_realip_ctx_t       *ctx;
+     ngx_http_realip_loc_conf_t  *rlcf;
++    ngx_http_realip_header_t    *realip_header;
+ 
+     rlcf = ngx_http_get_module_loc_conf(r, ngx_http_realip_module);
+ 
+@@ -152,77 +156,80 @@ ngx_http_realip_handler(ngx_http_request_t *r)
+         return NGX_DECLINED;
+     }
+ 
+-    switch (rlcf->type) {
+-
+-    case NGX_HTTP_REALIP_XREALIP:
++    value = NULL;
++    xfwd = NULL;
+ 
+-        if (r->headers_in.x_real_ip == NULL) {
+-            return NGX_DECLINED;
+-        }
++    for (j = 0; j < rlcf->headers->nelts; j++) {
++        realip_header = &((ngx_http_realip_header_t *) rlcf->headers->elts)[j];
+ 
+-        value = &r->headers_in.x_real_ip->value;
+-        xfwd = NULL;
++        switch (realip_header->type) {
+ 
+-        break;
++        case NGX_HTTP_REALIP_XREALIP:
+ 
+-    case NGX_HTTP_REALIP_XFWD:
++            if (r->headers_in.x_real_ip != NULL) {
++                value = &r->headers_in.x_real_ip->value;
++                xfwd = NULL;
++                goto found;
++            }
+ 
+-        xfwd = r->headers_in.x_forwarded_for;
++            break;
+ 
+-        if (xfwd == NULL) {
+-            return NGX_DECLINED;
+-        }
++        case NGX_HTTP_REALIP_XFWD:
+ 
+-        value = NULL;
++            if (r->headers_in.x_forwarded_for != NULL) {
++                xfwd = r->headers_in.x_forwarded_for;
++                value = NULL;
++                goto found;
++            }
+ 
+-        break;
++            break;
+ 
+-    case NGX_HTTP_REALIP_PROXY:
++        case NGX_HTTP_REALIP_PROXY:
+ 
+-        if (r->connection->proxy_protocol == NULL) {
+-            return NGX_DECLINED;
+-        }
++            if (r->connection->proxy_protocol != NULL) {
++                value = &r->connection->proxy_protocol->src_addr;
++                xfwd = NULL;
++                goto found;
++            }
+ 
+-        value = &r->connection->proxy_protocol->src_addr;
+-        xfwd = NULL;
++            break;
+ 
+-        break;
++        default: /* NGX_HTTP_REALIP_HEADER */
+ 
+-    default: /* NGX_HTTP_REALIP_HEADER */
++            part = &r->headers_in.headers.part;
++            header = part->elts;
+ 
+-        part = &r->headers_in.headers.part;
+-        header = part->elts;
++            hash = realip_header->hash;
++            len = realip_header->name.len;
++            p = realip_header->name.data;
+ 
+-        hash = rlcf->hash;
+-        len = rlcf->header.len;
+-        p = rlcf->header.data;
++            for (i = 0; /* void */ ; i++) {
+ 
+-        for (i = 0; /* void */ ; i++) {
++                if (i >= part->nelts) {
++                    if (part->next == NULL) {
++                        break;
++                    }
+ 
+-            if (i >= part->nelts) {
+-                if (part->next == NULL) {
+-                    break;
++                    part = part->next;
++                    header = part->elts;
++                    i = 0;
+                 }
+ 
+-                part = part->next;
+-                header = part->elts;
+-                i = 0;
+-            }
++                if (hash == header[i].hash
++                    && len == header[i].key.len
++                    && ngx_strncmp(p, header[i].lowcase_key, len) == 0)
++                {
++                    value = &header[i].value;
++                    xfwd = NULL;
+ 
+-            if (hash == header[i].hash
+-                && len == header[i].key.len
+-                && ngx_strncmp(p, header[i].lowcase_key, len) == 0)
+-            {
+-                value = &header[i].value;
+-                xfwd = NULL;
+-
+-                goto found;
++                    goto found;
++                }
+             }
+         }
+-
+-        return NGX_DECLINED;
+     }
+ 
++    return NGX_DECLINED;
++
+ found:
+ 
+     c = r->connection;
+@@ -235,7 +242,7 @@ found:
+                                     rlcf->recursive)
+         != NGX_DECLINED)
+     {
+-        if (rlcf->type == NGX_HTTP_REALIP_PROXY) {
++        if (realip_header->type == NGX_HTTP_REALIP_PROXY) {
+             ngx_inet_set_port(addr.sockaddr, c->proxy_protocol->src_port);
+         }
+ 
+@@ -418,33 +425,38 @@ ngx_http_realip(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+ {
+     ngx_http_realip_loc_conf_t *rlcf = conf;
+ 
+-    ngx_str_t  *value;
++    ngx_str_t                *value;
++    ngx_http_realip_header_t *header;
++    ngx_uint_t                i;
+ 
+-    if (rlcf->type != NGX_CONF_UNSET_UINT) {
+-        return "is duplicate";
++    if (rlcf->headers == NULL) {
++        rlcf->headers = ngx_array_create(cf->pool, 4, sizeof(ngx_str_t));
++        if (rlcf->headers == NULL) {
++            return NGX_CONF_ERROR;
++        }
+     }
+ 
+     value = cf->args->elts;
+ 
+-    if (ngx_strcmp(value[1].data, "X-Real-IP") == 0) {
+-        rlcf->type = NGX_HTTP_REALIP_XREALIP;
+-        return NGX_CONF_OK;
+-    }
+-
+-    if (ngx_strcmp(value[1].data, "X-Forwarded-For") == 0) {
+-        rlcf->type = NGX_HTTP_REALIP_XFWD;
+-        return NGX_CONF_OK;
+-    }
++    for (i = 1; i < cf->args->nelts; i++) {
++        header = ngx_array_push(rlcf->headers);
++        if (header == NULL) {
++            return NGX_CONF_ERROR;
++        }
+ 
+-    if (ngx_strcmp(value[1].data, "proxy_protocol") == 0) {
+-        rlcf->type = NGX_HTTP_REALIP_PROXY;
+-        return NGX_CONF_OK;
++        if (ngx_strcmp(value[1].data, "X-Real-IP") == 0) {
++            header->type = NGX_HTTP_REALIP_XREALIP;
++        } else if (ngx_strcmp(value[1].data, "X-Forwarded-For") == 0) {
++            header->type = NGX_HTTP_REALIP_XFWD;
++        } else if (ngx_strcmp(value[1].data, "proxy_protocol") == 0) {
++            header->type = NGX_HTTP_REALIP_PROXY;
++        } else {
++            header->type = NGX_HTTP_REALIP_HEADER;
++            header->hash = ngx_hash_strlow(value[i].data, value[i].data, value[i].len);
++            header->name = value[i];
++        }
+     }
+ 
+-    rlcf->type = NGX_HTTP_REALIP_HEADER;
+-    rlcf->hash = ngx_hash_strlow(value[1].data, value[1].data, value[1].len);
+-    rlcf->header = value[1];
+-
+     return NGX_CONF_OK;
+ }
+ 
+@@ -463,11 +475,12 @@ ngx_http_realip_create_loc_conf(ngx_conf_t *cf)
+      * set by ngx_pcalloc():
+      *
+      *     conf->from = NULL;
+-     *     conf->hash = 0;
+-     *     conf->header = { 0, NULL };
+      */
+ 
+-    conf->type = NGX_CONF_UNSET_UINT;
++    conf->headers = ngx_array_create(cf->pool, 4, sizeof(ngx_http_realip_header_t));
++    if (conf->headers == NULL) {
++        return NGX_CONF_ERROR;
++    }
+     conf->recursive = NGX_CONF_UNSET;
+ 
+     return conf;
+@@ -484,12 +497,18 @@ ngx_http_realip_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+         conf->from = prev->from;
+     }
+ 
+-    ngx_conf_merge_uint_value(conf->type, prev->type, NGX_HTTP_REALIP_XREALIP);
+     ngx_conf_merge_value(conf->recursive, prev->recursive, 0);
+ 
+-    if (conf->header.len == 0) {
+-        conf->hash = prev->hash;
+-        conf->header = prev->header;
++    if (conf->headers == NULL || conf->headers->nelts == 0) {
++        if (prev->headers == NULL || prev->headers->nelts == 0) {
++            ngx_http_realip_header_t *header = ngx_array_push(conf->headers);
++            if (header == NULL) {
++                return NGX_CONF_ERROR;
++            }
++            header->type = NGX_HTTP_REALIP_XREALIP;
++        } else {
++            conf->headers = prev->headers;
++        }
+     }
+ 
+     return NGX_CONF_OK;

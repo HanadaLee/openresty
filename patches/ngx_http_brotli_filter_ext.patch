@@ -1,0 +1,99 @@
+diff --git a/filter/ngx_http_brotli_filter_module.c b/filter/ngx_http_brotli_filter_module.c
+index eec00be..1acdd42 100644
+--- a/filter/ngx_http_brotli_filter_module.c
++++ b/filter/ngx_http_brotli_filter_module.c
+@@ -23,6 +23,7 @@
+ /* Module configuration. */
+ typedef struct {
+   ngx_flag_t enable;
++  ngx_array_t* bypass;
+ 
+   /* Supported MIME types. */
+   ngx_hash_t types;
+@@ -30,6 +31,7 @@ typedef struct {
+ 
+   /* Minimal required length for compression (if known). */
+   ssize_t min_length;
++  ssize_t max_length;
+ 
+   ngx_bufs_t deprecated_unused_bufs;
+ 
+@@ -159,6 +161,18 @@ static ngx_command_t ngx_http_brotli_filter_commands[] = {
+      ngx_conf_set_size_slot, NGX_HTTP_LOC_CONF_OFFSET,
+      offsetof(ngx_http_brotli_conf_t, min_length), NULL},
+ 
++    {ngx_string("brotli_max_length"),
++     NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF |
++         NGX_CONF_TAKE1,
++     ngx_conf_set_size_slot, NGX_HTTP_LOC_CONF_OFFSET,
++     offsetof(ngx_http_brotli_conf_t, max_length), NULL},
++
++    {ngx_string("brotli_bypass"),
++     NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF |
++         NGX_CONF_1MORE,
++      ngx_http_set_predicate_slot, NGX_HTTP_LOC_CONF_OFFSET,
++      offsetof(ngx_http_brotli_conf_t, bypass), NULL},
++
+     ngx_null_command};
+ 
+ /* Module context hooks. */
+@@ -284,9 +298,11 @@ static ngx_int_t ngx_http_brotli_header_filter(ngx_http_request_t* r) {
+     return ngx_http_next_header_filter(r);
+   }
+ 
+-  /* If response size is known, do not compress tiny responses. */
++  /* If response size is known, do not compress tiny or large responses. */
+   if (r->headers_out.content_length_n != -1 &&
+-      r->headers_out.content_length_n < conf->min_length) {
++      (r->headers_out.content_length_n < conf->min_length ||
++       (conf->max_length > 0 &&
++        r->headers_out.content_length_n > conf->max_length))) {
+     return ngx_http_next_header_filter(r);
+   }
+ 
+@@ -295,6 +311,19 @@ static ngx_int_t ngx_http_brotli_header_filter(ngx_http_request_t* r) {
+     return ngx_http_next_header_filter(r);
+   }
+ 
++  /* Bypass based on brotli_bypass. */
++  switch (ngx_http_test_predicates(r, conf->bypass)) {
++
++  case NGX_ERROR:
++    return NGX_ERROR;
++
++  case NGX_DECLINED:
++    return ngx_http_next_header_filter(r);
++
++  default: /* NGX_OK */
++    break;
++  }
++
+   r->gzip_vary = 1;
+ 
+   /* Check if client support brotli encoding. */
+@@ -714,10 +743,12 @@ static void* ngx_http_brotli_create_conf(ngx_conf_t* cf) {
+        conf->types_keys = NULL; */
+ 
+   conf->enable = NGX_CONF_UNSET;
++  conf->bypass = NGX_CONF_UNSET_PTR;
+ 
+   conf->quality = NGX_CONF_UNSET;
+   conf->lg_win = NGX_CONF_UNSET_SIZE;
+   conf->min_length = NGX_CONF_UNSET;
++  conf->max_length = NGX_CONF_UNSET;
+ 
+   return conf;
+ }
+@@ -729,10 +760,12 @@ static char* ngx_http_brotli_merge_conf(ngx_conf_t* cf, void* parent,
+   char* rc;
+ 
+   ngx_conf_merge_value(conf->enable, prev->enable, 0);
++  ngx_conf_merge_ptr_value(conf->bypass, prev->bypass, NULL);
+ 
+   ngx_conf_merge_value(conf->quality, prev->quality, 6);
+   ngx_conf_merge_size_value(conf->lg_win, prev->lg_win, 19);
+   ngx_conf_merge_value(conf->min_length, prev->min_length, 20);
++  ngx_conf_merge_value(conf->max_length, prev->max_length, 0);
+ 
+   rc = ngx_http_merge_types(cf, &conf->types_keys, &conf->types,
+                             &prev->types_keys, &prev->types,

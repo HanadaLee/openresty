@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.27.1.1"
-ARG RESTY_RELEASE="127"
+ARG RESTY_RELEASE="128"
 ARG RESTY_LUAROCKS_VERSION="3.11.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -112,7 +112,7 @@ ARG RESTY_CONFIG_OPTIONS_MORE="\
 "
 ARG _RESTY_CONFIG_DEPS="\
     --with-cc-opt='-DNGX_LUA_ABORT_AT_PANIC -Wp,-D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIC' \
-    --with-ld-opt='-Wl,-rpath,/usr/local/openresty/lib -Wl,-Bsymbolic-functions -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-whole-archive -Wl,--gc-sections -pie -ljemalloc -Wl,-Bdynamic -lm -lstdc++ -pthread -ldl -Wl,-E' \
+    --with-ld-opt='-Wl,-rpath,/usr/local/openresty/lib/ -Wl,-Bsymbolic-functions -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-whole-archive -Wl,--gc-sections -pie -ljemalloc -Wl,-Bdynamic -lm -lstdc++ -pthread -ldl -Wl,-E' \
 "
 
 LABEL resty_image_base="${RESTY_IMAGE_BASE}"
@@ -163,7 +163,7 @@ RUN groupmod -n nginx www-data \
         cmake \
     && ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && dpkg-reconfigure -f noninteractive tzdata \
-    && mkdir -p /build/lib /build/lualib /build/modules /build/patches \
+    && mkdir -p /build/lib /build/patches /build/modules /build/lualib \
     && cd /build/lib \
     && curl -fSL https://${RESTY_GIT_MIRROR}/jemalloc/jemalloc/releases/download/${RESTY_JEMALLOC_VERSION}/jemalloc-${RESTY_JEMALLOC_VERSION}.tar.bz2 -o jemalloc-${RESTY_JEMALLOC_VERSION}.tar.bz2 \
     && tar xjf jemalloc-${RESTY_JEMALLOC_VERSION}.tar.bz2 \
@@ -242,11 +242,15 @@ RUN groupmod -n nginx www-data \
     && cmake . \
     && make -j${RESTY_J} \
     && make install \
+    && cd /build/patches \
+    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_http_tls_dyn_size.git ngx_http_tls_dyn_size \
+    && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/openresty.git openresty \
     && cd /build/modules \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/google/ngx_brotli.git ngx_http_brotli_module \
     && cd ngx_http_brotli_module \
     && sed -i "s|github.com|${RESTY_GIT_MIRROR}|g" .gitmodules \
     && git submodule update --init \
+    && patch -p1 < /build/patches/openresty/patches/ngx_http_brotli_filter_ext.patch \
     && mkdir -p deps/brotli/out \
     && cd deps/brotli/out \
     && cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DCMAKE_C_FLAGS="-Ofast -march=native -mtune=native -flto -funroll-loops -ffunction-sections -fdata-sections -Wl,--gc-sections" -DCMAKE_CXX_FLAGS="-Ofast -march=native -mtune=native -flto -funroll-loops -ffunction-sections -fdata-sections -Wl,--gc-sections" .. \
@@ -277,10 +281,6 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/soulteary/ngx_http_qrcode_module.git ngx_http_qrcode_module_full \
     && mv ngx_http_qrcode_module_full/src ngx_http_qrcode_module \
     && rm -rf ngx_http_qrcode_module_full \
-    && cd /build/patches \
-    && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_core_patches.git ngx_core_patches \
-    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_http_tls_dyn_size.git ngx_http_tls_dyn_size \
-    && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/openresty.git openresty \
     && cd /build/lualib \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/lua-resty-maxminddb.git lua-resty-maxminddb \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/agentzh/lua-resty-multipart-parser.git lua-resty-multipart-parser \
@@ -299,18 +299,19 @@ RUN groupmod -n nginx www-data \
     && patch -p1 < /build/modules/ngx_http_upstream_log_module/ngx_http_upstream_log_1.25.3+.patch \
     && patch -p1 < /build/modules/ngx_http_upstream_check_module/check_1.20.1+.patch \
     && patch -p1 < /build/modules/ngx_http_proxy_connect_module/patch/proxy_connect_rewrite_102101.patch \
-    && patch -p1 < /build/patches/ngx_core_patches/ngx_http_default_error_page_optimize_1.25.3+.patch \
-    && patch -p1 < /build/patches/ngx_core_patches/ngx_http_slice_filter_module_ext_1.21.4+.patch \
-    && patch -p1 < /build/patches/ngx_core_patches/ngx_http_sub_filter_module_ext_1.25.3+.patch \
-    && patch -p1 < /build/patches/ngx_core_patches/ngx_http_listen_https_allow_http_1.25.3+.patch \
-    && patch -p1 < /build/patches/ngx_core_patches/ngx_http_proxy_module_ext_1.25.3+.patch \
-    && patch -p1 < /build/patches/ngx_core_patches/ngx_http_realip_module_ext_1.25.3+.patch \
-    && patch -p1 < /build/patches/ngx_core_patches/ngx_http_rewrite_module_if_extend_1.25.3+.patch \
-    && patch -p1 < /build/patches/ngx_core_patches/ngx_http_gunzip_force_1.25.3+.patch \
+    && patch -p1 < /build/patches/openresty/patches/ngx_http_default_error_page_optimize_1.25.3+.patch \
+    && patch -p1 < /build/patches/openresty/patches/ngx_http_slice_filter_module_ext_1.21.4+.patch \
+    && patch -p1 < /build/patches/openresty/patches/ngx_http_sub_filter_module_ext_1.25.3+.patch \
+    && patch -p1 < /build/patches/openresty/patches/ngx_http_listen_https_allow_http_1.25.3+.patch \
+    && patch -p1 < /build/patches/openresty/patches/ngx_http_proxy_module_ext_1.25.3+.patch \
+    && patch -p1 < /build/patches/openresty/patches/ngx_http_realip_module_ext_1.25.3+.patch \
+    && patch -p1 < /build/patches/openresty/patches/ngx_http_rewrite_module_ext_1.25.3+.patch \
+    && patch -p1 < /build/patches/openresty/patches/ngx_http_gunzip_force_1.25.3+.patch \
+    && patch -p1 < /build/patches/openresty/patches/ngx_http_gzip_filter_module_ext_1.25.3+.patch \
     && patch -p1 < /build/patches/ngx_http_tls_dyn_size/nginx__dynamic_tls_records_1.25.1+.patch \
     && sed -i "s/\(openresty\/.*\)\"/\1-${RESTY_RELEASE}\"/" src/core/nginx.h \
     && cd /build/openresty-${RESTY_VERSION}/bundle/ngx_lua-* \
-    && patch -p1 < /build/patches/openresty/patches/ngx_lua-remove_h2_subrequest.patch \
+    && patch -p1 < /build/patches/openresty/patches/ngx_lua-remove_h2_subrequest_1.25.3.1+.patch \
     && cd /build/openresty-${RESTY_VERSION} \
     && eval ./configure \
     ${RESTY_PATH_OPTIONS} \
@@ -410,8 +411,10 @@ WORKDIR /usr/local/openresty
 
 # Add additional binaries into PATH for convenience
 ENV PATH=$PATH:/usr/local/openresty/luajit/bin/:/usr/local/openresty/sbin/:/usr/local/openresty/bin/
+ENV LD_LIBRARY_PATH=/usr/local/openresty/lib/
 ENV LUA_PATH="/usr/local/openresty/site/lualib/?.ljbc;/usr/local/openresty/site/lualib/?/init.ljbc;/usr/local/openresty/lualib/?.ljbc;/usr/local/openresty/lualib/?/init.ljbc;/usr/local/openresty/site/lualib/?.lua;/usr/local/openresty/site/lualib/?/init.lua;/usr/local/openresty/lualib/?.lua;/usr/local/openresty/lualib/?/init.lua;./?.lua;/usr/local/openresty/luajit/share/luajit-2.1/?.lua;/usr/local/share/lua/5.1/?.lua;/usr/local/share/lua/5.1/?/init.lua;/usr/local/openresty/luajit/share/lua/5.1/?.lua;/usr/local/openresty/luajit/share/lua/5.1/?/init.lua"
 ENV LUA_CPATH="/usr/local/openresty/site/lualib/?.so;/usr/local/openresty/lualib/?.so;./?.so;/usr/local/lib/lua/5.1/?.so;/usr/local/openresty/luajit/lib/lua/5.1/?.so;/usr/local/lib/lua/5.1/loadall.so;/usr/local/openresty/luajit/lib/lua/5.1/?.so"
+
 
 COPY nginx.conf /usr/local/openresty/etc/nginx.conf
 COPY nginx.vh.default.conf /usr/local/openresty/etc/conf.d/default.conf

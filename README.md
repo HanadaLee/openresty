@@ -17,9 +17,9 @@ Table of Contents
   - [Extra components of current OpenResty bundule](#extra-components-of-current-openresty-bundule)
 - [Additional Features](#additional-features)
   - [resolv.conf parsing](#resolvconf-parsing)
-  - [nginx core patches](#nginx-core-patches)
-  - [ngx_http_tls_dyn_size](#ngx_http_tls_dyn_size)
-- [Copyright \& License](#copyright-license)
+  - [Patches for core and modules](#patches-for-core-and-modules)
+  - [ngx\_http\_tls\_dyn\_size](#ngx_http_tls_dyn_size)
+- [Copyright \& License](#copyright--license)
 
 Description
 ===========
@@ -171,10 +171,10 @@ This feature is not available on Windows platforms.
 
 [Back to TOC](#table-of-contents)
 
-nginx core patches
+Patches for core and modules
 --------------------
 
-In additional to the standard nginx core features, this bundle patches the nginx core to provide more features, visit [ngx_core_patches](https://git.hanada.info/hanada/ngx_core_patches) repository for more information.
+In additional to the standard nginx core features, this bundle patches the nginx core to provide more features, visit patches path for more information.
 
 [Back to TOC](#table-of-contents)
 
