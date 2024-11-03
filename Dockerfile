@@ -250,7 +250,7 @@ RUN groupmod -n nginx www-data \
     && cd ngx_http_brotli_module \
     && sed -i "s|github.com|${RESTY_GIT_MIRROR}|g" .gitmodules \
     && git submodule update --init \
-    && patch -p1 < /build/patches/openresty/patches/ngx_http_brotli_filter_ext.patch \
+    && patch -p1 < /build/patches/openresty/patches/ngx_http_brotli_filter_module_ext.patch \
     && mkdir -p deps/brotli/out \
     && cd deps/brotli/out \
     && cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DCMAKE_C_FLAGS="-Ofast -march=native -mtune=native -flto -funroll-loops -ffunction-sections -fdata-sections -Wl,--gc-sections" -DCMAKE_CXX_FLAGS="-Ofast -march=native -mtune=native -flto -funroll-loops -ffunction-sections -fdata-sections -Wl,--gc-sections" .. \
