@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.27.1.1"
-ARG RESTY_RELEASE="129"
+ARG RESTY_RELEASE="130"
 ARG RESTY_LUAROCKS_VERSION="3.11.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -91,6 +91,7 @@ ARG RESTY_CONFIG_OPTIONS_MORE="\
     --add-module=/build/modules/ngx_lua_events_module \
     --add-module=/build/modules/ngx_http_brotli_module \
     --add-module=/build/modules/ngx_http_cache_purge_module \
+    --add-module=/build/modules/ngx_http_compress_vary_filter_module \
     --add-module=/build/modules/ngx_http_dechunk_module \
     --add-module=/build/modules/ngx_http_delay_module \
     --add-module=/build/modules/ngx_http_extra_vars_module \
@@ -274,6 +275,7 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_unbrotli_filter_module.git ngx_http_unbrotli_filter_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_delay_module.git ngx_http_delay_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_upstream_log_module.git ngx_http_upstream_log_module \
+    && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_compress_vary_filter_module.git ngx_http_compress_vary_filter_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/Kong/lua-resty-events.git ngx_lua_events_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/alibaba/tengine.git tengine \
     && mv tengine/modules/ngx_backtrace_module ngx_backtrace_module \
