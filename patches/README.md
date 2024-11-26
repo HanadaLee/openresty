@@ -6,10 +6,10 @@ Enhance nginx core or openresty modules to implement more functions
 - [Patches for core and modules](#patches-for-core-and-modules)
   - [Table of Contents](#table-of-contents)
   - [ngx\_lua module](#ngx_lua-module)
-    - [Remove h2 subrequest limitation](#remove-h2-subrequest-limitation)
+    - [remove h2 subrequest limitation](#remove-h2-subrequest-limitation)
   - [ngx\_http\_core\_module](#ngx_http_core_module)
-    - [Listen https\_allow\_http](#listen-https_allow_http)
-    - [Optimize default error page](#optimize-default-error-page)
+    - [listen https\_allow\_http](#listen-https_allow_http)
+    - [optimize default error page](#optimize-default-error-page)
   - [ngx\_http\_slice\_filter\_module](#ngx_http_slice_filter_module)
   - [ngx\_http\_sub\_filter\_module](#ngx_http_sub_filter_module)
   - [ngx\_http\_proxy\_module and its friends](#ngx_http_proxy_module-and-its-friends)
@@ -18,7 +18,7 @@ Enhance nginx core or openresty modules to implement more functions
     - [enhancement of upstream cache control](#enhancement-of-upstream-cache-control)
   - [ngx\_http\_realip\_module](#ngx_http_realip_module)
   - [ngx\_http\_rewrite\_module](#ngx_http_rewrite_module)
-    - [more conditions for "if" directive](#more-conditions-for-if-directive)
+    - [more operators for "if" directive](#more-operators-for-if-directive)
     - ["if" with multi conditions](#if-with-multi-conditions)
     - [support "elif" and "else" directive](#support-elif-and-else-directive)
   - [ngx\_http\_gunzip\_module](#ngx_http_gunzip_module)
@@ -27,7 +27,7 @@ Enhance nginx core or openresty modules to implement more functions
 
 ## ngx_lua module
 
-### Remove h2 subrequest limitation
+### remove h2 subrequest limitation
 
 Remove the limitation introduced by ngx lua on initiating sub-requests for h2 and h3 requests. The mainline version of ngx_lua has removed this limitation. This patch will be deprecated after the next latest version is released.
 
@@ -36,7 +36,7 @@ refer to [HTTP/2 with location.capture() re-enable](https://github.com/openresty
 
 ## ngx_http_core_module
 
-### Listen https_allow_http
+### listen https_allow_http
 
 Allows accepting http or https requests in the same port, which is useful for scenarios where special ports are used. The original work is from [Tengine](https://github.com/alibaba/tengine).
 
@@ -48,7 +48,7 @@ Allows accepting http or https requests in the same port, which is useful for sc
 
 When both the ssl and https_allow_http parameters are enabled for the listen directive, both https or http requests will be allowed.
 
-### Optimize default error page 
+### optimize default error page 
 
 Optimize the information displayed on the default error page to facilitate the collection of error feedback from clients.
 
@@ -271,7 +271,7 @@ The original work is from [SEnginx](https://github.com/NeusoftSecurity/SEnginx) 
 
 Extends the "if" directive of the original rewrite module. It has the following features:
 
-### more conditions for "if" directive
+### more operators for "if" directive
 
 Except for the original "if" condition operators, also supports:
 * <
@@ -326,7 +326,6 @@ All sub-conditions are evaluated first before calculating the expression result.
 Known limits 3:
 
 Due to the limitations of nginx script engine, if you use regular capture, you will only get the capture group of the last matching regular expression.
-
 
 ### support "elif" and "else" directive
 
