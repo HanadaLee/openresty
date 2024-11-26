@@ -2,7 +2,32 @@
 
 Enhance nginx core or openresty modules to implement more functions
 
-## ngx_lua Remove h2 subrequest limitation
+## Table of Contents
+- [Patches for core and modules](#patches-for-core-and-modules)
+  - [Table of Contents](#table-of-contents)
+  - [ngx\_lua module](#ngx_lua-module)
+    - [Remove h2 subrequest limitation](#remove-h2-subrequest-limitation)
+  - [ngx\_http\_core\_module](#ngx_http_core_module)
+    - [Listen https\_allow\_http](#listen-https_allow_http)
+    - [Optimize default error page](#optimize-default-error-page)
+  - [ngx\_http\_slice\_filter\_module](#ngx_http_slice_filter_module)
+  - [ngx\_http\_sub\_filter\_module](#ngx_http_sub_filter_module)
+  - [ngx\_http\_proxy\_module and its friends](#ngx_http_proxy_module-and-its-friends)
+    - ["proxy\_set\_header" support inherit](#proxy_set_header-support-inherit)
+    - [custom sndbuf and rcvbuf for upstream connection](#custom-sndbuf-and-rcvbuf-for-upstream-connection)
+    - [enhancement of upstream cache control](#enhancement-of-upstream-cache-control)
+  - [ngx\_http\_realip\_module](#ngx_http_realip_module)
+  - [ngx\_http\_rewrite\_module](#ngx_http_rewrite_module)
+    - [more conditions for "if" directive](#more-conditions-for-if-directive)
+    - ["if" with multi conditions](#if-with-multi-conditions)
+    - [support "elif" and "else" directive](#support-elif-and-else-directive)
+  - [ngx\_http\_gunzip\_module](#ngx_http_gunzip_module)
+  - [ngx\_http\_gzip\_filter\_module](#ngx_http_gzip_filter_module)
+  - [ngx\_http\_brotli\_filter\_module (Third-party Module)](#ngx_http_brotli_filter_module-third-party-module)
+
+## ngx_lua module
+
+### Remove h2 subrequest limitation
 
 Remove the limitation introduced by ngx lua on initiating sub-requests for h2 and h3 requests. The mainline version of ngx_lua has removed this limitation. This patch will be deprecated after the next latest version is released.
 
@@ -53,7 +78,7 @@ Specify the value of the ip item to be displayed on the default 4xx/5xx error pa
 Specify the value of the request id item to be displayed on the default 4xx/5xx error page. Parameter value can contain variables. The value will be displayed on the default 4xx/5xx error page only when the error_page_server_info directive is enabled.
 
 
-## Extensions of ngx_http_slice_filter_module
+## ngx_http_slice_filter_module
 
 * **Syntax:** *slice_allow_methods GET | HEAD ...;*
 
@@ -79,7 +104,7 @@ Whether to check the consistency of the Etag header in the slice. If it is enabl
 
 Whether to check the consistency of the Last-Modified header in the slice. If it is enabled, the request will be terminated and an error will be reported when Last-Modified mismatch in slice response occurs.
 
-## Extensions of ngx_http_sub_filter_module
+## ngx_http_sub_filter_module
 
 This patch introduces a directive sub_filter_bypass to bypass sub_filter based on the value of a set of variables.
 
@@ -96,11 +121,13 @@ sub_filter_bypass $cookie_nocache $arg_nocache$arg_comment;
 sub_filter_bypass $http_pragma    $http_authorization;
 ```
 
-## Extensions of ngx_http_proxy_module and its friends, inclding ngx_http_upstream_module
+## ngx_http_proxy_module and its friends
 
-Introduces the 'proxy_set_header_inherit' directive which blocks the merge inheritance in receiving contexts when set to off. The purpose of the added mechanics is to reduce repetition within the nginx configuration for universally set (or boilerplate) request headers, while maintaining flexibility to set additional headers for specific paths. The original patch is from https://mailman.nginx.org/pipermail/nginx-devel/2023-November/XUGFHDLSLRTFLWIBYPSE7LTXFJHNZE3E.html. Additionally provides grpc support.
 
-Also allows setting the :authory header (From https://github.com/api7/apisix-nginx-module/blob/main/patch/1.25.3.1/nginx-grpc_set_header_authority.patch).
+### "proxy_set_header" support inherit
+Introduces the 'proxy_set_header_inherit' directive which blocks the merge inheritance in receiving contexts when set to off. The purpose of the added mechanics is to reduce repetition within the nginx configuration for universally set (or boilerplate) request headers, while maintaining flexibility to set additional headers for specific paths. The original patch is from [\[PATCH\] Added merge inheritance to proxy_set_header](https://mailman.nginx.org/pipermail/nginx-devel/2023-November/XUGFHDLSLRTFLWIBYPSE7LTXFJHNZE3E.html). Additionally provides grpc support.
+
+Also allows setting the :authory header (From [nginx-grpc_set_header_authority.patch](https://github.com/api7/apisix-nginx-module/blob/main/patch/1.25.3.1/nginx-grpc_set_header_authority.patch)).
 
 There is no change in behavior for existing configurations.
 
@@ -121,7 +148,9 @@ Allows the merge inheritance of proxy_set_header in receiving contexts.
 Allows the merge inheritance of grpc_set_header in receiving contexts.
 
 
-Introduces two new directives to set sndbuf and rcvbuf for upstream connection.
+### custom sndbuf and rcvbuf for upstream connection
+
+Introduces two new directives to set sndbuf and rcvbuf for upstream connection. The original work is from [Tengine](https://github.com/alibaba/tengine).
 
 * **Syntax:** *proxy_sndbuf_size size;*
 
@@ -143,6 +172,8 @@ Sets the rcvbuf size for upstream connection. If not set, the system allocated s
 
 > fastcgi_rcvbuf_size, scgi_rcvbuf_size, uwsgi_rcvbuf_size, grpc_rcvbuf_size are also available.
 
+
+### enhancement of upstream cache control
 
 Introduces some new cache-related directives to enhance control over upstream cache behavior.
 
@@ -210,10 +241,10 @@ Enables upstream cache with the specified MIME types in addition to “text/html
 
 * **Context:** *http, server, location*
 
-Refer to https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_valid.
+Refer to [proxy_cache_valid](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_valid).
 This directive has been changed to support configuring the cache time as a variable. Other behaviors remain unchanged.
 
-## Extensions of ngx_http_realip_module
+## ngx_http_realip_module
 
 * **Syntax:** *real_ip_header field | X-Real-IP | X-Forwarded-For | proxy_protocol;*
 
@@ -234,9 +265,9 @@ The request header field value that contains an optional port is also used to re
 
 The proxy_protocol parameter changes the client address to the one from the PROXY protocol header. The PROXY protocol must be previously enabled by setting the proxy_protocol parameter in the listen directive.
 
-## Extensions of ngx_http_rewrite_module
+## ngx_http_rewrite_module
 
-The original work is from [SEnginx](https://github.com/NeusoftSecurity/SEnginx) and https://github.com/pei-jikui/nginx-if.
+The original work is from [SEnginx](https://github.com/NeusoftSecurity/SEnginx) and [nginx-if](https://github.com/pei-jikui/nginx-if).
 
 Extends the "if" directive of the original rewrite module. It has the following features:
 
@@ -259,8 +290,9 @@ The comparison symbol supports decimals and negative numbers. Non-numeric input 
 
 * **Context:** *server, location*
 
-* Support the use of '&&' and '||' operators in if.
-* Supports parenthesis-based subconditions.
+Supports the use of '&&' and '||' operators in if.
+
+Supports parenthesis-based subconditions.
 
 Example:
 ```
@@ -269,15 +301,15 @@ if ($remote_addr = 192.168.1.1 && ($http_user_agent ~ 'Mozilla' || $server_port 
 }
 ```
 
-Known limits: 
+Known limits 1: 
 
-1. When ues conditional grouping based on brackets. the last character of a conditional statement cannot be ')', even if it is enclosed in quotes. For example, the following expression will cause a configuration test error.
+When ues conditional grouping based on brackets. the last character of a conditional statement cannot be ')', even if it is enclosed in quotes. For example, the following expression will cause a configuration test error.
 ```
 if (($test_var = "test)" && $http_user_agent ~ 'Mozilla') || $server_port > 808) {
     return 404
 }
 ```
-If you must use a string ending with ')'， you might consider using a variable to back it up.
+If you must use a string ending with ')', you might consider using a variable to back it up.
 ```
 set $value "test)";
 if (($test_var = $value && $http_user_agent ~ 'Mozilla') || $server_port > 808) {
@@ -286,9 +318,15 @@ if (($test_var = $value && $http_user_agent ~ 'Mozilla') || $server_port > 808) 
 ```
 If it is a regular expression, you can avoid using ')' at the end in many ways.
 
-2. Before calculating the expression result, all sub-conditions are evaluated first.
 
-3. Due to the limitations of the script engine, if you use regular capture, you will only get the capture group of the last matching regular expression.
+Known limits 2:
+
+All sub-conditions are evaluated first before calculating the expression result. This is different from the sub-condition processing logic of general programming languages.
+
+Known limits 3:
+
+Due to the limitations of nginx script engine, if you use regular capture, you will only get the capture group of the last matching regular expression.
+
 
 ### support "elif" and "else" directive
 
@@ -300,7 +338,7 @@ If it is a regular expression, you can avoid using ')' at the end in many ways.
 
 Similar to if, but if this directive is not preceded by an if/elif directive, or the result of the leading if/elif directive is true, it will not take effect.
 
-> Please note that this directive will create a new location just like if, please refer to https://web.archive.org/web/20231227223503/https://www.nginx.com/resources/wiki/start/topics/depth/ifisevil/
+> This directive will create a new location just like if, please refer to [if is evil](https://web.archive.org/web/20231227223503/https://www.nginx.com/resources/wiki/start/topics/depth/ifisevil/)
 
 * **Syntax:** *else {...}*
 
@@ -310,9 +348,9 @@ Similar to if, but if this directive is not preceded by an if/elif directive, or
 
 Similar to if and elif, but does not contain any conditional expressions, it is always true. If this directive is not preceded by an if/elif directive, or the result of the leading if/elif directive is true, it will not take effect.
 
-> Please note that this directive will create a new location just like if, please refer to https://web.archive.org/web/20231227223503/https://www.nginx.com/resources/wiki/start/topics/depth/ifisevil/
+> This directive will create a new location just like if, please refer to [if is evil](https://web.archive.org/web/20231227223503/https://www.nginx.com/resources/wiki/start/topics/depth/ifisevil/)
 
-## Extensions of ngx_http_gunzip_module
+## ngx_http_gunzip_module
 
 This is a simple patch modifying the NGINX gunzip filter module to force inflate compressed responses. This is desirable in the context of an upstream source that sends responses gzipped. Please read the "other comments" section to understand this will decompress all content, so you want to specify its use as specific as possible to avoid decompressing content that you otherwise would want left untouched.
 
@@ -323,9 +361,9 @@ Some modules require the upstream content to be uncompressed to work properly.
 It allows nginx to recompress the data (i.e. brotli) before sending to the client.
 This has been successfully tested up to version 1.20.0 (the current release as of this writing). I don't think the gunzip module code changes much (if any), so it should patch cleanly against older / future versions.
 
-The original patch is from http://mailman.nginx.org/pipermail/nginx-devel/2013-January/003276.html. The original author is Weibin Yao.
+The original patch is from [A patch to force the gunzip filter module work](http://mailman.nginx.org/pipermail/nginx-devel/2013-January/003276.html). The original author is Weibin Yao.
 
-NOTE: The gunzip module is not built by default, you must specify --with-http_gunzip_module when compiling nginx.
+The gunzip module is not built by default, you must specify --with-http_gunzip_module when compiling nginx.
 
 * **Syntax:** *gunzip_force string ...;*
 
@@ -335,7 +373,7 @@ NOTE: The gunzip module is not built by default, you must specify --with-http_gu
 
 Defines the conditions for forced brotli decompression. If at least one value in the string parameter is not empty and not equal to "0", forced gzip decompression is performed. But it will not try to decompress responses that do not contain the response header Content-Encoding: gzip.
 
-## Extensions of ngx_http_gzip_filter_module
+## ngx_http_gzip_filter_module
 
 * **Syntax:** *gzip_max_length length;*
 
@@ -353,7 +391,9 @@ Sets the maximum length of a response that will be gzipped. The length is determ
 
 Defines conditions under which the response will gzipped. If at least one value of the string parameters is not empty and is not equal to “0” then the response will not be gzipped.
 
-## Extensions of ngx_http_brotli_filter (Third-party Module)
+## ngx_http_brotli_filter_module (Third-party Module)
+
+refer to [ngx_brotli](https://github.com/google/ngx_brotli).
 
 * **Syntax:** *brotli_max_length length;*
 
