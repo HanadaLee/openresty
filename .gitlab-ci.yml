@@ -66,19 +66,11 @@ create-manifest:
         "${IMAGE_NAME}:${TAG}-amd64" \
         "${IMAGE_NAME}:${TAG}-arm64"
     - >
-      docker manifest annotate "${IMAGE_NAME}:${TAG}" "${IMAGE_NAME}:${TAG}-amd64" --os linux --arch amd64
-    - >
-      docker manifest annotate "${IMAGE_NAME}:${TAG}" "${IMAGE_NAME}:${TAG}-arm64" --os linux --arch arm64
-    - >
       docker manifest push "${IMAGE_NAME}:${TAG}"
     - >
       docker manifest create "${IMAGE_NAME}" \
         "${IMAGE_NAME}:${TAG}-amd64" \
         "${IMAGE_NAME}:${TAG}-arm64"
-    - >
-      docker manifest annotate "${IMAGE_NAME}" "${IMAGE_NAME}:${TAG}-amd64" --os linux --arch amd64
-    - >
-      docker manifest annotate "${IMAGE_NAME}" "${IMAGE_NAME}:${TAG}-arm64" --os linux --arch arm64
     - >
       docker manifest push "${IMAGE_NAME}"
     - >
