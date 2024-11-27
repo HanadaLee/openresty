@@ -63,14 +63,14 @@ create-manifest:
       docker manifest inspect "${IMAGE_NAME}:${TAG}-arm64" || exit 1
     - >
       docker manifest create --amend "${IMAGE_NAME}:${TAG}" \
-        "${IMAGE_NAME}:${TAG}-amd64" \
-        "${IMAGE_NAME}:${TAG}-arm64"
+        --amend "${IMAGE_NAME}:${TAG}-amd64" \
+        --amend "${IMAGE_NAME}:${TAG}-arm64"
     - >
       docker manifest push --purge "${IMAGE_NAME}:${TAG}"
     - >
-      docker manifest create "${IMAGE_NAME}" \
-        "${IMAGE_NAME}:${TAG}-amd64" \
-        "${IMAGE_NAME}:${TAG}-arm64"
+      docker manifest create --amend "${IMAGE_NAME}" \
+        --amend "${IMAGE_NAME}:${TAG}-amd64" \
+        --amend "${IMAGE_NAME}:${TAG}-arm64"
     - >
       docker manifest push --purge "${IMAGE_NAME}"
 
