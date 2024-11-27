@@ -16,8 +16,10 @@ build-amd64:
     refs:
       - main
   script:
-    - docker login -u "${NEXUS_USERNAME}" -p "${NEXUS_PASSWORD}" registry.hanada.info
-    - docker buildx build \
+    - >
+      docker login -u "${NEXUS_USERNAME}" -p "${NEXUS_PASSWORD}" registry.hanada.info
+    - >
+      docker buildx build \
         --platform linux/amd64 \
         --build-arg RESTY_VERSION="${RESTY_VERSION}" \
         --build-arg RESTY_RELEASE="${RESTY_RELEASE}" \
@@ -33,8 +35,10 @@ build-arm64:
     refs:
       - main
   script:
-    - docker login -u "${NEXUS_USERNAME}" -p "${NEXUS_PASSWORD}" registry.hanada.info
-    - docker buildx build \
+    - >
+      docker login -u "${NEXUS_USERNAME}" -p "${NEXUS_PASSWORD}" registry.hanada.info
+    - >
+      docker buildx build \
         --platform linux/arm64 \
         --build-arg RESTY_VERSION="${RESTY_VERSION}" \
         --build-arg RESTY_RELEASE="${RESTY_RELEASE}" \
@@ -53,20 +57,33 @@ create-manifest:
     refs:
       - main
   script:
-    - docker login -u "${NEXUS_USERNAME}" -p "${NEXUS_PASSWORD}" registry.hanada.info
-    - docker manifest inspect "${IMAGE_NAME}:${TAG}-amd64" || exit 1
-    - docker manifest inspect "${IMAGE_NAME}:${TAG}-arm64" || exit 1
-    - docker manifest create "${IMAGE_NAME}:${TAG}" \
+    - >
+      docker login -u "${NEXUS_USERNAME}" -p "${NEXUS_PASSWORD}" registry.hanada.info
+    - >
+      docker manifest inspect "${IMAGE_NAME}:${TAG}-amd64" || exit 1
+    - >
+      docker manifest inspect "${IMAGE_NAME}:${TAG}-arm64" || exit 1
+    - >
+      docker manifest create "${IMAGE_NAME}:${TAG}" \
         "${IMAGE_NAME}:${TAG}-amd64" \
         "${IMAGE_NAME}:${TAG}-arm64"
-    - docker manifest annotate "${IMAGE_NAME}:${TAG}" "${IMAGE_NAME}:${TAG}-amd64" --os linux --arch amd64
-    - docker manifest annotate "${IMAGE_NAME}:${TAG}" "${IMAGE_NAME}:${TAG}-arm64" --os linux --arch arm64
-    - docker manifest push "${IMAGE_NAME}:${TAG}"
-    - docker manifest create "${IMAGE_NAME}" \
+    - >
+      docker manifest annotate "${IMAGE_NAME}:${TAG}" "${IMAGE_NAME}:${TAG}-amd64" --os linux --arch amd64
+    - >
+      docker manifest annotate "${IMAGE_NAME}:${TAG}" "${IMAGE_NAME}:${TAG}-arm64" --os linux --arch arm64
+    - >
+      docker manifest push "${IMAGE_NAME}:${TAG}"
+    - >
+      docker manifest create "${IMAGE_NAME}" \
         "${IMAGE_NAME}:${TAG}-amd64" \
         "${IMAGE_NAME}:${TAG}-arm64"
-    - docker manifest annotate "${IMAGE_NAME}" "${IMAGE_NAME}:${TAG}-amd64" --os linux --arch amd64
-    - docker manifest annotate "${IMAGE_NAME}" "${IMAGE_NAME}:${TAG}-arm64" --os linux --arch arm64
-    - docker manifest push "${IMAGE_NAME}"
-    - curl -u "${NEXUS_USERNAME}:${NEXUS_PASSWORD}" -X DELETE "https://registry.hanada.info/v2/hanada/openresty/manifests/$(docker inspect --format='{{index .RepoDigests 0}}' "${IMAGE_NAME}:${TAG}-amd64" | awk -F'@' '{print $2}')"
-    - curl -u "${NEXUS_USERNAME}:${NEXUS_PASSWORD}" -X DELETE "https://registry.hanada.info/v2/hanada/openresty/manifests/$(docker inspect --format='{{index .RepoDigests 0}}' "${IMAGE_NAME}:${TAG}-arm64" | awk -F'@' '{print $2}')"
+    - >
+      docker manifest annotate "${IMAGE_NAME}" "${IMAGE_NAME}:${TAG}-amd64" --os linux --arch amd64
+    - >
+      docker manifest annotate "${IMAGE_NAME}" "${IMAGE_NAME}:${TAG}-arm64" --os linux --arch arm64
+    - >
+      docker manifest push "${IMAGE_NAME}"
+    - >
+      curl -u "${NEXUS_USERNAME}:${NEXUS_PASSWORD}" -X DELETE "https://registry.hanada.info/v2/hanada/openresty/manifests/$(docker inspect --format='{{index .RepoDigests 0}}' "${IMAGE_NAME}:${TAG}-amd64" | awk -F'@' '{print $2}')"
+    - >
+      curl -u "${NEXUS_USERNAME}:${NEXUS_PASSWORD}" -X DELETE "https://registry.hanada.info/v2/hanada/openresty/manifests/$(docker inspect --format='{{index .RepoDigests 0}}' "${IMAGE_NAME}:${TAG}-arm64" | awk -F'@' '{print $2}')"
