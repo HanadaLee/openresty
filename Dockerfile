@@ -173,6 +173,8 @@ RUN groupmod -n nginx www-data \
         cmake \
         libglib2.0-0 \
         libglib2.0-dev \
+        libwebpmux3 \
+        libwebpdemux2 \
         meson \
     && ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && dpkg-reconfigure -f noninteractive tzdata \
