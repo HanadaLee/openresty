@@ -171,7 +171,7 @@ RUN groupmod -n nginx www-data \
         libtool \
         pkgconf \
         cmake \
-        libglib2.0-dev \
+        libglib2.0-0 \
         meson \
     && ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && dpkg-reconfigure -f noninteractive tzdata \
@@ -421,7 +421,6 @@ RUN groupmod -n nginx www-data \
         wget \
         unzip \
         bison \
-        libglib2.0-dev \
         meson \
     && DEBIAN_FRONTEND=noninteractive apt-get autoremove -y \
     && DEBIAN_FRONTEND=noninteractive apt-get clean -y \
