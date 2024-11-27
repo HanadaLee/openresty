@@ -19,8 +19,7 @@ build-amd64:
     - >
       docker login -u "${NEXUS_USERNAME}" -p "${NEXUS_PASSWORD}" registry.hanada.info
     - >
-      docker buildx build \
-        --platform linux/amd64 \
+      docker build \
         --build-arg RESTY_VERSION="${RESTY_VERSION}" \
         --build-arg RESTY_RELEASE="${RESTY_RELEASE}" \
         -t "${IMAGE_NAME}:${TAG}-amd64" \
@@ -38,8 +37,7 @@ build-arm64:
     - >
       docker login -u "${NEXUS_USERNAME}" -p "${NEXUS_PASSWORD}" registry.hanada.info
     - >
-      docker buildx build \
-        --platform linux/arm64 \
+      docker build \
         --build-arg RESTY_VERSION="${RESTY_VERSION}" \
         --build-arg RESTY_RELEASE="${RESTY_RELEASE}" \
         -t "${IMAGE_NAME}:${TAG}-arm64" \
