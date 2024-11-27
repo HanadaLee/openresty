@@ -1,3 +1,2 @@
 .gitlab-ci.yml
-docker_build.sh
 

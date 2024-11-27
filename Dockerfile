@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.27.1.1"
-ARG RESTY_RELEASE="147"
+ARG RESTY_RELEASE="148"
 ARG RESTY_LUAROCKS_VERSION="3.11.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -51,6 +51,7 @@ ARG RESTY_ZLIB_VERSION="1.3.1"
 ARG RESTY_ZSTD_VERSION="1.5.6"
 ARG RESTY_LIBATOMIC_VERSION="7.8.0"
 ARG RESTY_LIBQRENCODE_VERSION="4.1.1"
+ARG RESTY_LIBVIPS_VERSION="8.16.0"
 ARG RESTY_PATH_OPTIONS="\
     --prefix=/usr/local/openresty \
     --sbin-path=/usr/local/openresty/sbin/nginx \
@@ -116,6 +117,7 @@ ARG RESTY_CONFIG_OPTIONS_MORE="\
     --add-module=/build/modules/ngx_http_upstream_log_module \
     --add-module=/build/modules/ngx_http_var_module \
     --add-module=/build/modules/ngx_http_vhost_traffic_status_module \
+    --add-module=/build/modules/ngx_http_weserv_module \
     --add-module=/build/modules/ngx_http_zstd_module \
 "
 ARG _RESTY_CONFIG_DEPS="\
@@ -169,6 +171,7 @@ RUN groupmod -n nginx www-data \
         libtool \
         pkgconf \
         cmake \
+        meson \
     && ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && dpkg-reconfigure -f noninteractive tzdata \
     && mkdir -p /build/lib /build/patches /build/modules /build/lualib \
@@ -250,6 +253,13 @@ RUN groupmod -n nginx www-data \
     && cmake . \
     && make -j${RESTY_J} \
     && make install \
+    && cd /build/lib \
+    && curl -fSL https://${RESTY_GIT_MIRROR}/libvips/libvips/releases/download/v${RESTY_LIBVIPS_VERSION}/vips-${RESTY_LIBVIPS_VERSION}.tar.xz -o vips-${RESTY_LIBVIPS_VERSION}.tar.xz \
+    && tar -xf vips-${RESTY_LIBVIPS_VERSION}.tar.xz \
+    && cd vips-${RESTY_LIBVIPS_VERSION} \
+    && meson setup build --libdir=lib --buildtype=release "$@" \
+    && ninja -C build \
+    && ninja -C build install \
     && cd /build/patches \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_http_tls_dyn_size.git ngx_http_tls_dyn_size \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/openresty.git openresty \
@@ -265,6 +275,14 @@ RUN groupmod -n nginx www-data \
         -DCMAKE_C_FLAGS="-O2 -flto -funroll-loops -ffunction-sections -fdata-sections -Wl,--gc-sections" \
         -DCMAKE_CXX_FLAGS="-O2 -flto -funroll-loops -ffunction-sections -fdata-sections -Wl,--gc-sections" .. \
     && cmake --build . --config Release --target install \
+    && cd /build/modules \
+    && git clone --depth=10 --recurse-submodules https://${RESTY_GIT_MIRROR}/weserv/images.git ngx_http_weserv_module \
+    && cd ngx_http_weserv_module \
+    && mkdir build \
+    && cd build \
+    && cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOLS=ON -DINSTALL_NGX_MODULE=OFF \
+    && make -j${RESTY_J} \
+    && make install \
     && cd /build/modules \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_cache_purge.git ngx_http_cache_purge_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_access_control_module.git ngx_http_access_control_module \
@@ -402,6 +420,7 @@ RUN groupmod -n nginx www-data \
         wget \
         unzip \
         bison \
+        meson \
     && DEBIAN_FRONTEND=noninteractive apt-get autoremove -y \
     && DEBIAN_FRONTEND=noninteractive apt-get clean -y \
     && rm -rf /var/lib/apt/lists/* \
