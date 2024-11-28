@@ -148,6 +148,11 @@ RUN groupmod -n nginx www-data \
     && usermod -l nginx www-data \
     && echo "deb http://deb.debian.org/debian bookworm-backports main" > /etc/apt/sources.list.d/bookworm-backports.list \
     && DEBIAN_FRONTEND=noninteractive apt-get update \
+    &&  DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -t bookworm-backports \
+        libheif1 \
+        libheif-plugin-aomenc \
+        libheif-plugin-x265 \
+        libheif-dev \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         libgd3 \
         libgd-dev \
@@ -209,10 +214,6 @@ RUN groupmod -n nginx www-data \
         libopenjp2-7-dev \
         libjxl0.7 \
         libjxl-dev \
-        libheif1 \
-        libheif-plugin-aomenc \
-        libheif-plugin-x265 \
-        libheif-dev \
         libexpat1 \
         libexpat1-dev \
         libffi8 \
