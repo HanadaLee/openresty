@@ -148,7 +148,7 @@ RUN groupmod -n nginx www-data \
     && usermod -l nginx www-data \
     && echo "deb http://deb.debian.org/debian bookworm-backports main" > /etc/apt/sources.list.d/bookworm-backports.list \
     && DEBIAN_FRONTEND=noninteractive apt-get update \
-    &&  DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -t bookworm-backports \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -t bookworm-backports \
         libheif1 \
         libheif-plugin-aomenc \
         libheif-plugin-x265 \
@@ -206,8 +206,6 @@ RUN groupmod -n nginx www-data \
         liborc-0.4-dev \
         libcfitsio10 \
         libcfitsio-dev \
-        libnifti2-2 \
-        libnifti-dev \
         libopenexr-3-1-30 \
         libopenexr-dev \
         libopenjp2-7 \
@@ -481,7 +479,6 @@ RUN groupmod -n nginx www-data \
         libarchive-dev \
         librsvg2-dev \
         libopenexr-dev \
-        libnifti-dev \
         libcfitsio-dev \
         libcgif-dev \
         libexif-dev \
