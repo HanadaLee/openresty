@@ -25,7 +25,7 @@ build-amd64:
         -t "${IMAGE_NAME}:${TAG}-amd64" \
         .
     - >
-      docker push "${IMAGE_NAME}:${TAG}-amd64" || docker push "${IMAGE_NAME}:${TAG}-amd64"
+      docker push "${IMAGE_NAME}:${TAG}-amd64"
 
 build-arm64:
   stage: build
@@ -44,7 +44,7 @@ build-arm64:
         -t "${IMAGE_NAME}:${TAG}-arm64" \
         .
     - >
-      docker push "${IMAGE_NAME}:${TAG}-arm64" || docker push"${IMAGE_NAME}:${TAG}-arm64"
+      docker push "${IMAGE_NAME}:${TAG}-arm64"
 
 create-manifest:
   stage: manifest

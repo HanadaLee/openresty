@@ -202,13 +202,26 @@ RUN groupmod -n nginx www-data \
         libcfitsio-dev \
         libnifti2-2 \
         libnifti-dev \
-        libnifti2-dev \
         libopenexr-3-1-30 \
         libopenexr-dev \
         libopenjp2-7 \
         libopenjp2-7-dev \
         libjxl0.7 \
         libjxl-dev \
+        libheif1 \
+        libheif-plugin-aomenc \
+        libheif-plugin-x265 \
+        libheif-dev \
+        libexpat1 \
+        libexpat1-dev \
+        libffi8 \
+        libffi-dev \
+        libpng16-16 \
+        libpng-dev \
+        libtiff6 \
+        libtiff-dev \
+        libwebp7 \
+        libwebp-dev \
         meson \
     && ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && dpkg-reconfigure -f noninteractive tzdata \
@@ -467,7 +480,6 @@ RUN groupmod -n nginx www-data \
         librsvg2-dev \
         libopenexr-dev \
         libnifti-dev \
-        libnifti2-dev \
         libcfitsio-dev \
         libcgif-dev \
         libexif-dev \
@@ -480,6 +492,12 @@ RUN groupmod -n nginx www-data \
         libncurses5-dev \
         libgd-dev \
         libyaml-dev \
+        libheif-dev \
+        libexpat1-dev \
+        libffi-dev \
+        libpng-dev \
+        libtiff-dev \
+        libwebp-dev \
     && DEBIAN_FRONTEND=noninteractive apt-get autoremove -y \
     && DEBIAN_FRONTEND=noninteractive apt-get clean -y \
     && rm -rf /var/lib/apt/lists/* \
