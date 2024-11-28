@@ -23,8 +23,9 @@ build-amd64:
         --build-arg RESTY_VERSION="${RESTY_VERSION}" \
         --build-arg RESTY_RELEASE="${RESTY_RELEASE}" \
         -t "${IMAGE_NAME}:${TAG}-amd64" \
-        --push \
         .
+    - >
+      docker push "${IMAGE_NAME}:${TAG}-amd64" || docker push "${IMAGE_NAME}:${TAG}-amd64"
 
 build-arm64:
   stage: build
@@ -41,8 +42,9 @@ build-arm64:
         --build-arg RESTY_VERSION="${RESTY_VERSION}" \
         --build-arg RESTY_RELEASE="${RESTY_RELEASE}" \
         -t "${IMAGE_NAME}:${TAG}-arm64" \
-        --push \
         .
+    - >
+      docker push "${IMAGE_NAME}:${TAG}-arm64" || docker push"${IMAGE_NAME}:${TAG}-arm64"
 
 create-manifest:
   stage: manifest
