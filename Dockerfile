@@ -196,12 +196,12 @@ RUN groupmod -n nginx www-data \
         libspng-dev \
         libimagequant0 \
         libimagequant-dev \
-        libhighwayhash0 \
-        libhighwayhash-dev \
+        libhwy1 \
+        libhwy-dev \
         libcfitsio10 \
         libcfitsio-dev \
-        libniftiio2 \
-        libniftiio-dev \
+        libnifti2-2 \
+        libnifti2-dev \
         libopenexr-3-1-30 \
         libopenexr-dev \
         libopenjp2-7 \
@@ -465,11 +465,11 @@ RUN groupmod -n nginx www-data \
         libarchive-dev \
         librsvg2-dev \
         libopenexr-dev \
-        libniftiio-dev \
+        libnifti2-dev \
         libcfitsio-dev \
         libcgif-dev \
         libexif-dev \
-        libhighwayhash-dev \
+        libhwy-dev \
         libfftw3-dev \
         libspng-dev \
         libreadline-dev \
