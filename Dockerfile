@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.27.1.1"
-ARG RESTY_RELEASE="150"
+ARG RESTY_RELEASE="151"
 ARG RESTY_LUAROCKS_VERSION="3.11.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -150,6 +150,7 @@ RUN groupmod -n nginx www-data \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         libgd3 \
         libgd-dev \
+        libyaml-0-2 \
         libyaml-dev \
         tzdata \
         unzip \
@@ -160,9 +161,13 @@ RUN groupmod -n nginx www-data \
         bison \
         build-essential \
         gettext-base \
+        libncurses5 \
         libncurses5-dev \
+        libperl5.36 \
         libperl-dev \
+        libreadline8 \
         libreadline-dev \
+        libxslt1.1 \
         libxslt1-dev \
         make \
         perl \
@@ -176,19 +181,33 @@ RUN groupmod -n nginx www-data \
         libwebpmux3 \
         libwebpdemux2 \
         libexif12 \
+        libexif-dev \
         librsvg2-2 \
+        librsvg2-dev \
         libcgif0 \
+        libcgif-dev \
         libarchive13 \
-        libfftw3-long3 \
+        libarchive-dev \
+        libfftw3-dev \
+        libfftw3-double3 \
         liblcms2-2 \
+        liblcms2-dev \
         libspng0 \
+        libspng-dev \
         libimagequant0 \
+        libimagequant-dev \
         libhighwayhash0 \
+        libhighwayhash-dev \
         libcfitsio10 \
+        libcfitsio-dev \
         libniftiio2 \
+        libniftiio-dev \
         libopenexr-3-1-30 \
+        libopenexr-dev \
         libopenjp2-7 \
+        libopenjp2-7-dev \
         libjxl0.7 \
+        libjxl-dev \
         meson \
     && ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && dpkg-reconfigure -f noninteractive tzdata \
@@ -296,7 +315,6 @@ RUN groupmod -n nginx www-data \
     && cd /build/modules \
     && git clone --depth=10 --recurse-submodules https://${RESTY_GIT_MIRROR}/weserv/images.git ngx_http_weserv_module \
     && cd ngx_http_weserv_module \
-    && patch -p1 < /build/patches/openresty/patches/ngx_http_weserv_module_ext.patch \
     && mkdir build \
     && cd build \
     && cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOLS=ON -DINSTALL_NGX_MODULE=OFF \
@@ -441,6 +459,25 @@ RUN groupmod -n nginx www-data \
         bison \
         libglib2.0-dev \
         meson \
+        libopenjp2-7-dev \
+        libjxl-dev \
+        libimagequant-dev \
+        libarchive-dev \
+        librsvg2-dev \
+        libopenexr-dev \
+        libniftiio-dev \
+        libcfitsio-dev \
+        libcgif-dev \
+        libexif-dev \
+        libhighwayhash-dev \
+        libfftw3-dev \
+        libspng-dev \
+        libreadline-dev \
+        libxslt1-dev \
+        libperl-dev \
+        libncurses5-dev \
+        libgd-dev \
+        libyaml-dev \
     && DEBIAN_FRONTEND=noninteractive apt-get autoremove -y \
     && DEBIAN_FRONTEND=noninteractive apt-get clean -y \
     && rm -rf /var/lib/apt/lists/* \
