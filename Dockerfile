@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.27.1.1"
-ARG RESTY_RELEASE="149"
+ARG RESTY_RELEASE="150"
 ARG RESTY_LUAROCKS_VERSION="3.11.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -296,6 +296,7 @@ RUN groupmod -n nginx www-data \
     && cd /build/modules \
     && git clone --depth=10 --recurse-submodules https://${RESTY_GIT_MIRROR}/weserv/images.git ngx_http_weserv_module \
     && cd ngx_http_weserv_module \
+    && patch -p1 < /build/patches/openresty/patches/ngx_http_weserv_module_ext.patch \
     && mkdir build \
     && cd build \
     && cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOLS=ON -DINSTALL_NGX_MODULE=OFF \
