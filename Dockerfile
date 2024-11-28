@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.27.1.1"
-ARG RESTY_RELEASE="148"
+ARG RESTY_RELEASE="149"
 ARG RESTY_LUAROCKS_VERSION="3.11.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -175,6 +175,20 @@ RUN groupmod -n nginx www-data \
         libglib2.0-dev \
         libwebpmux3 \
         libwebpdemux2 \
+        libexif12 \
+        librsvg2-2 \
+        libcgif0 \
+        libarchive13 \
+        libfftw3-long3 \
+        liblcms2-2 \
+        libspng0 \
+        libimagequant0 \
+        libhighwayhash0 \
+        libcfitsio10 \
+        libniftiio2 \
+        libopenexr-3-1-30 \
+        libopenjp2-7 \
+        libjxl0.7 \
         meson \
     && ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && dpkg-reconfigure -f noninteractive tzdata \
