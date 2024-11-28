@@ -146,6 +146,7 @@ ENV TZ="Asia/Shanghai"
 
 RUN groupmod -n nginx www-data \
     && usermod -l nginx www-data \
+    && echo "deb http://deb.debian.org/debian bookworm-backports main" > /etc/apt/sources.list.d/bookworm-backports.list \
     && DEBIAN_FRONTEND=noninteractive apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         libgd3 \
