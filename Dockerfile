@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.27.1.1"
-ARG RESTY_RELEASE="151"
+ARG RESTY_RELEASE="152"
 ARG RESTY_LUAROCKS_VERSION="3.11.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -146,7 +146,7 @@ ENV TZ="Asia/Shanghai"
 
 RUN groupmod -n nginx www-data \
     && usermod -l nginx www-data \
-    && echo "deb http://deb.debian.org/debian bookworm-backports main" > /etc/apt/sources.list.d/bookworm-backports.list \
+    && echo "deb http://deb.debian.org/debian bookworm-backports main" > /etc/apt/sources.list.d/backports.list \
     && DEBIAN_FRONTEND=noninteractive apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -t bookworm-backports \
         libheif1 \
@@ -497,6 +497,7 @@ RUN groupmod -n nginx www-data \
         libpng-dev \
         libtiff-dev \
         libwebp-dev \
+        liblcms2-dev \
     && DEBIAN_FRONTEND=noninteractive apt-get autoremove -y \
     && DEBIAN_FRONTEND=noninteractive apt-get clean -y \
     && rm -rf /var/lib/apt/lists/* \
@@ -506,6 +507,7 @@ RUN groupmod -n nginx www-data \
     && rm -rf /usr/local/share/man/man3/* \
     && rm -rf /usr/local/share/doc/* \
     && rm -rf /usr/local/include/* \
+    && rm -rf /usr/local/bin/* \
     && rm -rf /var/cache/* \
     && rm -rf /var/log/apt/* \
     && rm -rf /var/log/*.log \
