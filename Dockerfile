@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.27.1.1"
-ARG RESTY_RELEASE="152"
+ARG RESTY_RELEASE="153"
 ARG RESTY_LUAROCKS_VERSION="3.11.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -98,7 +98,7 @@ ARG RESTY_CONFIG_OPTIONS_MORE="\
     --add-module=/build/modules/ngx_http_compress_vary_filter_module \
     --add-module=/build/modules/ngx_http_dechunk_module \
     --add-module=/build/modules/ngx_http_delay_module \
-    --add-module=/build/modules/ngx_http_extra_vars_module \
+    --add-module=/build/modules/ngx_http_extra_variables_module \
     --add-module=/build/modules/ngx_http_flv_live_module \
     --add-module=/build/modules/ngx_http_geoip2_module \
     --add-module=/build/modules/ngx_http_internal_auth_module \
@@ -112,7 +112,6 @@ ARG RESTY_CONFIG_OPTIONS_MORE="\
     --add-module=/build/modules/ngx_http_sorted_querystring_module \
     --add-module=/build/modules/ngx_http_unbrotli_filter_module \
     --add-module=/build/modules/ngx_http_unzstd_filter_module \
-    --add-module=/build/modules/ngx_http_upstream_cache_vars_module \
     --add-module=/build/modules/ngx_http_upstream_check_module \
     --add-module=/build/modules/ngx_http_upstream_log_module \
     --add-module=/build/modules/ngx_http_var_module \
@@ -344,7 +343,7 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/yaoweibin/nginx_upstream_check_module.git ngx_http_upstream_check_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_sorted_querystring_module.git ngx_http_sorted_querystring_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/openresty/replace-filter-nginx-module.git ngx_http_replace_filter_module \
-    && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_extra_vars_module.git ngx_http_extra_vars_module \
+    && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_extra_variables_module.git ngx_http_extra_variables_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/AlticeLabsProjects/lua-upstream-cache-nginx-module.git ngx_http_lua_cache_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/api7/lua-var-nginx-module.git ngx_http_lua_var_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_zstd_module.git ngx_http_zstd_module \
@@ -355,7 +354,6 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_unbrotli_filter_module.git ngx_http_unbrotli_filter_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_delay_module.git ngx_http_delay_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_internal_auth_module.git ngx_http_internal_auth_module \
-    && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_upstream_cache_vars_module.git ngx_http_upstream_cache_vars_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_upstream_log_module.git ngx_http_upstream_log_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_compress_normalize_module.git ngx_http_compress_normalize_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_compress_vary_filter_module.git ngx_http_compress_vary_filter_module \
@@ -381,12 +379,11 @@ RUN groupmod -n nginx www-data \
     && curl -fSL https://openresty.org/download/openresty-${RESTY_VERSION}.tar.gz -o openresty-${RESTY_VERSION}.tar.gz \
     && tar xzf openresty-${RESTY_VERSION}.tar.gz \
     && cd openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) \
+    && patch -p1 < /build/patches/openresty/patches/nginx_1.25.3+.patch \
     && patch -p1 < /build/modules/ngx_http_resty_request_id_module/ngx_http_resty_request_id_1.25.3+.patch \
-    && patch -p1 < /build/modules/ngx_http_extra_vars_module/ngx_http_extra_vars_1.25.3+.patch \
     && patch -p1 < /build/modules/ngx_http_upstream_log_module/ngx_http_upstream_log_1.25.3+.patch \
     && patch -p1 < /build/modules/ngx_http_upstream_check_module/check_1.20.1+.patch \
     && patch -p1 < /build/modules/ngx_http_proxy_connect_module/patch/proxy_connect_rewrite_102101.patch \
-    && patch -p1 < /build/patches/openresty/patches/nginx_1.25.3+.patch \
     && patch -p1 < /build/patches/ngx_http_tls_dyn_size/nginx__dynamic_tls_records_1.25.1+.patch \
     && sed -i "s/\(openresty\/.*\)\"/\1-${RESTY_RELEASE}\"/" src/core/nginx.h \
     && cd /build/openresty-${RESTY_VERSION}/bundle/ngx_lua-* \
