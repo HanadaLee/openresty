@@ -27,12 +27,6 @@ build-amd64:
         .
     - >
       docker push "${IMAGE_NAME}:${TAG}-amd64"
-    - >
-      docker login -u "${DOCKERHUB_USERNAME}" -p "${DOCKERHUB_PASSWORD}"
-    - >
-      docker tag "${IMAGE_NAME}:${TAG}-amd64" "${DOCKERHUB_IMAGE_NAME}:${TAG}-amd64"
-    - >
-      docker push "${DOCKERHUB_IMAGE_NAME}:${TAG}-amd64"
 
 build-arm64:
   stage: build
@@ -52,12 +46,6 @@ build-arm64:
         .
     - >
       docker push "${IMAGE_NAME}:${TAG}-arm64"
-    - >
-      docker login -u "${DOCKERHUB_USERNAME}" -p "${DOCKERHUB_PASSWORD}"
-    - >
-      docker tag "${IMAGE_NAME}:${TAG}-arm64" "${DOCKERHUB_IMAGE_NAME}:${TAG}-arm64"
-    - >
-      docker push "${DOCKERHUB_IMAGE_NAME}:${TAG}-arm64"
 
 create-manifest:
   stage: manifest
@@ -89,11 +77,19 @@ create-manifest:
     - >
       docker manifest push --purge "${IMAGE_NAME}"
     - >
-      docker login -u "${DOCKERHUB_USERNAME}" -p "${DOCKERHUB_PASSWORD}"
-    - > 
-      docker manifest inspect "${DOCKERHUB_IMAGE_NAME}:${TAG}-amd64" || exit 1
+      docker pull "${IMAGE_NAME}:${TAG}-amd64"
     - >
-      docker manifest inspect "${DOCKERHUB_IMAGE_NAME}:${TAG}-arm64" || exit 1
+      docker pull "${IMAGE_NAME}:${TAG}-arm64"
+    - >
+      docker login -u "${DOCKERHUB_USERNAME}" -p "${DOCKERHUB_PASSWORD}"
+    - >
+      docker tag "${IMAGE_NAME}:${TAG}-amd64" "${DOCKERHUB_IMAGE_NAME}:${TAG}-amd64"
+    - >
+      docker tag "${IMAGE_NAME}:${TAG}-arm64" "${DOCKERHUB_IMAGE_NAME}:${TAG}-arm64"
+    - >
+      docker push "${DOCKERHUB_IMAGE_NAME}:${TAG}-amd64"
+    - >
+      docker push "${DOCKERHUB_IMAGE_NAME}:${TAG}-arm64"
     - >
       docker manifest create --amend "${DOCKERHUB_IMAGE_NAME}:${TAG}" \
         --amend "${DOCKERHUB_IMAGE_NAME}:${TAG}-amd64" \
