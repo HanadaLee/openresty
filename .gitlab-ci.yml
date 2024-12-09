@@ -2,7 +2,6 @@ variables:
   RESTY_VERSION: 1.27.1.1
   RESTY_RELEASE: 155
   IMAGE_NAME: registry.hanada.info/hanada/openresty
-  DOCKERHUB_IMAGE_NAME: hanadalee/openresty
   TAG: ${RESTY_VERSION}-${RESTY_RELEASE}
 
 stages:
@@ -76,20 +75,3 @@ create-manifest:
         --amend "${IMAGE_NAME}:${TAG}-arm64"
     - >
       docker manifest push --purge "${IMAGE_NAME}"
-    - >
-      docker login -u "${DOCKERHUB_USERNAME}" -p "${DOCKERHUB_PASSWORD}"
-    - > 
-      docker manifest inspect "${IMAGE_NAME}:${TAG}-amd64" || exit 1
-    - >
-      docker manifest inspect "${IMAGE_NAME}:${TAG}-arm64" || exit 1
-    - >
-      docker manifest create --amend "${DOCKERHUB_IMAGE_NAME}:${TAG}" \
-        --amend "${IMAGE_NAME}:${TAG}-amd64" \
-        --amend "${IMAGE_NAME}:${TAG}-arm64"
-    - >
-      docker manifest push --purge "${DOCKERHUB_IMAGE_NAME}:${TAG}"
-
-    #- >
-    #  curl -u "${NEXUS_USERNAME}:${NEXUS_PASSWORD}" -X DELETE "https://registry.hanada.info/v2/hanada/openresty/manifests/$(docker inspect --format='{{index .RepoDigests 0}}' "${IMAGE_NAME}:${TAG}-amd64" | awk -F'@' '{print $2}')"
-    #- >
-    #  curl -u "${NEXUS_USERNAME}:${NEXUS_PASSWORD}" -X DELETE "https://registry.hanada.info/v2/hanada/openresty/manifests/$(docker inspect --format='{{index .RepoDigests 0}}' "${IMAGE_NAME}:${TAG}-arm64" | awk -F'@' '{print $2}')"
