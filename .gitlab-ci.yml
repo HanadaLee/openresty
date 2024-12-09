@@ -77,7 +77,7 @@ create-manifest:
     - >
       docker manifest push --purge "${IMAGE_NAME}"
     - >
-      docker login -u "{DOCKERHUB_USERNAME}" -p "${DOCKERHUB_PASSWORD}"
+      docker login -u "${DOCKERHUB_USERNAME}" -p "${DOCKERHUB_PASSWORD}"
     - > 
       docker manifest inspect "${IMAGE_NAME}:${TAG}-amd64" || exit 1
     - >
