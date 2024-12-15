@@ -162,6 +162,8 @@ RUN groupmod -n nginx www-data \
         wget \
         git \
         curl \
+        libcurl4 \
+        libcurl4-openssl-dev \
         ca-certificates \
         bison \
         build-essential \
@@ -508,6 +510,7 @@ RUN groupmod -n nginx www-data \
         flex \
         libmodsecurity-dev \
         libsodium-dev \
+        libcurl4-openssl-dev \
     && DEBIAN_FRONTEND=noninteractive apt-get autoremove -y \
     && DEBIAN_FRONTEND=noninteractive apt-get clean -y \
     && rm -rf /var/lib/apt/lists/* \
