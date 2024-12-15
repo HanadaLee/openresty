@@ -123,6 +123,7 @@ Listed below are all components currently bundled additionally with OpenResty. T
 * [ngx_http_upstream_check_module](https://github.com/yaoweibin/nginx_upstream_check_module)
 * [ngx_http_upstream_log_module](https://git.hanada.info/hanada/ngx_http_upstream_log_module)
 * [ngx_http_vhost_traffic_status_module](https://github.com/vozlt/nginx-module-vts)
+* [ngx_http_waf_module](https://github.com/ADD-SP/ngx_waf)
 * [ngx_http_weserv_module](https://github.com/weserv/images)
 * [ngx_http_zstd_module](https://git.hanada.info/hanada/ngx_http_zstd_module)
 * [luarocks](https://luarocks.org/)
