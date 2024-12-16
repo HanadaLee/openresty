@@ -462,7 +462,7 @@ index e6d2ec7..9b8a7d1 100644
      if (ngx_http_waf_is_unset_or_disable_value(loc_conf->waf_cc_deny_duration)
          || ngx_http_waf_is_unset_or_disable_value(loc_conf->waf_cc_deny_limit)
 diff --git a/src/ngx_http_waf_module_config.c b/src/ngx_http_waf_module_config.c
-index 27698fb..16ddf45 100644
+index 27698fb..4fb0a93 100644
 --- a/src/ngx_http_waf_module_config.c
 +++ b/src/ngx_http_waf_module_config.c
 @@ -170,7 +170,7 @@ char* ngx_http_waf_conf(ngx_conf_t* cf, ngx_command_t* cmd, void* conf) {
@@ -525,7 +525,7 @@ index 27698fb..16ddf45 100644
      child->parent = parent;
  
      ngx_conf_merge_value(child->waf, parent->waf, NGX_CONF_UNSET);
-+    ngx_conf_merge_ptr_value(conf->waf_bypass, prev->waf_bypass, NULL);
++    ngx_conf_merge_ptr_value(child->waf_bypass, parent->waf_bypass, NULL);
  
      ngx_conf_merge_ptr_value(child->white_ipv4, parent->white_ipv4, NULL);
      ngx_conf_merge_ptr_value(child->black_ipv4, parent->black_ipv4, NULL);
@@ -533,7 +533,7 @@ index 27698fb..16ddf45 100644
  
  
      ngx_conf_merge_value(child->waf_cc_deny, parent->waf_cc_deny, NGX_CONF_UNSET);
-+    ngx_conf_merge_ptr_value(conf->waf_cc_deny_bypass, prev->waf_cc_deny_bypass, NULL);
++    ngx_conf_merge_ptr_value(child->waf_cc_deny_bypass, parent->waf_cc_deny_bypass, NULL);
      ngx_conf_merge_value(child->waf_cc_deny_limit, parent->waf_cc_deny_limit, NGX_CONF_UNSET);
      ngx_conf_merge_value(child->waf_cc_deny_cycle, parent->waf_cc_deny_cycle, NGX_CONF_UNSET);
      ngx_conf_merge_value(child->waf_cc_deny_duration, parent->waf_cc_deny_duration, NGX_CONF_UNSET);
@@ -541,14 +541,14 @@ index 27698fb..16ddf45 100644
      
  
      ngx_conf_merge_value(child->waf_under_attack, parent->waf_under_attack, NGX_CONF_UNSET);
-+    ngx_conf_merge_ptr_value(conf->waf_under_attack_bypass, prev->waf_under_attack_bypass, NULL);
++    ngx_conf_merge_ptr_value(child->waf_under_attack_bypass, parent->waf_under_attack_bypass, NULL);
  
      if (child->waf_under_attack_html.data == NULL || child->waf_under_attack_html.len == 0) {
          ngx_memcpy(&(child->waf_under_attack_html), &(parent->waf_under_attack_html), sizeof(ngx_str_t));
      }
      
      ngx_conf_merge_value(child->waf_captcha, parent->waf_captcha, NGX_CONF_UNSET);
-+    ngx_conf_merge_ptr_value(conf->waf_captcha_bypass, prev->waf_captcha_bypass, NULL);
++    ngx_conf_merge_ptr_value(child->waf_captcha_bypass, parent->waf_captcha_bypass, NULL);
      ngx_conf_merge_value(child->waf_captcha_type, parent->waf_captcha_type, 0);
      ngx_conf_merge_value(child->waf_captcha_expire, parent->waf_captcha_expire, 60 * 30);
      ngx_conf_merge_value(child->waf_captcha_reCAPTCHAv3_score, parent->waf_captcha_reCAPTCHAv3_score, NGX_CONF_UNSET);
@@ -556,7 +556,7 @@ index 27698fb..16ddf45 100644
  
  
      ngx_conf_merge_value(child->waf_modsecurity, parent->waf_modsecurity, NGX_CONF_UNSET);
-+    ngx_conf_merge_ptr_value(conf->waf_modsecurity_bypass, prev->waf_modsecurity_bypass, NULL);
++    ngx_conf_merge_ptr_value(child->waf_modsecurity_bypass, parent->waf_modsecurity_bypass, NULL);
      ngx_conf_merge_ptr_value(child->modsecurity_instance, parent->modsecurity_instance, NULL);
      ngx_conf_merge_ptr_value(child->modsecurity_rules, parent->modsecurity_rules, NULL);
      ngx_conf_merge_ptr_value(child->waf_modsecurity_transaction_id, parent->waf_modsecurity_transaction_id, NULL);
