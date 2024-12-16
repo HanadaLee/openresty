@@ -287,7 +287,7 @@ index 7979db4..b834a06 100644
 +<!DOCTYPE html><html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1"><meta name="robots" content="noindex, nofollow"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><title>Attention Required</title><style type="text/css">body,html{width:100%;height:100%;margin:0;padding:0}body{background-color:#fff;font-family:Helvetica,Arial,sans-serif;font-size:100%}h1{font-size:1.5em;color:#404040;text-align:center}p{font-size:1em;color:#404040;text-align:center;margin:10px 0 0 0}#spinner{margin:0 auto 30px auto;display:block}.attribution{margin-top:20px}@-webkit-keyframes bubbles{33%:{-webkit-transform:translateY(10px);transform:translateY(10px)}66%{-webkit-transform:translateY(-10px);transform:translateY(-10px)}100%{-webkit-transform:translateY(0);transform:translateY(0)}}@keyframes bubbles{33%:{-webkit-transform:translateY(10px);transform:translateY(10px)}66%{-webkit-transform:translateY(-10px);transform:translateY(-10px)}100%{-webkit-transform:translateY(0);transform:translateY(0)}}.bubbles{background-color:#404040;width:15px;height:15px;margin:2px;border-radius:100%;-webkit-animation:bubbles .6s 70ms infinite ease-in-out;animation:bubbles .6s 70ms infinite ease-in-out;-webkit-animation-fill-mode:both;animation-fill-mode:both;display:inline-block}</style><script>setTimeout(() => {location.reload();}, 6000);</script></head><body><table width="100%" height="100%" cellpadding="20"><tbody><tr><td align="center" valign="middle"><div class="browser-verification im-under-attack"><div id="content"><div><div class="bubbles"></div><div class="bubbles"></div><div class="bubbles"></div></div><h1><div data-translate="checking_browser">Please wait while your request is being verified…</div></h1><p data-translate="process_is_automatic">This process is automatic. Your browser will redirect to you requested content shortly.</p><p data-translate="allow_5_secs">Please allow up to 5 seconds.</p></div></div></td></tr></tbody></table></body></html>
 \ No newline at end of file
 diff --git a/inc/ngx_http_waf_module_data.h b/inc/ngx_http_waf_module_data.h
-index 77ff29b..1918a34 100644
+index 77ff29b..5f85bf3 100644
 --- a/inc/ngx_http_waf_module_data.h
 +++ b/inc/ngx_http_waf_module_data.h
 @@ -1,22 +1,22 @@
@@ -315,7 +315,7 @@ index 77ff29b..1918a34 100644
  
  
 -extern unsigned char ngx_http_waf_data_html_block[377];
-+extern unsigned char ngx_http_waf_data_html_block[1250];
++extern unsigned char ngx_http_waf_data_html_block[1332];
  
  
  #ifndef NGX_HTTP_WAF_NO_EASTER_EGG
@@ -680,10 +680,10 @@ index 715b23d..c1f92b7 100644
          ngx_http_waf_dp(r, "allocating memory to storage ctx");
  
 diff --git a/src/ngx_http_waf_module_data.c b/src/ngx_http_waf_module_data.c
-index d6f9592..bfaacc8 100644
+index d6f9592..994361c 100644
 --- a/src/ngx_http_waf_module_data.c
 +++ b/src/ngx_http_waf_module_data.c
-@@ -1,634 +1,794 @@
+@@ -1,634 +1,800 @@
  #include <ngx_http_waf_module_data.h>
  
 -unsigned char ngx_http_waf_data_html_under_attack[555] = {
@@ -1983,7 +1983,7 @@ index d6f9592..bfaacc8 100644
 -	0xE3, 0x80, 0x82, 0x0A, 0x20, 0x20, 0x20, 0x20, 0x3C, 0x2F, 0x68, 0x31,
 -	0x3E, 0x0A, 0x3C, 0x2F, 0x62, 0x6F, 0x64, 0x79, 0x3E, 0x0A, 0x3C, 0x2F,
 -	0x68, 0x74, 0x6D, 0x6C, 0x3E
-+unsigned char ngx_http_waf_data_html_block[1250] = {
++unsigned char ngx_http_waf_data_html_block[1332] = {
 +    0x3C, 0x21, 0x44, 0x4F, 0x43, 0x54, 0x59, 0x50, 0x45, 0x20, 0x68, 0x74,
 +    0x6D, 0x6C, 0x3E, 0x3C, 0x68, 0x74, 0x6D, 0x6C, 0x3E, 0x3C, 0x68, 0x65,
 +    0x61, 0x64, 0x3E, 0x3C, 0x6D, 0x65, 0x74, 0x61, 0x20, 0x68, 0x74, 0x74,
@@ -2088,11 +2088,17 @@ index d6f9592..bfaacc8 100644
 +    0x64, 0x20, 0x74, 0x68, 0x65, 0x20, 0x73, 0x65, 0x63, 0x75, 0x72, 0x69,
 +    0x74, 0x79, 0x20, 0x73, 0x6F, 0x6C, 0x75, 0x74, 0x69, 0x6F, 0x6E, 0x2E,
 +    0x3C, 0x2F, 0x70, 0x3E, 0x3C, 0x70, 0x3E, 0x59, 0x6F, 0x75, 0x20, 0x63,
-+    0x61, 0x6E
++    0x61, 0x6E, 0x20, 0x63, 0x6F, 0x6E, 0x74, 0x61, 0x63, 0x74, 0x20, 0x74,
++    0x68, 0x65, 0x20, 0x73, 0x69, 0x74, 0x65, 0x20, 0x6F, 0x77, 0x6E, 0x65,
++    0x72, 0x20, 0x74, 0x6F, 0x20, 0x6C, 0x65, 0x74, 0x20, 0x74, 0x68, 0x65,
++    0x6D, 0x20, 0x6B, 0x6E, 0x6F, 0x77, 0x20, 0x79, 0x6F, 0x75, 0x20, 0x77,
++    0x65, 0x72, 0x65, 0x20, 0x62, 0x6C, 0x6F, 0x63, 0x6B, 0x65, 0x64, 0x2E,
++    0x3C, 0x2F, 0x70, 0x3E, 0x3C, 0x2F, 0x64, 0x69, 0x76, 0x3E, 0x3C, 0x2F,
++    0x62, 0x6F, 0x64, 0x79, 0x3E, 0x3C, 0x2F, 0x68, 0x74, 0x6D, 0x6C, 0x3E
  };
  
  
-@@ -636,23903 +796,23903 @@ unsigned char ngx_http_waf_data_html_block[377] = {
+@@ -636,23903 +802,23903 @@ unsigned char ngx_http_waf_data_html_block[377] = {
  
  
  unsigned char ngx_http_waf_data_ascii_art_nico[5477] = {
