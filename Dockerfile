@@ -517,7 +517,7 @@ RUN groupmod -n nginx www-data \
         libcurl4-openssl-dev \
     && DEBIAN_FRONTEND=noninteractive apt-get autoremove -y \
     && DEBIAN_FRONTEND=noninteractive apt-get clean -y \
-    && cat /build/openresty/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6)/objs/ngx_modules.c \
+    && cat /build/openresty/objs/ngx_modules.c \
     && rm -rf /build \
     && rm -rf /var/lib/apt/lists/* \
     && rm -rf /usr/local/lib/* \
