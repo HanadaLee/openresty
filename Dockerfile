@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.27.1.1"
-ARG RESTY_RELEASE="161"
+ARG RESTY_RELEASE="162"
 ARG RESTY_LUAROCKS_VERSION="3.11.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -110,6 +110,7 @@ ARG RESTY_CONFIG_OPTIONS_MORE="\
     --add-module=/build/modules/ngx_http_rewrite_status_filter_module \
     --add-module=/build/modules/ngx_http_server_redirect_module \
     --add-module=/build/modules/ngx_http_sorted_querystring_module \
+    --add-module=/build/modules/ngx_http_trim_filter_module \
     --add-module=/build/modules/ngx_http_unbrotli_filter_module \
     --add-module=/build/modules/ngx_http_unzstd_filter_module \
     --add-module=/build/modules/ngx_http_upstream_check_module \
@@ -376,6 +377,7 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/Kong/lua-resty-events.git ngx_lua_events_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/alibaba/tengine.git tengine \
     && mv tengine/modules/ngx_backtrace_module ngx_backtrace_module \
+    && mv tengine/modules/ngx_http_trim_filter_module ngx_http_trim_filter_module \
     && rm -rf tengine \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/soulteary/ngx_http_qrcode_module.git ngx_http_qrcode_module_full \
     && mv ngx_http_qrcode_module_full/src ngx_http_qrcode_module \

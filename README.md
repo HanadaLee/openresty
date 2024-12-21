@@ -118,6 +118,7 @@ Listed below are all components currently bundled additionally with OpenResty. T
 * [ngx_http_replace_filter_module](https://github.com/openresty/replace-filter-nginx-module)
 * [ngx_http_server_redirect_module](https://git.hanada.info/hanada/ngx_http_server_redirect_module)
 * [ngx_http_sorted_querystring_module](https://git.hanada.info/hanada/ngx_http_sorted_querystring_module)
+* [ngx_http_trim_filter_module](https://github.com/alibaba/tengine/tree/master/modules/ngx_http_trim_filter_module)
 * [ngx_http_unbrotli_filter_module](https://git.hanada.info/hanada/ngx_http_unbrotli_filter_module)
 * [ngx_http_unzstd_filter_module](https://git.hanada.info/hanada/ngx_http_unzstd_filter_module)
 * [ngx_http_upstream_cache_vars_module](https://git.hanada.info/hanada/ngx_http_upstream_cache_vars_module)
