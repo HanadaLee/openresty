@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.27.1.1"
-ARG RESTY_RELEASE="162"
+ARG RESTY_RELEASE="163"
 ARG RESTY_LUAROCKS_VERSION="3.11.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -96,7 +96,6 @@ ARG RESTY_CONFIG_OPTIONS_MORE="\
     --add-module=/build/modules/ngx_http_cache_purge_module \
     --add-module=/build/modules/ngx_http_compress_normalize_module \
     --add-module=/build/modules/ngx_http_compress_vary_filter_module \
-    --add-module=/build/modules/ngx_http_dechunk_module \
     --add-module=/build/modules/ngx_http_delay_module \
     --add-module=/build/modules/ngx_http_extra_variables_module \
     --add-module=/build/modules/ngx_http_flv_live_module \
@@ -111,6 +110,7 @@ ARG RESTY_CONFIG_OPTIONS_MORE="\
     --add-module=/build/modules/ngx_http_server_redirect_module \
     --add-module=/build/modules/ngx_http_sorted_querystring_module \
     --add-module=/build/modules/ngx_http_trim_filter_module \
+    --add-module=/build/modules/ngx_http_cache_dechunk_filter_module \
     --add-module=/build/modules/ngx_http_unbrotli_filter_module \
     --add-module=/build/modules/ngx_http_unzstd_filter_module \
     --add-module=/build/modules/ngx_http_upstream_check_module \
@@ -362,7 +362,7 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/api7/lua-var-nginx-module.git ngx_http_lua_var_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_zstd_module.git ngx_http_zstd_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_unzstd_filter_module.git ngx_http_unzstd_filter_module \
-    && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_dechunk_module.git ngx_http_dechunk_module \
+    && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_cache_dechunk_filter_module.git ngx_http_cache_dechunk_filter_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_resty_request_id_module.git ngx_http_resty_request_id_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/chobits/ngx_http_proxy_connect_module.git ngx_http_proxy_connect_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_unbrotli_filter_module.git ngx_http_unbrotli_filter_module \
@@ -517,8 +517,9 @@ RUN groupmod -n nginx www-data \
         libcurl4-openssl-dev \
     && DEBIAN_FRONTEND=noninteractive apt-get autoremove -y \
     && DEBIAN_FRONTEND=noninteractive apt-get clean -y \
-    && rm -rf /var/lib/apt/lists/* \
+    && cat /build/openresty/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6)/objs/ngx_modules.c \
     && rm -rf /build \
+    && rm -rf /var/lib/apt/lists/* \
     && rm -rf /usr/local/lib/* \
     && rm -rf /usr/local/share/man/man1/* \
     && rm -rf /usr/local/share/man/man3/* \
