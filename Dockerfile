@@ -283,7 +283,7 @@ RUN groupmod -n nginx www-data \
         && curl -fSL https://raw.githubusercontent.com/openresty/openresty/ed328977028c3ec3033bc25873ee360056e247cd/patches/openssl-1.1.0j-parallel_build_fix.patch | patch -p1 \
         && curl -fSL https://raw.githubusercontent.com/openresty/openresty/master/patches/openssl-${RESTY_OPENSSL_PATCH_VERSION}-sess_set_get_cb_yield.patch | patch -p1 ; \
     fi \
-    && patch -p1 < /build/patches/ngx_ssl_fingerprint_module_quictls_1.1.1.patch \
+    && patch -p1 < /build/patches/openresty/patches/ngx_ssl_fingerprint_module_quictls_1.1.1.patch \
     && ./config \
         ${RESTY_OPENSSL_BUILD_OPTIONS} \
     && make -j${RESTY_J} \
