@@ -409,3 +409,57 @@ Sets the maximum length of a response that will be compressed. The length is det
 * **Context:** *http, server, location*
 
 Defines conditions under which the response will be compressed. If at least one value of the string parameters is not empty and is not equal to “0” then the response will not be compressed.
+
+## ngx_http_waf_module (Third-party Module)
+
+refer to [ngx_waf](https://github.com/ADD-SP/ngx_waf/tree/current).
+
+This patch makes some changes to this module, mainly adding more switches for fine-grained control of WAF behavior. In addition, it also changes the appearance of the default challenge or error page and the path where the configuration file is read.
+
+* **Syntax:** *waf_bypass string ...;*
+
+* **Default:** *—*
+
+* **Context:** *http, server, location*
+
+Defines conditions under which the request will be checked by waf. If at least one value of the string parameters is not empty and is not equal to “0” then the request will be checked by waf.
+
+
+* **Syntax:** *waf_cc_deny_bypass string ...;*
+
+* **Default:** *—*
+
+* **Context:** *http, server, location*
+
+Defines conditions under which the request will be checked by waf cc deny function. If at least one value of the string parameters is not empty and is not equal to “0” then the request will be checked by waf cc deny function.
+
+
+* **Syntax:** *waf_under_attack_bypass string ...;*
+
+* **Default:** *—*
+
+* **Context:** *http, server, location*
+
+Defines conditions under which the request will be checked by waf under attack function. If at least one value of the string parameters is not empty and is not equal to “0” then the request will be checked by waf under attack function.
+
+* **Syntax:** *waf_captcha_bypass string ...;*
+
+* **Default:** *—*
+
+* **Context:** *http, server, location*
+
+Defines conditions under which the request will be checked by waf captcha function. If at least one value of the string parameters is not empty and is not equal to “0” then the request will be checked by waf captcha function.
+
+* **Syntax:** *waf_modsecurity_bypass string ...;*
+
+* **Default:** *—*
+
+* **Context:** *http, server, location*
+
+Defines conditions under which the request will be checked by waf modsecurity function. If at least one value of the string parameters is not empty and is not equal to “0” then the request will be checked by waf modsecurity function.
+
+## ngx_ssl_fingerprint_module (Third-party Module)
+
+refer to [ngx_waf](https://github.com/macskas/nginx-ssl-fingerprint).
+
+This patch changes variable names to avoid potential conflicts with $http_ prefixed variables.

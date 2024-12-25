@@ -1,0 +1,152 @@
+diff --git a/.github/workflows/performance.yml b/.github/workflows/performance.yml
+index 14d8a5b..dfc8f2d 100644
+--- a/.github/workflows/performance.yml
++++ b/.github/workflows/performance.yml
+@@ -33,7 +33,7 @@ jobs:
+                   ssl_certificate_key    "data:-----BEGIN EC PARAMETERS-----\nBggqhkjOPQMBBw==\n-----END EC PARAMETERS-----\n-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEIL02pwZutbzkmdIM0QpvD7W3pcL2dGaeWrbQ8pNCHPFeoAoGCCqGSM49\nAwEHoUQDQgAE0Jektzpg3tJx3iPU05WwG4GweCwGWv87kkZQGB+6vG/kQQeOhnZ7\n7TCroQgY4ZVnBRZTD0lvxSyR6rwt3lWQ4A==\n-----END EC PRIVATE KEY-----\n";
+                   ssl_certificate        "data:-----BEGIN CERTIFICATE-----\nMIIBtjCCAV2gAwIBAgIUN/O0uv7B+18ohuf05ygsoC82liswCgYIKoZIzj0EAwIw\nMTELMAkGA1UEBhMCVVMxDDAKBgNVBAsMA1dlYjEUMBIGA1UEAwwLZXhhbXBsZS5v\ncmcwHhcNMjIwNzI4MTgzMzA2WhcNMjMwNzI5MTgzMzA2WjAxMQswCQYDVQQGEwJV\nUzEMMAoGA1UECwwDV2ViMRQwEgYDVQQDDAtleGFtcGxlLm9yZzBZMBMGByqGSM49\nAgEGCCqGSM49AwEHA0IABNCXpLc6YN7Scd4j1NOVsBuBsHgsBlr/O5JGUBgfurxv\n5EEHjoZ2e+0wq6EIGOGVZwUWUw9Jb8Uskeq8Ld5VkOCjUzBRMB0GA1UdDgQWBBSH\n9cc3JRcpyPh3nEa41Ux6RDGjLTAfBgNVHSMEGDAWgBSH9cc3JRcpyPh3nEa41Ux6\nRDGjLTAPBgNVHRMBAf8EBTADAQH/MAoGCCqGSM49BAMCA0cAMEQCIChRR5U7MMYQ\ntMK0zhNnt2SqRy30VcPIm9qoEms5cNxdAiBb273P7vSkj/PmDd1WsFVkg9NymBaT\n0nsIem2LKav60g==\n-----END CERTIFICATE-----\n";
+                   default_type           "application/json";
+-                  return                 200 "#____________________________http2_fingerprint\n#__________________________________________________________________________________________________________________________________________________________________________________________________________________________http_ssl_ja3\nPADDING PADDING PADDING PADDINGPADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING\n";
++                  return                 200 "#____________________________http2_fingerprint\n#__________________________________________________________________________________________________________________________________________________________________________________________________________________________ssl_fingerprint_ja3\nPADDING PADDING PADDING PADDINGPADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING PADDING\n";
+               }
+           }
+           EOF
+diff --git a/README.md b/README.md
+index 8b8e1a5..a6919d6 100644
+--- a/README.md
++++ b/README.md
+@@ -21,12 +21,12 @@ A high performance nginx module for ja3 and http2 fingerprint.
+ 
+ ### HTTP module variables
+ 
+-| Name              | Default Value | Comments                 |
+-| ----------------- | ------------- | ------------------------ |
+-| http_ssl_greased  | 0             | TLS greased flag.        |
+-| http_ssl_ja3      | NULL          | The ja3 fingerprint.     |
+-| http_ssl_ja3_hash | NULL          | The ja3 fingerprint hash.|
+-| http2_fingerprint | NULL          | The http2 fingerprint.   |
++| Name                     | Default Value | Comments                 |
++| ------------------------ | ------------- | ------------------------ |
++| ssl_greased              | 0             | TLS greased flag.        |
++| ssl_fingerprint_ja3      | NULL          | The ja3 fingerprint.     |
++| ssl_fingerprint_ja3_hash | NULL          | The ja3 fingerprint hash.|
++| http2_fingerprint        | NULL          | The http2 fingerprint.   |
+ 
+ #### Example
+ 
+@@ -37,18 +37,18 @@ http {
+         ssl_certificate        cert.pem;
+         ssl_certificate_key    priv.key;
+         error_log              /dev/stderr debug;
+-        return                 200 "ja3: $http_ssl_ja3\nh2fp: $http2_fingerprint";
++        return                 200 "ja3: $ssl_fingerprint_ja3\nh2fp: $http2_fingerprint";
+     }
+ }
+ ```
+ 
+ ### Stream module variables
+ 
+-| Name                | Default Value | Comments                 |
+-| ------------------- | ------------- | ------------------------ |
+-| stream_ssl_greased  | 0             | TLS greased flag.        |
+-| stream_ssl_ja3      | NULL          | The ja3 fingerprint.     |
+-| stream_ssl_ja3_hash | NULL          | The ja3 fingerprint hash.|
++| Name                     | Default Value | Comments                 |
++| ------------------------ | ------------- | ------------------------ |
++| ssl_greased              | 0             | TLS greased flag.        |
++| ssl_fingerprint_ja3      | NULL          | The ja3 fingerprint.     |
++| ssl_fingerprint_ja3_hash | NULL          | The ja3 fingerprint hash.|
+ 
+ #### Example
+ 
+@@ -59,7 +59,7 @@ stream {
+         ssl_certificate        cert.pem;
+         ssl_certificate_key    priv.key;
+         error_log              /dev/stderr debug;
+-        return                 "ja3: $stream_ssl_ja3\n";
++        return                 "ja3: $ssl_fingerprint_ja3\n";
+     }
+ }
+ ```
+diff --git a/nginx.conf b/nginx.conf
+index efd31f7..b6357e8 100644
+--- a/nginx.conf
++++ b/nginx.conf
+@@ -8,23 +8,23 @@ events {
+ }
+ 
+ http {
+-    log_format basic '$remote_addr ja3: $http_ssl_ja3 greased: $http_ssl_greased h2fp: $http2_fingerprint';
++    log_format basic '$remote_addr ja3: $ssl_fingerprint_ja3 greased: $ssl_greased h2fp: $http2_fingerprint';
+     server {
+         listen                 0.0.0.0:4433 ssl http2;
+         access_log             /dev/stdout basic;
+         ssl_certificate_key    "data:-----BEGIN EC PARAMETERS-----\nBggqhkjOPQMBBw==\n-----END EC PARAMETERS-----\n-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEIL02pwZutbzkmdIM0QpvD7W3pcL2dGaeWrbQ8pNCHPFeoAoGCCqGSM49\nAwEHoUQDQgAE0Jektzpg3tJx3iPU05WwG4GweCwGWv87kkZQGB+6vG/kQQeOhnZ7\n7TCroQgY4ZVnBRZTD0lvxSyR6rwt3lWQ4A==\n-----END EC PRIVATE KEY-----\n";
+         ssl_certificate        "data:-----BEGIN CERTIFICATE-----\nMIIBtjCCAV2gAwIBAgIUN/O0uv7B+18ohuf05ygsoC82liswCgYIKoZIzj0EAwIw\nMTELMAkGA1UEBhMCVVMxDDAKBgNVBAsMA1dlYjEUMBIGA1UEAwwLZXhhbXBsZS5v\ncmcwHhcNMjIwNzI4MTgzMzA2WhcNMjMwNzI5MTgzMzA2WjAxMQswCQYDVQQGEwJV\nUzEMMAoGA1UECwwDV2ViMRQwEgYDVQQDDAtleGFtcGxlLm9yZzBZMBMGByqGSM49\nAgEGCCqGSM49AwEHA0IABNCXpLc6YN7Scd4j1NOVsBuBsHgsBlr/O5JGUBgfurxv\n5EEHjoZ2e+0wq6EIGOGVZwUWUw9Jb8Uskeq8Ld5VkOCjUzBRMB0GA1UdDgQWBBSH\n9cc3JRcpyPh3nEa41Ux6RDGjLTAfBgNVHSMEGDAWgBSH9cc3JRcpyPh3nEa41Ux6\nRDGjLTAPBgNVHRMBAf8EBTADAQH/MAoGCCqGSM49BAMCA0cAMEQCIChRR5U7MMYQ\ntMK0zhNnt2SqRy30VcPIm9qoEms5cNxdAiBb273P7vSkj/PmDd1WsFVkg9NymBaT\n0nsIem2LKav60g==\n-----END CERTIFICATE-----\n";
+-        return                 200 "ja3: $http_ssl_ja3 ja3_hash: $http_ssl_ja3_hash greased: $http_ssl_greased h2fp: $http2_fingerprint\n";
++        return                 200 "ja3: $ssl_fingerprint_ja3 ja3_hash: $ssl_fingerprint_ja3_hash greased: $ssl_greased h2fp: $http2_fingerprint\n";
+     }
+ }
+ 
+ stream {
+-    log_format basic '$remote_addr ja3: $stream_ssl_ja3 greased: $stream_ssl_greased';
++    log_format basic '$remote_addr ja3: $ssl_fingerprint_ja3 greased: $ssl_greased';
+     server {
+         listen                 0.0.0.0:4443 ssl;
+         access_log             /dev/stdout basic;
+         ssl_certificate_key    "data:-----BEGIN EC PARAMETERS-----\nBggqhkjOPQMBBw==\n-----END EC PARAMETERS-----\n-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEIL02pwZutbzkmdIM0QpvD7W3pcL2dGaeWrbQ8pNCHPFeoAoGCCqGSM49\nAwEHoUQDQgAE0Jektzpg3tJx3iPU05WwG4GweCwGWv87kkZQGB+6vG/kQQeOhnZ7\n7TCroQgY4ZVnBRZTD0lvxSyR6rwt3lWQ4A==\n-----END EC PRIVATE KEY-----\n";
+         ssl_certificate        "data:-----BEGIN CERTIFICATE-----\nMIIBtjCCAV2gAwIBAgIUN/O0uv7B+18ohuf05ygsoC82liswCgYIKoZIzj0EAwIw\nMTELMAkGA1UEBhMCVVMxDDAKBgNVBAsMA1dlYjEUMBIGA1UEAwwLZXhhbXBsZS5v\ncmcwHhcNMjIwNzI4MTgzMzA2WhcNMjMwNzI5MTgzMzA2WjAxMQswCQYDVQQGEwJV\nUzEMMAoGA1UECwwDV2ViMRQwEgYDVQQDDAtleGFtcGxlLm9yZzBZMBMGByqGSM49\nAgEGCCqGSM49AwEHA0IABNCXpLc6YN7Scd4j1NOVsBuBsHgsBlr/O5JGUBgfurxv\n5EEHjoZ2e+0wq6EIGOGVZwUWUw9Jb8Uskeq8Ld5VkOCjUzBRMB0GA1UdDgQWBBSH\n9cc3JRcpyPh3nEa41Ux6RDGjLTAfBgNVHSMEGDAWgBSH9cc3JRcpyPh3nEa41Ux6\nRDGjLTAPBgNVHRMBAf8EBTADAQH/MAoGCCqGSM49BAMCA0cAMEQCIChRR5U7MMYQ\ntMK0zhNnt2SqRy30VcPIm9qoEms5cNxdAiBb273P7vSkj/PmDd1WsFVkg9NymBaT\n0nsIem2LKav60g==\n-----END CERTIFICATE-----\n";
+-        return                 "HTTP/1.1 200 OK\r\n\r\nja3: $stream_ssl_ja3 ja3_hash: $stream_ssl_ja3_hash greased: $stream_ssl_greased\n";
++        return                 "HTTP/1.1 200 OK\r\n\r\nja3: $ssl_fingerprint_ja3 ja3_hash: $ssl_fingerprint_ja3_hash greased: $ssl_greased\n";
+     }
+ }
+diff --git a/src/ngx_http_ssl_fingerprint_module.c b/src/ngx_http_ssl_fingerprint_module.c
+index 5166096..9d7921f 100644
+--- a/src/ngx_http_ssl_fingerprint_module.c
++++ b/src/ngx_http_ssl_fingerprint_module.c
+@@ -153,15 +153,15 @@ ngx_http_http2_fingerprint(ngx_http_request_t *r,
+ }
+ 
+ static ngx_http_variable_t ngx_http_ssl_fingerprint_variables_list[] = {
+-    {ngx_string("http_ssl_greased"),
++    {ngx_string("ssl_greased"),
+      NULL,
+      ngx_http_ssl_greased,
+      0, 0, 0},
+-    {ngx_string("http_ssl_ja3"),
++    {ngx_string("ssl_fingerprint_ja3"),
+      NULL,
+      ngx_http_ssl_fingerprint,
+      0, 0, 0},
+-    {ngx_string("http_ssl_ja3_hash"),
++    {ngx_string("ssl_fingerprint_ja3_hash"),
+      NULL,
+      ngx_http_ssl_fingerprint_hash,
+      0, 0, 0},
+diff --git a/src/ngx_stream_ssl_fingerprint_preread_module.c b/src/ngx_stream_ssl_fingerprint_preread_module.c
+index 46b5186..663f53f 100644
+--- a/src/ngx_stream_ssl_fingerprint_preread_module.c
++++ b/src/ngx_stream_ssl_fingerprint_preread_module.c
+@@ -119,19 +119,19 @@ ngx_stream_ssl_fingerprint_hash(ngx_stream_session_t *s,
+ 
+ static ngx_stream_variable_t  ngx_stream_ssl_ja3_variables_list[] = {
+ 
+-    {   ngx_string("stream_ssl_greased"),
++    {   ngx_string("ssl_greased"),
+         NULL,
+         ngx_stream_ssl_greased,
+         0, 0, 0
+     },
+ 
+-    {   ngx_string("stream_ssl_ja3"),
++    {   ngx_string("ssl_fingerprint_ja3"),
+         NULL,
+         ngx_stream_ssl_fingerprint,
+         0, 0, 0
+     },
+ 
+-    {   ngx_string("stream_ssl_ja3_hash"),
++    {   ngx_string("ssl_fingerprint_ja3_hash"),
+         NULL,
+         ngx_stream_ssl_fingerprint_hash,
+         0, 0, 0
