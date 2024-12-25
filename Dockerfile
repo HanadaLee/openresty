@@ -358,7 +358,7 @@ RUN groupmod -n nginx www-data \
     && patch -p1 < /build/patches/openresty/patches/ngx_ssl_fingerprint_module_ext.patch \
     && cd /build/modules \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_cache_purge.git ngx_http_cache_purge_module \
-    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_http_limit_traffic_ratefilter_module.git ngx_http_limit_traffic_rate_filter_module \
+    && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_limit_traffic_rate_filter_module.git ngx_http_limit_traffic_rate_filter_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_access_control_module.git ngx_http_access_control_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_aws_auth_module.git ngx_http_aws_auth_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/leev/ngx_http_geoip2_module.git ngx_http_geoip2_module \
