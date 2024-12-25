@@ -286,6 +286,7 @@ RUN groupmod -n nginx www-data \
     && patch -p1 < /build/patches/openresty/patches/ngx_ssl_fingerprint_module_quictls_1.1.1.patch \
     && ./config \
         ${RESTY_OPENSSL_BUILD_OPTIONS} \
+    && make update \
     && make -j${RESTY_J} \
     && make install_sw \
     && cd /build/lib \
