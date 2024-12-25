@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.27.1.1"
-ARG RESTY_RELEASE="166"
+ARG RESTY_RELEASE="167"
 ARG RESTY_LUAROCKS_VERSION="3.11.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -90,7 +90,6 @@ ARG RESTY_CONFIG_OPTIONS="\
 ARG RESTY_CONFIG_OPTIONS_MORE="\
     --add-module=/build/modules/ngx_backtrace_module \
     --add-module=/build/modules/ngx_lua_events_module \
-    --add-module=/build/modules/ngx_ssl_fingerprint_module \
     --add-module=/build/modules/ngx_http_access_control_module \
     --add-module=/build/modules/ngx_http_aws_auth_module \
     --add-module=/build/modules/ngx_http_brotli_module \
@@ -236,6 +235,9 @@ RUN groupmod -n nginx www-data \
     && ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && dpkg-reconfigure -f noninteractive tzdata \
     && mkdir -p /build/lib /build/patches /build/modules /build/lualib \
+    && cd /build/patches \
+    && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/openresty.git openresty \
+    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_http_tls_dyn_size.git ngx_http_tls_dyn_size \
     && cd /build/lib \
     && curl -fSL https://${RESTY_GIT_MIRROR}/jemalloc/jemalloc/releases/download/${RESTY_JEMALLOC_VERSION}/jemalloc-${RESTY_JEMALLOC_VERSION}.tar.bz2 -o jemalloc-${RESTY_JEMALLOC_VERSION}.tar.bz2 \
     && tar xjf jemalloc-${RESTY_JEMALLOC_VERSION}.tar.bz2 \
@@ -265,9 +267,6 @@ RUN groupmod -n nginx www-data \
     && ./configure \
     && make -j${RESTY_J} \
     && make install \
-    && cd /build/patches \
-    && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/openresty.git openresty \
-    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_http_tls_dyn_size.git ngx_http_tls_dyn_size \
     && cd /build/lib \
     && openssl_version_path=`echo -n ${RESTY_OPENSSL_VERSION} | sed 's/\./_/g'` \
     && curl -fSL https://${RESTY_GIT_MIRROR}/quictls/openssl/archive/refs/tags/OpenSSL_${openssl_version_path}.tar.gz -o OpenSSL_${openssl_version_path}.tar.gz \
@@ -283,7 +282,6 @@ RUN groupmod -n nginx www-data \
         && curl -fSL https://raw.githubusercontent.com/openresty/openresty/ed328977028c3ec3033bc25873ee360056e247cd/patches/openssl-1.1.0j-parallel_build_fix.patch | patch -p1 \
         && curl -fSL https://raw.githubusercontent.com/openresty/openresty/master/patches/openssl-${RESTY_OPENSSL_PATCH_VERSION}-sess_set_get_cb_yield.patch | patch -p1 ; \
     fi \
-    && patch -p1 < /build/patches/openresty/patches/ngx_ssl_fingerprint_module_quictls_1.1.1.patch \
     && ./config \
         ${RESTY_OPENSSL_BUILD_OPTIONS} \
     && make update \
@@ -353,10 +351,6 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=10 --branch v1.7.16 https://${RESTY_GIT_MIRROR}/DaveGamble/cJSON.git lib/cjson \
     && git clone --depth=10 --branch v2.3.0 https://${RESTY_GIT_MIRROR}/troydhanson/uthash.git lib/uthash \
     && cd /build/modules \
-    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/macskas/nginx-ssl-fingerprint.git ngx_ssl_fingerprint_module \
-    && cd ngx_ssl_fingerprint_module  \
-    && patch -p1 < /build/patches/openresty/patches/ngx_ssl_fingerprint_module_ext.patch \
-    && cd /build/modules \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_cache_purge.git ngx_http_cache_purge_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_limit_traffic_rate_filter_module.git ngx_http_limit_traffic_rate_filter_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_access_control_module.git ngx_http_access_control_module \
@@ -410,7 +404,6 @@ RUN groupmod -n nginx www-data \
     && patch -p1 < /build/modules/ngx_http_upstream_check_module/check_1.20.1+.patch \
     && patch -p1 < /build/modules/ngx_http_proxy_connect_module/patch/proxy_connect_rewrite_102101.patch \
     && patch -p1 < /build/patches/ngx_http_tls_dyn_size/nginx__dynamic_tls_records_1.25.1+.patch \
-    && patch -p1 < /build/patches/openresty/patches/ngx_ssl_fingerprint_module_nginx_1.27.1.patch \
     && sed -i "s/\(openresty\/.*\)\"/\1-${RESTY_RELEASE}\"/" src/core/nginx.h \
     && cd /build/openresty-${RESTY_VERSION}/bundle/ngx_lua-* \
     && patch -p1 < /build/patches/openresty/patches/ngx_lua_module-remove_h2_subrequest.patch \

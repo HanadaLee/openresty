@@ -457,13 +457,3 @@ Defines conditions under which the request will be checked by waf captcha functi
 * **Context:** *http, server, location*
 
 Defines conditions under which the request will be checked by waf modsecurity function. If at least one value of the string parameters is not empty and is not equal to “0” then the request will be checked by waf modsecurity function.
-
-## ngx_ssl_fingerprint_module (Third-party Module)
-
-refer to [ngx_waf](https://github.com/macskas/nginx-ssl-fingerprint).
-
-ngx_ssl_fingerprint_module_ext.patch changes variable names to avoid potential conflicts with $http_ prefixed variables.
-
-ngx_ssl_fingerprint_module_quictls_1.1.1 is used for quictls fork since the openssl patch from the original repository cannot be applied.
-
-ngx_ssl_fingerprint_module_nginx_1.27.1.patch for nginx to avoid patch conflict with ngx_http_tls_dyn_size.

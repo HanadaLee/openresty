@@ -100,7 +100,6 @@ Listed below are all components currently bundled additionally with OpenResty. T
 
 * [ngx_backtrace_module](https://github.com/alibaba/tengine/tree/master/modules/ngx_backtrace_module)
 * [ngx_lua_events_module](https://github.com/Kong/lua-resty-events)
-* [ngx_ssl_fingerprint_module](https://github.com/macskas/nginx-ssl-fingerprint)
 * [ngx_http_access_control_module](https://git.hanada.info/hanada/ngx_http_access_control_module)
 * [ngx_http_aws_auth_module](https://git.hanada.info/hanada/ngx_http_aws_auth_module)
 * [ngx_http_brotli_module](https://github.com/google/ngx_brotli)
