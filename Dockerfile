@@ -410,7 +410,7 @@ RUN groupmod -n nginx www-data \
     && patch -p1 < /build/modules/ngx_http_upstream_check_module/check_1.20.1+.patch \
     && patch -p1 < /build/modules/ngx_http_proxy_connect_module/patch/proxy_connect_rewrite_102101.patch \
     && patch -p1 < /build/patches/ngx_http_tls_dyn_size/nginx__dynamic_tls_records_1.25.1+.patch \
-    && patch -p1 < /build/modules/ngx_ssl_fingerprint_module/patches/nginx-1.25.patch \
+    && patch -p1 < /build/pathces/openresty/patches/ngx_ssl_fingerprint_module_nginx_1.27.1.patch \
     && sed -i "s/\(openresty\/.*\)\"/\1-${RESTY_RELEASE}\"/" src/core/nginx.h \
     && cd /build/openresty-${RESTY_VERSION}/bundle/ngx_lua-* \
     && patch -p1 < /build/patches/openresty/patches/ngx_lua_module-remove_h2_subrequest.patch \
