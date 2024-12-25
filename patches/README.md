@@ -462,4 +462,6 @@ Defines conditions under which the request will be checked by waf modsecurity fu
 
 refer to [ngx_waf](https://github.com/macskas/nginx-ssl-fingerprint).
 
-This patch changes variable names to avoid potential conflicts with $http_ prefixed variables.
+ngx_ssl_fingerprint_module_ext.patch changes variable names to avoid potential conflicts with $http_ prefixed variables.
+
+ngx_ssl_fingerprint_module_quictls_1.1.1 is used for quictls fork since the openssl patch from the original repository cannot be applied.

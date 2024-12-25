@@ -268,10 +268,6 @@ RUN groupmod -n nginx www-data \
     && cd /build/patches \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/openresty.git openresty \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_http_tls_dyn_size.git ngx_http_tls_dyn_size \
-    && cd /build/modules \
-    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/macskas/nginx-ssl-fingerprint.git ngx_ssl_fingerprint_module \
-    && cd ngx_ssl_fingerprint_module  \
-    && patch -p1 < /build/patches/openresty/patches/ngx_ssl_fingerprint_module_ext.patch \
     && cd /build/lib \
     && openssl_version_path=`echo -n ${RESTY_OPENSSL_VERSION} | sed 's/\./_/g'` \
     && curl -fSL https://${RESTY_GIT_MIRROR}/quictls/openssl/archive/refs/tags/OpenSSL_${openssl_version_path}.tar.gz -o OpenSSL_${openssl_version_path}.tar.gz \
@@ -287,7 +283,7 @@ RUN groupmod -n nginx www-data \
         && curl -fSL https://raw.githubusercontent.com/openresty/openresty/ed328977028c3ec3033bc25873ee360056e247cd/patches/openssl-1.1.0j-parallel_build_fix.patch | patch -p1 \
         && curl -fSL https://raw.githubusercontent.com/openresty/openresty/master/patches/openssl-${RESTY_OPENSSL_PATCH_VERSION}-sess_set_get_cb_yield.patch | patch -p1 ; \
     fi \
-    && patch -p1 < /build/modules/ngx_ssl_fingerprint_module/patches/openssl.OpenSSL_1_1_1-stable.patch \
+    && patch -p1 < /build/patches/ngx_ssl_fingerprint_module_quictls_1.1.1.patch \
     && ./config \
         ${RESTY_OPENSSL_BUILD_OPTIONS} \
     && make -j${RESTY_J} \
@@ -355,6 +351,10 @@ RUN groupmod -n nginx www-data \
     && patch -p1 < /build/patches/openresty/patches/ngx_http_waf_module_ext.patch \
     && git clone --depth=10 --branch v1.7.16 https://${RESTY_GIT_MIRROR}/DaveGamble/cJSON.git lib/cjson \
     && git clone --depth=10 --branch v2.3.0 https://${RESTY_GIT_MIRROR}/troydhanson/uthash.git lib/uthash \
+    && cd /build/modules \
+    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/macskas/nginx-ssl-fingerprint.git ngx_ssl_fingerprint_module \
+    && cd ngx_ssl_fingerprint_module  \
+    && patch -p1 < /build/patches/openresty/patches/ngx_ssl_fingerprint_module_ext.patch \
     && cd /build/modules \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_cache_purge.git ngx_http_cache_purge_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_http_limit_traffic_ratefilter_module.git ngx_http_limit_traffic_rate_filter_module \
