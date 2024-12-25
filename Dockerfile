@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.27.1.1"
-ARG RESTY_RELEASE="165"
+ARG RESTY_RELEASE="166"
 ARG RESTY_LUAROCKS_VERSION="3.11.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -287,7 +287,7 @@ RUN groupmod -n nginx www-data \
         && curl -fSL https://raw.githubusercontent.com/openresty/openresty/ed328977028c3ec3033bc25873ee360056e247cd/patches/openssl-1.1.0j-parallel_build_fix.patch | patch -p1 \
         && curl -fSL https://raw.githubusercontent.com/openresty/openresty/master/patches/openssl-${RESTY_OPENSSL_PATCH_VERSION}-sess_set_get_cb_yield.patch | patch -p1 ; \
     fi \
-    && patch -p1 < /build/modules/ngx_ssl_fingerprint_module/patches/patches/openssl.OpenSSL_1_1_1-stable.patch \
+    && patch -p1 < /build/modules/ngx_ssl_fingerprint_module/patches/openssl.OpenSSL_1_1_1-stable.patch \
     && ./config \
         ${RESTY_OPENSSL_BUILD_OPTIONS} \
     && make -j${RESTY_J} \
@@ -409,7 +409,7 @@ RUN groupmod -n nginx www-data \
     && patch -p1 < /build/modules/ngx_http_upstream_check_module/check_1.20.1+.patch \
     && patch -p1 < /build/modules/ngx_http_proxy_connect_module/patch/proxy_connect_rewrite_102101.patch \
     && patch -p1 < /build/patches/ngx_http_tls_dyn_size/nginx__dynamic_tls_records_1.25.1+.patch \
-    && patch -p1 < /build/patches/ngx_ssl_fingerprint_module/patches/nginx-1.25.patch \
+    && patch -p1 < /build/modules/ngx_ssl_fingerprint_module/patches/nginx-1.25.patch \
     && sed -i "s/\(openresty\/.*\)\"/\1-${RESTY_RELEASE}\"/" src/core/nginx.h \
     && cd /build/openresty-${RESTY_VERSION}/bundle/ngx_lua-* \
     && patch -p1 < /build/patches/openresty/patches/ngx_lua_module-remove_h2_subrequest.patch \
