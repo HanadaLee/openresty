@@ -378,7 +378,7 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_compress_vary_filter_module.git ngx_http_compress_vary_filter_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_rewrite_status_filter_module.git ngx_http_rewrite_status_filter_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_var_module.git ngx_http_var_module \
-    && git clone --depth=10 https://$RESTY_GIT_MIRROR}/vozlt/nginx-module-sysguard.git ngx_http_sysguard_module \
+    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/vozlt/nginx-module-sysguard.git ngx_http_sysguard_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/Kong/lua-resty-events.git ngx_lua_events_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/alibaba/tengine.git tengine \
     && mv tengine/modules/ngx_backtrace_module ngx_backtrace_module \
