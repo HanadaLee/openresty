@@ -23,7 +23,9 @@ Enhance nginx core or openresty modules to implement more functions
     - [support "elif" and "else" directive](#support-elif-and-else-directive)
   - [ngx\_http\_gunzip\_module](#ngx_http_gunzip_module)
   - [ngx\_http\_gzip\_filter\_module](#ngx_http_gzip_filter_module)
+  - [ngx\_http\_limit\_req\_module](#ngx_http_limit_req_module)
   - [ngx\_http\_brotli\_filter\_module (Third-party Module)](#ngx_http_brotli_filter_module-third-party-module)
+  - [ngx\_http\_waf\_module (Third-party Module)](#ngx_http_waf_module-third-party-module)
 
 ## ngx_lua module
 
@@ -122,7 +124,6 @@ sub_filter_bypass $http_pragma    $http_authorization;
 ```
 
 ## ngx_http_proxy_module and its friends
-
 
 ### "proxy_set_header" support inherit
 Introduces the 'proxy_set_header_inherit' directive which blocks the merge inheritance in receiving contexts when set to off. The purpose of the added mechanics is to reduce repetition within the nginx configuration for universally set (or boilerplate) request headers, while maintaining flexibility to set additional headers for specific paths. The original patch is from [\[PATCH\] Added merge inheritance to proxy_set_header](https://mailman.nginx.org/pipermail/nginx-devel/2023-November/XUGFHDLSLRTFLWIBYPSE7LTXFJHNZE3E.html). Additionally provides grpc support.
@@ -389,6 +390,26 @@ Sets the maximum length of a response that will be gzipped. The length is determ
 * **Context:** *http, server, location*
 
 Defines conditions under which the response will gzipped. If at least one value of the string parameters is not empty and is not equal to “0” then the response will not be gzipped.
+
+## ngx_http_limit_req_module
+
+* **Syntax:** *limit_req zone=name [burst=number] [nodelay | delay=number] [key=string] [rate=rate]*;
+* **Default:** *—*
+* **Context:** *http, server, location*
+
+refer to [limit_req](https://nginx.org/en/docs/http/ngx_http_limit_req_module.html#limit_req)
+
+The patch adds two parameters, key and rate. If not specified, the key and rate specified by limit_req_zone are used. The key can contain text, variables, and their combination. Requests with an empty key value are not accounted.
+
+Additionally, multiple limit_req directives in the same configuration level are allowed to use the same zone.
+
+* **Syntax:** *limit_req_zone key | key=string zone=name:size rate=rate*;
+* **Default:** *—*
+* **Context:** *http*
+
+refer to [limit_req_zone](https://nginx.org/en/docs/http/ngx_http_limit_req_module.html#limit_req_zone)
+
+The patch allows configuration in the format of key=string, but is also compatible with the original configuration syntax.
 
 ## ngx_http_brotli_filter_module (Third-party Module)
 
