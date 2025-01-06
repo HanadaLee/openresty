@@ -112,6 +112,7 @@ Listed below are all components currently bundled additionally with OpenResty. T
 * [ngx_http_flv_live_module](https://github.com/winshining/nginx-http-flv-module)
 * [ngx_http_geoip2_module](https://github.com/leev/ngx_http_geoip2_module)
 * [ngx_http_internal_auth_module](https://git.hanada.info/hanada/ngx_http_internal_auth_module)
+* [ngx_http_internal_redirect_module](https://git.hanada.info/hanada/ngx_http_internal_redirect_module)
 * [ngx_http_limit_traffic_rate_filter_module](https://github.com/nginx-modules/ngx_http_limit_traffic_ratefilter_module)
 * [ngx_http_lua_var_module](https://github.com/api7/lua-var-nginx-module)
 * [ngx_http_proxy_connect_module](https://github.com/chobits/ngx_http_proxy_connect_module)
