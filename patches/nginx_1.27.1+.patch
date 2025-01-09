@@ -48,10 +48,20 @@ index d3b2378..ad02fc5 100644
  
      unsigned                         cached:1;
 diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
-index 9e8f424..ec19e03 100644
+index 9e8f424..776e0b2 100644
 --- a/src/event/ngx_event_openssl.c
 +++ b/src/event/ngx_event_openssl.c
-@@ -1801,6 +1801,10 @@ ngx_ssl_handshake(ngx_connection_t *c)
+@@ -1713,6 +1713,9 @@ ngx_ssl_create_connection(ngx_ssl_t *ssl, ngx_connection_t *c, ngx_uint_t flags)
+     sc->buffer = ((flags & NGX_SSL_BUFFER) != 0);
+     sc->buffer_size = ssl->buffer_size;
+ 
++#if (NGX_HTTP_EXT)
++    sc->dyn_rec = ssl->dyn_rec;
++#endif
+     sc->session_ctx = ssl->ctx;
+ 
+ #ifdef SSL_READ_EARLY_DATA_SUCCESS
+@@ -1801,6 +1804,10 @@ ngx_ssl_handshake(ngx_connection_t *c)
      ngx_err_t  err;
      ngx_int_t  rc;
  
@@ -62,7 +72,7 @@ index 9e8f424..ec19e03 100644
  #ifdef SSL_READ_EARLY_DATA_SUCCESS
      if (c->ssl->try_early_data) {
          return ngx_ssl_try_early_data(c);
-@@ -1875,6 +1879,11 @@ ngx_ssl_handshake(ngx_connection_t *c)
+@@ -1875,6 +1882,11 @@ ngx_ssl_handshake(ngx_connection_t *c)
  
          c->ssl->handshaked = 1;
  
@@ -74,7 +84,63 @@ index 9e8f424..ec19e03 100644
          return NGX_OK;
      }
  
-@@ -6021,6 +6030,93 @@ ngx_ssl_get_client_v_remain(ngx_connection_t *c, ngx_pool_t *pool, ngx_str_t *s)
+@@ -2757,6 +2769,43 @@ ngx_ssl_send_chain(ngx_connection_t *c, ngx_chain_t *in, off_t limit)
+ 
+     for ( ;; ) {
+ 
++#if (NGX_HTTP_EXT)
++        /* Dynamic record resizing:
++           We want the initial records to fit into one TCP segment
++           so we don't get TCP HoL blocking due to TCP Slow Start.
++           A connection always starts with small records, but after
++           a given amount of records sent, we make the records larger
++           to reduce header overhead.
++           After a connection has idled for a given timeout, begin
++           the process from the start. The actual parameters are
++           configurable. If dyn_rec_timeout is 0, we assume dyn_rec is off. */
++
++        if (c->ssl->dyn_rec.timeout > 0 ) {
++
++            if (ngx_current_msec - c->ssl->dyn_rec_last_write >
++                c->ssl->dyn_rec.timeout)
++            {
++                buf->end = buf->start + c->ssl->dyn_rec.size_lo;
++                c->ssl->dyn_rec_records_sent = 0;
++
++            } else {
++                if (c->ssl->dyn_rec_records_sent >
++                    c->ssl->dyn_rec.threshold * 2)
++                {
++                    buf->end = buf->start + c->ssl->buffer_size;
++
++                } else if (c->ssl->dyn_rec_records_sent >
++                           c->ssl->dyn_rec.threshold)
++                {
++                    buf->end = buf->start + c->ssl->dyn_rec.size_hi;
++
++                } else {
++                    buf->end = buf->start + c->ssl->dyn_rec.size_lo;
++                }
++            }
++        }
++#endif
++
+         while (in && buf->last < buf->end && send < limit) {
+             if (in->buf->last_buf || in->buf->flush) {
+                 flush = 1;
+@@ -2896,6 +2945,11 @@ ngx_ssl_write(ngx_connection_t *c, u_char *data, size_t size)
+ 
+     if (n > 0) {
+ 
++#if (NGX_HTTP_EXT)
++        c->ssl->dyn_rec_records_sent++;
++        c->ssl->dyn_rec_last_write = ngx_current_msec;
++#endif
++
+         if (c->ssl->saved_read_handler) {
+ 
+             c->read->handler = c->ssl->saved_read_handler;
+@@ -6021,6 +6075,93 @@ ngx_ssl_get_client_v_remain(ngx_connection_t *c, ngx_pool_t *pool, ngx_str_t *s)
  }
  
  
@@ -169,10 +235,34 @@ index 9e8f424..ec19e03 100644
  ngx_ssl_parse_time(
  #if OPENSSL_VERSION_NUMBER > 0x10100000L
 diff --git a/src/event/ngx_event_openssl.h b/src/event/ngx_event_openssl.h
-index ebb2c35..ac91e9c 100644
+index ebb2c35..427306e 100644
 --- a/src/event/ngx_event_openssl.h
 +++ b/src/event/ngx_event_openssl.h
-@@ -109,6 +109,11 @@ struct ngx_ssl_connection_s {
+@@ -86,10 +86,23 @@
+ typedef struct ngx_ssl_ocsp_s  ngx_ssl_ocsp_t;
+ 
+ 
++#if (NGX_HTTP_EXT)
++typedef struct {
++    ngx_msec_t                  timeout;
++    ngx_uint_t                  threshold;
++    size_t                      size_lo;
++    size_t                      size_hi;
++} ngx_ssl_dyn_rec_t;
++#endif
++
++
+ struct ngx_ssl_s {
+     SSL_CTX                    *ctx;
+     ngx_log_t                  *log;
+     size_t                      buffer_size;
++#if (NGX_HTTP_EXT)
++    ngx_ssl_dyn_rec_t           dyn_rec;
++#endif
+ };
+ 
+ 
+@@ -109,6 +122,11 @@ struct ngx_ssl_connection_s {
      ngx_event_handler_pt        saved_read_handler;
      ngx_event_handler_pt        saved_write_handler;
  
@@ -184,7 +274,31 @@ index ebb2c35..ac91e9c 100644
      ngx_ssl_ocsp_t             *ocsp;
  
      u_char                      early_buf;
-@@ -307,6 +312,14 @@ ngx_int_t ngx_ssl_get_client_v_end(ngx_connection_t *c, ngx_pool_t *pool,
+@@ -128,6 +146,11 @@ struct ngx_ssl_connection_s {
+     unsigned                    in_ocsp:1;
+     unsigned                    early_preread:1;
+     unsigned                    write_blocked:1;
++#if (NGX_HTTP_EXT)
++    ngx_ssl_dyn_rec_t           dyn_rec;
++    ngx_msec_t                  dyn_rec_last_write;
++    ngx_uint_t                  dyn_rec_records_sent;
++#endif
+ };
+ 
+ 
+@@ -137,7 +160,11 @@ struct ngx_ssl_connection_s {
+ #define NGX_SSL_DFLT_BUILTIN_SCACHE  -5
+ 
+ 
++#if (NGX_HTTP_EXT)
++#define NGX_SSL_MAX_SESSION_SIZE  16384
++#else
+ #define NGX_SSL_MAX_SESSION_SIZE  4096
++#endif
+ 
+ typedef struct ngx_ssl_sess_id_s  ngx_ssl_sess_id_t;
+ 
+@@ -307,6 +334,14 @@ ngx_int_t ngx_ssl_get_client_v_end(ngx_connection_t *c, ngx_pool_t *pool,
      ngx_str_t *s);
  ngx_int_t ngx_ssl_get_client_v_remain(ngx_connection_t *c, ngx_pool_t *pool,
      ngx_str_t *s);
@@ -199,6 +313,264 @@ index ebb2c35..ac91e9c 100644
  
  
  ngx_int_t ngx_ssl_handshake(ngx_connection_t *c);
+diff --git a/src/http/modules/ngx_http_auth_basic_module.c b/src/http/modules/ngx_http_auth_basic_module.c
+index 02d41e8..e80ce78 100644
+--- a/src/http/modules/ngx_http_auth_basic_module.c
++++ b/src/http/modules/ngx_http_auth_basic_module.c
+@@ -14,9 +14,21 @@
+ #define NGX_HTTP_AUTH_BUF_SIZE  2048
+ 
+ 
++#if (NGX_HTTP_EXT)
++typedef struct {
++    ngx_str_t                  user;
++} ngx_http_auth_basic_user_t;
++#endif
++
++
+ typedef struct {
+     ngx_http_complex_value_t  *realm;
+     ngx_http_complex_value_t  *user_file;
++
++#if (NGX_HTTP_EXT)
++    ngx_array_t               *users;
++#endif
++
+ } ngx_http_auth_basic_loc_conf_t;
+ 
+ 
+@@ -31,6 +43,10 @@ static char *ngx_http_auth_basic_merge_loc_conf(ngx_conf_t *cf,
+ static ngx_int_t ngx_http_auth_basic_init(ngx_conf_t *cf);
+ static char *ngx_http_auth_basic_user_file(ngx_conf_t *cf, ngx_command_t *cmd,
+     void *conf);
++#if (NGX_HTTP_EXT)
++static char *ngx_http_auth_basic_add_user(ngx_conf_t *cf, ngx_command_t *cmd,
++    void *conf);
++#endif
+ 
+ 
+ static ngx_command_t  ngx_http_auth_basic_commands[] = {
+@@ -51,6 +67,16 @@ static ngx_command_t  ngx_http_auth_basic_commands[] = {
+       offsetof(ngx_http_auth_basic_loc_conf_t, user_file),
+       NULL },
+ 
++#if (NGX_HTTP_EXT)
++    { ngx_string("auth_basic_user"),
++      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LMT_CONF
++                        |NGX_CONF_TAKE1,
++      ngx_http_auth_basic_add_user,
++      NGX_HTTP_LOC_CONF_OFFSET,
++      offsetof(ngx_http_auth_basic_loc_conf_t, users),
++      NULL },
++#endif
++
+       ngx_null_command
+ };
+ 
+@@ -98,6 +124,11 @@ ngx_http_auth_basic_handler(ngx_http_request_t *r)
+     ngx_uint_t                       i, level, login, left, passwd;
+     ngx_file_t                       file;
+     ngx_http_auth_basic_loc_conf_t  *alcf;
++#if (NGX_HTTP_EXT)
++    ngx_http_auth_basic_user_t      *u;
++    u_char                          *colon;
++    size_t                           login_len;
++#endif
+     u_char                           buf[NGX_HTTP_AUTH_BUF_SIZE];
+     enum {
+         sw_login,
+@@ -107,9 +138,20 @@ ngx_http_auth_basic_handler(ngx_http_request_t *r)
+ 
+     alcf = ngx_http_get_module_loc_conf(r, ngx_http_auth_basic_module);
+ 
++#if (NGX_HTTP_EXT)
++    if (alcf->realm == NULL) {
++        return NGX_DECLINED;
++    }
++
++    if (alcf->user_file == NULL
++        && (alcf->users == NULL || alcf->users->nelts == 0)) {
++        return NGX_DECLINED;
++    }
++#else
+     if (alcf->realm == NULL || alcf->user_file == NULL) {
+         return NGX_DECLINED;
+     }
++#endif
+ 
+     if (ngx_http_complex_value(r, alcf->realm, &realm) != NGX_OK) {
+         return NGX_ERROR;
+@@ -133,6 +175,47 @@ ngx_http_auth_basic_handler(ngx_http_request_t *r)
+         return NGX_HTTP_INTERNAL_SERVER_ERROR;
+     }
+ 
++#if (NGX_HTTP_EXT)
++    if (alcf->users && alcf->users->nelts > 0) {
++        u = alcf->users->elts;
++
++        for (i = 0; i < alcf->users->nelts; i++) {
++
++            colon = (u_char *) ngx_strlchr(u[i].user.data,
++                        u[i].user.data + u[i].user.len, ':');
++            if (colon == NULL) {
++                continue;
++            }
++
++            login_len = (size_t) (colon - u[i].user.data);
++
++            if (r->headers_in.user.len != login_len) {
++                continue;
++            }
++
++            if (ngx_strncmp(r->headers_in.user.data, u[i].user.data,
++                login_len) != 0)
++            {
++                continue;
++            }
++
++            pwd.data = colon + 1;
++            pwd.len  = u[i].user.len - (pwd.data - u[i].user.data);
++
++            rc = ngx_http_auth_basic_crypt_handler(r, &pwd, &realm);
++
++            return rc;
++        }
++
++        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
++                      "user \"%V\" was not found in "
++                      "auth_basic_user directives",
++                      &r->headers_in.user);
++
++        return ngx_http_auth_basic_set_realm(r, &realm);
++    }
++#endif
++
+     if (ngx_http_complex_value(r, alcf->user_file, &user_file) != NGX_OK) {
+         return NGX_ERROR;
+     }
+@@ -360,6 +443,9 @@ ngx_http_auth_basic_create_loc_conf(ngx_conf_t *cf)
+ 
+     conf->realm = NGX_CONF_UNSET_PTR;
+     conf->user_file = NGX_CONF_UNSET_PTR;
++#if (NGX_HTTP_EXT)
++    conf->users = NGX_CONF_UNSET_PTR;
++#endif
+ 
+     return conf;
+ }
+@@ -372,7 +458,24 @@ ngx_http_auth_basic_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+     ngx_http_auth_basic_loc_conf_t  *conf = child;
+ 
+     ngx_conf_merge_ptr_value(conf->realm, prev->realm, NULL);
++#if !(NGX_HTTP_EXT)
+     ngx_conf_merge_ptr_value(conf->user_file, prev->user_file, NULL);
++#endif
++
++#if (NGX_HTTP_EXT)
++    if (conf->users == NGX_CONF_UNSET_PTR
++        && conf->user_file == NGX_CONF_UNSET_PTR)
++    {
++        ngx_conf_merge_ptr_value(conf->user_file, prev->user_file, NULL);
++        conf->users = (prev->users == NGX_CONF_UNSET_PTR) ? NULL : prev->users;
++
++    } else if (conf->users == NGX_CONF_UNSET_PTR) {
++        conf->users = NULL;
++
++    } else if (conf->user_file == NGX_CONF_UNSET_PTR) {
++        conf->user_file = NULL;
++    }
++#endif
+ 
+     return NGX_CONF_OK;
+ }
+@@ -409,6 +512,12 @@ ngx_http_auth_basic_user_file(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+         return "is duplicate";
+     }
+ 
++#if (NGX_HTTP_EXT)
++    if (alcf->users != NGX_CONF_UNSET_PTR) {
++        return "is incompatible with \"auth_basic_user\"";
++    }
++#endif
++
+     alcf->user_file = ngx_palloc(cf->pool, sizeof(ngx_http_complex_value_t));
+     if (alcf->user_file == NULL) {
+         return NGX_CONF_ERROR;
+@@ -430,3 +539,74 @@ ngx_http_auth_basic_user_file(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+ 
+     return NGX_CONF_OK;
+ }
++
++
++#if (NGX_HTTP_EXT)
++static char *
++ngx_http_auth_basic_add_user(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
++{
++    ngx_http_auth_basic_loc_conf_t *alcf = conf;
++
++    ngx_str_t                      *value;
++    ngx_http_auth_basic_user_t     *user;
++    ngx_uint_t                      colons;
++    ngx_uint_t                      i;
++    ngx_uint_t                      len;
++
++    if (alcf->user_file != NGX_CONF_UNSET_PTR) {
++        return "is incompatible with \"auth_basic_user_file\"";
++    }
++
++    if (alcf->users == NGX_CONF_UNSET_PTR || alcf->users == NULL) {
++        alcf->users = ngx_array_create(cf->pool, 1,
++            sizeof(ngx_http_auth_basic_user_t));
++        if (alcf->users == NULL) {
++            return NGX_CONF_ERROR;
++        }
++    }
++
++    value = cf->args->elts;
++
++    colons = 0;
++    len = value[1].len;
++    for (i = 0; i < value[1].len; i++) {
++        if (value[1].data[i] == ':') {
++            colons++;
++            if (colons == 2) {
++                len = i;
++                break;
++            }
++        }
++    }
++
++    if (colons < 1) {
++        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
++            "auth_basic_user must contain at least one colon");
++        return NGX_CONF_ERROR;
++    }
++
++    user = ngx_array_push(alcf->users);
++    if (user == NULL) {
++        return NGX_CONF_ERROR;
++    }
++
++    ngx_memzero(user, sizeof(*user));
++
++    if (colons > 1) {
++        user->user.len = len;
++
++        user->user.data = ngx_pnalloc(cf->pool, len + 1);
++        if (user->user.data == NULL) {
++            return NGX_CONF_ERROR;
++        }
++
++        ngx_memcpy(user->user.data, value[1].data, len);
++        user->user.data[len] = '\0';
++
++    } else {
++        user->user = value[1];
++    }
++
++    return NGX_CONF_OK;
++}
++#endif
 diff --git a/src/http/modules/ngx_http_fastcgi_module.c b/src/http/modules/ngx_http_fastcgi_module.c
 index 46a56f5..fe1c1e7 100644
 --- a/src/http/modules/ngx_http_fastcgi_module.c
@@ -3096,10 +3468,54 @@ index 186380a..422443f 100644
  }
  
 diff --git a/src/http/modules/ngx_http_ssl_module.c b/src/http/modules/ngx_http_ssl_module.c
-index 1c92d9f..18c07b8 100644
+index 1c92d9f..a5c7368 100644
 --- a/src/http/modules/ngx_http_ssl_module.c
 +++ b/src/http/modules/ngx_http_ssl_module.c
-@@ -399,6 +399,17 @@ static ngx_http_variable_t  ngx_http_ssl_vars[] = {
+@@ -290,6 +290,43 @@ static ngx_command_t  ngx_http_ssl_commands[] = {
+       offsetof(ngx_http_ssl_srv_conf_t, reject_handshake),
+       NULL },
+ 
++#if (NGX_HTTP_EXT)
++    { ngx_string("ssl_dyn_rec"),
++      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_CONF_FLAG,
++      ngx_conf_set_flag_slot,
++      NGX_HTTP_SRV_CONF_OFFSET,
++      offsetof(ngx_http_ssl_srv_conf_t, dyn_rec_enable),
++      NULL },
++
++    { ngx_string("ssl_dyn_rec_timeout"),
++      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_CONF_FLAG,
++      ngx_conf_set_msec_slot,
++      NGX_HTTP_SRV_CONF_OFFSET,
++      offsetof(ngx_http_ssl_srv_conf_t, dyn_rec_timeout),
++      NULL },
++
++    { ngx_string("ssl_dyn_rec_size_lo"),
++      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_CONF_FLAG,
++      ngx_conf_set_size_slot,
++      NGX_HTTP_SRV_CONF_OFFSET,
++      offsetof(ngx_http_ssl_srv_conf_t, dyn_rec_size_lo),
++      NULL },
++
++    { ngx_string("ssl_dyn_rec_size_hi"),
++      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_CONF_FLAG,
++      ngx_conf_set_size_slot,
++      NGX_HTTP_SRV_CONF_OFFSET,
++      offsetof(ngx_http_ssl_srv_conf_t, dyn_rec_size_hi),
++      NULL },
++
++    { ngx_string("ssl_dyn_rec_threshold"),
++      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_CONF_FLAG,
++      ngx_conf_set_num_slot,
++      NGX_HTTP_SRV_CONF_OFFSET,
++      offsetof(ngx_http_ssl_srv_conf_t, dyn_rec_threshold),
++      NULL },
++#endif
++
+       ngx_null_command
+ };
+ 
+@@ -399,6 +436,17 @@ static ngx_http_variable_t  ngx_http_ssl_vars[] = {
      { ngx_string("ssl_client_v_remain"), NULL, ngx_http_ssl_variable,
        (uintptr_t) ngx_ssl_get_client_v_remain, NGX_HTTP_VAR_CHANGEABLE, 0 },
  
@@ -3116,6 +3532,93 @@ index 1c92d9f..18c07b8 100644
 +
        ngx_http_null_variable
  };
+ 
+@@ -629,6 +677,13 @@ ngx_http_ssl_create_srv_conf(ngx_conf_t *cf)
+     sscf->ocsp_cache_zone = NGX_CONF_UNSET_PTR;
+     sscf->stapling = NGX_CONF_UNSET;
+     sscf->stapling_verify = NGX_CONF_UNSET;
++#if (NGX_HTTP_EXT)
++    sscf->dyn_rec_enable = NGX_CONF_UNSET;
++    sscf->dyn_rec_timeout = NGX_CONF_UNSET_MSEC;
++    sscf->dyn_rec_size_lo = NGX_CONF_UNSET_SIZE;
++    sscf->dyn_rec_size_hi = NGX_CONF_UNSET_SIZE;
++    sscf->dyn_rec_threshold = NGX_CONF_UNSET_UINT;
++#endif
+ 
+     return sscf;
+ }
+@@ -694,6 +749,22 @@ ngx_http_ssl_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
+     ngx_conf_merge_str_value(conf->stapling_responder,
+                          prev->stapling_responder, "");
+ 
++#if (NGX_HTTP_EXT)
++    ngx_conf_merge_value(conf->dyn_rec_enable, prev->dyn_rec_enable, 0);
++    ngx_conf_merge_msec_value(conf->dyn_rec_timeout, prev->dyn_rec_timeout,
++                             1000);
++    /* Default sizes for the dynamic record sizes are defined to fit maximal
++       TLS + IPv6 overhead in a single TCP segment for lo and 3 segments for hi:
++       1369 = 1500 - 40 (IP) - 20 (TCP) - 10 (Time) - 61 (Max TLS overhead) */
++    ngx_conf_merge_size_value(conf->dyn_rec_size_lo, prev->dyn_rec_size_lo,
++                             1369);
++    /* 4229 = (1500 - 40 - 20 - 10) * 3  - 61 */
++    ngx_conf_merge_size_value(conf->dyn_rec_size_hi, prev->dyn_rec_size_hi,
++                             4229);
++    ngx_conf_merge_uint_value(conf->dyn_rec_threshold, prev->dyn_rec_threshold,
++                             40);
++#endif
++
+     conf->ssl.log = cf->log;
+ 
+     if (conf->certificates) {
+@@ -890,6 +961,30 @@ ngx_http_ssl_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
+         return NGX_CONF_ERROR;
+     }
+ 
++#if (NGX_HTTP_EXT)
++    if (conf->dyn_rec_enable) {
++        conf->ssl.dyn_rec.timeout = conf->dyn_rec_timeout;
++        conf->ssl.dyn_rec.threshold = conf->dyn_rec_threshold;
++
++        if (conf->buffer_size > conf->dyn_rec_size_lo) {
++            conf->ssl.dyn_rec.size_lo = conf->dyn_rec_size_lo;
++
++        } else {
++            conf->ssl.dyn_rec.size_lo = conf->buffer_size;
++        }
++
++        if (conf->buffer_size > conf->dyn_rec_size_hi) {
++            conf->ssl.dyn_rec.size_hi = conf->dyn_rec_size_hi;
++
++        } else {
++            conf->ssl.dyn_rec.size_hi = conf->buffer_size;
++        }
++
++    } else {
++        conf->ssl.dyn_rec.timeout = 0;
++    }
++#endif
++
+     return NGX_CONF_OK;
+ }
+ 
+diff --git a/src/http/modules/ngx_http_ssl_module.h b/src/http/modules/ngx_http_ssl_module.h
+index c69c8ff..787e170 100644
+--- a/src/http/modules/ngx_http_ssl_module.h
++++ b/src/http/modules/ngx_http_ssl_module.h
+@@ -62,6 +62,14 @@ typedef struct {
+     ngx_flag_t                      stapling_verify;
+     ngx_str_t                       stapling_file;
+     ngx_str_t                       stapling_responder;
++
++#if (NGX_HTTP_EXT)
++    ngx_flag_t                      dyn_rec_enable;
++    ngx_msec_t                      dyn_rec_timeout;
++    size_t                          dyn_rec_size_lo;
++    size_t                          dyn_rec_size_hi;
++    ngx_uint_t                      dyn_rec_threshold;
++#endif
+ } ngx_http_ssl_srv_conf_t;
+ 
  
 diff --git a/src/http/modules/ngx_http_sub_filter_module.c b/src/http/modules/ngx_http_sub_filter_module.c
 index 456bb27..ae49243 100644
