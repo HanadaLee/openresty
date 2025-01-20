@@ -80,6 +80,16 @@ Specify the value of the ip item to be displayed on the default 4xx/5xx error pa
 Specify the value of the request id item to be displayed on the default 4xx/5xx error page. Parameter value can contain variables. The value will be displayed on the default 4xx/5xx error page only when the error_page_server_info directive is enabled.
 
 
+### ignore invalid range header
+
+* **Syntax:** *ignore_invalid_range on | off;*
+
+* **Default:** *ignore_invalid_range off*
+
+* **Context:** *http, server, location*
+
+Specify whether to ignore an invalid range header. If enabled, invalid range headers are ignored, and the full content will be responded to the client. Otherwise, the client will receive a 416 status. The invalid range headers are not cleared, just ignored.
+
 ## ngx_http_slice_filter_module
 
 * **Syntax:** *slice_allow_methods GET | HEAD ...;*
