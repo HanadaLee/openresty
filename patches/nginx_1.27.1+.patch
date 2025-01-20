@@ -4040,7 +4040,7 @@ index bb936c5..2b194c5 100644
  char *ngx_http_file_cache_set_slot(ngx_conf_t *cf, ngx_command_t *cmd,
      void *conf);
 diff --git a/src/http/ngx_http_core_module.c b/src/http/ngx_http_core_module.c
-index 937ffe2..3d3a6ff 100644
+index 937ffe2..b1c7c4a 100644
 --- a/src/http/ngx_http_core_module.c
 +++ b/src/http/ngx_http_core_module.c
 @@ -651,6 +651,15 @@ static ngx_command_t  ngx_http_core_commands[] = {
@@ -4152,8 +4152,8 @@ index 937ffe2..3d3a6ff 100644
 +                               "\"https_allow_http\" parameter requires "
 +                               "ngx_http_ssl_module");
 +            return NGX_CONF_ERROR;
-+        }
 +#endif
++        }
 +#endif
 +
          ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
