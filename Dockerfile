@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.27.1.1"
-ARG RESTY_RELEASE="178"
+ARG RESTY_RELEASE="179"
 ARG RESTY_LUAROCKS_VERSION="3.11.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -110,7 +110,6 @@ ARG RESTY_CONFIG_OPTIONS_MORE="\
     --add-module=/build/modules/ngx_http_proxy_var_set_module \
     --add-module=/build/modules/ngx_http_qrcode_module \
     --add-module=/build/modules/ngx_http_replace_filter_module \
-    --add-module=/build/modules/ngx_http_resty_request_id_module \
     --add-module=/build/modules/ngx_http_rewrite_status_filter_module \
     --add-module=/build/modules/ngx_http_secure_link_hash_module \
     --add-module=/build/modules/ngx_http_secure_link_hmac_module \
@@ -373,7 +372,6 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_zstd_module.git ngx_http_zstd_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_unzstd_filter_module.git ngx_http_unzstd_filter_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_cache_dechunk_filter_module.git ngx_http_cache_dechunk_filter_module \
-    && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_resty_request_id_module.git ngx_http_resty_request_id_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/chobits/ngx_http_proxy_connect_module.git ngx_http_proxy_connect_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_unbrotli_filter_module.git ngx_http_unbrotli_filter_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_delay_module.git ngx_http_delay_module \
@@ -414,7 +412,6 @@ RUN groupmod -n nginx www-data \
     && tar xzf openresty-${RESTY_VERSION}.tar.gz \
     && cd openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) \
     && patch -p1 < /build/patches/openresty/patches/nginx_1.27.1+.patch \
-    && patch -p1 < /build/modules/ngx_http_resty_request_id_module/ngx_http_resty_request_id_1.25.3+.patch \
     && patch -p1 < /build/modules/ngx_http_upstream_log_module/ngx_http_upstream_log_1.25.3+.patch \
     && patch -p1 < /build/modules/ngx_http_upstream_check_module/check_1.20.1+.patch \
     && patch -p1 < /build/modules/ngx_http_proxy_connect_module/patch/proxy_connect_rewrite_102101.patch \
