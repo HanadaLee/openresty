@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.27.1.1"
-ARG RESTY_RELEASE="179"
+ARG RESTY_RELEASE="180"
 ARG RESTY_LUAROCKS_VERSION="3.11.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -335,7 +335,7 @@ RUN groupmod -n nginx www-data \
     && cd ngx_http_brotli_module \
     && sed -i "s|github.com|${RESTY_GIT_MIRROR}|g" .gitmodules \
     && git submodule update --init \
-    && patch -p1 < /build/patches/openresty/patches/ngx_http_brotli_filter_module_ext.patch \
+    && patch -p1 < /build/patches/openresty/patches/ngx_http_brotli_filter_module-ext.patch \
     && mkdir -p deps/brotli/out \
     && cd deps/brotli/out \
     && cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON \
@@ -353,16 +353,19 @@ RUN groupmod -n nginx www-data \
     && cd /build/modules \
     && git clone --depth=10 --branch current https://${RESTY_GIT_MIRROR}/ADD-SP/ngx_waf.git ngx_http_waf_module \
     && cd ngx_http_waf_module \
-    && patch -p1 < /build/patches/openresty/patches/ngx_http_waf_module_ext.patch \
+    && patch -p1 < /build/patches/openresty/patches/ngx_http_waf_module-ext.patch \
     && git clone --depth=10 --branch v1.7.16 https://${RESTY_GIT_MIRROR}/DaveGamble/cJSON.git lib/cjson \
     && git clone --depth=10 --branch v2.3.0 https://${RESTY_GIT_MIRROR}/troydhanson/uthash.git lib/uthash \
+    && cd /build/modules \
+    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/winshining/nginx-http-flv-module.git ngx_http_flv_live_module \
+    && cd ngx_http_flv_live_module \
+    && patch -p1 < /build/patches/openresty/patches/ngx_http_flv_live_module-server_metadata.patch \
     && cd /build/modules \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_cache_purge.git ngx_http_cache_purge_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_limit_traffic_rate_filter_module.git ngx_http_limit_traffic_rate_filter_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_access_control_module.git ngx_http_access_control_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_aws_auth_module.git ngx_http_aws_auth_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/leev/ngx_http_geoip2_module.git ngx_http_geoip2_module \
-    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/winshining/nginx-http-flv-module.git ngx_http_flv_live_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/vozlt/nginx-module-vts.git ngx_http_vhost_traffic_status_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/yaoweibin/nginx_upstream_check_module.git ngx_http_upstream_check_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_sorted_querystring_module.git ngx_http_sorted_querystring_module \
@@ -411,7 +414,7 @@ RUN groupmod -n nginx www-data \
     && curl -fSL https://openresty.org/download/openresty-${RESTY_VERSION}.tar.gz -o openresty-${RESTY_VERSION}.tar.gz \
     && tar xzf openresty-${RESTY_VERSION}.tar.gz \
     && cd openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) \
-    && patch -p1 < /build/patches/openresty/patches/nginx_1.27.1+.patch \
+    && patch -p1 < /build/patches/openresty/patches/nginx-ext_1.27.1+.patch \
     && patch -p1 < /build/modules/ngx_http_upstream_log_module/ngx_http_upstream_log_1.25.3+.patch \
     && patch -p1 < /build/modules/ngx_http_upstream_check_module/check_1.20.1+.patch \
     && patch -p1 < /build/modules/ngx_http_proxy_connect_module/patch/proxy_connect_rewrite_102101.patch \
