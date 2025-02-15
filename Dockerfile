@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.27.1.1"
-ARG RESTY_RELEASE="180"
+ARG RESTY_RELEASE="181"
 ARG RESTY_LUAROCKS_VERSION="3.11.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -105,7 +105,7 @@ ARG RESTY_CONFIG_OPTIONS_MORE="\
     --add-module=/build/modules/ngx_http_internal_redirect_module \
     --add-module=/build/modules/ngx_http_limit_traffic_rate_filter_module \
     --add-module=/build/modules/ngx_http_log_var_set_module \
-    --add-module=/build/modules/ngx_http_lua_var_module \
+    --add-module=/build/modules/ngx_http_lua_load_var_index_module \
     --add-module=/build/modules/ngx_http_proxy_connect_module \
     --add-module=/build/modules/ngx_http_proxy_var_set_module \
     --add-module=/build/modules/ngx_http_qrcode_module \
@@ -371,7 +371,7 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_sorted_querystring_module.git ngx_http_sorted_querystring_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/openresty/replace-filter-nginx-module.git ngx_http_replace_filter_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_extra_variables_module.git ngx_http_extra_variables_module \
-    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/api7/lua-var-nginx-module.git ngx_http_lua_var_module \
+    && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_lua_load_var_index.git ngx_http_lua_load_var_index \ 
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_zstd_module.git ngx_http_zstd_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_unzstd_filter_module.git ngx_http_unzstd_filter_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_cache_dechunk_filter_module.git ngx_http_cache_dechunk_filter_module \
@@ -456,9 +456,11 @@ RUN groupmod -n nginx www-data \
     && make build \
     && make install \
     && cd /build/modules \
+    && cp -r ngx_http_lua_load_var_index_module/lualib/resty/*.lua /usr/local/openresty/lualib/resty \
     && mkdir -p /usr/local/openresty/lualib/resty/events/compat \
     && cp -r ngx_lua_events_module/lualib/resty/events/*.lua /usr/local/openresty/lualib/resty/events \
     && cp -r ngx_lua_events_module/lualib/resty/events/compat/*.lua /usr/local/openresty/lualib/resty/events/compat \
+    && cd /build/modules \
     && cd /build/lualib \
     && cp -r lua-resty-maxminddb/lib/resty/* /usr/local/openresty/lualib/resty \
     && cp -r lua-resty-multipart-parser/lib/resty/* /usr/local/openresty/lualib/resty \
@@ -477,7 +479,6 @@ RUN groupmod -n nginx www-data \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-worker-events \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-healthcheck \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-expr \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-ngxvar \
     && /usr/local/openresty/luajit/bin/luarocks install lyaml \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-redis-connector \
     && /usr/local/openresty/luajit/bin/luarocks install api7-dkjson \
