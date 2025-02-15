@@ -371,7 +371,7 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_sorted_querystring_module.git ngx_http_sorted_querystring_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/openresty/replace-filter-nginx-module.git ngx_http_replace_filter_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_extra_variables_module.git ngx_http_extra_variables_module \
-    && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_lua_load_var_index.git ngx_http_lua_load_var_index \ 
+    && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_lua_load_var_index_module.git ngx_http_lua_load_var_index_module \ 
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_zstd_module.git ngx_http_zstd_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_unzstd_filter_module.git ngx_http_unzstd_filter_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_cache_dechunk_filter_module.git ngx_http_cache_dechunk_filter_module \
