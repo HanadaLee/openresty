@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.27.1.1"
-ARG RESTY_RELEASE="182"
+ARG RESTY_RELEASE="183"
 ARG RESTY_LUAROCKS_VERSION="3.11.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -239,6 +239,8 @@ RUN groupmod -n nginx www-data \
         libmodsecurity-dev \
         libsodium23 \
         libsodium-dev \
+        libunwind8 \
+        libunwind-dev \
     && ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && dpkg-reconfigure -f noninteractive tzdata \
     && mkdir -p /build/lib /build/patches /build/modules /build/lualib \
@@ -394,8 +396,8 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_proxy_var_set_module.git ngx_http_proxy_var_set_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/vozlt/nginx-module-sysguard.git ngx_http_sysguard_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/Kong/lua-resty-events.git ngx_lua_events_module \
+    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/jpereira/nginx-backtrace-ng.git ngx_backtrace_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/alibaba/tengine.git tengine \
-    && mv tengine/modules/ngx_backtrace_module ngx_backtrace_module \
     && mv tengine/modules/ngx_http_trim_filter_module ngx_http_trim_filter_module \
     && rm -rf tengine \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/soulteary/ngx_http_qrcode_module.git ngx_http_qrcode_module_full \
@@ -532,6 +534,7 @@ RUN groupmod -n nginx www-data \
         libmodsecurity-dev \
         libsodium-dev \
         libcurl4-openssl-dev \
+        libunwind-dev \
     && DEBIAN_FRONTEND=noninteractive apt-get autoremove -y \
     && DEBIAN_FRONTEND=noninteractive apt-get clean -y \
     && rm -rf /build \
