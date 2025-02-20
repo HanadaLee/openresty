@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.27.1.1"
-ARG RESTY_RELEASE="184"
+ARG RESTY_RELEASE="183"
 ARG RESTY_LUAROCKS_VERSION="3.11.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -394,9 +394,9 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_cors_module.git ngx_http_cors_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_log_var_set_module.git ngx_http_log_var_set_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_proxy_var_set_module.git ngx_http_proxy_var_set_module \
-    && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_backtrace_module.git ngx_backtrace_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/vozlt/nginx-module-sysguard.git ngx_http_sysguard_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/Kong/lua-resty-events.git ngx_lua_events_module \
+    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/jpereira/nginx-backtrace-ng.git ngx_backtrace_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/alibaba/tengine.git tengine \
     && mv tengine/modules/ngx_http_trim_filter_module ngx_http_trim_filter_module \
     && rm -rf tengine \

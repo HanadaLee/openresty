@@ -97,7 +97,7 @@ Extra components of current OpenResty bundule
 
 Listed below are all components currently bundled additionally with OpenResty. These components are bundled by Hanada.
 
-* [ngx_backtrace_module](https://git.hanada.info/hanada/ngx_backtrace_module)
+* [ngx_backtrace_module](https://github.com/jpereira/nginx-backtrace-ng)
 * [ngx_lua_events_module](https://github.com/Kong/lua-resty-events)
 * [ngx_http_access_control_module](https://git.hanada.info/hanada/ngx_http_access_control_module)
 * [ngx_http_aws_auth_module](https://git.hanada.info/hanada/ngx_http_aws_auth_module)
