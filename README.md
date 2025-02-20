@@ -3,7 +3,7 @@ Name
 
 OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx and LuaJIT
 
-This image adds luarocks, more patches, modules and lua libraries to the original OpenResty bundle (https://github.com/openresty/openresty).
+This image adds luarocks, more patches, modules or lua libraries to the original OpenResty bundle (https://github.com/openresty/openresty).
 
 This bundle is maintained by Hanada (im@hanada.info)
 
@@ -18,6 +18,7 @@ Table of Contents
 - [Additional Features](#additional-features)
   - [resolv.conf parsing](#resolvconf-parsing)
   - [Patches for core and modules](#patches-for-core-and-modules)
+  - [ngx\_http\_tls\_dyn\_size](#ngx_http_tls_dyn_size)
 - [Copyright \& License](#copyright--license)
 
 Description
@@ -97,7 +98,7 @@ Extra components of current OpenResty bundule
 
 Listed below are all components currently bundled additionally with OpenResty. These components are bundled by Hanada.
 
-* [ngx_backtrace_module](https://github.com/jpereira/nginx-backtrace-ng)
+* [ngx_backtrace_module](https://github.com/alibaba/tengine/tree/master/modules/ngx_backtrace_module)
 * [ngx_lua_events_module](https://github.com/Kong/lua-resty-events)
 * [ngx_http_access_control_module](https://git.hanada.info/hanada/ngx_http_access_control_module)
 * [ngx_http_aws_auth_module](https://git.hanada.info/hanada/ngx_http_aws_auth_module)
@@ -192,6 +193,13 @@ Patches for core and modules
 --------------------
 
 In additional to the standard nginx core features, this bundle patches the nginx core to provide more features, visit patches path for more information.
+
+[Back to TOC](#table-of-contents)
+
+ngx_http_tls_dyn_size
+--------------------
+
+Visit [ngx_http_tls_dyn_size](https://github.com/nginx-modules/ngx_http_tls_dyn_size) repository for more information.
 
 [Back to TOC](#table-of-contents)
 
