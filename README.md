@@ -42,9 +42,9 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
 
 OpenResty is a full-fledged web application server by bundling the standard nginx core, lots of 3rd-party nginx modules, as well as most of their external dependencies.
 
-This bundle aims to build a full-featured CDN cache server while retaining OpenResty's ability to be a high-performance dynamic web platform.
+This customized OpenResty bundle is designed to serve as a full-featured CDN cache server while retaining OpenResty's capabilities as a high-performance dynamic web platform.
 
-Based on the official OpenResty, this bundle adds luarocks, more patches, 3rd-party nginx modules and lua libraries.
+Based on the official OpenResty, this bundle includes LuaRocks, additional patches, 3rd-party nginx modules and lua libraries.
 
 This bundle is maintained by Hanada (im@hanada.info).
 
@@ -55,15 +55,15 @@ The bundled software components are copyrighted by the respective copyright hold
 # Components
 
 ## Components of official OpenResty bundle
-For the official OpenResty features and bundled components, see [openresty.org](https://openresty.org/).
+
+For details on OpenResty's bundled components and features, refer to [openresty.org](https://openresty.org/).
 
 [Back to TOC](#table-of-contents)
 
 ## Components of this OpenResty bundle
 
-Listed below are all components currently bundled additionally with OpenResty.
+The following components are additionally bundled with OpenResty, some of which are developed and maintained by Hanada.
 
-These components are bundled by Hanada, some of which are developed and maintained by Hanada.
 
 * [ngx_backtrace_module](https://github.com/alibaba/tengine/tree/master/modules/ngx_backtrace_module)
 * [ngx_lua_events_module](https://github.com/Kong/lua-resty-events)
@@ -129,7 +129,9 @@ These components are bundled by Hanada, some of which are developed and maintain
 
 # Additional Features
 
-This bundle enhances nginx core functions and 3rd-party modules through patches. The following lists the additional supported features. Features that were already supported by the official OpenResty bundle are no longer listed.
+This bundle extends the functionality of the Nginx core and 3rd-party modules through patches.
+
+The following are additional features supported in this bundle, while those already included in the official OpenResty bundle have been omitted for brevity.
 
 [Back to TOC](#table-of-contents)
 
@@ -137,7 +139,7 @@ This bundle enhances nginx core functions and 3rd-party modules through patches.
 
 ### Removal of h2 subrequest limitation
 
-Remove the limitation introduced by ngx lua on initiating sub-requests for h2 and h3 requests. The mainline version of ngx_lua has removed this limitation. This patch will be deprecated when the next openresty stable version is released.
+Remove the limitation introduced by ngx lua on initiating sub-requests for h2 and h3 requests. The master branch of ngx_lua has removed this limitation. This patch will be deprecated when the next openresty stable version is released.
 
 Refer to [HTTP/2 with location.capture() re-enable](https://github.com/OpenResty/lua-nginx-module/issues/2243)
 
@@ -706,6 +708,13 @@ LuaRocks is free software and uses the same license as Lua.
 
 # Copyright & License
 
-The bundle itself is licensed under the 2-clause BSD license. See LICENSE for details.
+The bundle itself is licensed under the 2-clause BSD license.
+
+NGINX is a registered trademark owned by F5 NETWORKS, INC.
+OpenResty® is a registered trademark owned by OpenResty Inc.
+
+The maintainer (Hanada) of this customized bundle is not sponsored by or affiliated with OpenResty Inc. or NGINX Official / F5 NETWORKS, INC.
+
+See LICENSE for details.
 
 [Back to TOC](#table-of-contents)
