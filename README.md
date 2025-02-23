@@ -15,6 +15,7 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
 		- [Removal of h2 subrequest limitation](#removal-of-h2-subrequest-limitation)
 	- [ngx\_http\_core\_module](#ngx_http_core_module)
 		- [Support for https\_allow\_http in listen directive](#support-for-https_allow_http-in-listen-directive)
+		- [Enhancement of unique request id](#enhancement-of-unique-request-id)
 		- [Optimization of default error page](#optimization-of-default-error-page)
 		- [Support for ignoring invalid Range header](#support-for-ignoring-invalid-range-header)
 	- [ngx\_http\_ssl\_module](#ngx_http_ssl_module)
@@ -161,6 +162,26 @@ When both the ssl and https_allow_http parameters are enabled for the listen dir
 
 [Back to TOC](#table-of-contents)
 
+### Enhancement of unique request id
+
+Based on the original nginx built-in variable $request_id, it supports inheriting unique IDs from request headers or any variables. In addition to random hex id, unique ID generation also supports trace id based on request characteristics.
+
+* **Syntax:** *request_id hexid | traceid;*
+
+* **Default:** *request_id hexid;*
+
+* **Context:** *http, server, location*
+
+Specify the format of the request ID.
+
+* **Syntax:** *request_id_header header_name;*
+
+* **Default:** *-*
+
+* **Context:** *http, server, location*
+
+Specify the header name to be inherited by the request ID.
+
 ### Optimization of default error page
 
 Optimize the information displayed on the default error page to facilitate the collection of error feedback from clients.
@@ -173,22 +194,14 @@ Optimize the information displayed on the default error page to facilitate the c
 
 Show up the following information in a default 4xx/5xx error page: The date, request client ip, the request id, and the hostname serving the request are included.
 
-* **Syntax:** *error_page_client_ip string;*
+* **Syntax:** *error_page_client_ip $variable;*
 
-* **Default:** *-*
+* **Default:** *error_page_client_ip $remote_addr;*
 
 * **Context:** *http, server, location*
 
 Specify the value of the ip item to be displayed on the default 4xx/5xx error page. Parameter value can contain variables. The value will be displayed on the default 
 4xx/5xx error page only when the error_page_server_info directive is enabled.
-
-* **Syntax:** *error_page_request_id string;*
-
-* **Default:** *-*
-
-* **Context:** *http, server, location*
-
-Specify the value of the request id item to be displayed on the default 4xx/5xx error page. Parameter value can contain variables. The value will be displayed on the default 4xx/5xx error page only when the error_page_server_info directive is enabled.
 
 [Back to TOC](#table-of-contents)
 
