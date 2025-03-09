@@ -4870,8 +4870,8 @@ index a2b9f1b..29e8542 100644
 +    code = (ngx_http_script_if_operator_code_t *) e->ip;
 +    op = code->op;
 +
-+    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
-+                   "http script if operator %u", op);
++    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
++                   "http script if operator");
 +
 +    e->sp--;
 +    val = e->sp;
