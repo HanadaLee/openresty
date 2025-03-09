@@ -97,7 +97,6 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_http_sysguard_module](https://github.com/vozlt/nginx-module-sysguard)
 * [ngx_http_trim_filter_module](https://github.com/alibaba/tengine/tree/master/modules/ngx_http_trim_filter_module)
 * [ngx_http_unbrotli_filter_module](https://git.hanada.info/hanada/ngx_http_unbrotli_filter_module)
-* [ngx_http_upstream_cache_vars_module](https://git.hanada.info/hanada/ngx_http_upstream_cache_vars_module)
 * [ngx_http_upstream_check_module](https://github.com/yaoweibin/nginx_upstream_check_module)
 * [ngx_http_upstream_log_module](https://git.hanada.info/hanada/ngx_http_upstream_log_module)
 * [ngx_http_vhost_traffic_status_module](https://github.com/vozlt/nginx-module-vts)
