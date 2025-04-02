@@ -1183,6 +1183,52 @@ index b555278..c92016d 100644
      if (ngx_http_merge_types(cf, &conf->types_keys, &conf->types,
                               &prev->types_keys, &prev->types,
                               ngx_http_html_default_types)
+diff --git a/src/http/modules/ngx_http_headers_filter_module.c b/src/http/modules/ngx_http_headers_filter_module.c
+index 90e6da8..417813a 100644
+--- a/src/http/modules/ngx_http_headers_filter_module.c
++++ b/src/http/modules/ngx_http_headers_filter_module.c
+@@ -36,6 +36,9 @@ typedef enum {
+     NGX_HTTP_EXPIRES_OFF,
+     NGX_HTTP_EXPIRES_EPOCH,
+     NGX_HTTP_EXPIRES_MAX,
++#if (NGX_HTTP_EXT)
++    NGX_HTTP_EXPIRES_IMMUTABLE,
++#endif
+     NGX_HTTP_EXPIRES_ACCESS,
+     NGX_HTTP_EXPIRES_MODIFIED,
+     NGX_HTTP_EXPIRES_DAILY,
+@@ -409,6 +412,17 @@ ngx_http_set_expires(ngx_http_request_t *r, ngx_http_headers_conf_t *conf)
+         return NGX_OK;
+     }
+ 
++#if (NGX_HTTP_EXT)
++    if (expires == NGX_HTTP_EXPIRES_IMMUTABLE) {
++        e->value.data = (u_char *) "Thu, 31 Dec 2037 23:55:55 GMT";
++        /* 10 years */
++        ngx_str_set(&cc->value, "public, max-age=315360000, "
++            "stale-while-revalidate=315360000, stale-if-error=315360000, "
++            "immutable");
++        return NGX_OK;
++    }
++#endif
++
+     e->value.data = ngx_pnalloc(r->pool, len);
+     if (e->value.data == NULL) {
+         e->hash = 0;
+@@ -479,6 +493,13 @@ ngx_http_parse_expires(ngx_str_t *value, ngx_http_expires_t *expires,
+             return NGX_OK;
+         }
+ 
++#if (NGX_HTTP_EXT)
++        if (value->len == 9 && ngx_strncmp(value->data, "immutable", 9) == 0) {
++            *expires = NGX_HTTP_EXPIRES_IMMUTABLE;
++            return NGX_OK;
++        }
++#endif
++
+         if (value->len == 3 && ngx_strncmp(value->data, "off", 3) == 0) {
+             *expires = NGX_HTTP_EXPIRES_OFF;
+             return NGX_OK;
 diff --git a/src/http/modules/ngx_http_limit_req_module.c b/src/http/modules/ngx_http_limit_req_module.c
 index 2b062a3..c2143a3 100644
 --- a/src/http/modules/ngx_http_limit_req_module.c
@@ -4620,7 +4666,7 @@ index 65c8333..d2602eb 100644
      ngx_http_request_t               *main;
      ngx_http_request_t               *parent;
 diff --git a/src/http/ngx_http_script.c b/src/http/ngx_http_script.c
-index a2b9f1b..29e8542 100644
+index a2b9f1b..621ecdb 100644
 --- a/src/http/ngx_http_script.c
 +++ b/src/http/ngx_http_script.c
 @@ -135,6 +135,70 @@ ngx_http_complex_value_size(ngx_http_request_t *r,
@@ -6610,10 +6656,10 @@ index f6621af..822783b 100644
  
  #ifndef HAVE_BALANCER_STATUS_CODE_PATCH
 diff --git a/src/http/ngx_http_variables.c b/src/http/ngx_http_variables.c
-index 4f0bd0e..eef3109 100644
+index 4f0bd0e..84b33e1 100644
 --- a/src/http/ngx_http_variables.c
 +++ b/src/http/ngx_http_variables.c
-@@ -2245,10 +2245,91 @@ ngx_http_variable_request_id(ngx_http_request_t *r,
+@@ -2245,10 +2245,105 @@ ngx_http_variable_request_id(ngx_http_request_t *r,
  {
      u_char  *id;
  
@@ -6642,7 +6688,7 @@ index 4f0bd0e..eef3109 100644
 +        return NGX_OK;
 +    }
 +
-+    if (r->main != r) {
++    if (r != r->main) {
 +        v->valid = 1;
 +        v->no_cacheable = 0;
 +        v->not_found = 0;
@@ -6659,7 +6705,13 @@ index 4f0bd0e..eef3109 100644
 +    if (clcf->request_id_header.len > 0) {
 +        s.len = 0;
 +        s.data = NULL;
-+        part = &r->headers_in.headers.part;
++
++        if (r != r->main) {
++            part = &r->main->headers_in.headers.part;
++        } else {
++            part = &r->headers_in.headers.part;
++        }
++
 +        header = part->elts;
 +
 +        for (i = 0; /* void */; i++) {
@@ -6688,10 +6740,18 @@ index 4f0bd0e..eef3109 100644
 +            v->valid = 1;
 +            v->no_cacheable = 0;
 +            v->not_found = 0;
++
 +            v->len = s.len;
 +            v->data = s.data;
++
 +            r->request_id.len = s.len;
 +            r->request_id.data = s.data;
++
++            if (r != r->main && r->main->request_id.len == 0) {
++                r->main->request_id.len = s.len;
++                r->main->request_id.data = s.data;
++            }
++
 +            return NGX_OK;
 +        }
 +    }
@@ -6705,19 +6765,24 @@ index 4f0bd0e..eef3109 100644
      id = ngx_pnalloc(r->pool, 32);
      if (id == NULL) {
          return NGX_ERROR;
-@@ -2261,6 +2342,11 @@ ngx_http_variable_request_id(ngx_http_request_t *r,
+@@ -2261,6 +2356,16 @@ ngx_http_variable_request_id(ngx_http_request_t *r,
      v->len = 32;
      v->data = id;
  
 +#if (NGX_HTTP_EXT)
 +    r->request_id.len = v->len;
 +    r->request_id.data = v->data;
++
++    if (r != r->main && r->main->request_id.len == 0) {
++        r->main->request_id.len = v->len;
++        r->main->request_id.data = v->data;
++    }
 +#endif
 +
  #if (NGX_OPENSSL)
  
      if (RAND_bytes(random_bytes, 16) == 1) {
-@@ -2277,6 +2363,36 @@ ngx_http_variable_request_id(ngx_http_request_t *r,
+@@ -2277,6 +2382,36 @@ ngx_http_variable_request_id(ngx_http_request_t *r,
                  (uint32_t) ngx_random(), (uint32_t) ngx_random());
  
      return NGX_OK;
