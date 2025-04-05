@@ -85,6 +85,7 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_http_internal_redirect_module](https://git.hanada.info/hanada/ngx_http_internal_redirect_module)
 * [ngx_http_limit_traffic_rate_filter_module](https://github.com/nginx-modules/ngx_http_limit_traffic_ratefilter_module)
 * [ngx_http_log_var_set_module](https://git.hanada.info/hanada/ngx_http_log_var_set_module)
+* [ngx_http_loop_detect_module](https://git.hanada.info/hanada/ngx_http_loop_detect_module)
 * [ngx_http_lua_var_module](https://github.com/api7/lua-var-nginx-module)
 * [ngx_http_proxy_connect_module](https://github.com/chobits/ngx_http_proxy_connect_module)
 * [ngx_http_proxy_var_set_module](https://git.hanada.info/hanada/ngx_http_proxy_var_set_module)
