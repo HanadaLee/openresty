@@ -18,9 +18,13 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
 		- [Enhancement of unique request id](#enhancement-of-unique-request-id)
 		- [Optimization of default error page](#optimization-of-default-error-page)
 		- [Support for ignoring invalid Range header](#support-for-ignoring-invalid-range-header)
+		- [Support for error\_page directive with if parameter](#support-for-error_page-directive-with-if-parameter)
 	- [ngx\_http\_ssl\_module](#ngx_http_ssl_module)
 		- [Optimizing TLS over TCP to reduce latency](#optimizing-tls-over-tcp-to-reduce-latency)
 	- [ngx\_http\_slice\_filter\_module](#ngx_http_slice_filter_module)
+		- [slice\_allow\_methods](#slice_allow_methods)
+		- [slice\_check\_etag](#slice_check_etag)
+		- [slice\_check\_last\_modified](#slice_check_last_modified)
 	- [ngx\_http\_sub\_filter\_module](#ngx_http_sub_filter_module)
 	- [ngx\_http\_proxy\_module and related modules](#ngx_http_proxy_module-and-related-modules)
 		- [Support for inheritance in "proxy\_set\_header"](#support-for-inheritance-in-proxy_set_header)
@@ -33,9 +37,24 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
 		- [Support for "elif" and "else" directives](#support-for-elif-and-else-directives)
 	- [ngx\_http\_gunzip\_module](#ngx_http_gunzip_module)
 	- [ngx\_http\_gzip\_filter\_module](#ngx_http_gzip_filter_module)
+		- [gzip\_max\_length](#gzip_max_length)
+		- [gzip\_bypass](#gzip_bypass)
 	- [ngx\_http\_limit\_req\_module](#ngx_http_limit_req_module)
+	- [ngx\_http\_log\_module](#ngx_http_log_module)
 	- [ngx\_http\_brotli\_filter\_module (3rd-party module)](#ngx_http_brotli_filter_module-3rd-party-module)
+		- [brotli\_max\_length](#brotli_max_length)
+		- [brotli\_bypass](#brotli_bypass)
 	- [ngx\_http\_waf\_module (3rd-party module)](#ngx_http_waf_module-3rd-party-module)
+		- [waf\_bypass](#waf_bypass)
+		- [waf\_cc\_deny\_bypass](#waf_cc_deny_bypass)
+		- [waf\_under\_attack\_bypass](#waf_under_attack_bypass)
+		- [waf\_captcha\_bypass](#waf_captcha_bypass)
+		- [waf\_modsecurity\_bypass](#waf_modsecurity_bypass)
+	- [ngx\_http\_headers\_more\_filter\_module (3rd-party module)](#ngx_http_headers_more_filter_module-3rd-party-module)
+		- [more\_set\_headers](#more_set_headers)
+		- [more\_clear\_headers](#more_clear_headers)
+		- [more\_set\_input\_headers](#more_set_input_headers)
+		- [more\_clear\_input\_headers](#more_clear_input_headers)
 - [Luarocks](#luarocks)
 - [Copyright \& License](#copyright--license)
 
@@ -215,6 +234,18 @@ Specify the value of the ip item to be displayed on the default 4xx/5xx error pa
 
 Specify whether to ignore an invalid range header. If enabled, invalid range headers are ignored, and the full content will be responded to the client. Otherwise, the client will receive a 416 status. The invalid range headers are not cleared, just ignored.
 
+### Support for error_page directive with if parameter
+
+* **Syntax:** *error_page code ... [=[response]] uri **[if=condition]**;*
+
+* **Default:** *-*
+
+* **Context:** *http, server, location*
+
+For the original usage, please refer to [error_page](https://nginx.org/en/docs/http/ngx_http_core_module.html#error_page) of nginx documentation.
+
+The `if` parameter enables conditional error page. The condition is evaluated before the error page is processed. If the condition value is not empty or `0`, the error page will be processed. Otherwise, the error page will not be processed. You can also achieve the opposite effect by changing `if=` to `if!=`.
+
 [Back to TOC](#table-of-contents)
 
 ## ngx_http_ssl_module
@@ -283,6 +314,8 @@ Visit [ngx_http_tls_dyn_size](https://github.com/nginx-modules/ngx_http_tls_dyn_
 
 ## ngx_http_slice_filter_module
 
+### slice_allow_methods
+
 * **Syntax:** *slice_allow_methods GET | HEAD ...;*
 
 * **Default:** *slice_allow_methods GET HEAD;*
@@ -291,6 +324,8 @@ Visit [ngx_http_tls_dyn_size](https://github.com/nginx-modules/ngx_http_tls_dyn_
 
 Allow splitting responses into slices if the client request method is listed in this directive. Note that if the slice directive is unset or has the zero value, splitting the response into slices will still be disabled.
 
+### slice_check_etag
+
 * **Syntax:** *slice_check_etag on | off;*
 
 * **Default:** *slice_check_etag on;*
@@ -298,6 +333,8 @@ Allow splitting responses into slices if the client request method is listed in 
 * **Context:** *http, server, location*
 
 Whether to check the consistency of the Etag header in the slice. If it is enabled, the request will be terminated and an error will be reported when Etag mismatch in slice response occurs.
+
+### slice_check_last_modified
 
 * **Syntax:** *slice_check_last_modified on | off;*
 
@@ -595,6 +632,8 @@ Defines the conditions for forced brotli decompression. If at least one value in
 
 ## ngx_http_gzip_filter_module
 
+### gzip_max_length
+
 * **Syntax:** *gzip_max_length length;*
 
 * **Default:** *gzip_max_length 0*;
@@ -602,6 +641,8 @@ Defines the conditions for forced brotli decompression. If at least one value in
 * **Context:** *http, server, location*
 
 Sets the maximum length of a response that will be gzipped. The length is determined only from the “Content-Length” response header field. A value of 0 means no upper limit.
+
+###	gzip_bypass
 
 * **Syntax:** *gzip_bypass string ...;*
 
@@ -639,9 +680,23 @@ The patch allows configuration in the format of key=string, but is also compatib
 
 [Back to TOC](#table-of-contents)
 
+## ngx_http_log_module
+
+* **Syntax:** *access_log path [format [buffer=size] [gzip[=level]] [flush=time] [if=condition]]*;  *access_log off*;
+
+* **Default:** *access_log logs/access.log combined;*
+
+* **Context:** *http, server, location, if in location, limit_except*
+
+refer to [access_log](https://nginx.org/en/docs/http/ngx_http_log_module.html#access_log)
+
+Based on the original `if=` parameter, you can achieve the opposite effect by changing `if=` to `if!=`.
+
 ## ngx_http_brotli_filter_module (3rd-party module)
 
 refer to [ngx_brotli](https://github.com/google/ngx_brotli).
+
+### brotli_max_length
 
 * **Syntax:** *brotli_max_length length;*
 
@@ -650,6 +705,8 @@ refer to [ngx_brotli](https://github.com/google/ngx_brotli).
 * **Context:** *http, server, location*
 
 Sets the maximum length of a response that will be compressed. The length is determined only from the “Content-Length” response header field. A value of 0 means no upper limit.
+
+###	brotli_bypass
 
 * **Syntax:** *brotli_bypass string ...;*
 
@@ -667,6 +724,8 @@ refer to [ngx_waf](https://github.com/ADD-SP/ngx_waf/tree/current).
 
 This patch makes some changes to this module, mainly adding more switches for fine-grained control of WAF behavior. In addition, it also changes the appearance of the default challenge or error page and the path where the configuration file is read.
 
+### waf_bypass
+
 * **Syntax:** *waf_bypass string ...;*
 
 * **Default:** *-*
@@ -674,6 +733,8 @@ This patch makes some changes to this module, mainly adding more switches for fi
 * **Context:** *http, server, location*
 
 Defines conditions under which the request will be checked by waf. If at least one value of the string parameters is not empty and is not equal to “0” then the request will be checked by waf.
+
+### waf_cc_deny_bypass
 
 * **Syntax:** *waf_cc_deny_bypass string ...;*
 
@@ -683,6 +744,8 @@ Defines conditions under which the request will be checked by waf. If at least o
 
 Defines conditions under which the request will be checked by waf cc deny function. If at least one value of the string parameters is not empty and is not equal to “0” then the request will be checked by waf cc deny function.
 
+### waf_under_attack_bypass
+
 * **Syntax:** *waf_under_attack_bypass string ...;*
 
 * **Default:** *-*
@@ -690,6 +753,8 @@ Defines conditions under which the request will be checked by waf cc deny functi
 * **Context:** *http, server, location*
 
 Defines conditions under which the request will be checked by waf under attack function. If at least one value of the string parameters is not empty and is not equal to “0” then the request will be checked by waf under attack function.
+
+### waf_captcha_bypass
 
 * **Syntax:** *waf_captcha_bypass string ...;*
 
@@ -699,6 +764,8 @@ Defines conditions under which the request will be checked by waf under attack f
 
 Defines conditions under which the request will be checked by waf captcha function. If at least one value of the string parameters is not empty and is not equal to “0” then the request will be checked by waf captcha function.
 
+### waf_modsecurity_bypass
+
 * **Syntax:** *waf_modsecurity_bypass string ...;*
 
 * **Default:** *-*
@@ -706,6 +773,50 @@ Defines conditions under which the request will be checked by waf captcha functi
 * **Context:** *http, server, location*
 
 Defines conditions under which the request will be checked by waf modsecurity function. If at least one value of the string parameters is not empty and is not equal to “0” then the request will be checked by waf modsecurity function.
+
+## ngx_http_headers_more_filter_module (3rd-party module)
+
+This module is included in the official openresty bundle.
+
+### more_set_headers
+
+* **Syntax:** *more_set_headers [-t <content-type list>]... [-s <status-code list>]... [-a] <new-header>... [if=condition];*
+
+* **Default:** *-*
+
+* **Context:** *http, server, location, location if*
+
+refer to [more_set_headers](https://github.com/openresty/headers-more-nginx-module#more_set_headers). Only the `if` parameter is added, nothing else changes. You can also achieve the opposite effect by changing `if=` to `if!=`.
+
+### more_clear_headers
+
+* **Syntax:** *more_clear_headers [-t <content-type list>]... [-s <status-code list>]... <new-header>... [if=condition];*
+
+* **Default:** *-*
+
+* **Context:** *http, server, location, location if*
+
+refer to [more_clear_headers](https://github.com/openresty/headers-more-nginx-module#more_clear_headers). Only the `if` parameter is added, nothing else changes. You can also achieve the opposite effect by changing `if=` to `if!=`.
+
+###	more_set_input_headers
+
+* **Syntax:** *more_set_input_headers [-r] [-t <content-type list>]... <new-header>... [if=condition];*
+
+* **Default:** *-*
+
+* **Context:** *http, server, location, location if*
+
+refer to [more_set_input_headers](https://github.com/openresty/headers-more-nginx-module#more_set_input_headers). Only the `if` parameter is added, nothing else changes. You can also achieve the opposite effect by changing `if=` to `if!=`.
+
+### more_clear_input_headers
+
+* **Syntax:** *more_clear_input_headers [-t <content-type list>]... <new-header>... [if=condition];*
+
+* **Default:** *-*
+
+* **Context:** *http, server, location, location if*
+
+refer to [more_clear_input_headers](https://github.com/openresty/headers-more-nginx-module#more_clear_input_headers). Only the `if` parameter is added, nothing else changes. You can also achieve the opposite effect by changing `if=` to `if!=`.
 
 [Back to TOC](#table-of-contents)
 

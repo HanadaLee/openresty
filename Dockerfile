@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.27.1.1"
-ARG RESTY_RELEASE="192"
+ARG RESTY_RELEASE="193"
 ARG RESTY_LUAROCKS_VERSION="3.11.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -415,6 +415,9 @@ RUN groupmod -n nginx www-data \
     && cd /build \
     && curl -fSL https://openresty.org/download/openresty-${RESTY_VERSION}.tar.gz -o openresty-${RESTY_VERSION}.tar.gz \
     && tar xzf openresty-${RESTY_VERSION}.tar.gz \
+    && cd openresty-${RESTY_VERSION}/bundle/headers-more-nginx-module-0.37 \
+    && patch -p1 < /build/patches/openresty/patches/ngx_http_headers_more_filter_module_0.37-ext.patch \
+    && cd /build \
     && cd openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) \
     && patch -p1 < /build/patches/openresty/patches/nginx-ext_1.27.1+.patch \
     && patch -p1 < /build/modules/ngx_http_upstream_log_module/ngx_http_upstream_log_1.25.3+.patch \
