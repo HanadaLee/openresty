@@ -101,8 +101,8 @@ index 983be5b..a568184 100644
  
      cmd_name = &arg[0];
  
-+    if (ngx_strncmp(arg[last].data, "if=", 3) == 0
-+        || ngx_strncmp(arg[last].data, "if!=", 4) == 0) {
++    if ((arg[last].len > 3 && ngx_strncmp(arg[last].data, "if=", 3) == 0)
++        || (arg[last].len > 4 && ngx_strncmp(arg[last].data, "if!=", 4) == 0)) {
 +
 +        if (ngx_strncmp(arg[last].data, "if=", 3) == 0) {
 +            s.len = arg[last].len - 3;
@@ -163,8 +163,8 @@ index 2a95b5f..625be0e 100644
  
      cmd_name = &arg[0];
  
-+    if (ngx_strncmp(arg[last].data, "if=", 3) == 0
-+        || ngx_strncmp(arg[last].data, "if!=", 4) == 0) {
++    if ((arg[last].len > 3 && ngx_strncmp(arg[last].data, "if=", 3) == 0)
++        || (arg[last].len > 4 && ngx_strncmp(arg[last].data, "if!=", 4) == 0)) {
 +
 +        if (ngx_strncmp(arg[last].data, "if=", 3) == 0) {
 +            s.len = arg[last].len - 3;
