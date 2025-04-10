@@ -80,7 +80,7 @@ index 5f31ab4..1e2b5d5 100644
  
  
 diff --git a/src/ngx_http_headers_more_headers_in.c b/src/ngx_http_headers_more_headers_in.c
-index 983be5b..a568184 100644
+index 983be5b..79670c6 100644
 --- a/src/ngx_http_headers_more_headers_in.c
 +++ b/src/ngx_http_headers_more_headers_in.c
 @@ -532,6 +532,9 @@ ngx_http_headers_more_parse_directive(ngx_conf_t *cf, ngx_command_t *ngx_cmd,
@@ -93,7 +93,7 @@ index 983be5b..a568184 100644
  
      ngx_http_headers_more_main_conf_t  *hmcf;
  
-@@ -565,12 +568,46 @@ ngx_http_headers_more_parse_directive(ngx_conf_t *cf, ngx_command_t *ngx_cmd,
+@@ -565,12 +568,50 @@ ngx_http_headers_more_parse_directive(ngx_conf_t *cf, ngx_command_t *ngx_cmd,
      cmd->statuses = NULL;
  
      arg = cf->args->elts;
@@ -101,8 +101,8 @@ index 983be5b..a568184 100644
  
      cmd_name = &arg[0];
  
-+    if ((arg[last].len > 3 && ngx_strncmp(arg[last].data, "if=", 3) == 0)
-+        || (arg[last].len > 4 && ngx_strncmp(arg[last].data, "if!=", 4) == 0)) {
++    if (ngx_strncmp(arg[last].data, "if=", 3) == 0
++        || ngx_strncmp(arg[last].data, "if!=", 4) == 0) {
 +
 +        if (ngx_strncmp(arg[last].data, "if=", 3) == 0) {
 +            s.len = arg[last].len - 3;
@@ -132,6 +132,10 @@ index 983be5b..a568184 100644
 +        cmd->filter = ccv.complex_value;
 +
 +        last--;
++
++    } else {
++        cmd->filter = NULL;
++        cmd->negative = 0;
 +    }
 +
      ignore_next_arg = 0;
@@ -142,7 +146,7 @@ index 983be5b..a568184 100644
              ignore_next_arg = 0;
              continue;
 diff --git a/src/ngx_http_headers_more_headers_out.c b/src/ngx_http_headers_more_headers_out.c
-index 2a95b5f..625be0e 100644
+index 2a95b5f..4bfa675 100644
 --- a/src/ngx_http_headers_more_headers_out.c
 +++ b/src/ngx_http_headers_more_headers_out.c
 @@ -624,6 +624,9 @@ ngx_http_headers_more_parse_directive(ngx_conf_t *cf, ngx_command_t *ngx_cmd,
@@ -155,7 +159,7 @@ index 2a95b5f..625be0e 100644
  
      ngx_http_headers_more_main_conf_t  *hmcf;
  
-@@ -659,12 +662,46 @@ ngx_http_headers_more_parse_directive(ngx_conf_t *cf, ngx_command_t *ngx_cmd,
+@@ -659,12 +662,50 @@ ngx_http_headers_more_parse_directive(ngx_conf_t *cf, ngx_command_t *ngx_cmd,
      }
  
      arg = cf->args->elts;
@@ -163,8 +167,8 @@ index 2a95b5f..625be0e 100644
  
      cmd_name = &arg[0];
  
-+    if ((arg[last].len > 3 && ngx_strncmp(arg[last].data, "if=", 3) == 0)
-+        || (arg[last].len > 4 && ngx_strncmp(arg[last].data, "if!=", 4) == 0)) {
++    if (ngx_strncmp(arg[last].data, "if=", 3) == 0
++        || ngx_strncmp(arg[last].data, "if!=", 4) == 0) {
 +
 +        if (ngx_strncmp(arg[last].data, "if=", 3) == 0) {
 +            s.len = arg[last].len - 3;
@@ -194,6 +198,10 @@ index 2a95b5f..625be0e 100644
 +        cmd->filter = ccv.complex_value;
 +
 +        last--;
++
++    } else {
++        cmd->filter = NULL;
++        cmd->negative = 0;
 +    }
 +
      ignore_next_arg = 0;
