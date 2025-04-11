@@ -21,6 +21,7 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
 		- [Support for error\_page directive with if parameter](#support-for-error_page-directive-with-if-parameter)
 	- [ngx\_http\_ssl\_module](#ngx_http_ssl_module)
 		- [Optimizing TLS over TCP to reduce latency](#optimizing-tls-over-tcp-to-reduce-latency)
+		- [Strict SNI validation](#strict-sni-validation)
 	- [ngx\_http\_slice\_filter\_module](#ngx_http_slice_filter_module)
 		- [slice\_allow\_methods](#slice_allow_methods)
 		- [slice\_check\_etag](#slice_check_etag)
@@ -179,8 +180,6 @@ Allows the server to accept both HTTP and HTTPS requests on the same port, which
 
 When both the ssl and https_allow_http parameters are enabled for the listen directive, both https and http requests will be allowed.
 
-[Back to TOC](#table-of-contents)
-
 ### Enhancement of unique request id
 
 Based on the original nginx built-in variable $request_id, it supports inheriting unique IDs from request headers or any variables. In addition to random hex id, unique ID generation also supports trace id based on request characteristics.
@@ -221,8 +220,6 @@ Show up the following information in a default 4xx/5xx error page: The date, req
 
 Specify the value of the ip item to be displayed on the default 4xx/5xx error page. Parameter value can contain variables. The value will be displayed on the default 
 4xx/5xx error page only when the error_page_server_info directive is enabled.
-
-[Back to TOC](#table-of-contents)
 
 ### Support for ignoring invalid Range header
 
@@ -310,6 +307,18 @@ Default sizes for the dynamic record sizes are defined to fit maximal TLS + IPv6
 
 Visit [ngx_http_tls_dyn_size](https://github.com/nginx-modules/ngx_http_tls_dyn_size) repository for more information.
 
+### Strict SNI validation
+
+Adds the validation step of SNI and Host header, and when the request violate the rule, it immediately return status 421 Misdirected Request.
+
+* **Syntax:** *ssl_strict_server_name on | off | mtls_only;*
+
+* **Default:** *sl_strict_server_name mtls_only;*
+
+* **Context:** *http, server*
+
+Enable Strict SNI validation. When the request SNI and Host header are different. it immediately return status 421 Misdirected Request. `mtls_only` is used to enable Strict SNI validation only with `ssl_verify_client` enabled.
+
 [Back to TOC](#table-of-contents)
 
 ## ngx_http_slice_filter_module
@@ -391,8 +400,6 @@ Allows the merge inheritance of proxy_set_header in receiving contexts.
 
 Allows the merge inheritance of grpc_set_header in receiving contexts.
 
-[Back to TOC](#table-of-contents)
-
 ### Configuring sndbuf and rcvbuf for upstream connection
 
 Introduces two new directives to set sndbuf and rcvbuf for upstream connection. The original work is from [Tengine](https://github.com/alibaba/tengine).
@@ -416,8 +423,6 @@ Sets the sndbuf size for upstream connection. If not set, the system allocated s
 Sets the rcvbuf size for upstream connection. If not set, the system allocated size is followed.
 
 > fastcgi_rcvbuf_size, scgi_rcvbuf_size, uwsgi_rcvbuf_size, grpc_rcvbuf_size are also available.
-
-[Back to TOC](#table-of-contents)
 
 ### Enhancement of upstream cache control
 
@@ -532,8 +537,6 @@ Except for the original "if" condition operators, also supports:
 
 The comparison symbol supports decimals and negative numbers. Non-numeric input will always result in a negative result.
 
-[Back to TOC](#table-of-contents)
-
 ### "if" with multiple conditions
 
 * **Syntax:** *if (conditions) {...}*
@@ -578,8 +581,6 @@ All sub-conditions are evaluated first before calculating the expression result.
 Known limits 3:
 
 Due to the limitations of nginx script engine, if you use regular capture, you will only get the capture group of the last matching regular expression.
-
-[Back to TOC](#table-of-contents)
 
 ### Support for "elif" and "else" directives
 
@@ -692,6 +693,8 @@ refer to [access_log](https://nginx.org/en/docs/http/ngx_http_log_module.html#ac
 
 Based on the original `if=` parameter, you can achieve the opposite effect by changing `if=` to `if!=`.
 
+[Back to TOC](#table-of-contents)
+
 ## ngx_http_brotli_filter_module (3rd-party module)
 
 refer to [ngx_brotli](https://github.com/google/ngx_brotli).
@@ -773,6 +776,8 @@ Defines conditions under which the request will be checked by waf captcha functi
 * **Context:** *http, server, location*
 
 Defines conditions under which the request will be checked by waf modsecurity function. If at least one value of the string parameters is not empty and is not equal to “0” then the request will be checked by waf modsecurity function.
+
+[Back to TOC](#table-of-contents)
 
 ## ngx_http_headers_more_filter_module (3rd-party module)
 

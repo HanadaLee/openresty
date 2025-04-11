@@ -3560,10 +3560,27 @@ index 186380a..422443f 100644
  }
  
 diff --git a/src/http/modules/ngx_http_ssl_module.c b/src/http/modules/ngx_http_ssl_module.c
-index 1c92d9f..a5c7368 100644
+index 1c92d9f..89b008e 100644
 --- a/src/http/modules/ngx_http_ssl_module.c
 +++ b/src/http/modules/ngx_http_ssl_module.c
-@@ -290,6 +290,43 @@ static ngx_command_t  ngx_http_ssl_commands[] = {
+@@ -88,6 +88,16 @@ static ngx_conf_enum_t  ngx_http_ssl_ocsp[] = {
+ };
+ 
+ 
++#if (NGX_HTTP_EXT)
++static ngx_conf_enum_t  ngx_http_ssl_strict_server_name[] = {
++    { ngx_string("off"), 0 },
++    { ngx_string("on"), 1 },
++    { ngx_string("mtls_only"), 2 },
++    { ngx_null_string, 0 }
++}
++#endif
++
++
+ static ngx_conf_post_t  ngx_http_ssl_conf_command_post =
+     { ngx_http_ssl_conf_command_check };
+ 
+@@ -290,6 +300,50 @@ static ngx_command_t  ngx_http_ssl_commands[] = {
        offsetof(ngx_http_ssl_srv_conf_t, reject_handshake),
        NULL },
  
@@ -3602,12 +3619,19 @@ index 1c92d9f..a5c7368 100644
 +      NGX_HTTP_SRV_CONF_OFFSET,
 +      offsetof(ngx_http_ssl_srv_conf_t, dyn_rec_threshold),
 +      NULL },
++
++    { ngx_string("ssl_strict_server_name"),
++      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_CONF_FLAG,
++      ngx_conf_set_enum_slot,
++      NGX_HTTP_SRV_CONF_OFFSET,
++      offsetof(ngx_http_ssl_srv_conf_t, strict_server_name),
++      &ngx_http_ssl_strict_server_name },
 +#endif
 +
        ngx_null_command
  };
  
-@@ -399,6 +436,17 @@ static ngx_http_variable_t  ngx_http_ssl_vars[] = {
+@@ -399,6 +453,17 @@ static ngx_http_variable_t  ngx_http_ssl_vars[] = {
      { ngx_string("ssl_client_v_remain"), NULL, ngx_http_ssl_variable,
        (uintptr_t) ngx_ssl_get_client_v_remain, NGX_HTTP_VAR_CHANGEABLE, 0 },
  
@@ -3625,7 +3649,7 @@ index 1c92d9f..a5c7368 100644
        ngx_http_null_variable
  };
  
-@@ -629,6 +677,13 @@ ngx_http_ssl_create_srv_conf(ngx_conf_t *cf)
+@@ -629,6 +694,14 @@ ngx_http_ssl_create_srv_conf(ngx_conf_t *cf)
      sscf->ocsp_cache_zone = NGX_CONF_UNSET_PTR;
      sscf->stapling = NGX_CONF_UNSET;
      sscf->stapling_verify = NGX_CONF_UNSET;
@@ -3635,11 +3659,12 @@ index 1c92d9f..a5c7368 100644
 +    sscf->dyn_rec_size_lo = NGX_CONF_UNSET_SIZE;
 +    sscf->dyn_rec_size_hi = NGX_CONF_UNSET_SIZE;
 +    sscf->dyn_rec_threshold = NGX_CONF_UNSET_UINT;
++    ssscf->strict_server_name = NGX_CONF_UNSET_UINT;
 +#endif
  
      return sscf;
  }
-@@ -694,6 +749,22 @@ ngx_http_ssl_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -694,6 +767,25 @@ ngx_http_ssl_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
      ngx_conf_merge_str_value(conf->stapling_responder,
                           prev->stapling_responder, "");
  
@@ -3657,12 +3682,15 @@ index 1c92d9f..a5c7368 100644
 +                             4229);
 +    ngx_conf_merge_uint_value(conf->dyn_rec_threshold, prev->dyn_rec_threshold,
 +                             40);
++
++    ngx_conf_merge_uint_value(conf->strict_server_name,
++        prev->strict_server_name, 2);
 +#endif
 +
      conf->ssl.log = cf->log;
  
      if (conf->certificates) {
-@@ -890,6 +961,30 @@ ngx_http_ssl_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -890,6 +982,30 @@ ngx_http_ssl_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
          return NGX_CONF_ERROR;
      }
  
@@ -3694,10 +3722,10 @@ index 1c92d9f..a5c7368 100644
  }
  
 diff --git a/src/http/modules/ngx_http_ssl_module.h b/src/http/modules/ngx_http_ssl_module.h
-index c69c8ff..787e170 100644
+index c69c8ff..aadd25e 100644
 --- a/src/http/modules/ngx_http_ssl_module.h
 +++ b/src/http/modules/ngx_http_ssl_module.h
-@@ -62,6 +62,14 @@ typedef struct {
+@@ -62,6 +62,16 @@ typedef struct {
      ngx_flag_t                      stapling_verify;
      ngx_str_t                       stapling_file;
      ngx_str_t                       stapling_responder;
@@ -3708,6 +3736,8 @@ index c69c8ff..787e170 100644
 +    size_t                          dyn_rec_size_lo;
 +    size_t                          dyn_rec_size_hi;
 +    ngx_uint_t                      dyn_rec_threshold;
++
++    ngx_uint_t                      strict_server_name;
 +#endif
  } ngx_http_ssl_srv_conf_t;
  
@@ -4658,7 +4688,7 @@ index 90525ef..fd64777 100644
          return NGX_OK;
      }
 diff --git a/src/http/ngx_http_request.c b/src/http/ngx_http_request.c
-index 3cca57c..e558f38 100644
+index 3cca57c..9540ff8 100644
 --- a/src/http/ngx_http_request.c
 +++ b/src/http/ngx_http_request.c
 @@ -668,6 +668,9 @@ ngx_http_ssl_handshake(ngx_event_t *rev)
@@ -4696,7 +4726,20 @@ index 3cca57c..e558f38 100644
          rev->handler = ngx_http_wait_request_handler;
          ngx_http_wait_request_handler(rev);
  
-@@ -3854,6 +3868,11 @@ ngx_http_log_error(ngx_log_t *log, u_char *buf, size_t len)
+@@ -2290,7 +2304,12 @@ ngx_http_set_virtual_server(ngx_http_request_t *r, ngx_str_t *host)
+ 
+         sscf = ngx_http_get_module_srv_conf(cscf->ctx, ngx_http_ssl_module);
+ 
++#if (NGX_HTTP_EXT)
++        if ((sscf->strict_server_name == 2 && sscf->verify)
++            || sscf->strict_server_name == 1) {
++#else
+         if (sscf->verify) {
++#endif
+             ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
+                           "client attempted to request the server name "
+                           "different from the one that was negotiated");
+@@ -3854,6 +3873,11 @@ ngx_http_log_error(ngx_log_t *log, u_char *buf, size_t len)
      ngx_http_request_t  *r;
      ngx_http_log_ctx_t  *ctx;
  
@@ -4708,7 +4751,7 @@ index 3cca57c..e558f38 100644
      if (log->action) {
          p = ngx_snprintf(buf, len, " while %s", log->action);
          len -= p - buf;
-@@ -3868,6 +3887,23 @@ ngx_http_log_error(ngx_log_t *log, u_char *buf, size_t len)
+@@ -3868,6 +3892,23 @@ ngx_http_log_error(ngx_log_t *log, u_char *buf, size_t len)
      r = ctx->request;
  
      if (r) {
