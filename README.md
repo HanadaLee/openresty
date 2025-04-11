@@ -13,6 +13,8 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
 - [Additional Features](#additional-features)
 	- [ngx\_lua module](#ngx_lua-module)
 		- [Removal of h2 subrequest limitation](#removal-of-h2-subrequest-limitation)
+	- [ngx\_http](#ngx_http)
+	    - [Variables for timestamps and time spent on related operations](#variables-for-timestamps-and-time-spent-on-related-operations)
 	- [ngx\_http\_core\_module](#ngx_http_core_module)
 		- [Support for https\_allow\_http in listen directive](#support-for-https_allow_http-in-listen-directive)
 		- [Enhancement of unique request id](#enhancement-of-unique-request-id)
@@ -22,15 +24,18 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
 	- [ngx\_http\_ssl\_module](#ngx_http_ssl_module)
 		- [Optimizing TLS over TCP to reduce latency](#optimizing-tls-over-tcp-to-reduce-latency)
 		- [Strict SNI validation](#strict-sni-validation)
+		- [Variables about SSL handshake timestamps and time spent](#variables-about-ssl-handshake-timestamps-and-time-spent)
 	- [ngx\_http\_slice\_filter\_module](#ngx_http_slice_filter_module)
 		- [slice\_allow\_methods](#slice_allow_methods)
 		- [slice\_check\_etag](#slice_check_etag)
 		- [slice\_check\_last\_modified](#slice_check_last_modified)
 	- [ngx\_http\_sub\_filter\_module](#ngx_http_sub_filter_module)
 	- [ngx\_http\_proxy\_module and related modules](#ngx_http_proxy_module-and-related-modules)
-		- [Support for inheritance in "proxy\_set\_header"](#support-for-inheritance-in-proxy_set_header)
+		- [Support for inheritance in "proxy\_set\_header" and its friends](#support-for-inheritance-in-proxy_set_header-and-its-friend)
 		- [Configuring sndbuf and rcvbuf for upstream connection](#configuring-sndbuf-and-rcvbuf-for-upstream-connection)
 		- [Enhancement of upstream cache control](#enhancement-of-upstream-cache-control)
+	- [ngx\_http\_upstream\_module](#ngx_http_upstream_module)
+	    - [Extra variables for upstream information](#extra-variables-for-upstream-information)
 	- [ngx\_http\_realip\_module](#ngx_http_realip_module)
 	- [ngx\_http\_rewrite\_module](#ngx_http_rewrite_module)
 		- [Additional operators for the "if" directive](#additional-operators-for-the-if-directive)
@@ -163,6 +168,20 @@ The following are additional features supported in this bundle, while those alre
 Remove the limitation introduced by ngx lua on initiating sub-requests for h2 and h3 requests. The master branch of ngx_lua has removed this limitation. This patch will be deprecated when the next openresty stable version is released.
 
 Refer to [HTTP/2 with location.capture() re-enable](https://github.com/OpenResty/lua-nginx-module/issues/2243)
+
+[Back to TOC](#table-of-contents)
+
+## ngx_http
+
+### Variables for timestamps and time spent on related operations
+
+The module [ngx_http_extra_variables_module](https://git.hanada.info/hanada/ngx_http_extra_variables_module) must be compiled to use these variables.
+
+| Variables Nmae                         | Description |
+| ---                                    | ---         |
+| **$response_header_sent_ts**           | Response header sent timestamp in seconds with the milliseconds resolution. |
+| **$request_handling_time**             | Keeps time spent on handling request internally from receiving the request to sending the response header to the client. |
+| **$response_body_time**                | Keeps time spent on sending the response body to the client. |
 
 [Back to TOC](#table-of-contents)
 
@@ -319,6 +338,15 @@ Adds the validation step of SNI and Host header, and when the request violate th
 
 Enable Strict SNI validation. When the request SNI and Host header are different. it immediately return status 421 Misdirected Request. `mtls_only` is used to enable Strict SNI validation only with `ssl_verify_client` enabled.
 
+### Variables about SSL handshake timestamps and time spent
+
+New variables are introduced to get the start timestamp, end timestamp, and time taken for the SSL handshake.
+
+| Variables Nmae                    | Description |
+| **$ssl_handshake_start_ts**       | SSL handshake start timestamp in seconds with the milliseconds resolution.|
+| **$ssl_handshake_end_ts**         | SSL handshake finish timestamp in seconds with the milliseconds resolution.|
+| **$ssl_handshake_time**           | Keeps time spent on ssl handshaking in seconds with the milliseconds resolution.|
+
 [Back to TOC](#table-of-contents)
 
 ## ngx_http_slice_filter_module
@@ -376,11 +404,11 @@ sub_filter_bypass $http_pragma    $http_authorization;
 
 ## ngx_http_proxy_module and related modules
 
-### Support for inheritance in "proxy_set_header"
+### Support for inheritance in "proxy_set_header" and its friends
 
 Introduces the 'proxy_set_header_inherit' directive which blocks the merge inheritance in receiving contexts when set to off. The purpose of the added mechanics is to reduce repetition within the nginx configuration for universally set (or boilerplate) request headers, while maintaining flexibility to set additional headers for specific paths. The original patch is from [[PATCH] Added merge inheritance to proxy_set_header](https://mailman.nginx.org/pipermail/nginx-devel/2023-November/XUGFHDLSLRTFLWIBYPSE7LTXFJHNZE3E.html). Additionally provides grpc support.
 
-Also allows setting the :authory header (From [nginx-grpc_set_header_authority.patch](https://github.com/api7/apisix-nginx-module/blob/main/patch/1.25.3.1/nginx-grpc_set_header_authority.patch)).
+Also allows setting the `:authory` header (From [nginx-grpc_set_header_authority.patch](https://github.com/api7/apisix-nginx-module/blob/main/patch/1.25.3.1/nginx-grpc_set_header_authority.patch)) for grpc_set_header. Please note that you must set the `:authory` header at the beginning of other grpc_set_header directives to avoid `:authory` appearing after the normal headers and causing a protocol error.
 
 There is no change in behavior for existing configurations.
 
@@ -392,13 +420,17 @@ There is no change in behavior for existing configurations.
 
 Allows the merge inheritance of proxy_set_header in receiving contexts.
 
-* **Syntax:** *grpc_set_header_inherit on | off;*
+> grpc_set_header_inherit is also available.
 
-* **Default:** *grpc_set_header_inherit off;*
+* **Syntax:** *fastcgi_param_inherit on | off;*
+
+* **Default:** *fastcgi_param_inherit off;*
 
 * **Context:** *http, server, location*
 
-Allows the merge inheritance of grpc_set_header in receiving contexts.
+Allows the merge inheritance of fastcgi_param in receiving contexts.
+
+> scgi_param_inherit and uwsgi_param_inherit are also available.
 
 ### Configuring sndbuf and rcvbuf for upstream connection
 
@@ -494,6 +526,38 @@ Enables upstream cache with the specified MIME types in addition to “text/html
 
 Refer to [proxy_cache_valid](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_valid).
 This directive has been changed to support configuring the cache time as a variable. Other behaviors remain unchanged.
+
+[Back to TOC](#table-of-contents)
+
+## ngx_http_upstream_module
+
+### Extra variables for upstream information
+
+The module [ngx_http_extra_variables_module](https://git.hanada.info/hanada/ngx_http_extra_variables_module) must be compiled to use these variables.
+
+| Variables Nmae                            | Description |
+| ---                                       | ---         |
+| **$upstream_method**                      | Upstream method, usually “GET” or “POST”. |
+| **$upstream_start_ts**                    | Keeps timestamp of upstream starts; the time is kept in seconds with millisecond resolution. Times of several responses are separated by commas and colons like addresses in the $upstream_addr variable. |
+| **$upstream_last_start_ts**               | Keeps timestamp of latest upstream starts; the time is kept in seconds with millisecond resolution. |
+| **$upstream_ssl_start_ts**                | Keeps timestamp of upstream ssl handshake starts; the time is kept in seconds with millisecond resolution. Times of several responses are separated by commas and colons like addresses in the $upstream_addr variable. |
+| **$upstream_last_ssl_start_ts**           | Keeps timestamp of latest upstream ssl handshake starts; the time is kept in seconds with millisecond resolution. |
+| **$upstream_send_start_ts**               | Keeps timestamp of upstream request send starts; the time is kept in seconds with millisecond resolution. Times of several responses are separated by commas and colons like addresses in the $upstream_addr variable. |
+| **$upstream_last_send_start_ts**          | Keeps timestamp of latest upstream request send starts; the time is kept in seconds with millisecond resolution. |
+| **$upstream_send_end_ts**                 | Keeps timestamp of upstream request send ends; the time is kept in seconds with millisecond resolution. Times of several responses are separated by commas and colons like addresses in the $upstream_addr variable. |
+| **$upstream_last_send_end_ts**            | Keeps timestamp of latest upstream request send ends; the time is kept in seconds with millisecond resolution. |
+| **$upstream_header_ts**                   | Keeps timestamp of upstream response header sent; the time is kept in seconds with millisecond resolution. Times of several responses are separated by commas and colons like addresses in the $upstream_addr variable. |
+| **$upstream_last_header_ts**              | Keeps timestamp of latest upstream response header sent; the time is kept in seconds with millisecond resolution. |
+| **$upstream_end_ts**                      | Keeps timestamp of upstream response sent or abnormal interruption; the time is kept in seconds with millisecond resolution. Times of several responses are separated by commas and colons like addresses in the $upstream_addr variable. |
+| **$upstream_last_end_ts**                 | Keeps timestamp of latest upstream response sent or abnormal interruption; the time is kept in seconds with millisecond resolution. |
+| **$upstream_transport_connect_time**      | Keeps time spent on establishing a connection with the upstream server; the time is kept in seconds with millisecond resolution. In case of SSL, does not include time spent on handshake. Times of several connections are separated by commas and colons like addresses in the $upstream_addr variable. |
+| **$upstream_last_transport_connect_time** | Keeps time spent on establishing a connection with the upstream server; the time is kept in seconds with millisecond resolution. In case of SSL, does not include time spent on handshake. |
+| **$upstream_ssl_time**                    | Keeps time spent on upstream ssl handshake; the time is kept in seconds with millisecond resolution. Note that this timing starts only after receiving the upstream request header. Times of several ssl connections are separated by commas and colons like addresses in the $upstream_addr variable. |
+| **$upstream_last_ssl_time**               | Keeps time spent on latest upstream ssl handshake; the time is kept in seconds with millisecond resolution. Note that this timing starts only after receiving the upstream request header. |
+| **$upstream_send_time**                   | Keeps time spent on sending request to the upstream server; the time is kept in seconds with millisecond resolution. Times of several send requests are separated by commas and colons like addresses in the $upstream_addr variable. |
+| **$upstream_last_send_time**              | Keeps time spent on sending request to the latest upstream server; the time is kept in seconds with millisecond resolution. |
+| **$upstream_read_time**                   | Keeps time spent on reading response from the upstream server; the time is kept in seconds with millisecond resolution. Note that this timing starts only after receiving the upstream request header. Times of several responses are separated by commas and colons like addresses in the $upstream_addr variable. |
+| **$upstream_last_read_time**              | Keeps time spent on reading response from the latest upstream server; the time is kept in seconds with millisecond resolution. Note that this timing starts only after receiving the upstream request header. |
 
 [Back to TOC](#table-of-contents)
 
