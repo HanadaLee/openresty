@@ -177,7 +177,7 @@ Refer to [HTTP/2 with location.capture() re-enable](https://github.com/OpenResty
 
 The module [ngx_http_extra_variables_module](https://git.hanada.info/hanada/ngx_http_extra_variables_module) must be compiled to use these variables.
 
-| Variables Nmae                         | Description |
+| Variable                               | Description |
 | ---                                    | ---         |
 | **$response_header_sent_ts**           | Response header sent timestamp in seconds with the milliseconds resolution. |
 | **$request_handling_time**             | Keeps time spent on handling request internally from receiving the request to sending the response header to the client. |
@@ -342,7 +342,7 @@ Enable Strict SNI validation. When the request SNI and Host header are different
 
 New variables are introduced to get the start timestamp, end timestamp, and time taken for the SSL handshake.
 
-| Variables Nmae                    | Description |
+| Variable                          | Description |
 | **$ssl_handshake_start_ts**       | SSL handshake start timestamp in seconds with the milliseconds resolution.|
 | **$ssl_handshake_end_ts**         | SSL handshake finish timestamp in seconds with the milliseconds resolution.|
 | **$ssl_handshake_time**           | Keeps time spent on ssl handshaking in seconds with the milliseconds resolution.|
@@ -535,7 +535,7 @@ This directive has been changed to support configuring the cache time as a varia
 
 The module [ngx_http_extra_variables_module](https://git.hanada.info/hanada/ngx_http_extra_variables_module) must be compiled to use these variables.
 
-| Variables Nmae                            | Description |
+| Variable                                  | Description |
 | ---                                       | ---         |
 | **$upstream_method**                      | Upstream method, usually “GET” or “POST”. |
 | **$upstream_start_ts**                    | Keeps timestamp of upstream starts; the time is kept in seconds with millisecond resolution. Times of several responses are separated by commas and colons like addresses in the $upstream_addr variable. |
