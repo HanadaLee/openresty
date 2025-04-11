@@ -3659,7 +3659,7 @@ index 1c92d9f..89b008e 100644
 +    sscf->dyn_rec_size_lo = NGX_CONF_UNSET_SIZE;
 +    sscf->dyn_rec_size_hi = NGX_CONF_UNSET_SIZE;
 +    sscf->dyn_rec_threshold = NGX_CONF_UNSET_UINT;
-+    ssscf->strict_server_name = NGX_CONF_UNSET_UINT;
++    sscf->strict_server_name = NGX_CONF_UNSET_UINT;
 +#endif
  
      return sscf;
