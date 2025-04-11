@@ -3573,7 +3573,7 @@ index 1c92d9f..89b008e 100644
 +    { ngx_string("on"), 1 },
 +    { ngx_string("mtls_only"), 2 },
 +    { ngx_null_string, 0 }
-+}
++};
 +#endif
 +
 +
