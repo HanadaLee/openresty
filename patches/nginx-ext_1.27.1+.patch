@@ -181,7 +181,7 @@ index 9e8f424..fbe9ba3 100644
 +
 +
 +ngx_int_t
-+ngx_ssl_get_handshake_start_ts(ngx_connection_t *c, ngx_pool_t *pool,
++ngx_ssl_get_handshake_start_msec(ngx_connection_t *c, ngx_pool_t *pool,
 +    ngx_str_t *s)
 +{
 +    ngx_msec_t       ms;
@@ -208,7 +208,7 @@ index 9e8f424..fbe9ba3 100644
 +
 +
 +ngx_int_t
-+ngx_ssl_get_handshake_end_ts(ngx_connection_t *c, ngx_pool_t *pool,
++ngx_ssl_get_handshake_end_msec(ngx_connection_t *c, ngx_pool_t *pool,
 +    ngx_str_t *s)
 +{
 +    ngx_msec_t       ms;
@@ -309,9 +309,9 @@ index ebb2c35..427306e 100644
 +#if (NGX_HTTP_EXT)
 +ngx_int_t ngx_ssl_get_handshake_time(ngx_connection_t *c, ngx_pool_t *pool,
 +    ngx_str_t *s);
-+ngx_int_t ngx_ssl_get_handshake_start_ts(ngx_connection_t *c, ngx_pool_t *pool,
++ngx_int_t ngx_ssl_get_handshake_start_msec(ngx_connection_t *c, ngx_pool_t *pool,
 +    ngx_str_t *s);
-+ngx_int_t ngx_ssl_get_handshake_end_ts(ngx_connection_t *c, ngx_pool_t *pool,
++ngx_int_t ngx_ssl_get_handshake_end_msec(ngx_connection_t *c, ngx_pool_t *pool,
 +    ngx_str_t *s);
 +#endif
  
@@ -3750,11 +3750,11 @@ index 1c92d9f..9a0fd6e 100644
 +    { ngx_string("ssl_handshake_time"), NULL, ngx_http_ssl_variable,
 +      (uintptr_t) ngx_ssl_get_handshake_time, NGX_HTTP_VAR_CHANGEABLE, 0 },
 +
-+    { ngx_string("ssl_handshake_start_ts"), NULL, ngx_http_ssl_variable,
-+      (uintptr_t) ngx_ssl_get_handshake_start_ts, NGX_HTTP_VAR_CHANGEABLE, 0 },
++    { ngx_string("ssl_handshake_start_msec"), NULL, ngx_http_ssl_variable,
++      (uintptr_t) ngx_ssl_get_handshake_start_msec, NGX_HTTP_VAR_CHANGEABLE, 0 },
 +
-+    { ngx_string("ssl_handshake_end_ts"), NULL, ngx_http_ssl_variable,
-+      (uintptr_t) ngx_ssl_get_handshake_end_ts, NGX_HTTP_VAR_CHANGEABLE, 0 },
++    { ngx_string("ssl_handshake_end_msec"), NULL, ngx_http_ssl_variable,
++      (uintptr_t) ngx_ssl_get_handshake_end_msec, NGX_HTTP_VAR_CHANGEABLE, 0 },
 +#endif
 +
        ngx_http_null_variable
@@ -7267,12 +7267,12 @@ index ba44477..9c210ca 100644
 +    { ngx_string("ssl_handshake_time"), NULL, ngx_stream_ssl_variable,
 +      (uintptr_t) ngx_ssl_get_handshake_time, NGX_STREAM_VAR_CHANGEABLE, 0 },
 +
-+    { ngx_string("ssl_handshake_start_ts"), NULL, ngx_stream_ssl_variable,
-+      (uintptr_t) ngx_ssl_get_handshake_start_ts, NGX_STREAM_VAR_CHANGEABLE,
++    { ngx_string("ssl_handshake_start_msec"), NULL, ngx_stream_ssl_variable,
++      (uintptr_t) ngx_ssl_get_handshake_start_msec, NGX_STREAM_VAR_CHANGEABLE,
 +      0 },
 +
-+    { ngx_string("ssl_handshake_end_ts"), NULL, ngx_stream_ssl_variable,
-+      (uintptr_t) ngx_ssl_get_handshake_end_ts, NGX_STREAM_VAR_CHANGEABLE, 0 },
++    { ngx_string("ssl_handshake_end_msec"), NULL, ngx_stream_ssl_variable,
++      (uintptr_t) ngx_ssl_get_handshake_end_msec, NGX_STREAM_VAR_CHANGEABLE, 0 },
 +#endif
 +
        ngx_stream_null_variable

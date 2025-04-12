@@ -179,7 +179,7 @@ The module [ngx_http_extra_variables_module](https://git.hanada.info/hanada/ngx_
 
 | Variable                               | Description |
 | ---                                    | ---         |
-| **$response_header_sent_ts**           | Response header sent timestamp in seconds with the milliseconds resolution. |
+| **$response_header_sent_mesc**         | Response header sent timestamp in seconds with the milliseconds resolution. |
 | **$request_handling_time**             | Keeps time spent on handling request internally from receiving the request to sending the response header to the client. |
 | **$response_body_time**                | Keeps time spent on sending the response body to the client. |
 
@@ -343,8 +343,8 @@ Enable Strict SNI validation. When the request SNI and Host header are different
 New variables are introduced to get the start timestamp, end timestamp, and time taken for the SSL handshake.
 
 | Variable                          | Description |
-| **$ssl_handshake_start_ts**       | SSL handshake start timestamp in seconds with the milliseconds resolution.|
-| **$ssl_handshake_end_ts**         | SSL handshake finish timestamp in seconds with the milliseconds resolution.|
+| **$ssl_handshake_start_msec**       | SSL handshake start timestamp in seconds with the milliseconds resolution.|
+| **$ssl_handshake_end_msec**         | SSL handshake finish timestamp in seconds with the milliseconds resolution.|
 | **$ssl_handshake_time**           | Keeps time spent on ssl handshaking in seconds with the milliseconds resolution.|
 
 [Back to TOC](#table-of-contents)
@@ -538,18 +538,18 @@ The module [ngx_http_extra_variables_module](https://git.hanada.info/hanada/ngx_
 | Variable                                  | Description |
 | ---                                       | ---         |
 | **$upstream_method**                      | Upstream method, usually “GET” or “POST”. |
-| **$upstream_start_ts**                    | Keeps timestamp of upstream starts; the time is kept in seconds with millisecond resolution. Times of several responses are separated by commas and colons like addresses in the $upstream_addr variable. |
-| **$upstream_last_start_ts**               | Keeps timestamp of latest upstream starts; the time is kept in seconds with millisecond resolution. |
-| **$upstream_ssl_start_ts**                | Keeps timestamp of upstream ssl handshake starts; the time is kept in seconds with millisecond resolution. Times of several responses are separated by commas and colons like addresses in the $upstream_addr variable. |
-| **$upstream_last_ssl_start_ts**           | Keeps timestamp of latest upstream ssl handshake starts; the time is kept in seconds with millisecond resolution. |
-| **$upstream_send_start_ts**               | Keeps timestamp of upstream request send starts; the time is kept in seconds with millisecond resolution. Times of several responses are separated by commas and colons like addresses in the $upstream_addr variable. |
-| **$upstream_last_send_start_ts**          | Keeps timestamp of latest upstream request send starts; the time is kept in seconds with millisecond resolution. |
-| **$upstream_send_end_ts**                 | Keeps timestamp of upstream request send ends; the time is kept in seconds with millisecond resolution. Times of several responses are separated by commas and colons like addresses in the $upstream_addr variable. |
-| **$upstream_last_send_end_ts**            | Keeps timestamp of latest upstream request send ends; the time is kept in seconds with millisecond resolution. |
-| **$upstream_header_ts**                   | Keeps timestamp of upstream response header sent; the time is kept in seconds with millisecond resolution. Times of several responses are separated by commas and colons like addresses in the $upstream_addr variable. |
-| **$upstream_last_header_ts**              | Keeps timestamp of latest upstream response header sent; the time is kept in seconds with millisecond resolution. |
-| **$upstream_end_ts**                      | Keeps timestamp of upstream response sent or abnormal interruption; the time is kept in seconds with millisecond resolution. Times of several responses are separated by commas and colons like addresses in the $upstream_addr variable. |
-| **$upstream_last_end_ts**                 | Keeps timestamp of latest upstream response sent or abnormal interruption; the time is kept in seconds with millisecond resolution. |
+| **$upstream_start_msec**                  | Keeps timestamp of upstream starts; the time is kept in seconds with millisecond resolution. Times of several responses are separated by commas and colons like addresses in the $upstream_addr variable. |
+| **$upstream_last_start_msec**             | Keeps timestamp of latest upstream starts; the time is kept in seconds with millisecond resolution. |
+| **$upstream_ssl_start_msec**              | Keeps timestamp of upstream ssl handshake starts; the time is kept in seconds with millisecond resolution. Times of several responses are separated by commas and colons like addresses in the $upstream_addr variable. |
+| **$upstream_last_ssl_start_msec**         | Keeps timestamp of latest upstream ssl handshake starts; the time is kept in seconds with millisecond resolution. |
+| **$upstream_send_start_msec**             | Keeps timestamp of upstream request send starts; the time is kept in seconds with millisecond resolution. Times of several responses are separated by commas and colons like addresses in the $upstream_addr variable. |
+| **$upstream_last_send_start_msec**        | Keeps timestamp of latest upstream request send starts; the time is kept in seconds with millisecond resolution. |
+| **$upstream_send_end_msec**               | Keeps timestamp of upstream request send ends; the time is kept in seconds with millisecond resolution. Times of several responses are separated by commas and colons like addresses in the $upstream_addr variable. |
+| **$upstream_last_send_end_msec**          | Keeps timestamp of latest upstream request send ends; the time is kept in seconds with millisecond resolution. |
+| **$upstream_header_msec**                 | Keeps timestamp of upstream response header sent; the time is kept in seconds with millisecond resolution. Times of several responses are separated by commas and colons like addresses in the $upstream_addr variable. |
+| **$upstream_last_header_msec**            | Keeps timestamp of latest upstream response header sent; the time is kept in seconds with millisecond resolution. |
+| **$upstream_end_msec**                    | Keeps timestamp of upstream response sent or abnormal interruption; the time is kept in seconds with millisecond resolution. Times of several responses are separated by commas and colons like addresses in the $upstream_addr variable. |
+| **$upstream_last_end_msec**               | Keeps timestamp of latest upstream response sent or abnormal interruption; the time is kept in seconds with millisecond resolution. |
 | **$upstream_transport_connect_time**      | Keeps time spent on establishing a connection with the upstream server; the time is kept in seconds with millisecond resolution. In case of SSL, does not include time spent on handshake. Times of several connections are separated by commas and colons like addresses in the $upstream_addr variable. |
 | **$upstream_last_transport_connect_time** | Keeps time spent on establishing a connection with the upstream server; the time is kept in seconds with millisecond resolution. In case of SSL, does not include time spent on handshake. |
 | **$upstream_ssl_time**                    | Keeps time spent on upstream ssl handshake; the time is kept in seconds with millisecond resolution. Note that this timing starts only after receiving the upstream request header. Times of several ssl connections are separated by commas and colons like addresses in the $upstream_addr variable. |
