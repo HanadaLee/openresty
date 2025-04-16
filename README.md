@@ -161,16 +161,6 @@ The following are additional features supported in this bundle, while those alre
 
 [Back to TOC](#table-of-contents)
 
-## ngx_lua module
-
-### Removal of h2 subrequest limitation
-
-Remove the limitation introduced by ngx lua on initiating sub-requests for h2 and h3 requests. The master branch of ngx_lua has removed this limitation. This patch will be deprecated when the next openresty stable version is released.
-
-Refer to [HTTP/2 with location.capture() re-enable](https://github.com/OpenResty/lua-nginx-module/issues/2243)
-
-[Back to TOC](#table-of-contents)
-
 ## ngx_http
 
 ### Variables for timestamps and time spent on related operations
