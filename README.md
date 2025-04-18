@@ -8,57 +8,58 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
 - [Table of Contents](#table-of-contents)
 - [Description](#description)
 - [Components](#components)
-    - [Components of official OpenResty bundle](#components-of-official-openresty-bundle)
-    - [Components of this OpenResty bundle](#components-of-this-openresty-bundle)
+  - [Components of official OpenResty bundle](#components-of-official-openresty-bundle)
+  - [Components of this OpenResty bundle](#components-of-this-openresty-bundle)
 - [Additional Features](#additional-features)
-    - [ngx\_http](#ngx_http)
-        - [Variables for timestamps and time spent on related operations](#variables-for-timestamps-and-time-spent-on-related-operations)
-    - [ngx\_http\_core\_module](#ngx_http_core_module)
-        - [Support for https\_allow\_http in listen directive](#support-for-https_allow_http-in-listen-directive)
-        - [Enhancement of unique request id](#enhancement-of-unique-request-id)
-        - [Optimization of default error page](#optimization-of-default-error-page)
-        - [Support for ignoring invalid Range header](#support-for-ignoring-invalid-range-header)
-        - [Support for error\_page directive with if parameter](#support-for-error_page-directive-with-if-parameter)
-    - [ngx\_http\_ssl\_module](#ngx_http_ssl_module)
-        - [Optimizing TLS over TCP to reduce latency](#optimizing-tls-over-tcp-to-reduce-latency)
-        - [Strict SNI validation](#strict-sni-validation)
-        - [Variables about SSL handshake timestamps and time spent](#variables-about-ssl-handshake-timestamps-and-time-spent)
-    - [ngx\_http\_slice\_filter\_module](#ngx_http_slice_filter_module)
-        - [slice\_allow\_methods](#slice_allow_methods)
-        - [slice\_check\_etag](#slice_check_etag)
-        - [slice\_check\_last\_modified](#slice_check_last_modified)
-    - [ngx\_http\_sub\_filter\_module](#ngx_http_sub_filter_module)
-    - [ngx\_http\_proxy\_module and related modules](#ngx_http_proxy_module-and-related-modules)
-        - [Support for inheritance in "proxy\_set\_header" and its friends](#support-for-inheritance-in-proxy_set_header-and-its-friend)
-        - [Configuring sndbuf and rcvbuf for upstream connection](#configuring-sndbuf-and-rcvbuf-for-upstream-connection)
-        - [Enhancement of upstream cache control](#enhancement-of-upstream-cache-control)
-    - [ngx\_http\_upstream\_module](#ngx_http_upstream_module)
-        - [Extra variables for upstream information](#extra-variables-for-upstream-information)
-    - [ngx\_http\_realip\_module](#ngx_http_realip_module)
-    - [ngx\_http\_rewrite\_module](#ngx_http_rewrite_module)
-        - [Additional operators for the "if" directive](#additional-operators-for-the-if-directive)
-        - ["if" with multiple conditions](#if-with-multiple-conditions)
-        - [Support for "elif" and "else" directives](#support-for-elif-and-else-directives)
-    - [ngx\_http\_gunzip\_module](#ngx_http_gunzip_module)
-    - [ngx\_http\_gzip\_filter\_module](#ngx_http_gzip_filter_module)
-        - [gzip\_max\_length](#gzip_max_length)
-        - [gzip\_bypass](#gzip_bypass)
-    - [ngx\_http\_limit\_req\_module](#ngx_http_limit_req_module)
-    - [ngx\_http\_log\_module](#ngx_http_log_module)
-    - [ngx\_http\_brotli\_filter\_module (3rd-party module)](#ngx_http_brotli_filter_module-3rd-party-module)
-        - [brotli\_max\_length](#brotli_max_length)
-        - [brotli\_bypass](#brotli_bypass)
-    - [ngx\_http\_waf\_module (3rd-party module)](#ngx_http_waf_module-3rd-party-module)
-        - [waf\_bypass](#waf_bypass)
-        - [waf\_cc\_deny\_bypass](#waf_cc_deny_bypass)
-        - [waf\_under\_attack\_bypass](#waf_under_attack_bypass)
-        - [waf\_captcha\_bypass](#waf_captcha_bypass)
-        - [waf\_modsecurity\_bypass](#waf_modsecurity_bypass)
-    - [ngx\_http\_headers\_more\_filter\_module (3rd-party module)](#ngx_http_headers_more_filter_module-3rd-party-module)
-        - [more\_set\_headers](#more_set_headers)
-        - [more\_clear\_headers](#more_clear_headers)
-        - [more\_set\_input\_headers](#more_set_input_headers)
-        - [more\_clear\_input\_headers](#more_clear_input_headers)
+  - [ngx\_http](#ngx_http)
+    - [Variables for timestamps and time spent on related operations](#variables-for-timestamps-and-time-spent-on-related-operations)
+  - [ngx\_http\_core\_module](#ngx_http_core_module)
+    - [Support for https\_allow\_http in listen directive](#support-for-https_allow_http-in-listen-directive)
+    - [Enhancement of unique request id](#enhancement-of-unique-request-id)
+    - [Optimization of default error page](#optimization-of-default-error-page)
+    - [Support for ignoring invalid Range header](#support-for-ignoring-invalid-range-header)
+    - [Support for error\_page directive with if parameter](#support-for-error_page-directive-with-if-parameter)
+    - [More directives for not modified checking](#more-directives-for-not-modified-checking)
+  - [ngx\_http\_ssl\_module](#ngx_http_ssl_module)
+    - [Optimizing TLS over TCP to reduce latency](#optimizing-tls-over-tcp-to-reduce-latency)
+    - [Strict SNI validation](#strict-sni-validation)
+    - [Variables about SSL handshake timestamps and time spent](#variables-about-ssl-handshake-timestamps-and-time-spent)
+  - [ngx\_http\_slice\_filter\_module](#ngx_http_slice_filter_module)
+    - [slice\_allow\_methods](#slice_allow_methods)
+    - [slice\_check\_etag](#slice_check_etag)
+    - [slice\_check\_last\_modified](#slice_check_last_modified)
+  - [ngx\_http\_sub\_filter\_module](#ngx_http_sub_filter_module)
+  - [ngx\_http\_proxy\_module and related modules](#ngx_http_proxy_module-and-related-modules)
+    - [Support for inheritance in "proxy\_set\_header" and its friends](#support-for-inheritance-in-proxy_set_header-and-its-friends)
+    - [Configuring sndbuf and rcvbuf for upstream connection](#configuring-sndbuf-and-rcvbuf-for-upstream-connection)
+    - [Enhancement of upstream cache control](#enhancement-of-upstream-cache-control)
+  - [ngx\_http\_upstream\_module](#ngx_http_upstream_module)
+    - [Extra variables for upstream information](#extra-variables-for-upstream-information)
+  - [ngx\_http\_realip\_module](#ngx_http_realip_module)
+  - [ngx\_http\_rewrite\_module](#ngx_http_rewrite_module)
+    - [Additional operators for the "if" directive](#additional-operators-for-the-if-directive)
+    - ["if" with multiple conditions](#if-with-multiple-conditions)
+    - [Support for "elif" and "else" directives](#support-for-elif-and-else-directives)
+  - [ngx\_http\_gunzip\_module](#ngx_http_gunzip_module)
+  - [ngx\_http\_gzip\_filter\_module](#ngx_http_gzip_filter_module)
+    - [gzip\_max\_length](#gzip_max_length)
+    - [gzip\_bypass](#gzip_bypass)
+  - [ngx\_http\_limit\_req\_module](#ngx_http_limit_req_module)
+  - [ngx\_http\_log\_module](#ngx_http_log_module)
+  - [ngx\_http\_brotli\_filter\_module (3rd-party module)](#ngx_http_brotli_filter_module-3rd-party-module)
+    - [brotli\_max\_length](#brotli_max_length)
+    - [brotli\_bypass](#brotli_bypass)
+  - [ngx\_http\_waf\_module (3rd-party module)](#ngx_http_waf_module-3rd-party-module)
+    - [waf\_bypass](#waf_bypass)
+    - [waf\_cc\_deny\_bypass](#waf_cc_deny_bypass)
+    - [waf\_under\_attack\_bypass](#waf_under_attack_bypass)
+    - [waf\_captcha\_bypass](#waf_captcha_bypass)
+    - [waf\_modsecurity\_bypass](#waf_modsecurity_bypass)
+  - [ngx\_http\_headers\_more\_filter\_module (3rd-party module)](#ngx_http_headers_more_filter_module-3rd-party-module)
+    - [more\_set\_headers](#more_set_headers)
+    - [more\_clear\_headers](#more_clear_headers)
+    - [more\_set\_input\_headers](#more_set_input_headers)
+    - [more\_clear\_input\_headers](#more_clear_input_headers)
 - [Luarocks](#luarocks)
 - [Copyright \& License](#copyright--license)
 
@@ -106,6 +107,7 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_http_geoip2_module](https://github.com/leev/ngx_http_geoip2_module)
 * [ngx_http_internal_auth_module](https://git.hanada.info/hanada/ngx_http_internal_auth_module)
 * [ngx_http_internal_redirect_module](https://git.hanada.info/hanada/ngx_http_internal_redirect_module)
+* [ngx_http_label_module](https://git.hanada.info/hanada/ngx_http_label_module)
 * [ngx_http_limit_traffic_rate_filter_module](https://github.com/nginx-modules/ngx_http_limit_traffic_ratefilter_module)
 * [ngx_http_log_var_set_module](https://git.hanada.info/hanada/ngx_http_log_var_set_module)
 * [ngx_http_loop_detect_module](https://git.hanada.info/hanada/ngx_http_loop_detect_module)
@@ -249,6 +251,39 @@ Specify whether to ignore an invalid range header. If enabled, invalid range hea
 For the original usage, please refer to [error_page](https://nginx.org/en/docs/http/ngx_http_core_module.html#error_page) of nginx documentation.
 
 The `if` parameter enables conditional error page. The condition is evaluated before the error page is processed. If the condition value is not empty or `0`, the error page will be processed. Otherwise, the error page will not be processed. You can also achieve the opposite effect by changing `if=` to `if!=`.
+
+### More directives for not modified checking
+
+* **Syntax:** *ignore_if_unmodified_since on | off;*
+
+* **Default:** *ignore_if_unmodified_since off;*
+
+* **Context:** *http, server, location*
+
+Specify whether to ignore the `If-Unmodified-Since` request header. If enabled, the `If-Unmodified-Since` request header will be ignored. Otherwise, the `If-Unmodified-Since` request header will be checked.
+
+* **Syntax:** *ignore_if_match on | off;*
+
+* **Default:** *ignore_if_match off;*
+
+* **Context:** *http, server, location*
+
+Specify whether to ignore the `If-Match` request header. If enabled, the `If-Match` request header will be ignored. Otherwise, the `If-Match` request header will be checked.
+
+* **Syntax:** *not_modified_check on | off | strict;*
+
+* **Default:** *not_modified_check strict;*
+  
+* **Context:** *http, server, location*
+
+Specifies how to check if the response is unmodified (304 Not Modified):
+
+`off`: Do not check if the response is unmodified. the response is always considered modified.
+`on`: Check if the response is unmodified **if either** `If-Modified-Since` **or** `If-None-Match` request headers are present. If **any of the headers' checks pass**, a 304 response is returned.
+`strict`:
+  - If **only one header** (`If-Modified-Since` **or** `If-None-Match`) is present, check that header. If its condition is met, return 304 (Not Modified).  
+  - If **both headers** are present, **both must pass their checks** to return 304 (Not Modified).  
+  - If neither header is present, the response is considered modified.
 
 [Back to TOC](#table-of-contents)
 
