@@ -4758,23 +4758,28 @@ index 937ffe2..5e036fd 100644
  
  static char *
 diff --git a/src/http/ngx_http_core_module.h b/src/http/ngx_http_core_module.h
-index 765e7ff..2f3e32e 100644
+index 765e7ff..dcd3ee0 100644
 --- a/src/http/ngx_http_core_module.h
 +++ b/src/http/ngx_http_core_module.h
-@@ -60,6 +60,12 @@ typedef struct ngx_thread_pool_s  ngx_thread_pool_t;
+@@ -60,6 +60,17 @@ typedef struct ngx_thread_pool_s  ngx_thread_pool_t;
  #define NGX_HTTP_SERVER_TOKENS_BUILD    2
  
  
 +#if (NGX_HTTP_EXT)
 +#define NGX_HTTP_REQUEST_ID_HEXID       1
 +#define NGX_HTTP_REQUEST_ID_TRACEID     2
++
++
++#define NGX_HTTP_NMC_OFF                0
++#define NGX_HTTP_NMC_ON                 1
++#define NGX_HTTP_NMC_STRICT             2
 +#endif
 +
 +
  typedef struct ngx_http_location_tree_node_s  ngx_http_location_tree_node_t;
  typedef struct ngx_http_core_loc_conf_s  ngx_http_core_loc_conf_t;
  
-@@ -83,6 +89,9 @@ typedef struct {
+@@ -83,6 +94,9 @@ typedef struct {
      unsigned                   reuseport:1;
      unsigned                   so_keepalive:2;
      unsigned                   proxy_protocol:1;
@@ -4784,7 +4789,7 @@ index 765e7ff..2f3e32e 100644
  
      int                        backlog;
      int                        rcvbuf;
-@@ -241,6 +250,9 @@ struct ngx_http_addr_conf_s {
+@@ -241,6 +255,9 @@ struct ngx_http_addr_conf_s {
      unsigned                   http2:1;
      unsigned                   quic:1;
      unsigned                   proxy_protocol:1;
@@ -4794,7 +4799,7 @@ index 765e7ff..2f3e32e 100644
  };
  
  
-@@ -302,6 +314,12 @@ typedef struct {
+@@ -302,6 +319,12 @@ typedef struct {
      ngx_int_t                  overwrite;
      ngx_http_complex_value_t   value;
      ngx_str_t                  args;
@@ -4807,7 +4812,7 @@ index 765e7ff..2f3e32e 100644
  } ngx_http_err_page_t;
  
  
-@@ -385,6 +403,9 @@ struct ngx_http_core_loc_conf_s {
+@@ -385,6 +408,9 @@ struct ngx_http_core_loc_conf_s {
      ngx_uint_t    lingering_close;         /* lingering_close */
      ngx_uint_t    if_modified_since;       /* if_modified_since */
      ngx_uint_t    max_ranges;              /* max_ranges */
@@ -4817,7 +4822,7 @@ index 765e7ff..2f3e32e 100644
      ngx_uint_t    client_body_in_file_only; /* client_body_in_file_only */
  
      ngx_flag_t    client_body_in_single_buffer;
-@@ -446,6 +467,19 @@ struct ngx_http_core_loc_conf_s {
+@@ -446,6 +472,19 @@ struct ngx_http_core_loc_conf_s {
  
      ngx_queue_t  *locations;
  
