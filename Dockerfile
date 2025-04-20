@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.27.1.2"
-ARG RESTY_RELEASE="200"
+ARG RESTY_RELEASE="201"
 ARG RESTY_LUAROCKS_VERSION="3.11.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.7.1"
@@ -52,6 +52,7 @@ ARG RESTY_ZSTD_VERSION="1.5.6"
 ARG RESTY_LIBATOMIC_VERSION="7.8.0"
 ARG RESTY_LIBQRENCODE_VERSION="4.1.1"
 ARG RESTY_LIBVIPS_VERSION="8.16.0"
+ARG RESTY_OWSAP_CRS_VERSION="4.13.0"
 ARG RESTY_PATH_OPTIONS="\
     --prefix=/usr/local/openresty \
     --sbin-path=/usr/local/openresty/sbin/nginx \
@@ -438,7 +439,8 @@ RUN groupmod -n nginx www-data \
     ${_RESTY_CONFIG_DEPS} \
     && make -j${RESTY_J} \
     && make install \
-    && mv /usr/local/openresty/nginx/html /usr/local/openresty \
+    && mkdir -p /usr/local/openresty/share \
+    && mv /usr/local/openresty/nginx/html /usr/local/openresty/share \
     && rm -rf /usr/local/openresty/nginx \
     && mkdir -p /usr/local/openresty/var/lib/tmp \
     && mkdir -p /usr/local/openresty/cache/fastcgi \
@@ -494,6 +496,16 @@ RUN groupmod -n nginx www-data \
     && /usr/local/openresty/luajit/bin/luarocks install binaryheap \
     && /usr/local/openresty/luajit/bin/luarocks install penlight \
     && /usr/local/openresty/luajit/bin/luarocks install xml2lua \
+    && cd /usr/local/openresty/share \
+    && curl -fSL https://${RESTY_GIT_MIRROR}/coreruleset/coreruleset/releases/download/v${RESTY_OWSAP_CRS_VERSION}/coreruleset-${RESTY_OWSAP_CRS_VERSION}-minimal.tar.gz -o coreruleset-${RESTY_OWSAP_CRS_VERSION}-minimal.tar.gz \
+    && tar xzf coreruleset-${RESTY_OWSAP_CRS_VERSION}-minimal.tar.gz \
+    && rm -f coreruleset-${RESTY_OWSAP_CRS_VERSION}-minimal.tar.gz \
+    && mv coreruleset-${RESTY_OWSAP_CRS_VERSION} coreruleset \
+    && cd coreruleset \
+    && rm -rf docs \
+    && mv crs-setup.conf.example crs-setup.conf \
+    && mv rules/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf.example rules/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf \
+    && mv rules/RESPONSE-999-EXCLUSION-RULES-AFTER-CRS.conf.example rules/RESPONSE-999-EXCLUSION-RULES-AFTER-CRS.conf \
     && apt-get purge -y \
         libgd-dev \
         make \
@@ -540,6 +552,8 @@ RUN groupmod -n nginx www-data \
     && DEBIAN_FRONTEND=noninteractive apt-get autoremove -y \
     && DEBIAN_FRONTEND=noninteractive apt-get clean -y \
     && rm -rf /build \
+    && cd /usr/local/openresty \
+    && rm -rf pod site resty.index bin/md2pod.pl bin/nginx-xml2pod bin/restydoc bin/restydoc-index \
     && rm -rf /var/lib/apt/lists/* \
     && rm -rf /usr/local/lib/* \
     && rm -rf /usr/local/share/man/man1/* \
@@ -558,12 +572,13 @@ WORKDIR /usr/local/openresty
 # Add additional binaries into PATH for convenience
 ENV PATH=$PATH:/usr/local/openresty/luajit/bin/:/usr/local/openresty/sbin/:/usr/local/openresty/bin/
 ENV LD_LIBRARY_PATH=/usr/local/openresty/lib/
-ENV LUA_PATH="/usr/local/openresty/site/lualib/?.ljbc;/usr/local/openresty/site/lualib/?/init.ljbc;/usr/local/openresty/lualib/?.ljbc;/usr/local/openresty/lualib/?/init.ljbc;/usr/local/openresty/site/lualib/?.lua;/usr/local/openresty/site/lualib/?/init.lua;/usr/local/openresty/lualib/?.lua;/usr/local/openresty/lualib/?/init.lua;./?.lua;/usr/local/openresty/luajit/share/luajit-2.1/?.lua;/usr/local/share/lua/5.1/?.lua;/usr/local/share/lua/5.1/?/init.lua;/usr/local/openresty/luajit/share/lua/5.1/?.lua;/usr/local/openresty/luajit/share/lua/5.1/?/init.lua"
-ENV LUA_CPATH="/usr/local/openresty/site/lualib/?.so;/usr/local/openresty/lualib/?.so;./?.so;/usr/local/lib/lua/5.1/?.so;/usr/local/openresty/luajit/lib/lua/5.1/?.so;/usr/local/lib/lua/5.1/loadall.so;/usr/local/openresty/luajit/lib/lua/5.1/?.so"
+ENV LUA_PATH="/usr/local/openresty/lualib/?.ljbc;/usr/local/openresty/lualib/?/init.ljbc;/usr/local/openresty/lualib/?.lua;/usr/local/openresty/lualib/?/init.lua;./?.lua;/usr/local/openresty/luajit/share/luajit-2.1/?.lua;/usr/local/share/lua/5.1/?.lua;/usr/local/share/lua/5.1/?/init.lua;/usr/local/openresty/luajit/share/lua/5.1/?.lua;/usr/local/openresty/luajit/share/lua/5.1/?/init.lua"
+ENV LUA_CPATH="/usr/local/openresty/lualib/?.so;./?.so;/usr/local/lib/lua/5.1/?.so;/usr/local/openresty/luajit/lib/lua/5.1/?.so;/usr/local/lib/lua/5.1/loadall.so;/usr/local/openresty/luajit/lib/lua/5.1/?.so"
 
 
 COPY nginx.conf /usr/local/openresty/etc/nginx.conf
 COPY nginx.vh.default.conf /usr/local/openresty/etc/conf.d/default.conf
+COPY modsecurity.conf /usr/local/openresty/etc/modsecurity/modsecurity.conf
 
 CMD ["/usr/local/openresty/sbin/nginx", "-p", "/usr/local/openresty/", "-g", "daemon off;"]
 

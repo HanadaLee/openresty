@@ -150,6 +150,7 @@ The following components are additionally bundled with OpenResty, some of which 
 * [lua-resty-expr](https://luarocks.org/modules/membphis/lua-resty-expr)
 * [lyaml](https://luarocks.org/modules/gvvaughan/lyaml)
 * [lua-resty-redis-connector](https://luarocks.org/modules/pintsized/lua-resty-redis-connector)
+* [coreruleset](https://github.com/coreruleset/coreruleset)
 
 [Back to TOC](#table-of-contents)
 
