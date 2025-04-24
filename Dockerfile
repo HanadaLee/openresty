@@ -49,7 +49,7 @@ ARG RESTY_PCRE_OPTIONS="--with-pcre-jit"
 ARG RESTY_ZLIB_URL_BASE="https://zlib.net/fossils"
 ARG RESTY_ZLIB_VERSION="1.3.1"
 ARG RESTY_ZSTD_VERSION="1.5.6"
-ARG RESTY_LIBATOMIC_VERSION="7.8.0"
+ARG RESTY_LIBATOMIC_VERSION="7.8.2"
 ARG RESTY_LIBQRENCODE_VERSION="4.1.1"
 ARG RESTY_LIBVIPS_VERSION="8.16.0"
 ARG RESTY_OWSAP_CRS_VERSION="4.13.0"
@@ -311,7 +311,7 @@ RUN groupmod -n nginx www-data \
     && make -j${RESTY_J} \
     && make install \
     && cd /build/lib \
-    && curl -fSL https://${RESTY_GIT_MIRROR}/ivmai/libatomic_ops/releases/download/v${RESTY_LIBATOMIC_VERSION}/libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz -o libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz \
+    && curl -fSL https://${RESTY_GIT_MIRROR}/bdwgc/libatomic_ops/releases/download/v${RESTY_LIBATOMIC_VERSION}/libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz -o libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz \
     && tar xzf libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz \
     && cd libatomic_ops-${RESTY_LIBATOMIC_VERSION}/src \
     && ln -s -f ./.libs/libatomic_ops.a . \
