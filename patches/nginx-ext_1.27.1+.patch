@@ -9,6 +9,130 @@ index 1a5e421..e96f428 100644
 +
 +have=NGX_HTTP_EXT . auto/have
 \ No newline at end of file
+diff --git a/src/core/ngx_string.c b/src/core/ngx_string.c
+index f8f7384..d7abbce 100644
+--- a/src/core/ngx_string.c
++++ b/src/core/ngx_string.c
+@@ -687,6 +687,48 @@ ngx_strncasecmp(u_char *s1, u_char *s2, size_t n)
+ }
+ 
+ 
++#if (NGX_HTTP_EXT)
++ngx_int_t
++ngx_strncasecmp_hush(u_char *s1, u_char *s2, size_t n)
++{
++    ngx_uint_t  c1, c2;
++
++    while (n) {
++        c1 = (ngx_uint_t) *s1++;
++        c2 = (ngx_uint_t) *s2++;
++
++        if (c1 >= 'A' && c1 <= 'Z') {
++            c1 |= 0x20;
++
++        } else if (c1 == '-') {
++            c1 = '_';
++        }
++
++        if (c2 >= 'A' && c2 <= 'Z') {
++            c2 |= 0x20;
++
++        } else if (c2 == '-') {
++            c2 = '_';
++        }
++
++        if (c1 == c2) {
++
++            if (c1) {
++                n--;
++                continue;
++            }
++
++            return 0;
++        }
++
++        return c1 - c2;
++    }
++
++    return 0;
++}
++#endif
++
++
+ u_char *
+ ngx_strnstr(u_char *s1, char *s2, size_t len)
+ {
+@@ -809,6 +851,46 @@ ngx_strlcasestrn(u_char *s1, u_char *last, u_char *s2, size_t n)
+ }
+ 
+ 
++#if (NGX_HTTP_EXT)
++u_char *
++ngx_strlcasestrn_hush(u_char *s1, u_char *last, u_char *s2, size_t n)
++{
++    ngx_uint_t  c1, c2;
++
++    c2 = (ngx_uint_t) *s2++;
++    if (c2 >= 'A' && c2 <= 'Z') {
++        c2 |= 0x20;
++
++    } else if (c2 == '-') {
++        c2 = '_';
++    }
++
++    last -= n;
++
++    do {
++        do {
++            if (s1 >= last) {
++                return NULL;
++            }
++
++            c1 = (ngx_uint_t) *s1++;
++
++            if (c1 >= 'A' && c1 <= 'Z') {
++                c1 |= 0x20;
++    
++            } else if (c1 == '-') {
++                c1 = '_';
++            }
++
++        } while (c1 != c2);
++
++    } while (ngx_strncasecmp_hush(s1, s2, n) != 0);
++
++    return --s1;
++}
++#endif
++
++
+ ngx_int_t
+ ngx_rstrncmp(u_char *s1, u_char *s2, size_t n)
+ {
+diff --git a/src/core/ngx_string.h b/src/core/ngx_string.h
+index 713eb42..9333d3f 100644
+--- a/src/core/ngx_string.h
++++ b/src/core/ngx_string.h
+@@ -160,12 +160,19 @@ u_char *ngx_vslprintf(u_char *buf, u_char *last, const char *fmt, va_list args);
+ 
+ ngx_int_t ngx_strcasecmp(u_char *s1, u_char *s2);
+ ngx_int_t ngx_strncasecmp(u_char *s1, u_char *s2, size_t n);
++#if (NGX_HTTP_EXT)
++ngx_int_t ngx_strncasecmp_hush(u_char *s1, u_char *s2, size_t n);
++#endif
+ 
+ u_char *ngx_strnstr(u_char *s1, char *s2, size_t n);
+ 
+ u_char *ngx_strstrn(u_char *s1, char *s2, size_t n);
+ u_char *ngx_strcasestrn(u_char *s1, char *s2, size_t n);
+ u_char *ngx_strlcasestrn(u_char *s1, u_char *last, u_char *s2, size_t n);
++#if (NGX_HTTP_EXT)
++u_char *ngx_strlcasestrn_hush(u_char *s1, u_char *last, u_char *s2,
++    size_t n);
++#endif
+ 
+ ngx_int_t ngx_rstrncmp(u_char *s1, u_char *s2, size_t n);
+ ngx_int_t ngx_rstrncasecmp(u_char *s1, u_char *s2, size_t n);
 diff --git a/src/event/ngx_event_connect.c b/src/event/ngx_event_connect.c
 index 9b406b2..7b5c956 100644
 --- a/src/event/ngx_event_connect.c
@@ -4339,6 +4463,34 @@ index d835f89..a66ea68 100644
  #endif
  #if (NGX_HTTP_V2)
          addrs6[i].conf.http2 = addr[i].opt.http2;
+diff --git a/src/http/ngx_http.h b/src/http/ngx_http.h
+index e06464e..3385b97 100644
+--- a/src/http/ngx_http.h
++++ b/src/http/ngx_http.h
+@@ -110,10 +110,23 @@ ngx_int_t ngx_http_parse_header_line(ngx_http_request_t *r, ngx_buf_t *b,
+     ngx_uint_t allow_underscores);
+ ngx_table_elt_t *ngx_http_parse_multi_header_lines(ngx_http_request_t *r,
+     ngx_table_elt_t *headers, ngx_str_t *name, ngx_str_t *value);
++#if (NGX_HTTP_EXT)
++ngx_table_elt_t *ngx_http_parse_multi_header_lines_hush(
++    ngx_http_request_t *r, ngx_table_elt_t *headers, ngx_str_t *name,
++    ngx_str_t *value);
++#endif
+ ngx_table_elt_t *ngx_http_parse_set_cookie_lines(ngx_http_request_t *r,
+     ngx_table_elt_t *headers, ngx_str_t *name, ngx_str_t *value);
++#if (NGX_HTTP_EXT)
++ngx_table_elt_t *ngx_http_parse_set_cookie_lines_hush(ngx_http_request_t *r,
++    ngx_table_elt_t *headers, ngx_str_t *name, ngx_str_t *value);
++#endif
+ ngx_int_t ngx_http_arg(ngx_http_request_t *r, u_char *name, size_t len,
+     ngx_str_t *value);
++#if (NGX_HTTP_EXT)
++ngx_int_t ngx_http_arg_hush(ngx_http_request_t *r, u_char *name, size_t len,
++    ngx_str_t *value);
++#endif
+ void ngx_http_split_args(ngx_http_request_t *r, ngx_str_t *uri,
+     ngx_str_t *args);
+ ngx_int_t ngx_http_parse_chunked(ngx_http_request_t *r, ngx_buf_t *b,
 diff --git a/src/http/ngx_http_cache.h b/src/http/ngx_http_cache.h
 index bb936c5..2b194c5 100644
 --- a/src/http/ngx_http_cache.h
@@ -5000,6 +5152,197 @@ index 90525ef..fd64777 100644
      if (r != r->main) {
          return NGX_OK;
      }
+diff --git a/src/http/ngx_http_parse.c b/src/http/ngx_http_parse.c
+index f7e5038..9f80c0c 100644
+--- a/src/http/ngx_http_parse.c
++++ b/src/http/ngx_http_parse.c
+@@ -2027,6 +2027,78 @@ ngx_http_parse_multi_header_lines(ngx_http_request_t *r,
+ }
+ 
+ 
++#if (NGX_HTTP_EXT)
++ngx_table_elt_t *
++ngx_http_parse_multi_header_lines_hush(ngx_http_request_t *r,
++    ngx_table_elt_t *headers, ngx_str_t *name, ngx_str_t *value)
++{
++    u_char           *start, *last, *end, ch;
++    ngx_table_elt_t  *h;
++
++    for (h = headers; h; h = h->next) {
++
++        ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
++                       "parse header: \"%V: %V\"", &h->key, &h->value);
++
++        if (name->len > h->value.len) {
++            continue;
++        }
++
++        start = h->value.data;
++        end = h->value.data + h->value.len;
++
++        while (start < end) {
++
++            if (ngx_strncasecmp_hush(start, name->data, name->len) != 0) {
++                goto skip;
++            }
++
++            for (start += name->len; start < end && *start == ' '; start++) {
++                /* void */
++            }
++
++            if (value == NULL) {
++                if (start == end || *start == ',') {
++                    return h;
++                }
++
++                goto skip;
++            }
++
++            if (start == end || *start++ != '=') {
++                /* the invalid header value */
++                goto skip;
++            }
++
++            while (start < end && *start == ' ') { start++; }
++
++            for (last = start; last < end && *last != ';'; last++) {
++                /* void */
++            }
++
++            value->len = last - start;
++            value->data = start;
++
++            return h;
++
++        skip:
++
++            while (start < end) {
++                ch = *start++;
++                if (ch == ';' || ch == ',') {
++                    break;
++                }
++            }
++
++            while (start < end && *start == ' ') { start++; }
++        }
++    }
++
++    return NULL;
++}
++#endif
++
++
+ ngx_table_elt_t *
+ ngx_http_parse_set_cookie_lines(ngx_http_request_t *r,
+     ngx_table_elt_t *headers, ngx_str_t *name, ngx_str_t *value)
+@@ -2075,6 +2147,56 @@ ngx_http_parse_set_cookie_lines(ngx_http_request_t *r,
+ }
+ 
+ 
++#if (NGX_HTTP_EXT)
++ngx_table_elt_t *
++ngx_http_parse_set_cookie_lines_hush(ngx_http_request_t *r,
++    ngx_table_elt_t *headers, ngx_str_t *name, ngx_str_t *value)
++{
++    u_char           *start, *last, *end;
++    ngx_table_elt_t  *h;
++
++    for (h = headers; h; h = h->next) {
++
++        ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
++                       "parse header: \"%V: %V\"", &h->key, &h->value);
++
++        if (name->len >= h->value.len) {
++            continue;
++        }
++
++        start = h->value.data;
++        end = h->value.data + h->value.len;
++
++        if (ngx_strncasecmp_hush(start, name->data, name->len) != 0) {
++            continue;
++        }
++
++        for (start += name->len; start < end && *start == ' '; start++) {
++            /* void */
++        }
++
++        if (start == end || *start++ != '=') {
++            /* the invalid header value */
++            continue;
++        }
++
++        while (start < end && *start == ' ') { start++; }
++
++        for (last = start; last < end && *last != ';'; last++) {
++            /* void */
++        }
++
++        value->len = last - start;
++        value->data = start;
++
++        return h;
++    }
++
++    return NULL;
++}
++#endif
++
++
+ ngx_int_t
+ ngx_http_arg(ngx_http_request_t *r, u_char *name, size_t len, ngx_str_t *value)
+ {
+@@ -2117,6 +2239,50 @@ ngx_http_arg(ngx_http_request_t *r, u_char *name, size_t len, ngx_str_t *value)
+ }
+ 
+ 
++#if (NGX_HTTP_EXT)
++ngx_int_t
++ngx_http_arg_hush(ngx_http_request_t *r, u_char *name, size_t len, ngx_str_t *value)
++{
++    u_char  *p, *last;
++
++    if (r->args.len == 0) {
++        return NGX_DECLINED;
++    }
++
++    p = r->args.data;
++    last = p + r->args.len;
++
++    for ( /* void */ ; p < last; p++) {
++
++        /* we need '=' after name, so drop one char from last */
++
++        p = ngx_strlcasestrn_hush(p, last - 1, name, len - 1);
++
++        if (p == NULL) {
++            return NGX_DECLINED;
++        }
++
++        if ((p == r->args.data || *(p - 1) == '&') && *(p + len) == '=') {
++
++            value->data = p + len + 1;
++
++            p = ngx_strlchr(p, last, '&');
++
++            if (p == NULL) {
++                p = r->args.data + r->args.len;
++            }
++
++            value->len = p - value->data;
++
++            return NGX_OK;
++        }
++    }
++
++    return NGX_DECLINED;
++}
++#endif
++
++
+ void
+ ngx_http_split_args(ngx_http_request_t *r, ngx_str_t *uri, ngx_str_t *args)
+ {
 diff --git a/src/http/ngx_http_request.c b/src/http/ngx_http_request.c
 index 9593b7f..dc161a8 100644
 --- a/src/http/ngx_http_request.c
@@ -6627,7 +6970,7 @@ index b5db811..79d6910 100644
 +#endif
 \ No newline at end of file
 diff --git a/src/http/ngx_http_upstream.c b/src/http/ngx_http_upstream.c
-index d04d91e..79f0d6d 100644
+index d04d91e..e4246c8 100644
 --- a/src/http/ngx_http_upstream.c
 +++ b/src/http/ngx_http_upstream.c
 @@ -21,6 +21,12 @@ static ngx_int_t ngx_http_upstream_cache_background_update(
@@ -7071,6 +7414,29 @@ index d04d91e..79f0d6d 100644
  static ngx_int_t
  ngx_http_upstream_process_accel_expires(ngx_http_request_t *r,
      ngx_table_elt_t *h, ngx_uint_t offset)
+@@ -5959,6 +6205,14 @@ ngx_http_upstream_cookie_variable(ngx_http_request_t *r,
+     s.len = name->len - (sizeof("upstream_cookie_") - 1);
+     s.data = name->data + sizeof("upstream_cookie_") - 1;
+ 
++#if (NGX_HTTP_EXT)
++    if (ngx_http_parse_set_cookie_lines_hush(r,
++            r->upstream->headers_in.set_cookie, &s, &cookie) == NULL)
++    {
++        v->not_found = 1;
++        return NGX_OK;
++    }
++#else
+     if (ngx_http_parse_set_cookie_lines(r, r->upstream->headers_in.set_cookie,
+                                         &s, &cookie)
+         == NULL)
+@@ -5966,6 +6220,7 @@ ngx_http_upstream_cookie_variable(ngx_http_request_t *r,
+         v->not_found = 1;
+         return NGX_OK;
+     }
++#endif
+ 
+     v->len = cookie.len;
+     v->valid = 1;
 diff --git a/src/http/ngx_http_upstream.h b/src/http/ngx_http_upstream.h
 index f6621af..822783b 100644
 --- a/src/http/ngx_http_upstream.h
@@ -7183,10 +7549,50 @@ index f6621af..822783b 100644
  
  #ifndef HAVE_BALANCER_STATUS_CODE_PATCH
 diff --git a/src/http/ngx_http_variables.c b/src/http/ngx_http_variables.c
-index 4f0bd0e..fd3425f 100644
+index 4f0bd0e..15d0fb8 100644
 --- a/src/http/ngx_http_variables.c
 +++ b/src/http/ngx_http_variables.c
-@@ -2245,10 +2245,104 @@ ngx_http_variable_request_id(ngx_http_request_t *r,
+@@ -1078,12 +1078,21 @@ ngx_http_variable_cookie(ngx_http_request_t *r, ngx_http_variable_value_t *v,
+     s.len = name->len - (sizeof("cookie_") - 1);
+     s.data = name->data + sizeof("cookie_") - 1;
+ 
++#if (NGX_HTTP_EXT)
++    if (ngx_http_parse_multi_header_lines_hush(r, r->headers_in.cookie,
++        &s, &cookie) == NULL)
++    {
++        v->not_found = 1;
++        return NGX_OK;
++    }
++#else
+     if (ngx_http_parse_multi_header_lines(r, r->headers_in.cookie, &s, &cookie)
+         == NULL)
+     {
+         v->not_found = 1;
+         return NGX_OK;
+     }
++#endif
+ 
+     v->len = cookie.len;
+     v->valid = 1;
+@@ -1108,10 +1117,17 @@ ngx_http_variable_argument(ngx_http_request_t *r, ngx_http_variable_value_t *v,
+     len = name->len - (sizeof("arg_") - 1);
+     arg = name->data + sizeof("arg_") - 1;
+ 
++#if (NGX_HTTP_EXT)
++    if (len == 0 || ngx_http_arg_hush(r, arg, len, &value) != NGX_OK) {
++        v->not_found = 1;
++        return NGX_OK;
++    }
++#else
+     if (len == 0 || ngx_http_arg(r, arg, len, &value) != NGX_OK) {
+         v->not_found = 1;
+         return NGX_OK;
+     }
++#endif
+ 
+     v->data = value.data;
+     v->len = value.len;
+@@ -2245,10 +2261,104 @@ ngx_http_variable_request_id(ngx_http_request_t *r,
  {
      u_char  *id;
  
@@ -7291,7 +7697,7 @@ index 4f0bd0e..fd3425f 100644
      id = ngx_pnalloc(r->pool, 32);
      if (id == NULL) {
          return NGX_ERROR;
-@@ -2261,6 +2355,16 @@ ngx_http_variable_request_id(ngx_http_request_t *r,
+@@ -2261,6 +2371,16 @@ ngx_http_variable_request_id(ngx_http_request_t *r,
      v->len = 32;
      v->data = id;
  
@@ -7308,7 +7714,7 @@ index 4f0bd0e..fd3425f 100644
  #if (NGX_OPENSSL)
  
      if (RAND_bytes(random_bytes, 16) == 1) {
-@@ -2277,6 +2381,36 @@ ngx_http_variable_request_id(ngx_http_request_t *r,
+@@ -2277,6 +2397,36 @@ ngx_http_variable_request_id(ngx_http_request_t *r,
                  (uint32_t) ngx_random(), (uint32_t) ngx_random());
  
      return NGX_OK;
