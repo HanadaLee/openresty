@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.27.1.2"
-ARG RESTY_RELEASE="205"
+ARG RESTY_RELEASE="206"
 ARG RESTY_LUAROCKS_VERSION="3.11.1"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.12.2"
@@ -76,12 +76,14 @@ ARG RESTY_CONFIG_OPTIONS="\
     --with-http_ssl_module \
     --with-http_v2_module \
     --with-http_v3_module \
+    --with-http_addition_module \
     --with-http_auth_request_module \
     --with-http_gunzip_module \
     --with-http_gzip_static_module \
     --with-http_realip_module \
     --with-http_degradation_module \
     --with-http_slice_module \
+    --with-http_secure_link_module \
     --with-http_sub_module \
     --without-http_empty_gif_module \
     --with-ipv6 \
