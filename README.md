@@ -30,6 +30,7 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [slice\_check\_etag](#slice_check_etag)
     - [slice\_check\_last\_modified](#slice_check_last_modified)
   - [ngx\_http\_sub\_filter\_module](#ngx_http_sub_filter_module)
+    - [Conditional response replacement bypass](#conditional-response-replacement-bypass)
   - [ngx\_http\_proxy\_module and related modules](#ngx_http_proxy_module-and-related-modules)
     - [Support for inheritance in "proxy\_set\_header" and its friends](#support-for-inheritance-in-proxy_set_header-and-its-friends)
     - [Configuring sndbuf and rcvbuf for upstream connection](#configuring-sndbuf-and-rcvbuf-for-upstream-connection)
@@ -37,16 +38,20 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
   - [ngx\_http\_upstream\_module](#ngx_http_upstream_module)
     - [Extra variables for upstream information](#extra-variables-for-upstream-information)
   - [ngx\_http\_realip\_module](#ngx_http_realip_module)
+    - [Configuring real client IP with multiple request headers](#configuring-real-client-ip-with-multiple-request-headers)
   - [ngx\_http\_rewrite\_module](#ngx_http_rewrite_module)
     - [Additional operators for the "if" directive](#additional-operators-for-the-if-directive)
     - ["if" with multiple conditions](#if-with-multiple-conditions)
     - [Support for "elif" and "else" directives](#support-for-elif-and-else-directives)
   - [ngx\_http\_gunzip\_module](#ngx_http_gunzip_module)
+    - [Support for forced gzip decompression](#support-for-forced-gzip-decompression)
   - [ngx\_http\_gzip\_filter\_module](#ngx_http_gzip_filter_module)
     - [gzip\_max\_length](#gzip_max_length)
     - [gzip\_bypass](#gzip_bypass)
   - [ngx\_http\_limit\_req\_module](#ngx_http_limit_req_module)
+    - [Enhanced request rate limiting with custom key and rate parameters](#enhanced-request-rate-limiting-with-custom-key-and-rate-parameters)
   - [ngx\_http\_log\_module](#ngx_http_log_module)
+    - [Inverse condition support for access\_log directive](#inverse-condition-support-for-access_log-directive)
   - [ngx\_http\_brotli\_filter\_module (3rd-party module)](#ngx_http_brotli_filter_module-3rd-party-module)
     - [brotli\_max\_length](#brotli_max_length)
     - [brotli\_bypass](#brotli_bypass)
@@ -272,7 +277,7 @@ Specify whether to ignore the `If-Unmodified-Since` request header. If enabled, 
 
 Specify whether to ignore the `If-Match` request header. If enabled, the `If-Match` request header will be ignored. Otherwise, the `If-Match` request header will be checked.
 
-* **Syntax:** *not_modified_check on | off | strict;*
+* **Syntax:** *not_modified_check on | off | strict | prefer_if_none_match;*
 
 * **Default:** *not_modified_check strict;*
   
@@ -280,11 +285,15 @@ Specify whether to ignore the `If-Match` request header. If enabled, the `If-Mat
 
 Specifies how to check if the response is unmodified (304 Not Modified):
 
-`off`: Do not check if the response is unmodified. the response is always considered modified.
-`on`: Check if the response is unmodified **if either** `If-Modified-Since` **or** `If-None-Match` request headers are present. If **any of the headers' checks pass**, a 304 response is returned.
-`strict`:
+* `off`: Do not check if the response is unmodified. the response is always considered modified.
+* `on`: Check if the response is unmodified **if either** `If-Modified-Since` **or** `If-None-Match` request headers are present. If **any of the headers' checks pass**, a 304 response is returned.
+* `strict`:
   - If **only one header** (`If-Modified-Since` **or** `If-None-Match`) is present, check that header. If its condition is met, return 304 (Not Modified).  
   - If **both headers** are present, **both must pass their checks** to return 304 (Not Modified).  
+  - If neither header is present, the response is considered modified.
+* `prefer_if_none_match`:
+  - If **only one header** (`If-Modified-Since` **or** `If-None-Match`) is present, check that header. If its condition is met, return 304 (Not Modified).
+  - If **both headers** are present, **only the `If-None-Match` header's condition must be satisfied** to return 304 (Not Modified).
   - If neither header is present, the response is considered modified.
 
 ### Support for hyphen/underscore-insensitive cookie or argument names in variables
@@ -413,6 +422,8 @@ Whether to check the consistency of the Last-Modified header in the slice. If it
 [Back to TOC](#table-of-contents)
 
 ## ngx_http_sub_filter_module
+
+### Conditional response replacement bypass
 
 This patch introduces a directive sub_filter_bypass to bypass sub_filter based on the value of a set of variables.
 
@@ -592,6 +603,8 @@ The module [ngx_http_extra_variables_module](https://git.hanada.info/hanada/ngx_
 
 ## ngx_http_realip_module
 
+### Configuring real client IP with multiple request headers
+
 * **Syntax:** *real_ip_header field | X-Real-IP | X-Forwarded-For | proxy_protocol;*
 
 * **Default:** *real_ip_header X-Real-IP;*
@@ -701,6 +714,8 @@ Similar to if and elif, but does not contain any conditional expressions, it is 
 
 ## ngx_http_gunzip_module
 
+### Support for forced gzip decompression
+
 This is a simple patch modifying the NGINX gunzip filter module to force inflate compressed responses. This is desirable in the context of an upstream source that sends responses gzipped. Please read the "other comments" section to understand this will decompress all content, so you want to specify its use as specific as possible to avoid decompressing content that you otherwise would want left untouched.
 
 This serves multiple purposes:
@@ -750,6 +765,8 @@ Defines conditions under which the response will gzipped. If at least one value 
 
 ## ngx_http_limit_req_module
 
+### Enhanced request rate limiting with custom key and rate parameters
+
 * **Syntax:** *limit_req zone=name [burst=number] [nodelay | delay=number] [key=string] [rate=rate]*;
 
 * **Default:** *-*
@@ -775,6 +792,8 @@ The patch allows configuration in the format of key=string, but is also compatib
 [Back to TOC](#table-of-contents)
 
 ## ngx_http_log_module
+
+### Inverse condition support for access_log directive
 
 * **Syntax:** *access_log path [format [buffer=size] [gzip[=level]] [flush=time] [if=condition]]*;  *access_log off*;
 
