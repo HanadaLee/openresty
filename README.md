@@ -381,8 +381,9 @@ Enable Strict SNI validation. When the request SNI and Host header are different
 New variables are introduced to get the start timestamp, end timestamp, and time taken for the SSL handshake.
 
 | Variable                          | Description |
-| **$ssl_handshake_start_msec**       | SSL handshake start timestamp in seconds with the milliseconds resolution.|
-| **$ssl_handshake_end_msec**         | SSL handshake finish timestamp in seconds with the milliseconds resolution.|
+| ---                               | ---         |
+| **$ssl_handshake_start_msec**     | SSL handshake start timestamp in seconds with the milliseconds resolution.|
+| **$ssl_handshake_end_msec**       | SSL handshake finish timestamp in seconds with the milliseconds resolution.|
 | **$ssl_handshake_time**           | Keeps time spent on ssl handshaking in seconds with the milliseconds resolution.|
 
 [Back to TOC](#table-of-contents)
