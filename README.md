@@ -277,7 +277,7 @@ Specify whether to ignore the `If-Unmodified-Since` request header. If enabled, 
 
 Specify whether to ignore the `If-Match` request header. If enabled, the `If-Match` request header will be ignored. Otherwise, the `If-Match` request header will be checked.
 
-* **Syntax:** *not_modified_check on | off | strict | prefer_if_none_match;*
+* **Syntax:** *not_modified_check on | any | strict | prefer_if_none_match;*
 
 * **Default:** *not_modified_check strict;*
   
@@ -286,7 +286,7 @@ Specify whether to ignore the `If-Match` request header. If enabled, the `If-Mat
 Specifies how to check if the response is unmodified (304 Not Modified):
 
 * `off`: Do not check if the response is unmodified. the response is always considered modified.
-* `on`: Check if the response is unmodified **if either** `If-Modified-Since` **or** `If-None-Match` request headers are present. If **any of the headers' checks pass**, a 304 response is returned.
+* `any`: Check if the response is unmodified **if either** `If-Modified-Since` **or** `If-None-Match` request headers are present. If **any of the headers' checks pass**, a 304 response is returned.
 * `strict`:
   - If **only one header** (`If-Modified-Since` **or** `If-None-Match`) is present, check that header. If its condition is met, return 304 (Not Modified).  
   - If **both headers** are present, **both must pass their checks** to return 304 (Not Modified).  

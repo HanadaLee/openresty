@@ -1914,7 +1914,7 @@ index 032ba96..b1651de 100644
 +                return ngx_http_next_header_filter(r);
 +            }
 +
-+        } else if (clcf->not_modified_check == NGX_HTTP_NMC_ON) {
++        } else if (clcf->not_modified_check == NGX_HTTP_NMC_ANY) {
 +
 +            if (r->headers_in.if_modified_since
 +                && !ngx_http_test_if_modified(r))
@@ -4560,7 +4560,7 @@ index 937ffe2..8a4d62d 100644
 +
 +static ngx_conf_enum_t  ngx_http_core_not_modified_check[] = {
 +    { ngx_string("off"), NGX_HTTP_NMC_OFF },
-+    { ngx_string("on"), NGX_HTTP_NMC_ON },
++    { ngx_string("any"), NGX_HTTP_NMC_ANY },
 +    { ngx_string("strict"), NGX_HTTP_NMC_STRICT },
 +    { ngx_string("prefer_if_none_match"), NGX_HTTP_NMC_PREFER_INM },
 +    { ngx_null_string, 0 }
@@ -4939,7 +4939,7 @@ index 765e7ff..b3a2f85 100644
 +
 +
 +#define NGX_HTTP_NMC_OFF                0
-+#define NGX_HTTP_NMC_ON                 1
++#define NGX_HTTP_NMC_ANY                1
 +#define NGX_HTTP_NMC_STRICT             2
 +#define NGX_HTTP_NMC_PREFER_INM         3
 +#endif
