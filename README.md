@@ -370,7 +370,7 @@ Adds the validation step of SNI and Host header, and when the request violate th
 
 * **Syntax:** *ssl_strict_server_name on | off | mtls_only;*
 
-* **Default:** *sl_strict_server_name mtls_only;*
+* **Default:** *ssl_strict_server_name mtls_only;*
 
 * **Context:** *http, server*
 
