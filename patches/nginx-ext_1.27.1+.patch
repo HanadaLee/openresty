@@ -1843,7 +1843,7 @@ index 79f494f..ed31e29 100644
              ngx_memzero(&ccv, sizeof(ngx_http_compile_complex_value_t));
  
 diff --git a/src/http/modules/ngx_http_not_modified_filter_module.c b/src/http/modules/ngx_http_not_modified_filter_module.c
-index 032ba96..b1651de 100644
+index 032ba96..609188e 100644
 --- a/src/http/modules/ngx_http_not_modified_filter_module.c
 +++ b/src/http/modules/ngx_http_not_modified_filter_module.c
 @@ -54,6 +54,10 @@ static ngx_http_output_header_filter_pt  ngx_http_next_header_filter;
@@ -4536,7 +4536,7 @@ index bb936c5..2b194c5 100644
  char *ngx_http_file_cache_set_slot(ngx_conf_t *cf, ngx_command_t *cmd,
      void *conf);
 diff --git a/src/http/ngx_http_core_module.c b/src/http/ngx_http_core_module.c
-index 937ffe2..8a4d62d 100644
+index 937ffe2..d264c99 100644
 --- a/src/http/ngx_http_core_module.c
 +++ b/src/http/ngx_http_core_module.c
 @@ -76,6 +76,12 @@ static char *ngx_http_core_internal(ngx_conf_t *cf, ngx_command_t *cmd,
@@ -4926,7 +4926,7 @@ index 937ffe2..8a4d62d 100644
  
  static char *
 diff --git a/src/http/ngx_http_core_module.h b/src/http/ngx_http_core_module.h
-index 765e7ff..b3a2f85 100644
+index 765e7ff..ca34d82 100644
 --- a/src/http/ngx_http_core_module.h
 +++ b/src/http/ngx_http_core_module.h
 @@ -60,6 +60,18 @@ typedef struct ngx_thread_pool_s  ngx_thread_pool_t;
@@ -5143,10 +5143,72 @@ index 5209f00..d0b4515 100644
  
      return NGX_CONF_OK;
 diff --git a/src/http/ngx_http_header_filter_module.c b/src/http/ngx_http_header_filter_module.c
-index 90525ef..fd64777 100644
+index 90525ef..e156c84 100644
 --- a/src/http/ngx_http_header_filter_module.c
 +++ b/src/http/ngx_http_header_filter_module.c
-@@ -167,6 +167,9 @@ ngx_http_header_filter(ngx_http_request_t *r)
+@@ -69,7 +69,11 @@ static ngx_str_t ngx_http_status_lines[] = {
+     /* ngx_null_string, */  /* "300 Multiple Choices" */
+ 
+     ngx_string("301 Moved Permanently"),
++#if (NGX_HTTP_EXT)
++    ngx_string("302 Found"),
++#else
+     ngx_string("302 Moved Temporarily"),
++#endif
+     ngx_string("303 See Other"),
+     ngx_string("304 Not Modified"),
+     ngx_null_string,  /* "305 Use Proxy" */
+@@ -85,18 +89,35 @@ static ngx_str_t ngx_http_status_lines[] = {
+     ngx_string("402 Payment Required"),
+     ngx_string("403 Forbidden"),
+     ngx_string("404 Not Found"),
++#if (NGX_HTTP_EXT)
++    ngx_string("405 Method Not Allowed"),
++#else
+     ngx_string("405 Not Allowed"),
++#endif
+     ngx_string("406 Not Acceptable"),
+     ngx_null_string,  /* "407 Proxy Authentication Required" */
++#if (NGX_HTTP_EXT)
++    ngx_string("408 Request Timeout"),
++#else
+     ngx_string("408 Request Time-out"),
++#endif
+     ngx_string("409 Conflict"),
+     ngx_string("410 Gone"),
+     ngx_string("411 Length Required"),
+     ngx_string("412 Precondition Failed"),
++#if (NGX_HTTP_EXT)
++    ngx_string("413 Content Too Large"),
++    ngx_string("414 URI Too Long"),
++#else
+     ngx_string("413 Request Entity Too Large"),
+     ngx_string("414 Request-URI Too Large"),
++#endif
+     ngx_string("415 Unsupported Media Type"),
++#if (NGX_HTTP_EXT)
++    ngx_string("416 Range Not Satisfiable"),
++#else
+     ngx_string("416 Requested Range Not Satisfiable"),
++#endif
+     ngx_null_string,  /* "417 Expectation Failed" */
+     ngx_null_string,  /* "418 unused" */
+     ngx_null_string,  /* "419 unused" */
+@@ -117,8 +138,13 @@ static ngx_str_t ngx_http_status_lines[] = {
+     ngx_string("500 Internal Server Error"),
+     ngx_string("501 Not Implemented"),
+     ngx_string("502 Bad Gateway"),
++#if (NGX_HTTP_EXT)
++    ngx_string("503 Service Unavailable"),
++    ngx_string("504 Gateway Timeout"),
++#else
+     ngx_string("503 Service Temporarily Unavailable"),
+     ngx_string("504 Gateway Time-out"),
++#endif
+     ngx_string("505 HTTP Version Not Supported"),
+     ngx_null_string,        /* "506 Variant Also Negotiates" */
+     ngx_string("507 Insufficient Storage"),
+@@ -167,6 +193,9 @@ ngx_http_header_filter(ngx_http_request_t *r)
      ngx_connection_t          *c;
      ngx_http_core_loc_conf_t  *clcf;
      ngx_http_core_srv_conf_t  *cscf;
@@ -5156,7 +5218,7 @@ index 90525ef..fd64777 100644
      u_char                     addr[NGX_SOCKADDR_STRLEN];
  
      if (r->header_sent) {
-@@ -175,6 +178,12 @@ ngx_http_header_filter(ngx_http_request_t *r)
+@@ -175,6 +204,12 @@ ngx_http_header_filter(ngx_http_request_t *r)
  
      r->header_sent = 1;
  
@@ -6151,31 +6213,84 @@ index 4360038..3b4e683 100644
  
  #endif /* _NGX_HTTP_SCRIPT_H_INCLUDED_ */
 diff --git a/src/http/ngx_http_special_response.c b/src/http/ngx_http_special_response.c
-index b5db811..79d6910 100644
+index b5db811..b781aea 100644
 --- a/src/http/ngx_http_special_response.c
 +++ b/src/http/ngx_http_special_response.c
-@@ -16,6 +16,9 @@ static ngx_int_t ngx_http_send_error_page(ngx_http_request_t *r,
+@@ -16,29 +16,116 @@ static ngx_int_t ngx_http_send_error_page(ngx_http_request_t *r,
  static ngx_int_t ngx_http_send_special_response(ngx_http_request_t *r,
      ngx_http_core_loc_conf_t *clcf, ngx_uint_t err);
  static ngx_int_t ngx_http_send_refresh(ngx_http_request_t *r);
 +#if (NGX_HTTP_EXT)
 +static ngx_buf_t *ngx_http_set_server_info(ngx_http_request_t *r);
++
++
++static u_char ngx_http_error_head[] =
++"<!DOCTYPE html><html>" CRLF
++"<head>"
 +#endif
  
  
  static u_char ngx_http_error_full_tail[] =
-@@ -39,6 +42,53 @@ static u_char ngx_http_error_tail[] =
++#if (NGX_HTTP_EXT)
++"<p>" NGINX_VER "</p></div>" CRLF
++#else
+ "<hr><center>" NGINX_VER "</center>" CRLF
++#endif
+ "</body>" CRLF
+ "</html>" CRLF
+ ;
+ 
+ 
+ static u_char ngx_http_error_build_tail[] =
++#if (NGX_HTTP_EXT)
++"<p>" NGINX_VER_BUILD "</p></div>" CRLF
++#else
+ "<hr><center>" NGINX_VER_BUILD "</center>" CRLF
++#endif
+ "</body>" CRLF
+ "</html>" CRLF
+ ;
+ 
+ 
+ static u_char ngx_http_error_tail[] =
++#if (NGX_HTTP_EXT)
++"<p>openresty</p></div>" CRLF
++#else
+ "<hr><center>openresty</center>" CRLF
++#endif
+ "</body>" CRLF
+ "</html>" CRLF
  ;
  
  
 +#if (NGX_HTTP_EXT)
++static u_char ngx_http_error_style[] =
++"<style>" CRLF
++"body{font-family:Arial,sans-serif;"
++"background-color:#f4f4f9;color:#333;"
++"margin:0;padding:0;display:flex;height:100vh;"
++"justify-content:center;align-items:center;}"
++"div{background-color:white;border-radius:8px;"
++"box-shadow:0 4px 8px rgba(0,0,0,0.1);padding:20px 30px;"
++"width:100%;max-width:600px;text-align:left;}"
++"h1{color:#f90;font-size:2.5em;margin-bottom:20px;}"
++"p{font-size:1.2em;line-height:1.6;margin-bottom:20px;}"
++"table{width:100%;margin-top:20px;border-collapse:collapse;}"
++"table td{padding:10px;border:1px solid #ddd;}"
++"table td:first-child{font-weight:bold;background-color:#f9f9f9;}"
++"@media (prefers-color-scheme:dark){"
++"body{background-color:#333;color:#f4f4f9;}"
++"div{background-color:black;}"
++"table td{border:1px solid #444;}"
++"table td:first-child{background-color:#3a3a3a;}}" CRLF
++"</style>" CRLF
++
++
 +static u_char ngx_http_error_server_info_head[] =
-+"<hr><center><p>"
-+"Please report this error and include the following information"
-+"</p></center>" CRLF
-+"<center><table><tbody>" CRLF
++"<p>Please report this error and provide the following information.</p>" CRLF
++"<table><tbody>" CRLF
 +"<tr>" CRLF
-+"<td>Date:</td>" CRLF
++"<td>Date</td>" CRLF
 +"<td>"
 +;
 +
@@ -6184,7 +6299,7 @@ index b5db811..79d6910 100644
 +"</td>" CRLF
 +"</tr>" CRLF
 +"<tr>" CRLF
-+"<td>IP:</td>" CRLF
++"<td>Client IP</td>" CRLF
 +"<td>"
 +;
 +
@@ -6193,7 +6308,7 @@ index b5db811..79d6910 100644
 +"</td>" CRLF
 +"</tr>" CRLF
 +"<tr>" CRLF
-+"<td>Server:</td>" CRLF
++"<td>Server</td>" CRLF
 +"<td>"
 +;
 +
@@ -6202,7 +6317,7 @@ index b5db811..79d6910 100644
 +"</td>" CRLF
 +"</tr>" CRLF
 +"<tr>" CRLF
-+"<td>Request ID:</td>" CRLF
++"<td>Request ID</td>" CRLF
 +"<td>"
 +;
 +
@@ -6210,7 +6325,7 @@ index b5db811..79d6910 100644
 +static u_char ngx_http_error_server_info_tail[] =
 +"</td>" CRLF
 +"</tr>" CRLF
-+"</tbody></table></center>" CRLF
++"</tbody></table>" CRLF
 +;
 +#endif
 +
@@ -6218,297 +6333,284 @@ index b5db811..79d6910 100644
  static u_char ngx_http_msie_padding[] =
  "<!-- a padding to disable MSIE and Chrome friendly error page -->" CRLF
  "<!-- a padding to disable MSIE and Chrome friendly error page -->" CRLF
-@@ -50,7 +100,11 @@ static u_char ngx_http_msie_padding[] =
- 
- 
- static u_char ngx_http_msie_refresh_head[] =
-+#if (NGX_HTTP_EXT)
-+"<!DOCTYPE html><html><head><meta http-equiv=\"Refresh\" content=\"0; URL=";
-+#else
- "<html><head><meta http-equiv=\"Refresh\" content=\"0; URL=";
-+#endif
- 
- 
- static u_char ngx_http_msie_refresh_tail[] =
-@@ -58,192 +112,360 @@ static u_char ngx_http_msie_refresh_tail[] =
+@@ -58,280 +145,518 @@ static u_char ngx_http_msie_refresh_tail[] =
  
  
  static char ngx_http_error_301_page[] =
 +#if (NGX_HTTP_EXT)
-+"<!DOCTYPE html><html><head>" CRLF
-+"<meta charset=\"utf-8\">" CRLF
-+"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" CRLF
 +"<title>301 Moved Permanently</title></head>" CRLF
++"<body>" CRLF
++"<div style=\"text-align:center\">" CRLF
++"<h1>301 Moved Permanently</h1>" CRLF
 +#else
  "<html>" CRLF
  "<head><title>301 Moved Permanently</title></head>" CRLF
-+#endif
  "<body>" CRLF
  "<center><h1>301 Moved Permanently</h1></center>" CRLF
++#endif
  ;
  
  
  static char ngx_http_error_302_page[] =
 +#if (NGX_HTTP_EXT)
-+"<!DOCTYPE html><html><head>" CRLF
-+"<meta charset=\"utf-8\">" CRLF
-+"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" CRLF
 +"<title>302 Found</title></head>" CRLF
++"<body>" CRLF
++"<div style=\"text-align:center\">" CRLF
++"<h1>302 Found</h1>" CRLF
 +#else
  "<html>" CRLF
  "<head><title>302 Found</title></head>" CRLF
-+#endif
  "<body>" CRLF
  "<center><h1>302 Found</h1></center>" CRLF
++#endif
  ;
  
  
  static char ngx_http_error_303_page[] =
 +#if (NGX_HTTP_EXT)
-+"<!DOCTYPE html><html><head>" CRLF
-+"<meta charset=\"utf-8\">" CRLF
-+"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" CRLF
 +"<title>303 See Other</title></head>" CRLF
++"<body>" CRLF
++"<div style=\"text-align:center\">" CRLF
++"<h1>303 See Other</h1>" CRLF
 +#else
  "<html>" CRLF
  "<head><title>303 See Other</title></head>" CRLF
-+#endif
  "<body>" CRLF
  "<center><h1>303 See Other</h1></center>" CRLF
++#endif
  ;
  
  
  static char ngx_http_error_307_page[] =
 +#if (NGX_HTTP_EXT)
-+"<!DOCTYPE html><html><head>" CRLF
-+"<meta charset=\"utf-8\">" CRLF
-+"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" CRLF
 +"<title>307 Temporary Redirect</title></head>" CRLF
++"<body>" CRLF
++"<div style=\"text-align:center\">" CRLF
++"<h1>307 Temporary Redirect</h1>" CRLF
 +#else
  "<html>" CRLF
  "<head><title>307 Temporary Redirect</title></head>" CRLF
-+#endif
  "<body>" CRLF
  "<center><h1>307 Temporary Redirect</h1></center>" CRLF
++#endif
  ;
  
  
  static char ngx_http_error_308_page[] =
 +#if (NGX_HTTP_EXT)
-+"<!DOCTYPE html><html><head>" CRLF
-+"<meta charset=\"utf-8\">" CRLF
-+"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" CRLF
 +"<title>308 Permanent Redirect</title></head>" CRLF
++"<body>" CRLF
++"<div style=\"text-align:center\">" CRLF
++"<h1>308 Permanent Redirect</h1>" CRLF
 +#else
  "<html>" CRLF
  "<head><title>308 Permanent Redirect</title></head>" CRLF
-+#endif
  "<body>" CRLF
  "<center><h1>308 Permanent Redirect</h1></center>" CRLF
++#endif
  ;
  
  
  static char ngx_http_error_400_page[] =
 +#if (NGX_HTTP_EXT)
-+"<!DOCTYPE html><html><head>" CRLF
-+"<meta charset=\"utf-8\">" CRLF
-+"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" CRLF
 +"<title>400 Bad Request</title></head>" CRLF
++"<body>" CRLF
++"<div><h1>400 Bad Request</h1>" CRLF
++"<p>Cannot process request due to client error.</p>" CRLF
 +#else
  "<html>" CRLF
  "<head><title>400 Bad Request</title></head>" CRLF
-+#endif
  "<body>" CRLF
  "<center><h1>400 Bad Request</h1></center>" CRLF
++#endif
  ;
  
  
  static char ngx_http_error_401_page[] =
 +#if (NGX_HTTP_EXT)
-+"<!DOCTYPE html><html><head>" CRLF
-+"<meta charset=\"utf-8\">" CRLF
-+"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" CRLF
-+"<title>401 Authorization Required</title></head>" CRLF
++"<title>401 Unauthorized</title></head>" CRLF
++"<body>" CRLF
++"<div><h1>401 Unauthorized</h1>" CRLF
++"<p>Missing or invalid authentication credentials.</p>" CRLF
 +#else
  "<html>" CRLF
  "<head><title>401 Authorization Required</title></head>" CRLF
-+#endif
  "<body>" CRLF
  "<center><h1>401 Authorization Required</h1></center>" CRLF
++#endif
  ;
  
  
  static char ngx_http_error_402_page[] =
 +#if (NGX_HTTP_EXT)
-+"<!DOCTYPE html><html><head>" CRLF
-+"<meta charset=\"utf-8\">" CRLF
-+"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" CRLF
 +"<title>402 Payment Required</title></head>" CRLF
++"<body>" CRLF
++"<div><h1>402 Payment Required</h1>" CRLF
 +#else
  "<html>" CRLF
  "<head><title>402 Payment Required</title></head>" CRLF
-+#endif
  "<body>" CRLF
  "<center><h1>402 Payment Required</h1></center>" CRLF
++#endif
  ;
  
  
  static char ngx_http_error_403_page[] =
 +#if (NGX_HTTP_EXT)
-+"<!DOCTYPE html><html><head>" CRLF
-+"<meta charset=\"utf-8\">" CRLF
-+"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" CRLF
 +"<title>403 Forbidden</title></head>" CRLF
++"<body>" CRLF
++"<div><h1>403 Forbidden</h1>" CRLF
++"<p>You do not have permission to access the resource.</p>" CRLF
 +#else
  "<html>" CRLF
  "<head><title>403 Forbidden</title></head>" CRLF
-+#endif
  "<body>" CRLF
  "<center><h1>403 Forbidden</h1></center>" CRLF
++#endif
  ;
  
  
  static char ngx_http_error_404_page[] =
 +#if (NGX_HTTP_EXT)
-+"<!DOCTYPE html><html><head>" CRLF
-+"<meta charset=\"utf-8\">" CRLF
-+"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" CRLF
 +"<title>404 Not Found</title></head>" CRLF
++"<body>" CRLF
++"<div><h1>404 Not Found</h1>" CRLF
++"<p>The resource cannot be found.</p>" CRLF
 +#else
  "<html>" CRLF
  "<head><title>404 Not Found</title></head>" CRLF
-+#endif
  "<body>" CRLF
  "<center><h1>404 Not Found</h1></center>" CRLF
++#endif
  ;
  
  
  static char ngx_http_error_405_page[] =
 +#if (NGX_HTTP_EXT)
-+"<!DOCTYPE html><html><head>" CRLF
-+"<meta charset=\"utf-8\">" CRLF
-+"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" CRLF
-+"<title>405 Not Allowed</title></head>" CRLF
++"<title>405 Method Not Allowed</title></head>" CRLF
++"<body>" CRLF
++"<div><h1>405 Method Not Allowed</h1>" CRLF
++"<p>Request method is not supported by the resource.</p>" CRLF
 +#else
  "<html>" CRLF
  "<head><title>405 Not Allowed</title></head>" CRLF
-+#endif
  "<body>" CRLF
  "<center><h1>405 Not Allowed</h1></center>" CRLF
++#endif
  ;
  
  
  static char ngx_http_error_406_page[] =
 +#if (NGX_HTTP_EXT)
-+"<!DOCTYPE html><html><head>" CRLF
-+"<meta charset=\"utf-8\">" CRLF
-+"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" CRLF
 +"<title>406 Not Acceptable</title></head>" CRLF
++"<body>" CRLF
++"<div><h1>406 Not Acceptable</h1>" CRLF
++"<p>Unable to provide a matching response.</p>" CRLF
 +#else
  "<html>" CRLF
  "<head><title>406 Not Acceptable</title></head>" CRLF
-+#endif
  "<body>" CRLF
  "<center><h1>406 Not Acceptable</h1></center>" CRLF
++#endif
  ;
  
  
  static char ngx_http_error_408_page[] =
 +#if (NGX_HTTP_EXT)
-+"<!DOCTYPE html><html><head>" CRLF
-+"<meta charset=\"utf-8\">" CRLF
-+"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" CRLF
-+"<title>408 Request Time-out</title></head>" CRLF
++"<title>408 Request Timeout</title></head>" CRLF
++"<body>" CRLF
++"<div><h1>408 Request Timeout</h1>" CRLF
++"<p>Did not receive a complete request within the waiting time.</p>" CRLF
 +#else
  "<html>" CRLF
  "<head><title>408 Request Time-out</title></head>" CRLF
-+#endif
  "<body>" CRLF
  "<center><h1>408 Request Time-out</h1></center>" CRLF
++#endif
  ;
  
  
  static char ngx_http_error_409_page[] =
 +#if (NGX_HTTP_EXT)
-+"<!DOCTYPE html><html><head>" CRLF
-+"<meta charset=\"utf-8\">" CRLF
-+"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" CRLF
 +"<title>409 Conflict</title></head>" CRLF
++"<body>" CRLF
++"<div><h1>409 Conflict</h1>" CRLF
++"<p>Request conflict with the current state of the resource.</p>" CRLF
 +#else
  "<html>" CRLF
  "<head><title>409 Conflict</title></head>" CRLF
-+#endif
  "<body>" CRLF
  "<center><h1>409 Conflict</h1></center>" CRLF
++#endif
  ;
  
  
  static char ngx_http_error_410_page[] =
 +#if (NGX_HTTP_EXT)
-+"<!DOCTYPE html><html><head>" CRLF
-+"<meta charset=\"utf-8\">" CRLF
-+"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" CRLF
 +"<title>410 Gone</title></head>" CRLF
++"<body>" CRLF
++"<div><h1>410 Gone</h1>" CRLF
++"<p>The resource is no longer available.</p>" CRLF
 +#else
  "<html>" CRLF
  "<head><title>410 Gone</title></head>" CRLF
-+#endif
  "<body>" CRLF
  "<center><h1>410 Gone</h1></center>" CRLF
++#endif
  ;
  
  
  static char ngx_http_error_411_page[] =
 +#if (NGX_HTTP_EXT)
-+"<!DOCTYPE html><html><head>" CRLF
-+"<meta charset=\"utf-8\">" CRLF
-+"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" CRLF
 +"<title>411 Length Required</title></head>" CRLF
++"<body>" CRLF
++"<div><h1>411 Length Required</h1>" CRLF
++"<p>Refused to accept the request without a Content-Length header.</p>" CRLF
 +#else
  "<html>" CRLF
  "<head><title>411 Length Required</title></head>" CRLF
-+#endif
  "<body>" CRLF
  "<center><h1>411 Length Required</h1></center>" CRLF
++#endif
  ;
  
  
  static char ngx_http_error_412_page[] =
 +#if (NGX_HTTP_EXT)
-+"<!DOCTYPE html><html><head>" CRLF
-+"<meta charset=\"utf-8\">" CRLF
-+"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" CRLF
 +"<title>412 Precondition Failed</title></head>" CRLF
++"<body>" CRLF
++"<div><h1>412 Precondition Failed</h1>" CRLF
++"<p>Conditions in the request headers are not met.</p>" CRLF
 +#else
  "<html>" CRLF
  "<head><title>412 Precondition Failed</title></head>" CRLF
-+#endif
  "<body>" CRLF
  "<center><h1>412 Precondition Failed</h1></center>" CRLF
++#endif
  ;
  
  
  static char ngx_http_error_413_page[] =
 +#if (NGX_HTTP_EXT)
-+"<!DOCTYPE html><html><head>" CRLF
-+"<meta charset=\"utf-8\">" CRLF
-+"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" CRLF
-+"<title>413 Request Entity Too Large</title></head>" CRLF
++"<title>413 Content Too Large</title></head>" CRLF
++"<body>" CRLF
++"<div><h1>413 Content Too Large</h1>" CRLF
++"<p>Request entity is larger than limits.</p>" CRLF
 +#else
  "<html>" CRLF
  "<head><title>413 Request Entity Too Large</title></head>" CRLF
-+#endif
  "<body>" CRLF
  "<center><h1>413 Request Entity Too Large</h1></center>" CRLF
++#endif
  ;
  
  
  static char ngx_http_error_414_page[] =
 +#if (NGX_HTTP_EXT)
-+"<!DOCTYPE html><html><head>" CRLF
-+"<meta charset=\"utf-8\">" CRLF
-+"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" CRLF
-+"<title>414 Request-URI Too Large</title></head>" CRLF
++"<title>414 URI Too Long</title></head>" CRLF
++"<body>" CRLF
++"<div><h1>414 URI Too Long</h1>" CRLF
++"<p>Request URI is longer than limits.</p>" CRLF
 +#else
  "<html>" CRLF
  "<head><title>414 Request-URI Too Large</title></head>" CRLF
@@ -6520,209 +6622,214 @@ index b5db811..79d6910 100644
  
  static char ngx_http_error_415_page[] =
 +#if (NGX_HTTP_EXT)
-+"<!DOCTYPE html><html><head>" CRLF
-+"<meta charset=\"utf-8\">" CRLF
-+"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" CRLF
 +"<title>415 Unsupported Media Type</title></head>" CRLF
++"<body>" CRLF
++"<div><h1>415 Unsupported Media Type</h1>" CRLF
++"<p>The message content format is not supported.</p>" CRLF
 +#else
  "<html>" CRLF
  "<head><title>415 Unsupported Media Type</title></head>" CRLF
-+#endif
  "<body>" CRLF
  "<center><h1>415 Unsupported Media Type</h1></center>" CRLF
++#endif
  ;
  
  
  static char ngx_http_error_416_page[] =
 +#if (NGX_HTTP_EXT)
-+"<!DOCTYPE html><html><head>" CRLF
-+"<meta charset=\"utf-8\">" CRLF
-+"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" CRLF
-+"<title>416 Requested Range Not Satisfiable</title></head>" CRLF
++"<title>416 Range Not Satisfiable</title></head>" CRLF
++"<body>" CRLF
++"<div><h1>416 Range Not Satisfiable</h1>" CRLF
++"<p>Cannot fulfill the ranges specified in the Range header.</p>" CRLF
 +#else
  "<html>" CRLF
  "<head><title>416 Requested Range Not Satisfiable</title></head>" CRLF
-+#endif
  "<body>" CRLF
  "<center><h1>416 Requested Range Not Satisfiable</h1></center>" CRLF
++#endif
  ;
  
  
  static char ngx_http_error_421_page[] =
 +#if (NGX_HTTP_EXT)
-+"<!DOCTYPE html><html><head>" CRLF
-+"<meta charset=\"utf-8\">" CRLF
-+"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" CRLF
 +"<title>421 Misdirected Request</title></head>" CRLF
++"<body>" CRLF
++"<div><h1>421 Misdirected Request</h1>" CRLF
++"<p>Request was directed to a server that is unable to respond.</p>" CRLF
 +#else
  "<html>" CRLF
  "<head><title>421 Misdirected Request</title></head>" CRLF
-+#endif
  "<body>" CRLF
  "<center><h1>421 Misdirected Request</h1></center>" CRLF
++#endif
  ;
  
  
  static char ngx_http_error_429_page[] =
 +#if (NGX_HTTP_EXT)
-+"<!DOCTYPE html><html><head>" CRLF
-+"<meta charset=\"utf-8\">" CRLF
-+"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" CRLF
 +"<title>429 Too Many Requests</title></head>" CRLF
++"<body>" CRLF
++"<div><h1>429 Too Many Requests</h1>" CRLF
++"<p>The client had sent too many requests in a given amount of time.</p>" CRLF
 +#else
  "<html>" CRLF
  "<head><title>429 Too Many Requests</title></head>" CRLF
-+#endif
  "<body>" CRLF
  "<center><h1>429 Too Many Requests</h1></center>" CRLF
++#endif
  ;
  
  
  static char ngx_http_error_494_page[] =
 +#if (NGX_HTTP_EXT)
-+"<!DOCTYPE html><html><head>" CRLF
-+"<meta charset=\"utf-8\">" CRLF
-+"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" CRLF
-+"<title>400 Request Header Or Cookie Too Large</title></head>"
++"<title>400 Bad Request</title></head>" CRLF
++"<body>" CRLF
++"<div><h1>400 Bad Request</h1>" CRLF
++"<p>Request header or cookie too large.</p>" CRLF
 +#else
  "<html>" CRLF
  "<head><title>400 Request Header Or Cookie Too Large</title></head>"
-+#endif
  CRLF
  "<body>" CRLF
  "<center><h1>400 Bad Request</h1></center>" CRLF
-@@ -252,8 +474,15 @@ CRLF
+ "<center>Request Header Or Cookie Too Large</center>" CRLF
++#endif
+ ;
  
  
  static char ngx_http_error_495_page[] =
 +#if (NGX_HTTP_EXT)
-+"<!DOCTYPE html><html><head>" CRLF
-+"<meta charset=\"utf-8\">" CRLF
-+"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" CRLF
-+"<title>400 The SSL certificate error</title></head>"
++"<title>400 Bad Request</title></head>" CRLF
++"<body>" CRLF
++"<div><h1>400 Bad Request</h1>" CRLF
++"<p>SSL certificate error.</p>" CRLF
 +#else
  "<html>" CRLF
  "<head><title>400 The SSL certificate error</title></head>"
-+#endif
  CRLF
  "<body>" CRLF
  "<center><h1>400 Bad Request</h1></center>" CRLF
-@@ -262,8 +491,15 @@ CRLF
+ "<center>The SSL certificate error</center>" CRLF
++#endif
+ ;
  
  
  static char ngx_http_error_496_page[] =
 +#if (NGX_HTTP_EXT)
-+"<!DOCTYPE html><html><head>" CRLF
-+"<meta charset=\"utf-8\">" CRLF
-+"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" CRLF
-+"<title>400 No required SSL certificate was sent</title></head>"
++"<title>400 Bad Request</title></head>" CRLF
++"<body>" CRLF
++"<div><h1>400 Bad Request</h1>" CRLF
++"<p>Missing required SSL certificate.</p>" CRLF
 +#else
  "<html>" CRLF
  "<head><title>400 No required SSL certificate was sent</title></head>"
-+#endif
  CRLF
  "<body>" CRLF
  "<center><h1>400 Bad Request</h1></center>" CRLF
-@@ -272,8 +508,15 @@ CRLF
+ "<center>No required SSL certificate was sent</center>" CRLF
++#endif
+ ;
  
  
  static char ngx_http_error_497_page[] =
 +#if (NGX_HTTP_EXT)
-+"<!DOCTYPE html><html><head>" CRLF
-+"<meta charset=\"utf-8\">" CRLF
-+"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" CRLF
-+"<title>400 The plain HTTP request was sent to HTTPS port</title></head>"
++"<title>400 Bad Request</title></head>" CRLF
++"<body>" CRLF
++"<div><h1>400 Bad Request</h1>" CRLF
++"<p>The plain HTTP request was sent to HTTPS port.</p>" CRLF
 +#else
  "<html>" CRLF
  "<head><title>400 The plain HTTP request was sent to HTTPS port</title></head>"
-+#endif
  CRLF
  "<body>" CRLF
  "<center><h1>400 Bad Request</h1></center>" CRLF
-@@ -282,56 +525,105 @@ CRLF
+ "<center>The plain HTTP request was sent to HTTPS port</center>" CRLF
++#endif
+ ;
  
  
  static char ngx_http_error_500_page[] =
 +#if (NGX_HTTP_EXT)
-+"<!DOCTYPE html><html><head>" CRLF
-+"<meta charset=\"utf-8\">" CRLF
-+"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" CRLF
 +"<title>500 Internal Server Error</title></head>" CRLF
++"<body>" CRLF
++"<div><h1>500 Internal Server Error</h1>" CRLF
++"<p>The server encountered an unexpected issue.</p>" CRLF
 +#else
  "<html>" CRLF
  "<head><title>500 Internal Server Error</title></head>" CRLF
-+#endif
  "<body>" CRLF
  "<center><h1>500 Internal Server Error</h1></center>" CRLF
++#endif
  ;
  
  
  static char ngx_http_error_501_page[] =
 +#if (NGX_HTTP_EXT)
-+"<!DOCTYPE html><html><head>" CRLF
-+"<meta charset=\"utf-8\">" CRLF
-+"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" CRLF
 +"<title>501 Not Implemented</title></head>" CRLF
++"<body>" CRLF
++"<div><h1>501 Not Implemented</h1>" CRLF
++"<p>The server does not support the functionality required.</p>" CRLF
 +#else
  "<html>" CRLF
  "<head><title>501 Not Implemented</title></head>" CRLF
-+#endif
  "<body>" CRLF
  "<center><h1>501 Not Implemented</h1></center>" CRLF
++#endif
  ;
  
  
  static char ngx_http_error_502_page[] =
 +#if (NGX_HTTP_EXT)
-+"<!DOCTYPE html><html><head>" CRLF
-+"<meta charset=\"utf-8\">" CRLF
-+"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" CRLF
 +"<title>502 Bad Gateway</title></head>" CRLF
++"<body>" CRLF
++"<div><h1>502 Bad Gateway</h1>" CRLF
++"<p>The server received an invalid response from upstream.</p>" CRLF
 +#else
  "<html>" CRLF
  "<head><title>502 Bad Gateway</title></head>" CRLF
-+#endif
  "<body>" CRLF
  "<center><h1>502 Bad Gateway</h1></center>" CRLF
++#endif
  ;
  
  
  static char ngx_http_error_503_page[] =
 +#if (NGX_HTTP_EXT)
-+"<!DOCTYPE html><html><head>" CRLF
-+"<meta charset=\"utf-8\">" CRLF
-+"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" CRLF
-+"<title>503 Service Temporarily Unavailable</title></head>" CRLF
++"<title>503 Service Unavailable</title></head>" CRLF
++"<body>" CRLF
++"<div><h1>503 Service Unavailable</h1>" CRLF
++"<p>The server is currently unable to handle the request.</p>" CRLF
 +#else
  "<html>" CRLF
  "<head><title>503 Service Temporarily Unavailable</title></head>" CRLF
-+#endif
  "<body>" CRLF
  "<center><h1>503 Service Temporarily Unavailable</h1></center>" CRLF
++#endif
  ;
  
  
  static char ngx_http_error_504_page[] =
 +#if (NGX_HTTP_EXT)
-+"<!DOCTYPE html><html><head>" CRLF
-+"<meta charset=\"utf-8\">" CRLF
-+"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" CRLF
-+"<title>504 Gateway Time-out</title></head>" CRLF
++"<title>504 Gateway Timeout</title></head>" CRLF
++"<body>" CRLF
++"<div><h1>504 Gateway Timeout</h1>" CRLF
++"<p>The server did not receive a timely response from upstream.</p>" CRLF
 +#else
  "<html>" CRLF
  "<head><title>504 Gateway Time-out</title></head>" CRLF
-+#endif
  "<body>" CRLF
  "<center><h1>504 Gateway Time-out</h1></center>" CRLF
++#endif
  ;
  
  
  static char ngx_http_error_505_page[] =
 +#if (NGX_HTTP_EXT)
-+"<!DOCTYPE html><html><head>" CRLF
-+"<meta charset=\"utf-8\">" CRLF
-+"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" CRLF
 +"<title>505 HTTP Version Not Supported</title></head>" CRLF
++"<body>" CRLF
++"<div><h1>505 HTTP Version Not Supported</h1>" CRLF
++"<p>The server does not support the version of HTTP used in the request.</p>"
++CRLF
 +#else
  "<html>" CRLF
  "<head><title>505 HTTP Version Not Supported</title></head>" CRLF
@@ -6734,10 +6841,10 @@ index b5db811..79d6910 100644
  
  static char ngx_http_error_507_page[] =
 +#if (NGX_HTTP_EXT)
-+"<!DOCTYPE html><html><head>" CRLF
-+"<meta charset=\"utf-8\">" CRLF
-+"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" CRLF
 +"<title>507 Insufficient Storage</title></head>" CRLF
++"<body>" CRLF
++"<div><h1>507 Insufficient Storage</h1>" CRLF
++"<p>The server does not have enough available storage.</p>" CRLF
 +#else
  "<html>" CRLF
  "<head><title>507 Insufficient Storage</title></head>" CRLF
@@ -6745,7 +6852,7 @@ index b5db811..79d6910 100644
  "<body>" CRLF
  "<center><h1>507 Insufficient Storage</h1></center>" CRLF
  ;
-@@ -419,6 +711,10 @@ ngx_http_special_response_handler(ngx_http_request_t *r, ngx_int_t error)
+@@ -419,6 +744,10 @@ ngx_http_special_response_handler(ngx_http_request_t *r, ngx_int_t error)
      ngx_http_err_page_t       *err_page;
      ngx_http_core_loc_conf_t  *clcf;
  
@@ -6756,7 +6863,7 @@ index b5db811..79d6910 100644
      ngx_log_debug3(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
                     "http special response: %i, \"%V?%V\"",
                     error, &r->uri, &r->args);
-@@ -463,6 +759,27 @@ ngx_http_special_response_handler(ngx_http_request_t *r, ngx_int_t error)
+@@ -463,6 +792,27 @@ ngx_http_special_response_handler(ngx_http_request_t *r, ngx_int_t error)
  
          for (i = 0; i < clcf->error_pages->nelts; i++) {
              if (err_page[i].status == error) {
@@ -6784,12 +6891,13 @@ index b5db811..79d6910 100644
                  return ngx_http_send_error_page(r, &err_page[i]);
              }
          }
-@@ -678,7 +995,14 @@ ngx_http_send_special_response(ngx_http_request_t *r,
+@@ -678,7 +1028,15 @@ ngx_http_send_special_response(ngx_http_request_t *r,
      ngx_int_t     rc;
      ngx_buf_t    *b;
      ngx_uint_t    msie_padding;
 +
 +#if (NGX_HTTP_EXT)
++    ngx_uint_t    style;
 +    ngx_chain_t   out[4];
 +    ngx_buf_t    *ib;
 +    ngx_uint_t    i;
@@ -6799,7 +6907,7 @@ index b5db811..79d6910 100644
  
      if (clcf->server_tokens == NGX_HTTP_SERVER_TOKENS_ON) {
          len = sizeof(ngx_http_error_full_tail) - 1;
-@@ -693,10 +1017,28 @@ ngx_http_send_special_response(ngx_http_request_t *r,
+@@ -693,10 +1051,38 @@ ngx_http_send_special_response(ngx_http_request_t *r,
          tail = ngx_http_error_tail;
      }
  
@@ -6813,33 +6921,70 @@ index b5db811..79d6910 100644
 +    } else {
 +        ib = NULL;
 +    }
++
++    style = 0;
 +#endif
 +
      msie_padding = 0;
  
      if (ngx_http_error_pages[err].len) {
 +#if (NGX_HTTP_EXT)
-+        r->headers_out.content_length_n = ngx_http_error_pages[err].len
++        r->headers_out.content_length_n = sizeof(ngx_http_error_head) - 1
++                                          + ngx_http_error_pages[err].len
 +                                          + (ib ? (ib->last - ib->pos) : 0)
 +                                          + len;
++
++        if (err >= NGX_HTTP_OFF_4XX) {
++            r->headers_out.content_length_n +=
++                                         sizeof(ngx_http_error_style) - 1;
++            style = 1;
++        }
 +#else
          r->headers_out.content_length_n = ngx_http_error_pages[err].len + len;
 +#endif
++
          if (clcf->msie_padding
              && (r->headers_in.msie || r->headers_in.chrome)
              && r->http_version >= NGX_HTTP_VERSION_10
-@@ -734,6 +1076,10 @@ ngx_http_send_special_response(ngx_http_request_t *r,
+@@ -734,6 +1120,37 @@ ngx_http_send_special_response(ngx_http_request_t *r,
          return ngx_http_send_special(r, NGX_HTTP_LAST);
      }
  
 +#if (NGX_HTTP_EXT)
++    b = ngx_calloc_buf(r->pool);
++    if (b == NULL) {
++        return NGX_ERROR;
++    }
++
++    b->memory = 1;
++    head->pos = ngx_http_error_head;
++    head->last = ngx_http_error_head + sizeof(ngx_http_error_head) - 1;
++
 +    i = 0;
++    out[i].buf = b;
++    out[i].next = &out[i + 1];
++    i++;
++
++    if (style) {
++        b = ngx_calloc_buf(r->pool);
++        if (b == NULL) {
++            return NGX_ERROR;
++        }
++
++        b->memory = 1;
++        b->pos = ngx_http_error_style;
++        b->last = ngx_http_error_style + sizeof(ngx_http_error_style) - 1;
++
++        out[i].buf = b;
++        out[i].next = &out[i + 1];
++        i++;
++    }
 +#endif
 +
      b = ngx_calloc_buf(r->pool);
      if (b == NULL) {
          return NGX_ERROR;
-@@ -743,8 +1089,20 @@ ngx_http_send_special_response(ngx_http_request_t *r,
+@@ -743,8 +1160,20 @@ ngx_http_send_special_response(ngx_http_request_t *r,
      b->pos = ngx_http_error_pages[err].data;
      b->last = ngx_http_error_pages[err].data + ngx_http_error_pages[err].len;
  
@@ -6860,7 +7005,7 @@ index b5db811..79d6910 100644
  
      b = ngx_calloc_buf(r->pool);
      if (b == NULL) {
-@@ -756,8 +1114,13 @@ ngx_http_send_special_response(ngx_http_request_t *r,
+@@ -756,8 +1185,13 @@ ngx_http_send_special_response(ngx_http_request_t *r,
      b->pos = tail;
      b->last = tail + len;
  
@@ -6874,7 +7019,7 @@ index b5db811..79d6910 100644
  
      if (msie_padding) {
          b = ngx_calloc_buf(r->pool);
-@@ -769,9 +1132,16 @@ ngx_http_send_special_response(ngx_http_request_t *r,
+@@ -769,9 +1203,16 @@ ngx_http_send_special_response(ngx_http_request_t *r,
          b->pos = ngx_http_msie_padding;
          b->last = ngx_http_msie_padding + sizeof(ngx_http_msie_padding) - 1;
  
@@ -6891,7 +7036,7 @@ index b5db811..79d6910 100644
      }
  
      if (r == r->main) {
-@@ -855,3 +1225,93 @@ ngx_http_send_refresh(ngx_http_request_t *r)
+@@ -855,3 +1296,93 @@ ngx_http_send_refresh(ngx_http_request_t *r)
  
      return ngx_http_output_filter(r, &out);
  }
@@ -6910,7 +7055,7 @@ index b5db811..79d6910 100644
 +    clcf = ngx_http_get_module_loc_conf(r, ngx_http_core_module);
 +
 +    if (!clcf->error_page_client_ip_var_index) {
-+        client_ip.data = (u_char *)"-";
++        client_ip.data = (u_char *) "-";
 +        client_ip.len = 1;
 +
 +    } else {
@@ -6918,7 +7063,7 @@ index b5db811..79d6910 100644
 +                    clcf->error_page_client_ip_var_index);
 +
 +        if (value == NULL || value->not_found) {
-+            client_ip.data = (u_char *)"-";
++            client_ip.data = (u_char *) "-";
 +            client_ip.len = 1;
 +
 +        } else {
@@ -6928,14 +7073,14 @@ index b5db811..79d6910 100644
 +    }
 +
 +    if (!clcf->request_id_var_index) {
-+        request_id.data = (u_char *)"-";
++        request_id.data = (u_char *) "-";
 +        request_id.len = 1;
 +
 +    } else {
 +        value = ngx_http_get_indexed_variable(r, clcf->request_id_var_index);
 +
 +        if (value == NULL || value->not_found) {
-+            request_id.data = (u_char *)"-";
++            request_id.data = (u_char *) "-";
 +            request_id.len = 1;
 +
 +        } else {
