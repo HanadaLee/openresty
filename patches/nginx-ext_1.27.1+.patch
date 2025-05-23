@@ -6213,7 +6213,7 @@ index 4360038..3b4e683 100644
  
  #endif /* _NGX_HTTP_SCRIPT_H_INCLUDED_ */
 diff --git a/src/http/ngx_http_special_response.c b/src/http/ngx_http_special_response.c
-index b5db811..b973850 100644
+index b5db811..8e5722b 100644
 --- a/src/http/ngx_http_special_response.c
 +++ b/src/http/ngx_http_special_response.c
 @@ -16,29 +16,118 @@ static ngx_int_t ngx_http_send_error_page(ngx_http_request_t *r,
@@ -6959,8 +6959,8 @@ index b5db811..b973850 100644
 +    }
 +
 +    b->memory = 1;
-+    head->pos = ngx_http_error_head;
-+    head->last = ngx_http_error_head + sizeof(ngx_http_error_head) - 1;
++    b->pos = ngx_http_error_head;
++    b->last = ngx_http_error_head + sizeof(ngx_http_error_head) - 1;
 +
 +    i = 0;
 +    out[i].buf = b;
