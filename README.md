@@ -200,9 +200,9 @@ When both the ssl and https_allow_http parameters are enabled for the listen dir
 
 Based on the original nginx built-in variable $request_id, it supports inheriting unique IDs from request headers or any variables. In addition to random hex id, unique ID generation also supports trace id based on request characteristics.
 
-* **Syntax:** *request_id hexid | traceid;*
+* **Syntax:** *request_id_algorithm hexid | traceid;*
 
-* **Default:** *request_id hexid;*
+* **Default:** *request_id_algorithm hexid;*
 
 * **Context:** *http, server, location*
 
@@ -214,7 +214,7 @@ Specify the format of the request ID.
 
 * **Context:** *http, server, location*
 
-Specify the header name to be inherited by the request ID.
+Specify the header name to be inherited by the request ID. If no header is specified, the request id will always be regenerated.
 
 ### Optimization of default error page
 
