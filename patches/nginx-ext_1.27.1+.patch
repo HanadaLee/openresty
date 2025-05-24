@@ -6321,7 +6321,7 @@ index 4360038..3b4e683 100644
  
  #endif /* _NGX_HTTP_SCRIPT_H_INCLUDED_ */
 diff --git a/src/http/ngx_http_special_response.c b/src/http/ngx_http_special_response.c
-index b5db811..52f9dea 100644
+index b5db811..4aa8297 100644
 --- a/src/http/ngx_http_special_response.c
 +++ b/src/http/ngx_http_special_response.c
 @@ -16,29 +16,118 @@ static ngx_int_t ngx_http_send_error_page(ngx_http_request_t *r,
@@ -7008,7 +7008,7 @@ index b5db811..52f9dea 100644
 +
 +#if (NGX_HTTP_EXT)
 +    ngx_uint_t    style;
-+    ngx_chain_t   out[4];
++    ngx_chain_t   out[6];
 +    ngx_buf_t    *ib;
 +    ngx_uint_t    i;
 +#else

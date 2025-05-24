@@ -96,7 +96,7 @@ For details on OpenResty's bundled components and features, refer to [openresty.
 The following components are additionally bundled with OpenResty, some of which are developed and maintained by Hanada.
 
 
-* [ngx_backtrace_module](https://github.com/alibaba/tengine/tree/master/modules/ngx_backtrace_module)
+* [ngx_backtrace_module](https://git.hanada.info/hanada/ngx_backtrace_module)
 * [ngx_lua_events_module](https://github.com/Kong/lua-resty-events)
 * [ngx_http_access_control_module](https://git.hanada.info/hanada/ngx_http_access_control_module)
 * [ngx_http_aws_auth_module](https://git.hanada.info/hanada/ngx_http_aws_auth_module)
