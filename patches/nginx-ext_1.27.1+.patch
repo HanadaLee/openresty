@@ -997,10 +997,28 @@ index 46a56f5..d21212a 100644
  
      rc = ngx_http_fastcgi_init_params(cf, conf, &conf->params, NULL);
 diff --git a/src/http/modules/ngx_http_grpc_module.c b/src/http/modules/ngx_http_grpc_module.c
-index e7726f3..f5bb6de 100644
+index e7726f3..0c280a3 100644
 --- a/src/http/modules/ngx_http_grpc_module.c
 +++ b/src/http/modules/ngx_http_grpc_module.c
-@@ -30,6 +30,13 @@ typedef struct {
+@@ -22,14 +22,31 @@ typedef struct {
+     ngx_http_upstream_conf_t   upstream;
+ 
+     ngx_http_grpc_headers_t    headers;
++#if (NGX_HTTP_EXT)
++    ngx_array_t               *pseudo_headers_source;
++#endif
+     ngx_array_t               *headers_source;
+ 
+     ngx_str_t                  host;
+     ngx_uint_t                 host_set;
+ 
++#if (NGX_HTTP_EXT)
++    ngx_str_t                  method;
++    ngx_uint_t                 method_set;
++
++    ngx_uint_t                 path_set;
++#endif
++
      ngx_array_t               *grpc_lengths;
      ngx_array_t               *grpc_values;
  
@@ -1014,7 +1032,23 @@ index e7726f3..f5bb6de 100644
  #if (NGX_HTTP_SSL)
      ngx_uint_t                 ssl;
      ngx_uint_t                 ssl_protocols;
-@@ -337,6 +344,15 @@ static ngx_command_t  ngx_http_grpc_commands[] = {
+@@ -330,6 +347,15 @@ static ngx_command_t  ngx_http_grpc_commands[] = {
+       offsetof(ngx_http_grpc_loc_conf_t, upstream.next_upstream_timeout),
+       NULL },
+ 
++#if (NGX_HTTP_EXT)
++    { ngx_string("grpc_set_pseudo_header"),
++      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE2,
++      ngx_conf_set_keyval_slot,
++      NGX_HTTP_LOC_CONF_OFFSET,
++      offsetof(ngx_http_grpc_loc_conf_t, pseudo_headers_source),
++      NULL },
++#endif
++
+     { ngx_string("grpc_set_header"),
+       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE2,
+       ngx_conf_set_keyval_slot,
+@@ -337,6 +363,15 @@ static ngx_command_t  ngx_http_grpc_commands[] = {
        offsetof(ngx_http_grpc_loc_conf_t, headers_source),
        NULL },
  
@@ -1030,7 +1064,7 @@ index e7726f3..f5bb6de 100644
      { ngx_string("grpc_pass_header"),
        NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
        ngx_conf_set_str_array_slot,
-@@ -358,6 +374,22 @@ static ngx_command_t  ngx_http_grpc_commands[] = {
+@@ -358,6 +393,22 @@ static ngx_command_t  ngx_http_grpc_commands[] = {
        offsetof(ngx_http_grpc_loc_conf_t, upstream.ignore_headers),
        &ngx_http_upstream_ignore_headers_masks },
  
@@ -1053,7 +1087,7 @@ index e7726f3..f5bb6de 100644
  #if (NGX_HTTP_SSL)
  
      { ngx_string("grpc_ssl_session_reuse"),
-@@ -598,6 +630,16 @@ ngx_http_grpc_handler(ngx_http_request_t *r)
+@@ -598,6 +649,16 @@ ngx_http_grpc_handler(ngx_http_request_t *r)
  
      r->request_body_no_buffering = 1;
  
@@ -1070,18 +1104,98 @@ index e7726f3..f5bb6de 100644
      rc = ngx_http_read_client_request_body(r, ngx_http_upstream_init);
  
      if (rc >= NGX_HTTP_SPECIAL_RESPONSE) {
-@@ -916,6 +958,10 @@ ngx_http_grpc_create_request(ngx_http_request_t *r)
+@@ -735,6 +796,13 @@ ngx_http_grpc_create_request(ngx_http_request_t *r)
+ 
+     /* :method header */
+ 
++#if (NGX_HTTP_EXT)
++    if (glcf->method_set) {
++        u->method_name = glcf->method;
++
++    } else {
++#endif
++
+     if (r->method == NGX_HTTP_GET || r->method == NGX_HTTP_POST) {
+         len += 1;
+         tmp_len = 0;
+@@ -744,12 +812,21 @@ ngx_http_grpc_create_request(ngx_http_request_t *r)
+         tmp_len = r->method_name.len;
+     }
+ 
++#if (NGX_HTTP_EXT)
++        u->method_name = r->method_name;
++    }
++#endif
++
+     /* :scheme header */
+ 
+     len += 1;
+ 
+     /* :path header */
+ 
++#if (NGX_HTTP_EXT)
++    if (!glcf->path_set) {
++#endif
++
+     if (r->valid_unparsed_uri) {
+         escape = 0;
+         uri_len = r->unparsed_uri.len;
+@@ -766,6 +843,10 @@ ngx_http_grpc_create_request(ngx_http_request_t *r)
+         tmp_len = uri_len;
+     }
+ 
++#if (NGX_HTTP_EXT)
++    }
++#endif
++
+     /* :authority header */
+ 
+     if (!glcf->host_set) {
+@@ -895,6 +976,10 @@ ngx_http_grpc_create_request(ngx_http_request_t *r)
+     f->stream_id_2 = 0;
+     f->stream_id_3 = 1;
+ 
++#if (NGX_HTTP_EXT)
++    if (!glcf->method_set) {
++#endif
++
+     if (r->method == NGX_HTTP_GET) {
+         *b->last++ = ngx_http_v2_indexed(NGX_HTTP_V2_METHOD_GET_INDEX);
+ 
+@@ -916,6 +1001,10 @@ ngx_http_grpc_create_request(ngx_http_request_t *r)
                         "grpc header: \":method: %V\"", &r->method_name);
      }
  
 +#if (NGX_HTTP_EXT)
-+    u->method_name = r->method_name;
++    }
 +#endif
 +
  #if (NGX_HTTP_SSL)
      if (u->ssl) {
          *b->last++ = ngx_http_v2_indexed(NGX_HTTP_V2_SCHEME_HTTPS_INDEX);
-@@ -4378,6 +4424,10 @@ ngx_http_grpc_create_loc_conf(ngx_conf_t *cf)
+@@ -931,6 +1020,10 @@ ngx_http_grpc_create_request(ngx_http_request_t *r)
+                        "grpc header: \":scheme: http\"");
+     }
+ 
++#if (NGX_HTTP_EXT)
++    if (!glcf->path_set) {
++#endif
++
+     if (r->valid_unparsed_uri) {
+ 
+         if (r->unparsed_uri.len == 1 && r->unparsed_uri.data[0] == '/') {
+@@ -976,6 +1069,10 @@ ngx_http_grpc_create_request(ngx_http_request_t *r)
+                        "grpc header: \":path: %V\"", &r->uri);
+     }
+ 
++#if (NGX_HTTP_EXT)
++    }
++#endif
++
+     if (!glcf->host_set) {
+         *b->last++ = ngx_http_v2_inc_indexed(NGX_HTTP_V2_AUTHORITY_INDEX);
+         b->last = ngx_http_v2_write_value(b->last, ctx->host.data,
+@@ -4378,6 +4475,10 @@ ngx_http_grpc_create_loc_conf(ngx_conf_t *cf)
  
      conf->upstream.intercept_errors = NGX_CONF_UNSET;
  
@@ -1092,8 +1206,13 @@ index e7726f3..f5bb6de 100644
  #if (NGX_HTTP_SSL)
      conf->upstream.ssl_session_reuse = NGX_CONF_UNSET;
      conf->upstream.ssl_name = NGX_CONF_UNSET_PTR;
-@@ -4407,6 +4457,11 @@ ngx_http_grpc_create_loc_conf(ngx_conf_t *cf)
+@@ -4405,8 +4506,16 @@ ngx_http_grpc_create_loc_conf(ngx_conf_t *cf)
+     conf->upstream.pass_trailers = 1;
+     conf->upstream.preserve_output = 1;
  
++#if (NGX_HTTP_EXT)
++    conf->pseudo_headers_source = NGX_CONF_UNSET_PTR;
++#endif
      conf->headers_source = NGX_CONF_UNSET_PTR;
  
 +#if (NGX_HTTP_EXT)
@@ -1104,7 +1223,7 @@ index e7726f3..f5bb6de 100644
      ngx_str_set(&conf->upstream.module, "grpc");
  
      return conf;
-@@ -4420,6 +4475,12 @@ ngx_http_grpc_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -4420,6 +4529,12 @@ ngx_http_grpc_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      ngx_http_grpc_loc_conf_t *conf = child;
  
      ngx_int_t                  rc;
@@ -1117,7 +1236,7 @@ index e7726f3..f5bb6de 100644
      ngx_hash_init_t            hash;
      ngx_http_core_loc_conf_t  *clcf;
  
-@@ -4466,6 +4527,14 @@ ngx_http_grpc_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -4466,6 +4581,14 @@ ngx_http_grpc_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      ngx_conf_merge_value(conf->upstream.intercept_errors,
                                prev->upstream.intercept_errors, 0);
  
@@ -1132,48 +1251,151 @@ index e7726f3..f5bb6de 100644
  #if (NGX_HTTP_SSL)
  
      if (ngx_http_grpc_merge_ssl(cf, conf, prev) != NGX_OK) {
-@@ -4549,6 +4618,25 @@ ngx_http_grpc_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -4544,12 +4667,60 @@ ngx_http_grpc_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+         clcf->handler = ngx_http_grpc_handler;
+     }
+ 
++#if (NGX_HTTP_EXT)
++    ngx_conf_merge_ptr_value(conf->pseudo_headers_source, prev->pseudo_headers_source, NULL);
++#endif
+     ngx_conf_merge_ptr_value(conf->headers_source, prev->headers_source, NULL);
+ 
++#if (NGX_HTTP_EXT)
++    if (conf->pseudo_headers_source == prev->pseudo_headers_source
++        && conf->headers_source == prev->headers_source)
++    {
++        conf->headers = prev->headers;
++        conf->host_set = prev->host_set;
++        conf->path_set = prev->path_set;
++        conf->method_set = prev->method_set;
++        prev->method = prev->method;
++
++    } else if (conf->headers_inherit) {
++        if (conf->pseudo_headers_source
++            && prev->pseudo_headers_source
++            && prev->pseudo_headers_source != NGX_CONF_UNSET_PTR)
++        {
++            src = prev->pseudo_headers_source->elts;
++
++            for (i = 0; i < prev->pseudo_headers_source->nelts; i++) {
++                h = ngx_array_push(conf->pseudo_headers_source);
++                if (h == NULL) {
++                    return NGX_CONF_ERROR;
++                }
++
++                *h = src[i];
++            }
++        }
++
++        if (conf->headers_source
++            && prev->headers_source
++            && prev->headers_source != NGX_CONF_UNSET_PTR)
++        {
++            src = prev->headers_source->elts;
++
++            for (i = 0; i < prev->headers_source->nelts; i++) {
++                h = ngx_array_push(conf->headers_source);
++                if (h == NULL) {
++                    return NGX_CONF_ERROR;
++                }
++
++                *h = src[i];
++            }
++        }
++    }
++#else
      if (conf->headers_source == prev->headers_source) {
          conf->headers = prev->headers;
          conf->host_set = prev->host_set;
-+
-+#if (NGX_HTTP_EXT)
-+    } else if (conf->headers_inherit
-+               && conf->headers_source
-+               && prev->headers_source
-+               && prev->headers_source != NGX_CONF_UNSET_PTR)
-+    {
-+        src = prev->headers_source->elts;
-+
-+        for (i = 0; i < prev->headers_source->nelts; i++) {
-+            h = ngx_array_push(conf->headers_source);
-+            if (h == NULL) {
-+                return NGX_CONF_ERROR;
-+            }
-+
-+            *h = src[i];
-+        }
-+#endif
-+
      }
++#endif
  
      rc = ngx_http_grpc_init_headers(cf, conf, &conf->headers,
-@@ -4625,6 +4713,15 @@ ngx_http_grpc_init_headers(ngx_conf_t *cf, ngx_http_grpc_loc_conf_t *conf,
-                 conf->host_set = 1;
-             }
+                                     ngx_http_grpc_headers);
+@@ -4563,10 +4734,18 @@ ngx_http_grpc_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+      */
+ 
+     if (prev->headers.hash.buckets == NULL
++#if (NGX_HTTP_EXT)
++        && conf->pseudo_headers_source == prev->pseudo_headers_source
++#endif
+         && conf->headers_source == prev->headers_source)
+     {
+         prev->headers = conf->headers;
+         prev->host_set = conf->host_set;
++#if (NGX_HTTP_EXT)
++        prev->path_set = conf->path_set;
++        prev->method_set = conf->method_set;
++        prev->method = conf->method;
++#endif
+     }
+ 
+     return NGX_CONF_OK;
+@@ -4614,6 +4793,64 @@ ngx_http_grpc_init_headers(ngx_conf_t *cf, ngx_http_grpc_loc_conf_t *conf,
+         return NGX_ERROR;
+     }
  
 +#if (NGX_HTTP_EXT)
++    if (conf->pseudo_headers_source) {
++
++        src = conf->pseudo_headers_source->elts;
++        for (i = 0; i < conf->pseudo_headers_source->nelts; i++) {
++
++            if (src[i].key.len == 0) {
++                continue;
++            }
++
++            if (src[i].key.data[0] != ':') {
++                ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
++                                   "pseudo header \"%V\" must start with \":\"",
++                                   &src[i].key);
++                return NGX_ERROR;
++            }
++
 +            if (src[i].key.len == 10
 +                && ngx_strncasecmp(src[i].key.data, (u_char *) ":authority",
 +                                   10) == 0)
 +            {
 +                conf->host_set = 1;
++
++            } else if (src[i].key.len == 7
++                       && ngx_strncasecmp(src[i].key.data,
++                                          (u_char *) ":method", 7) == 0)
++            {
++                conf->method_set = 1;
++                conf->method = src[i].value;
++
++            } else if (src[i].key.len == 5
++                       && ngx_strncasecmp(src[i].key.data,
++                                          (u_char *) ":path", 5) == 0)
++            {
++                if (src[i].value.len == 0) {
++                    continue;
++                }
++                
++                if (src[i].value.data[0] != '/') {
++                    ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
++                                       "pseudo header \":path\" must start "
++                                       "with \"/\"", &src[i].value);
++                    return NGX_ERROR;
++                }
++
++                conf->path_set = 1;
 +            }
++
++            s = ngx_array_push(&headers_merged);
++            if (s == NULL) {
++                return NGX_ERROR;
++            }
++
++            *s = src[i];
++        }
++    }
 +#endif
 +
-             s = ngx_array_push(&headers_merged);
-             if (s == NULL) {
-                 return NGX_ERROR;
+     if (conf->headers_source) {
+ 
+         src = conf->headers_source->elts;
 diff --git a/src/http/modules/ngx_http_gunzip_filter_module.c b/src/http/modules/ngx_http_gunzip_filter_module.c
 index 5d170a1..6ae4a4b 100644
 --- a/src/http/modules/ngx_http_gunzip_filter_module.c
@@ -5646,7 +5868,7 @@ index 65c8333..d2602eb 100644
      ngx_http_request_t               *main;
      ngx_http_request_t               *parent;
 diff --git a/src/http/ngx_http_script.c b/src/http/ngx_http_script.c
-index a2b9f1b..621ecdb 100644
+index a2b9f1b..3a06d34 100644
 --- a/src/http/ngx_http_script.c
 +++ b/src/http/ngx_http_script.c
 @@ -135,6 +135,70 @@ ngx_http_complex_value_size(ngx_http_request_t *r,
@@ -5879,6 +6101,24 @@ index a2b9f1b..621ecdb 100644
  void
  ngx_http_script_equal_code(ngx_http_script_engine_t *e)
  {
+@@ -1573,7 +1768,7 @@ ngx_http_script_equal_code(ngx_http_script_engine_t *e)
+     }
+ 
+     ngx_log_debug0(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
+-                   "http script equal: no");
++                   "http script equal: false");
+ 
+     *res = ngx_http_variable_null_value;
+ }
+@@ -1597,7 +1792,7 @@ ngx_http_script_not_equal_code(ngx_http_script_engine_t *e)
+         && ngx_strncmp(val->data, res->data, res->len) == 0)
+     {
+         ngx_log_debug0(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
+-                       "http script not equal: no");
++                       "http script not equal: false");
+ 
+         *res = ngx_http_variable_null_value;
+         return;
 @@ -1898,3 +2093,335 @@ ngx_http_script_nop_code(ngx_http_script_engine_t *e)
  {
      e->ip += sizeof(uintptr_t);
@@ -6017,13 +6257,13 @@ index a2b9f1b..621ecdb 100644
 +
 +    if (int_res > int_val) {
 +        ngx_log_debug0(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
-+                       "http script greater than: yes");
++                       "http script greater than: true");
 +        *res = ngx_http_variable_true_value;
 +        return;
 +    }
 +
 +    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
-+                   "http script greater than: no");
++                   "http script greater than: false");
 +
 +    *res = ngx_http_variable_null_value;
 +}
@@ -6056,13 +6296,13 @@ index a2b9f1b..621ecdb 100644
 +
 +    if (int_res >= int_val) {
 +        ngx_log_debug0(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
-+                       "http script greater equal: yes");
++                       "http script greater equal: true");
 +        *res = ngx_http_variable_true_value;
 +        return;
 +    }
 +
 +    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
-+                   "http script greater equal: no");
++                   "http script greater equal: false");
 +
 +    *res = ngx_http_variable_null_value;
 +}
@@ -6095,13 +6335,13 @@ index a2b9f1b..621ecdb 100644
 +
 +    if (int_res < int_val) {
 +        ngx_log_debug0(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
-+                       "http script less than: yes");
++                       "http script less than: true");
 +        *res = ngx_http_variable_true_value;
 +        return;
 +    }
 +
 +    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
-+                   "http script less than: no");
++                   "http script less than: false");
 +
 +    *res = ngx_http_variable_null_value;
 +}
@@ -6134,13 +6374,13 @@ index a2b9f1b..621ecdb 100644
 +
 +    if (int_res <= int_val) {
 +        ngx_log_debug0(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
-+                       "http script less equal: yes");
++                       "http script less equal: true");
 +        *res = ngx_http_variable_true_value;
 +        return;
 +    }
 +
 +    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
-+                   "http script less equal: no");
++                   "http script less equal: false");
 +
 +    *res = ngx_http_variable_null_value;
 +}
@@ -6162,20 +6402,20 @@ index a2b9f1b..621ecdb 100644
 +
 +    if (res->len < val->len) {
 +        ngx_log_debug0(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
-+                       "http script start with: no");
++                       "http script start with: false");
 +        *res = ngx_http_variable_null_value;
 +        return;
 +    }
 +
 +    if (ngx_strncmp(res->data, val->data, val->len) == 0) {
 +        ngx_log_debug0(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
-+                       "http script start with: yes");
++                       "http script start with: true");
 +        *res = ngx_http_variable_true_value;
 +        return;
 +    }
 +
 +    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
-+                   "http script start with: no");
++                   "http script start with: false");
 +
 +    *res = ngx_http_variable_null_value;
 +}
@@ -6197,20 +6437,20 @@ index a2b9f1b..621ecdb 100644
 +
 +    if (res->len < val->len) {
 +        ngx_log_debug0(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
-+                       "http not script start with: yes");
++                       "http not script start with: true");
 +        *res = ngx_http_variable_true_value;
 +        return;
 +    }
 +
 +    if (ngx_strncmp(res->data, val->data, val->len) == 0) {
 +        ngx_log_debug0(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
-+                       "http script start with: no");
++                       "http script start with: false");
 +        *res = ngx_http_variable_null_value;
 +        return;
 +    }
 +
 +    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
-+                   "http script start with: yes");
++                   "http script start with: true");
 +
 +    *res = ngx_http_variable_true_value;
 +}
