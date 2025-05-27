@@ -449,8 +449,6 @@ sub_filter_bypass $http_pragma    $http_authorization;
 
 Introduces the 'proxy_set_header_inherit' directive which blocks the merge inheritance in receiving contexts when set to off. The purpose of the added mechanics is to reduce repetition within the nginx configuration for universally set (or boilerplate) request headers, while maintaining flexibility to set additional headers for specific paths. The original patch is from [[PATCH] Added merge inheritance to proxy_set_header](https://mailman.nginx.org/pipermail/nginx-devel/2023-November/XUGFHDLSLRTFLWIBYPSE7LTXFJHNZE3E.html). Additionally provides grpc support.
 
-Also allows setting the `:authory` header (From [nginx-grpc_set_header_authority.patch](https://github.com/api7/apisix-nginx-module/blob/main/patch/1.25.3.1/nginx-grpc_set_header_authority.patch)) for grpc_set_header. Please note that you must set the `:authory` header at the beginning of other grpc_set_header directives to avoid `:authory` appearing after the normal headers and causing a protocol error.
-
 There is no change in behavior for existing configurations.
 
 * **Syntax:** *proxy_set_header_inherit on | off;*

@@ -700,7 +700,7 @@ index 02d41e8..e80ce78 100644
 +}
 +#endif
 diff --git a/src/http/modules/ngx_http_fastcgi_module.c b/src/http/modules/ngx_http_fastcgi_module.c
-index 46a56f5..d21212a 100644
+index 46a56f5..e5d490e 100644
 --- a/src/http/modules/ngx_http_fastcgi_module.c
 +++ b/src/http/modules/ngx_http_fastcgi_module.c
 @@ -42,6 +42,13 @@ typedef struct {
@@ -888,19 +888,20 @@ index 46a56f5..d21212a 100644
      ngx_str_set(&conf->upstream.module, "fastcgi");
  
      return conf;
-@@ -2952,6 +3055,11 @@ ngx_http_fastcgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -2952,6 +3055,12 @@ ngx_http_fastcgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      ngx_hash_init_t               hash;
      ngx_http_core_loc_conf_t     *clcf;
  
 +#if (NGX_HTTP_EXT)
-+    ngx_uint_t                    i;
-+    ngx_keyval_t                 *src, *h;
++    ngx_uint_t                    i, j, found;
++    ngx_keyval_t                 *src, *dst, *h, *temp_params;
++    ngx_array_t                   params;
 +#endif
 +
  #if (NGX_HTTP_CACHE)
  
      if (conf->upstream.store > 0) {
-@@ -3018,6 +3126,13 @@ ngx_http_fastcgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -3018,6 +3127,13 @@ ngx_http_fastcgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      ngx_conf_merge_ptr_value(conf->upstream.limit_rate,
                                prev->upstream.limit_rate, NULL);
  
@@ -914,7 +915,7 @@ index 46a56f5..d21212a 100644
  
      ngx_conf_merge_bufs_value(conf->upstream.bufs, prev->upstream.bufs,
                                8, ngx_pagesize);
-@@ -3115,6 +3230,11 @@ ngx_http_fastcgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -3115,6 +3231,11 @@ ngx_http_fastcgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
                                prev->upstream.ignore_headers,
                                NGX_CONF_BITMASK_SET);
  
@@ -926,7 +927,7 @@ index 46a56f5..d21212a 100644
  
      ngx_conf_merge_bitmask_value(conf->upstream.next_upstream,
                                prev->upstream.next_upstream,
-@@ -3157,6 +3277,10 @@ ngx_http_fastcgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -3157,6 +3278,10 @@ ngx_http_fastcgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
          return NGX_CONF_ERROR;
      }
  
@@ -937,7 +938,7 @@ index 46a56f5..d21212a 100644
      ngx_conf_merge_uint_value(conf->upstream.cache_min_uses,
                                prev->upstream.cache_min_uses, 1);
  
-@@ -3178,6 +3302,15 @@ ngx_http_fastcgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -3178,6 +3303,15 @@ ngx_http_fastcgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
          conf->upstream.cache_use_stale |= NGX_HTTP_UPSTREAM_FT_NOLIVE;
      }
  
@@ -953,7 +954,7 @@ index 46a56f5..d21212a 100644
      if (conf->upstream.cache_methods == 0) {
          conf->upstream.cache_methods = prev->upstream.cache_methods;
      }
-@@ -3190,6 +3323,18 @@ ngx_http_fastcgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -3190,6 +3324,18 @@ ngx_http_fastcgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      ngx_conf_merge_ptr_value(conf->upstream.no_cache,
                               prev->upstream.no_cache, NULL);
  
@@ -972,19 +973,53 @@ index 46a56f5..d21212a 100644
      ngx_conf_merge_ptr_value(conf->upstream.cache_valid,
                               prev->upstream.cache_valid, NULL);
  
-@@ -3274,6 +3419,23 @@ ngx_http_fastcgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -3274,6 +3420,57 @@ ngx_http_fastcgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
          conf->params_cache = prev->params_cache;
  #endif
          conf->params_source = prev->params_source;
 +
 +#if (NGX_HTTP_EXT)
 +    } else if (conf->params_inherit
++               && conf->params_source
 +               && prev->params_source
 +               && prev->params_source != NGX_CONF_UNSET_PTR)
 +    {
-+        src = prev->params_source->elts;
 +
++        if (ngx_array_init(&params, cf->temp_pool, 4, sizeof(ngx_keyval_t))
++            != NGX_OK)
++        {
++            return NGX_CONF_ERROR;
++        }
++
++        dst = conf->params_source->elts;
++        for (i = 0; i < conf->params_source->nelts; i++) {
++            h = ngx_array_push(&params);
++            if (h == NULL) {
++                return NGX_CONF_ERROR;
++            }
++
++            *h = dst[i];
++        }
++
++        src = prev->params_source->elts;
 +        for (i = 0; i < prev->params_source->nelts; i++) {
++            found = 0;
++
++            temp_params = params.elts;
++            for (j = 0; j < params.nelts; j++) {
++                if (temp_params[j].key.len == src[i].key.len
++                    && ngx_strcasecmp(temp_params[j].key.data,
++                                      src[i].key.data) == 0)
++                {
++                    found = 1;
++                    break;
++                }
++            }
++
++            if (found) {
++                continue;
++            }
++
 +            h = ngx_array_push(conf->params_source);
 +            if (h == NULL) {
 +                return NGX_CONF_ERROR;
@@ -997,7 +1032,7 @@ index 46a56f5..d21212a 100644
  
      rc = ngx_http_fastcgi_init_params(cf, conf, &conf->params, NULL);
 diff --git a/src/http/modules/ngx_http_grpc_module.c b/src/http/modules/ngx_http_grpc_module.c
-index e7726f3..f3e6eba 100644
+index e7726f3..07c748f 100644
 --- a/src/http/modules/ngx_http_grpc_module.c
 +++ b/src/http/modules/ngx_http_grpc_module.c
 @@ -27,9 +27,21 @@ typedef struct {
@@ -1338,20 +1373,21 @@ index e7726f3..f3e6eba 100644
      ngx_str_set(&conf->upstream.module, "grpc");
  
      return conf;
-@@ -4420,6 +4651,12 @@ ngx_http_grpc_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -4420,6 +4651,13 @@ ngx_http_grpc_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      ngx_http_grpc_loc_conf_t *conf = child;
  
      ngx_int_t                  rc;
 +
 +#if (NGX_HTTP_EXT)
-+    ngx_uint_t                 i;
-+    ngx_keyval_t              *src, *h;
++    ngx_uint_t                 i, j, found;
++    ngx_keyval_t              *src, *dst, *h, *temp_headers;
++    ngx_array_t                headers;
 +#endif
 +
      ngx_hash_init_t            hash;
      ngx_http_core_loc_conf_t  *clcf;
  
-@@ -4466,6 +4703,14 @@ ngx_http_grpc_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -4466,6 +4704,14 @@ ngx_http_grpc_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      ngx_conf_merge_value(conf->upstream.intercept_errors,
                                prev->upstream.intercept_errors, 0);
  
@@ -1366,7 +1402,7 @@ index e7726f3..f3e6eba 100644
  #if (NGX_HTTP_SSL)
  
      if (ngx_http_grpc_merge_ssl(cf, conf, prev) != NGX_OK) {
-@@ -4549,6 +4794,27 @@ ngx_http_grpc_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -4549,6 +4795,60 @@ ngx_http_grpc_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      if (conf->headers_source == prev->headers_source) {
          conf->headers = prev->headers;
          conf->host_set = prev->host_set;
@@ -1379,9 +1415,42 @@ index e7726f3..f3e6eba 100644
 +               && prev->headers_source
 +               && prev->headers_source != NGX_CONF_UNSET_PTR)
 +    {
-+        src = prev->headers_source->elts;
 +
++        if (ngx_array_init(&headers, cf->temp_pool, 4, sizeof(ngx_keyval_t))
++            != NGX_OK)
++        {
++            return NGX_CONF_ERROR;
++        }
++
++        dst = conf->headers_source->elts;
++        for (i = 0; i < conf->headers_source->nelts; i++) {
++            h = ngx_array_push(&headers);
++            if (h == NULL) {
++                return NGX_CONF_ERROR;
++            }
++
++            *h = dst[i];
++        }
++
++        src = prev->headers_source->elts;
 +        for (i = 0; i < prev->headers_source->nelts; i++) {
++            found = 0;
++
++            temp_headers = headers.elts;
++            for (j = 0; j < headers.nelts; j++) {
++                if (temp_headers[j].key.len == src[i].key.len
++                    && ngx_strcasecmp(temp_headers[j].key.data,
++                                      src[i].key.data) == 0)
++                {
++                    found = 1;
++                    break;
++                }
++            }
++
++            if (found) {
++                continue;
++            }
++
 +            h = ngx_array_push(conf->headers_source);
 +            if (h == NULL) {
 +                return NGX_CONF_ERROR;
@@ -1394,7 +1463,7 @@ index e7726f3..f3e6eba 100644
      }
  
      rc = ngx_http_grpc_init_headers(cf, conf, &conf->headers,
-@@ -4567,6 +4833,10 @@ ngx_http_grpc_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -4567,6 +4867,10 @@ ngx_http_grpc_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      {
          prev->headers = conf->headers;
          prev->host_set = conf->host_set;
@@ -1405,7 +1474,7 @@ index e7726f3..f3e6eba 100644
      }
  
      return NGX_CONF_OK;
-@@ -4588,6 +4858,10 @@ ngx_http_grpc_init_headers(ngx_conf_t *cf, ngx_http_grpc_loc_conf_t *conf,
+@@ -4588,6 +4892,10 @@ ngx_http_grpc_init_headers(ngx_conf_t *cf, ngx_http_grpc_loc_conf_t *conf,
      ngx_http_script_compile_t     sc;
      ngx_http_script_copy_code_t  *copy;
  
@@ -1416,7 +1485,7 @@ index e7726f3..f3e6eba 100644
      if (headers->hash.buckets) {
          return NGX_OK;
      }
-@@ -4616,6 +4890,107 @@ ngx_http_grpc_init_headers(ngx_conf_t *cf, ngx_http_grpc_loc_conf_t *conf,
+@@ -4616,6 +4924,107 @@ ngx_http_grpc_init_headers(ngx_conf_t *cf, ngx_http_grpc_loc_conf_t *conf,
  
      if (conf->headers_source) {
  
@@ -1524,7 +1593,7 @@ index e7726f3..f3e6eba 100644
          src = conf->headers_source->elts;
          for (i = 0; i < conf->headers_source->nelts; i++) {
  
-@@ -4632,6 +5007,7 @@ ngx_http_grpc_init_headers(ngx_conf_t *cf, ngx_http_grpc_loc_conf_t *conf,
+@@ -4632,6 +5041,7 @@ ngx_http_grpc_init_headers(ngx_conf_t *cf, ngx_http_grpc_loc_conf_t *conf,
  
              *s = src[i];
          }
@@ -2299,7 +2368,7 @@ index 032ba96..609188e 100644
  
          r->headers_out.status = NGX_HTTP_NOT_MODIFIED;
 diff --git a/src/http/modules/ngx_http_proxy_module.c b/src/http/modules/ngx_http_proxy_module.c
-index c69a476..fe89480 100644
+index c69a476..ba81d39 100644
 --- a/src/http/modules/ngx_http_proxy_module.c
 +++ b/src/http/modules/ngx_http_proxy_module.c
 @@ -112,11 +112,20 @@ typedef struct {
@@ -2514,18 +2583,19 @@ index c69a476..fe89480 100644
      ngx_str_set(&conf->upstream.module, "proxy");
  
      return conf;
-@@ -3447,6 +3558,10 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -3447,6 +3558,11 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      u_char                     *p;
      size_t                      size;
      ngx_int_t                   rc;
 +#if (NGX_HTTP_EXT)
-+    ngx_uint_t                  i;
-+    ngx_keyval_t               *src, *h;
++    ngx_uint_t                  i, j, found;
++    ngx_keyval_t               *src, *dst, *h, *temp_headers;
++    ngx_array_t                 headers;
 +#endif
      ngx_hash_init_t             hash;
      ngx_http_core_loc_conf_t   *clcf;
      ngx_http_proxy_rewrite_t   *pr;
-@@ -3518,6 +3633,11 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -3518,6 +3634,11 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      ngx_conf_merge_ptr_value(conf->upstream.limit_rate,
                                prev->upstream.limit_rate, NULL);
  
@@ -2537,7 +2607,7 @@ index c69a476..fe89480 100644
      ngx_conf_merge_bufs_value(conf->upstream.bufs, prev->upstream.bufs,
                                8, ngx_pagesize);
  
-@@ -3613,6 +3733,11 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -3613,6 +3734,11 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
                                prev->upstream.ignore_headers,
                                NGX_CONF_BITMASK_SET);
  
@@ -2549,7 +2619,7 @@ index c69a476..fe89480 100644
  
      ngx_conf_merge_bitmask_value(conf->upstream.next_upstream,
                                prev->upstream.next_upstream,
-@@ -3656,6 +3781,11 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -3656,6 +3782,11 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
          return NGX_CONF_ERROR;
      }
  
@@ -2561,7 +2631,7 @@ index c69a476..fe89480 100644
      ngx_conf_merge_uint_value(conf->upstream.cache_min_uses,
                                prev->upstream.cache_min_uses, 1);
  
-@@ -3677,6 +3807,15 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -3677,6 +3808,15 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
          conf->upstream.cache_use_stale |= NGX_HTTP_UPSTREAM_FT_NOLIVE;
      }
  
@@ -2577,7 +2647,7 @@ index c69a476..fe89480 100644
      if (conf->upstream.cache_methods == 0) {
          conf->upstream.cache_methods = prev->upstream.cache_methods;
      }
-@@ -3689,6 +3828,18 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -3689,6 +3829,18 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      ngx_conf_merge_ptr_value(conf->upstream.no_cache,
                               prev->upstream.no_cache, NULL);
  
@@ -2596,7 +2666,7 @@ index c69a476..fe89480 100644
      ngx_conf_merge_ptr_value(conf->upstream.cache_valid,
                               prev->upstream.cache_valid, NULL);
  
-@@ -3724,6 +3875,11 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -3724,6 +3876,11 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      ngx_conf_merge_value(conf->upstream.intercept_errors,
                                prev->upstream.intercept_errors, 0);
  
@@ -2608,7 +2678,7 @@ index c69a476..fe89480 100644
  #if (NGX_HTTP_SSL)
  
      if (ngx_http_proxy_merge_ssl(cf, conf, prev) != NGX_OK) {
-@@ -3905,6 +4061,24 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -3905,6 +4062,57 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
  #if (NGX_HTTP_CACHE)
          conf->headers_cache = prev->headers_cache;
  #endif
@@ -2619,9 +2689,42 @@ index c69a476..fe89480 100644
 +               && prev->headers_source
 +               && prev->headers_source != NGX_CONF_UNSET_PTR)
 +    {
-+        src = prev->headers_source->elts;
 +
++        if (ngx_array_init(&headers, cf->temp_pool, 4, sizeof(ngx_keyval_t))
++            != NGX_OK)
++        {
++            return NGX_CONF_ERROR;
++        }
++
++        dst = conf->headers_source->elts;
++        for (i = 0; i < conf->headers_source->nelts; i++) {
++            h = ngx_array_push(&headers);
++            if (h == NULL) {
++                return NGX_CONF_ERROR;
++            }
++
++            *h = dst[i];
++        }
++
++        src = prev->headers_source->elts;
 +        for (i = 0; i < prev->headers_source->nelts; i++) {
++            found = 0;
++
++            temp_headers = headers.elts;
++            for (j = 0; j < headers.nelts; j++) {
++                if (temp_headers[j].key.len == src[i].key.len
++                    && ngx_strcasecmp(temp_headers[j].key.data,
++                                      src[i].key.data) == 0)
++                {
++                    found = 1;
++                    break;
++                }
++            }
++
++            if (found) {
++                continue;
++            }
++
 +            h = ngx_array_push(conf->headers_source);
 +            if (h == NULL) {
 +                return NGX_CONF_ERROR;
@@ -3730,7 +3833,7 @@ index ff3b687..4575310 100644
  
  static char *
 diff --git a/src/http/modules/ngx_http_scgi_module.c b/src/http/modules/ngx_http_scgi_module.c
-index f818fc4..e92b5ab 100644
+index f818fc4..c0afb24 100644
 --- a/src/http/modules/ngx_http_scgi_module.c
 +++ b/src/http/modules/ngx_http_scgi_module.c
 @@ -40,6 +40,13 @@ typedef struct {
@@ -3895,19 +3998,20 @@ index f818fc4..e92b5ab 100644
      ngx_str_set(&conf->upstream.module, "scgi");
  
      return conf;
-@@ -1351,6 +1449,11 @@ ngx_http_scgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -1351,6 +1449,12 @@ ngx_http_scgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      ngx_hash_init_t               hash;
      ngx_http_core_loc_conf_t     *clcf;
  
 +#if (NGX_HTTP_EXT)
-+    ngx_uint_t                    i;
-+    ngx_keyval_t                 *src, *h;
++    ngx_uint_t                    i, j, found;
++    ngx_keyval_t                 *src, *dst, *h, *temp_params;
++    ngx_array_t                   params;
 +#endif
 +
  #if (NGX_HTTP_CACHE)
  
      if (conf->upstream.store > 0) {
-@@ -1416,6 +1519,12 @@ ngx_http_scgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -1416,6 +1520,12 @@ ngx_http_scgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      ngx_conf_merge_ptr_value(conf->upstream.limit_rate,
                                prev->upstream.limit_rate, NULL);
  
@@ -3920,7 +4024,7 @@ index f818fc4..e92b5ab 100644
  
      ngx_conf_merge_bufs_value(conf->upstream.bufs, prev->upstream.bufs,
                                8, ngx_pagesize);
-@@ -1513,6 +1622,11 @@ ngx_http_scgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -1513,6 +1623,11 @@ ngx_http_scgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
                                   prev->upstream.ignore_headers,
                                   NGX_CONF_BITMASK_SET);
  
@@ -3932,7 +4036,7 @@ index f818fc4..e92b5ab 100644
  
      ngx_conf_merge_bitmask_value(conf->upstream.next_upstream,
                                   prev->upstream.next_upstream,
-@@ -1555,6 +1669,11 @@ ngx_http_scgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -1555,6 +1670,11 @@ ngx_http_scgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
          return NGX_CONF_ERROR;
      }
  
@@ -3944,7 +4048,7 @@ index f818fc4..e92b5ab 100644
      ngx_conf_merge_uint_value(conf->upstream.cache_min_uses,
                                prev->upstream.cache_min_uses, 1);
  
-@@ -1576,6 +1695,15 @@ ngx_http_scgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -1576,6 +1696,15 @@ ngx_http_scgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
          conf->upstream.cache_use_stale |= NGX_HTTP_UPSTREAM_FT_NOLIVE;
      }
  
@@ -3960,7 +4064,7 @@ index f818fc4..e92b5ab 100644
      if (conf->upstream.cache_methods == 0) {
          conf->upstream.cache_methods = prev->upstream.cache_methods;
      }
-@@ -1588,6 +1716,18 @@ ngx_http_scgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -1588,6 +1717,18 @@ ngx_http_scgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      ngx_conf_merge_ptr_value(conf->upstream.no_cache,
                               prev->upstream.no_cache, NULL);
  
@@ -3979,19 +4083,53 @@ index f818fc4..e92b5ab 100644
      ngx_conf_merge_ptr_value(conf->upstream.cache_valid,
                               prev->upstream.cache_valid, NULL);
  
-@@ -1658,6 +1798,23 @@ ngx_http_scgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -1658,6 +1799,57 @@ ngx_http_scgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
          conf->params_cache = prev->params_cache;
  #endif
          conf->params_source = prev->params_source;
 +
 +#if (NGX_HTTP_EXT)
 +    } else if (conf->params_inherit
++               && conf->params_source
 +               && prev->params_source
 +               && prev->params_source != NGX_CONF_UNSET_PTR)
 +    {
-+        src = prev->params_source->elts;
 +
++        if (ngx_array_init(&params, cf->temp_pool, 4, sizeof(ngx_keyval_t))
++            != NGX_OK)
++        {
++            return NGX_CONF_ERROR;
++        }
++
++        dst = conf->params_source->elts;
++        for (i = 0; i < conf->params_source->nelts; i++) {
++            h = ngx_array_push(&params);
++            if (h == NULL) {
++                return NGX_CONF_ERROR;
++            }
++
++            *h = dst[i];
++        }
++
++        src = prev->params_source->elts;
 +        for (i = 0; i < prev->params_source->nelts; i++) {
++            found = 0;
++
++            temp_params = params.elts;
++            for (j = 0; j < params.nelts; j++) {
++                if (temp_params[j].key.len == src[i].key.len
++                    && ngx_strcasecmp(temp_params[j].key.data,
++                                      src[i].key.data) == 0)
++                {
++                    found = 1;
++                    break;
++                }
++            }
++
++            if (found) {
++                continue;
++            }
++
 +            h = ngx_array_push(conf->params_source);
 +            if (h == NULL) {
 +                return NGX_CONF_ERROR;
@@ -4508,7 +4646,7 @@ index 456bb27..ae49243 100644
                               &prev->types_keys, &prev->types,
                               ngx_http_html_default_types)
 diff --git a/src/http/modules/ngx_http_uwsgi_module.c b/src/http/modules/ngx_http_uwsgi_module.c
-index c965d4b..2a338f3 100644
+index c965d4b..2f6e604 100644
 --- a/src/http/modules/ngx_http_uwsgi_module.c
 +++ b/src/http/modules/ngx_http_uwsgi_module.c
 @@ -42,6 +42,13 @@ typedef struct {
@@ -4673,19 +4811,20 @@ index c965d4b..2a338f3 100644
      ngx_str_set(&conf->upstream.module, "uwsgi");
  
      return conf;
-@@ -1594,6 +1692,11 @@ ngx_http_uwsgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -1594,6 +1692,12 @@ ngx_http_uwsgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      ngx_hash_init_t               hash;
      ngx_http_core_loc_conf_t     *clcf;
  
 +#if (NGX_HTTP_EXT)
-+    ngx_uint_t                    i;
-+    ngx_keyval_t                 *src, *h;
++    ngx_uint_t                    i, j, found;
++    ngx_keyval_t                 *src, *dst, *h, *temp_params;
++    ngx_array_t                   params;
 +#endif
 +
  #if (NGX_HTTP_CACHE)
  
      if (conf->upstream.store > 0) {
-@@ -1659,6 +1762,12 @@ ngx_http_uwsgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -1659,6 +1763,12 @@ ngx_http_uwsgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      ngx_conf_merge_ptr_value(conf->upstream.limit_rate,
                                prev->upstream.limit_rate, NULL);
  
@@ -4698,7 +4837,7 @@ index c965d4b..2a338f3 100644
  
      ngx_conf_merge_bufs_value(conf->upstream.bufs, prev->upstream.bufs,
                                8, ngx_pagesize);
-@@ -1756,6 +1865,11 @@ ngx_http_uwsgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -1756,6 +1866,11 @@ ngx_http_uwsgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
                                   prev->upstream.ignore_headers,
                                   NGX_CONF_BITMASK_SET);
  
@@ -4710,7 +4849,7 @@ index c965d4b..2a338f3 100644
  
      ngx_conf_merge_bitmask_value(conf->upstream.next_upstream,
                                   prev->upstream.next_upstream,
-@@ -1798,6 +1912,11 @@ ngx_http_uwsgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -1798,6 +1913,11 @@ ngx_http_uwsgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
          return NGX_CONF_ERROR;
      }
  
@@ -4722,7 +4861,7 @@ index c965d4b..2a338f3 100644
      ngx_conf_merge_uint_value(conf->upstream.cache_min_uses,
                                prev->upstream.cache_min_uses, 1);
  
-@@ -1819,6 +1938,15 @@ ngx_http_uwsgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -1819,6 +1939,15 @@ ngx_http_uwsgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
          conf->upstream.cache_use_stale |= NGX_HTTP_UPSTREAM_FT_NOLIVE;
      }
  
@@ -4738,7 +4877,7 @@ index c965d4b..2a338f3 100644
      if (conf->upstream.cache_methods == 0) {
          conf->upstream.cache_methods = prev->upstream.cache_methods;
      }
-@@ -1831,6 +1959,18 @@ ngx_http_uwsgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -1831,6 +1960,18 @@ ngx_http_uwsgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      ngx_conf_merge_ptr_value(conf->upstream.no_cache,
                               prev->upstream.no_cache, NULL);
  
@@ -4757,19 +4896,53 @@ index c965d4b..2a338f3 100644
      ngx_conf_merge_ptr_value(conf->upstream.cache_valid,
                               prev->upstream.cache_valid, NULL);
  
-@@ -1956,6 +2096,23 @@ ngx_http_uwsgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -1956,6 +2097,57 @@ ngx_http_uwsgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
          conf->params_cache = prev->params_cache;
  #endif
          conf->params_source = prev->params_source;
 +
 +#if (NGX_HTTP_EXT)
 +    } else if (conf->params_inherit
++               && conf->params_source
 +               && prev->params_source
 +               && prev->params_source != NGX_CONF_UNSET_PTR)
 +    {
-+        src = prev->params_source->elts;
 +
++        if (ngx_array_init(&params, cf->temp_pool, 4, sizeof(ngx_keyval_t))
++            != NGX_OK)
++        {
++            return NGX_CONF_ERROR;
++        }
++
++        dst = conf->params_source->elts;
++        for (i = 0; i < conf->params_source->nelts; i++) {
++            h = ngx_array_push(&params);
++            if (h == NULL) {
++                return NGX_CONF_ERROR;
++            }
++
++            *h = dst[i];
++        }
++
++        src = prev->params_source->elts;
 +        for (i = 0; i < prev->params_source->nelts; i++) {
++            found = 0;
++
++            temp_params = params.elts;
++            for (j = 0; j < params.nelts; j++) {
++                if (temp_params[j].key.len == src[i].key.len
++                    && ngx_strcasecmp(temp_params[j].key.data,
++                                      src[i].key.data) == 0)
++                {
++                    found = 1;
++                    break;
++                }
++            }
++
++            if (found) {
++                continue;
++            }
++
 +            h = ngx_array_push(conf->params_source);
 +            if (h == NULL) {
 +                return NGX_CONF_ERROR;
