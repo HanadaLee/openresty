@@ -447,7 +447,7 @@ sub_filter_bypass $http_pragma    $http_authorization;
 
 ### Support for inheritance in "proxy_set_header" and its friends
 
-Introduces the 'proxy_set_header_inherit' directive which blocks the merge inheritance in receiving contexts when set to off. The purpose of the added mechanics is to reduce repetition within the nginx configuration for universally set (or boilerplate) request headers, while maintaining flexibility to set additional headers for specific paths. The original patch is from [[PATCH] Added merge inheritance to proxy_set_header](https://mailman.nginx.org/pipermail/nginx-devel/2023-November/XUGFHDLSLRTFLWIBYPSE7LTXFJHNZE3E.html). Additionally provides grpc support.
+Introduces the `proxy_set_header_inherit` directive which blocks the merge inheritance in receiving contexts when set to off. The purpose of the added mechanics is to reduce repetition within the nginx configuration for universally set (or boilerplate) request headers, while maintaining flexibility to set additional headers for specific paths. The original patch is from [[PATCH] Added merge inheritance to proxy_set_header](https://mailman.nginx.org/pipermail/nginx-devel/2023-November/XUGFHDLSLRTFLWIBYPSE7LTXFJHNZE3E.html).
 
 There is no change in behavior for existing configurations.
 
@@ -483,7 +483,7 @@ Introduces two new directives to set sndbuf and rcvbuf for upstream connection. 
 
 Sets the sndbuf size for upstream connection. If not set, the system allocated size is followed.
 
-> fastcgi_sndbuf_size, scgi_sndbuf_size, uwsgi_sndbuf_size, grpc_sndbuf_size directives are also available.
+> fastcgi_sndbuf_size, scgi_sndbuf_size, uwsgi_sndbuf_size and grpc_sndbuf_size directives are also available.
 
 * **Syntax:** *proxy_rcvbuf_size size;*
 
@@ -493,7 +493,7 @@ Sets the sndbuf size for upstream connection. If not set, the system allocated s
 
 Sets the rcvbuf size for upstream connection. If not set, the system allocated size is followed.
 
-> fastcgi_rcvbuf_size, scgi_rcvbuf_size, uwsgi_rcvbuf_size, grpc_rcvbuf_size are also available.
+> fastcgi_rcvbuf_size, scgi_rcvbuf_size, uwsgi_rcvbuf_size and grpc_rcvbuf_size are also available.
 
 ### Enhancement of upstream cache control
 
@@ -515,7 +515,7 @@ Disables processing of certain fields of Cache-Control header in the response fr
 * stale-while-revalidate
 * stale-if-error
 
-> fastcgi_ignore_cache_control, scgi_ignore_cache_control, uwsgi_ignore_cache_control directives are also available.
+> fastcgi_ignore_cache_control, scgi_ignore_cache_control and uwsgi_ignore_cache_control directives are also available.
 
 * **Syntax:** *proxy_cache_min_age time;*
 
@@ -525,7 +525,7 @@ Disables processing of certain fields of Cache-Control header in the response fr
 
 If the received max-age/s-maxage of Cache-Control header from upstream is less than the specified minimum age, the max-age/s-maxage value is set to the configured minimum age value. For example, if the max-age/s-maxage value in the received HTTP header is 100s and the configured minimum age value is 200s, the effective cache time will be 200s. This directive does not rewrite the Cache-Control header. The value of this directive supports variables.
 
-> fastcgi_cache_min_age, scgi_cache_min_age, uwsgi_cache_min_age directives are also available.
+> fastcgi_cache_min_age, scgi_cache_min_age and uwsgi_cache_min_age directives are also available.
 
 * **Syntax:** *proxy_cache_stale_if_error time;*
 
@@ -535,7 +535,7 @@ If the received max-age/s-maxage of Cache-Control header from upstream is less t
 
 The stale-if-error extension of the Cache-Control header field permits using a stale cached response in case of an error. When stale-if-error is missing from Cache-Control header, this directive will take effect instead of the stale-if-error extension of the Cache-Control header. This directive has lower priority than using the directive parameters of proxy_cache_use_stale. The value of this directive supports variables.
 
-> fastcgi_cache_stale_if_error, scgi_cache_stale_if_error, uwsgi_cache_stale_if_error directives are also available.
+> fastcgi_cache_stale_if_error, scgi_cache_stale_if_error and uwsgi_cache_stale_if_error directives are also available.
 
 * **Syntax:** *proxy_cache_stale_while_revalidate time;*
 
@@ -545,7 +545,7 @@ The stale-if-error extension of the Cache-Control header field permits using a s
 
 The stale-while-revalidate extension of the Cache-Control header field permits using a stale cached response if it is currently being updated. When stale-while-revalidate is missing from Cache-Control header, this directive will take effect instead of the stale-while-revalidate extension of the Cache-Control header. This directive has lower priority than using the directive parameters of proxy_cache_use_stale. The value of this directive supports variables.
 
-> fastcgi_cache_stale_while_revalidate, scgi_cache_stale_while_revalidate, uwsgi_cache_stale_while_revalidate directives are also available.
+> fastcgi_cache_stale_while_revalidate, scgi_cache_stale_while_revalidate and uwsgi_cache_stale_while_revalidate directives are also available.
 
 * **Syntax:** *proxy_cache_types mime-type ...;*
 
@@ -555,7 +555,7 @@ The stale-while-revalidate extension of the Cache-Control header field permits u
 
 Enables upstream cache with the specified MIME types in addition to “text/html”. The special value “*” matches any MIME type.
 
-> fastcgi_cache_types, scgi_cache_types, uwsgi_cache_types directives are also available.
+> fastcgi_cache_types, scgi_cache_types and uwsgi_cache_types directives are also available.
 
 * **Syntax:** *proxy_cache_valid [code ...] time;*
 
@@ -565,6 +565,34 @@ Enables upstream cache with the specified MIME types in addition to “text/html
 
 Refer to [proxy_cache_valid](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_valid).
 This directive has been changed to support configuring the cache time as a variable. Other behaviors remain unchanged.
+
+* **Syntax:** *proxy_cache_vary bypass | clear | string;*
+
+* **Default:** *proxy_cache_vary bypass;*
+
+* **Context:** *http, server, location*
+
+Controls Vary header handling for upstream cache.
+
+Example:
+```
+proxy_cache_vary Test-Header;
+```
+If client request contains `Test-Header` header, then cache will be different for different values of `Test-Header` header.
+
+Example:
+```
+prproxy_cache_vary "Test-Header-A, Test-Header-B";
+```
+The cache will be differentiated based on the values ​​of the request headers `Test-Header-A` **and** `Test-Header-B`.
+
+`bypass` is used to disable `Vary` header handling. In addition, the behavior is consistent with `bypass` if parameter value is empty.
+
+`clear` is used to clear all `Vary` headers.  Parameter value can contain variables.
+
+This directive only affects upstream cache, not response headers for client. If you want to also change the `Vary` header of the response to the client, use the `proxy_hide_header` and `add_header` directives.
+
+> fastcgi_cache_vary, scgi_cache_vary and uwsgi_cache_vary directives are also available.
 
 [Back to TOC](#table-of-contents)
 
@@ -629,16 +657,16 @@ The proxy_protocol parameter changes the client address to the one from the PROX
 
 The original work is from [SEnginx](https://github.com/NeusoftSecurity/SEnginx) and [nginx-if](https://github.com/pei-jikui/nginx-if).
 
-Extends the "if" directive of the original rewrite module. It has the following features:
+Extends the `if` directive of the original rewrite module. It has the following features:
 
 ### Additional operators for the "if" directive
 
-Except for the original "if" condition operators, also supports:
-* <
-* \>
-* !< or >=
-* !> or <=
-* ^~ (start with) or !^~ (not start with)
+Except for the original `if` condition operators, also supports:
+* `<`
+* `>`
+* `!<` or `>=`
+* `!>` or `<=`
+* `^~` (start with) or `!^~` (not start with)
 
 The comparison symbol supports decimals and negative numbers. Non-numeric input will always result in a negative result.
 
@@ -650,33 +678,33 @@ The comparison symbol supports decimals and negative numbers. Non-numeric input 
 
 * **Context:** *server, location*
 
-Supports the use of '&&' and '||' operators in if.
+Supports the use of `&&` and `||` operators in if.
 
 Supports parenthesis-based subconditions.
 
 Example:
 ```
-if ($remote_addr = 192.168.1.1 && ($http_user_agent ~ 'Mozilla' || $server_port > 808)) {
+if ($remote_addr = 192.168.1.1 && ($http_user_agent ~ Mozilla || $server_port > 808)) {
     return 404;
 }
 ```
 
 Known limits 1: 
 
-When ues conditional grouping based on brackets. the last character of a conditional statement cannot be ')', even if it is enclosed in quotes. For example, the following expression will cause a configuration test error.
+When ues conditional grouping based on brackets. the last character of a conditional statement cannot be `)`, even if it is enclosed in quotes. For example, the following expression will cause a configuration test error.
 ```
-if (($test_var = "test)" && $http_user_agent ~ 'Mozilla') || $server_port > 808) {
+if (($test_var = "test)" && $http_user_agent ~ Mozilla) || $server_port > 808) {
     return 404
 }
 ```
-If you must use a string ending with ')', you might consider using a variable to back it up.
+If you must use a string ending with `)`, you might consider using a variable to back it up.
 ```
 set $value "test)";
-if (($test_var = $value && $http_user_agent ~ 'Mozilla') || $server_port > 808) {
+if (($test_var = $value && $http_user_agent ~ Mozilla) || $server_port > 808) {
     return 404
 }
 ```
-If it is a regular expression, you can avoid using ')' at the end in many ways.
+If it is a regular expression, you can avoid using `)` at the end in many ways.
 
 
 Known limits 2:
@@ -734,7 +762,7 @@ The gunzip module is not built by default, you must specify --with-http_gunzip_m
 
 * **Context:** *http, server, location*
 
-Defines the conditions for forced brotli decompression. If at least one value in the string parameter is not empty and not equal to "0", forced gzip decompression is performed. But it will not try to decompress responses that do not contain the response header Content-Encoding: gzip.
+Defines the conditions for forced brotli decompression. If at least one value in the string parameter is not empty and not equal to `0`, forced gzip decompression is performed. But it will not try to decompress responses that do not contain the response header Content-Encoding: gzip.
 
 [Back to TOC](#table-of-contents)
 
