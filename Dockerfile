@@ -495,7 +495,7 @@ RUN groupmod -n nginx www-data \
     && curl -fSL https://luarocks.org/lua-resty-http-0.17.2-0.rockspec -o lua-resty-http-0.17.2-0.rockspec \
     && curl -fSL https://luarocks.org/lua-resty-hmac-ffi-0.06-1.rockspec -o lua-resty-hmac-ffi-0.06-1.rockspec \
     && curl -fSL https://luarocks.org/lua-resty-jwt-0.2.3-0.rockspec -o lua-resty-jwt-0.2.3-0.rockspec \
-    && curl -fSL https://luarocks.org/lua-resty-session-4.1.1-1.rockspec -o llua-resty-session-4.1.1-1.rockspec \
+    && curl -fSL https://luarocks.org/lua-resty-session-4.1.1-1.rockspec -o lua-resty-session-4.1.1-1.rockspec \
     && curl -fSL https://luarocks.org/lua-resty-openidc-1.8.0-1.rockspec -o lua-resty-openidc-1.8.0-1.rockspec \
     && curl -fSL https://luarocks.org/lua-resty-timer-1.1.0-1.rockspec -o lua-resty-timer-1.1.0-1.rockspec \
     && curl -fSL https://luarocks.org/api7-lua-resty-dns-client-7.0.1-0.rockspec -o api7-lua-resty-dns-client-7.0.1-0.rockspec \
@@ -523,7 +523,7 @@ RUN groupmod -n nginx www-data \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-http-0.17.2-0.rockspec \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-hmac-ffi-0.06-1.rockspec \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-jwt-0.2.3-0.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install llua-resty-session-4.1.1-1.rockspec \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-session-4.1.1-1.rockspec \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-openidc-1.8.0-1.rockspec \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-timer-1.1.0-1.rockspec \
     && /usr/local/openresty/luajit/bin/luarocks install api7-lua-resty-dns-client-7.0.1-0.rockspec \
