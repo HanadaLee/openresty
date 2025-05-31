@@ -479,10 +479,25 @@ RUN groupmod -n nginx www-data \
     && cp -r kong/kong/resty/ctx.lua /usr/local/openresty/lualib/resty \
     && mkdir -p /build/luarocks \
     && cd /build/luarocks \
+    && curl -fSL https://luarocks.org/binaryheap-0.4-1.rockspec -o binaryheap-0.4-1.rockspec \
+    && curl -fSL https://luarocks.org/luafilesystem-1.8.0-1.rockspec -o luafilesystem-1.8.0-1.rockspec \
+    && curl -fSL https://luarocks.org/penlight-1.14.0-3.rockspec -o penlight-1.14.0-3.rockspec \
+    && curl -fSL https://luarocks.org/net-url-1.2-1.rockspec -o net-url-1.2-1.rockspec \
+    && curl -fSL https://luarocks.org/api7-dkjson-0.1.1-0.rockspec -o api7-dkjson-0.1.1-0.rockspec \
+    && curl -fSL https://luarocks.org/lyaml-6.2.8-1.rockspec -o lyaml-6.2.8-1.rockspec \
+    && curl -fSL https://luarocks.org/lrandom-20180729-1.rockspec -o lrandom-20180729-1.rockspec \
+    && curl -fSL https://luarocks.org/luaxxhash-1.0.0-1.rockspec -o luaxxhash-1.0.0-1.rockspec \
+    && curl -fSL https://luarocks.org/lrexlib-pcre-2.9.1-1.rockspec -o lrexlib-pcre-2.9.1-1.rockspec \
+    && curl -fSL https://luarocks.org/jsonschema-0.9.9-0.rockspec -o jsonschema-0.9.9-0.rockspec \
+    && curl -fSL https://luarocks.org/xml2lua-1.6-2.rockspec -o xml2lua-1.6-2.rockspec \
+    && curl -fSL https://luarocks.org/lua-resty-lrucache-0.09-1.rockspec -o lua-resty-lrucache-0.09-1.rockspec \
+    && curl -fSL https://luarocks.org/lua-resty-openssl-1.6.1-1.rockspec -o lua-resty-openssl-1.6.1-1.rockspec \
     && curl -fSL https://luarocks.org/lua-resty-http-0.17.2-0.rockspec -o lua-resty-http-0.17.2-0.rockspec \
     && curl -fSL https://luarocks.org/lua-resty-hmac-ffi-0.06-1.rockspec -o lua-resty-hmac-ffi-0.06-1.rockspec \
     && curl -fSL https://luarocks.org/lua-resty-jwt-0.2.3-0.rockspec -o lua-resty-jwt-0.2.3-0.rockspec \
+    && curl -fSL https://luarocks.org/lua-resty-session-4.1.1-1.rockspec -o llua-resty-session-4.1.1-1.rockspec \
     && curl -fSL https://luarocks.org/lua-resty-openidc-1.8.0-1.rockspec -o lua-resty-openidc-1.8.0-1.rockspec \
+    && curl -fSL https://luarocks.org/lua-resty-timer-1.1.0-1.rockspec -o lua-resty-timer-1.1.0-1.rockspec \
     && curl -fSL https://luarocks.org/api7-lua-resty-dns-client-7.0.1-0.rockspec -o api7-lua-resty-dns-client-7.0.1-0.rockspec \
     && curl -fSL https://luarocks.org/lua-resty-kafka-0.23-0.rockspec -o lua-resty-kafka-0.23-0.rockspec \
     && curl -fSL https://luarocks.org/lua-resty-template-2.0-1.rockspec -o lua-resty-template-2.0-1.rockspec \
@@ -490,21 +505,28 @@ RUN groupmod -n nginx www-data \
     && curl -fSL https://luarocks.org/lua-resty-cookie-0.4.0-1.rockspec -o lua-resty-cookie-0.4.0-1.rockspec \
     && curl -fSL https://luarocks.org/lua-resty-worker-events-2.0.1-1.rockspec -o lua-resty-worker-events-2.0.1-1.rockspec \
     && curl -fSL https://luarocks.org/lua-resty-healthcheck-3.1.0-1.rockspec -o lua-resty-healthcheck-3.1.0-1.rockspec \
-    && curl -fSL https://luarocks.org/lua-resty-expr-1.3.2-0.rockspec -o lua-resty-expr-1.3.2-0.rockspec \
-    && curl -fSL https://luarocks.org/lyaml-6.2.8-1.rockspec -o lyaml-6.2.8-1.rockspec \
-    && curl -fSL https://luarocks.org/lua-resty-redis-connector-0.11.0-0.rockspec -o lua-resty-redis-connector-0.11.0-0.rockspec \
-    && curl -fSL https://luarocks.org/api7-dkjson-0.1.1-0.rockspec -o api7-dkjson-0.1.1-0.rockspec \
-    && curl -fSL https://luarocks.org/net-url-1.2-1.rockspec -o net-url-1.2-1.rockspec \
-    && curl -fSL https://luarocks.org/luafilesystem-1.8.0-1.rockspec -o luafilesystem-1.8.0-1.rockspec \
-    && curl -fSL https://luarocks.org/jsonschema-0.9.9-0.rockspec -o jsonschema-0.9.9-0.rockspec \
     && curl -fSL https://luarocks.org/lua-resty-ipmatcher-0.6.1-0.rockspec -o lua-resty-ipmatcher-0.6.1-0.rockspec \
-    && curl -fSL https://luarocks.org/binaryheap-0.4-1.rockspec -o binaryheap-0.4-1.rockspec \
-    && curl -fSL https://luarocks.org/penlight-1.14.0-3.rockspec -o penlight-1.14.0-3.rockspec \
-    && curl -fSL https://luarocks.org/xml2lua-1.6-2.rockspec -o xml2lua-1.6-2.rockspec \
+    && curl -fSL https://luarocks.org/lua-resty-expr-1.3.2-0.rockspec -o lua-resty-expr-1.3.2-0.rockspec \
+    && curl -fSL https://luarocks.org/lua-resty-redis-connector-0.11.0-0.rockspec -o lua-resty-redis-connector-0.11.0-0.rockspec \
+    && /usr/local/openresty/luajit/bin/luarocks install binaryheap-0.4-1.rockspec \
+    && /usr/local/openresty/luajit/bin/luarocks install luafilesystem-1.8.0-1.rockspec \
+    && /usr/local/openresty/luajit/bin/luarocks install penlight-1.14.0-3.rockspec \
+    && /usr/local/openresty/luajit/bin/luarocks install net-url-1.2-1.rockspec \
+    && /usr/local/openresty/luajit/bin/luarocks install api7-dkjson-0.1.1-0.rockspec \
+    && /usr/local/openresty/luajit/bin/luarocks install lyaml-6.2.8-1.rockspec \
+    && /usr/local/openresty/luajit/bin/luarocks install lrandom-20180729-1.rockspec \
+    && /usr/local/openresty/luajit/bin/luarocks install luaxxhash-1.0.0-1.rockspec \
+    && /usr/local/openresty/luajit/bin/luarocks install lrexlib-pcre-2.9.1-1.rockspec \
+    && /usr/local/openresty/luajit/bin/luarocks install jsonschema-0.9.9-0.rockspec \
+    && /usr/local/openresty/luajit/bin/luarocks install xml2lua-1.6-2.rockspec \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-lrucache-0.09-1.rockspec \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-openssl-1.6.1-1.rockspec \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-http-0.17.2-0.rockspec \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-hmac-ffi-0.06-1.rockspec \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-jwt-0.2.3-0.rockspec \
+    && /usr/local/openresty/luajit/bin/luarocks install llua-resty-session-4.1.1-1.rockspec \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-openidc-1.8.0-1.rockspec \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-timer-1.1.0-1.rockspec \
     && /usr/local/openresty/luajit/bin/luarocks install api7-lua-resty-dns-client-7.0.1-0.rockspec \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-kafka-0.23-0.rockspec \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-template-2.0-1.rockspec \
@@ -512,17 +534,9 @@ RUN groupmod -n nginx www-data \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-cookie-0.4.0-1.rockspec \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-worker-events-2.0.1-1.rockspec \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-healthcheck-3.1.0-1.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-expr-1.3.2-0.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install lyaml-6.2.8-1.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-redis-connector-0.11.0-0.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install api7-dkjson-0.1.1-0.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install net-url-1.2-1.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install luafilesystem-1.8.0-1.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install jsonschema-0.9.9-0.rockspec \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-ipmatcher-0.6.1-0.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install binaryheap-0.4-1.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install penlight-1.14.0-3.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install xml2lua-1.6-2.rockspec \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-expr-1.3.2-0.rockspec \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-redis-connector-0.11.0-0.rockspec \
     && cd /usr/local/openresty/share \
     && curl -fSL https://${RESTY_GIT_MIRROR}/coreruleset/coreruleset/releases/download/v${RESTY_OWSAP_CRS_VERSION}/coreruleset-${RESTY_OWSAP_CRS_VERSION}-minimal.tar.gz -o coreruleset-${RESTY_OWSAP_CRS_VERSION}-minimal.tar.gz \
     && tar xzf coreruleset-${RESTY_OWSAP_CRS_VERSION}-minimal.tar.gz \
