@@ -7820,7 +7820,7 @@ index b5db811..4aa8297 100644
 +#endif
 \ No newline at end of file
 diff --git a/src/http/ngx_http_upstream.c b/src/http/ngx_http_upstream.c
-index d04d91e..a048508 100644
+index d04d91e..cb05431 100644
 --- a/src/http/ngx_http_upstream.c
 +++ b/src/http/ngx_http_upstream.c
 @@ -21,6 +21,12 @@ static ngx_int_t ngx_http_upstream_cache_background_update(
@@ -8067,7 +8067,7 @@ index d04d91e..a048508 100644
              if (valid) {
                  r->cache->valid_sec = now + valid;
              }
-@@ -3213,6 +3336,32 @@ ngx_http_upstream_send_response(ngx_http_request_t *r, ngx_http_upstream_t *u)
+@@ -3213,6 +3336,33 @@ ngx_http_upstream_send_response(ngx_http_request_t *r, ngx_http_upstream_t *u)
                  ngx_str_null(&r->cache->etag);
              }
  
@@ -8078,7 +8078,8 @@ index d04d91e..a048508 100644
 +            } else if (ngx_http_complex_value(r, u->conf->cache_vary, &vary)
 +                                              != NGX_OK)
 +            {
-+                return NGX_ERROR;
++                ngx_http_upstream_finalize_request(r, u, NGX_ERROR);
++                return;
 +            }
 +
 +            if (vary.len == 0
@@ -8100,7 +8101,7 @@ index d04d91e..a048508 100644
              if (ngx_http_file_cache_set_header(r, u->buffer.start) != NGX_OK) {
                  ngx_http_upstream_finalize_request(r, u, NGX_ERROR);
                  return;
-@@ -4617,7 +4766,11 @@ ngx_http_upstream_finalize_request(ngx_http_request_t *r,
+@@ -4617,7 +4767,11 @@ ngx_http_upstream_finalize_request(ngx_http_request_t *r,
              if (rc == NGX_HTTP_BAD_GATEWAY || rc == NGX_HTTP_GATEWAY_TIME_OUT) {
                  time_t  valid;
  
@@ -8112,7 +8113,7 @@ index d04d91e..a048508 100644
  
                  if (valid) {
                      r->cache->valid_sec = ngx_time() + valid;
-@@ -4841,6 +4994,9 @@ ngx_http_upstream_process_cache_control(ngx_http_request_t *r,
+@@ -4841,6 +4995,9 @@ ngx_http_upstream_process_cache_control(ngx_http_request_t *r,
      {
      u_char     *p, *start, *last;
      ngx_int_t   n;
@@ -8122,7 +8123,7 @@ index d04d91e..a048508 100644
  
      if (u->conf->ignore_headers & NGX_HTTP_UPSTREAM_IGN_CACHE_CONTROL) {
          return NGX_OK;
-@@ -4857,6 +5013,18 @@ ngx_http_upstream_process_cache_control(ngx_http_request_t *r,
+@@ -4857,6 +5014,18 @@ ngx_http_upstream_process_cache_control(ngx_http_request_t *r,
          goto extensions;
      }
  
@@ -8141,7 +8142,7 @@ index d04d91e..a048508 100644
      if (ngx_strlcasestrn(start, last, (u_char *) "no-cache", 8 - 1) != NULL
          || ngx_strlcasestrn(start, last, (u_char *) "no-store", 8 - 1) != NULL
          || ngx_strlcasestrn(start, last, (u_char *) "private", 7 - 1) != NULL)
-@@ -4864,14 +5032,30 @@ ngx_http_upstream_process_cache_control(ngx_http_request_t *r,
+@@ -4864,14 +5033,30 @@ ngx_http_upstream_process_cache_control(ngx_http_request_t *r,
          u->headers_in.no_cache = 1;
          return NGX_OK;
      }
@@ -8172,7 +8173,7 @@ index d04d91e..a048508 100644
  
      if (p) {
          n = 0;
-@@ -4895,7 +5079,18 @@ ngx_http_upstream_process_cache_control(ngx_http_request_t *r,
+@@ -4895,7 +5080,18 @@ ngx_http_upstream_process_cache_control(ngx_http_request_t *r,
              return NGX_OK;
          }
  
@@ -8191,7 +8192,7 @@ index d04d91e..a048508 100644
          u->headers_in.expired = 0;
      }
  
-@@ -4904,7 +5099,12 @@ extensions:
+@@ -4904,7 +5100,12 @@ extensions:
      p = ngx_strlcasestrn(start, last, (u_char *) "stale-while-revalidate=",
                           23 - 1);
  
@@ -8204,7 +8205,7 @@ index d04d91e..a048508 100644
          n = 0;
  
          for (p += 23; p < last; p++) {
-@@ -4923,11 +5123,27 @@ extensions:
+@@ -4923,11 +5124,27 @@ extensions:
  
          r->cache->updating_sec = n;
          r->cache->error_sec = n;
@@ -8232,7 +8233,7 @@ index d04d91e..a048508 100644
          n = 0;
  
          for (p += 15; p < last; p++) {
-@@ -4945,6 +5161,16 @@ extensions:
+@@ -4945,6 +5162,16 @@ extensions:
          }
  
          r->cache->error_sec = n;
@@ -8249,7 +8250,7 @@ index d04d91e..a048508 100644
      }
      }
  #endif
-@@ -5006,6 +5232,56 @@ ngx_http_upstream_process_expires(ngx_http_request_t *r, ngx_table_elt_t *h,
+@@ -5006,6 +5233,56 @@ ngx_http_upstream_process_expires(ngx_http_request_t *r, ngx_table_elt_t *h,
  }
  
  
@@ -8306,7 +8307,7 @@ index d04d91e..a048508 100644
  static ngx_int_t
  ngx_http_upstream_process_accel_expires(ngx_http_request_t *r,
      ngx_table_elt_t *h, ngx_uint_t offset)
-@@ -5959,6 +6235,14 @@ ngx_http_upstream_cookie_variable(ngx_http_request_t *r,
+@@ -5959,6 +6236,14 @@ ngx_http_upstream_cookie_variable(ngx_http_request_t *r,
      s.len = name->len - (sizeof("upstream_cookie_") - 1);
      s.data = name->data + sizeof("upstream_cookie_") - 1;
  
@@ -8321,7 +8322,7 @@ index d04d91e..a048508 100644
      if (ngx_http_parse_set_cookie_lines(r, r->upstream->headers_in.set_cookie,
                                          &s, &cookie)
          == NULL)
-@@ -5966,6 +6250,7 @@ ngx_http_upstream_cookie_variable(ngx_http_request_t *r,
+@@ -5966,6 +6251,7 @@ ngx_http_upstream_cookie_variable(ngx_http_request_t *r,
          v->not_found = 1;
          return NGX_OK;
      }
