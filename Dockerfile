@@ -491,7 +491,6 @@ RUN groupmod -n nginx www-data \
     && curl -fSL https://luarocks.org/jsonschema-0.9.9-0.rockspec -o jsonschema-0.9.9-0.rockspec \
     && curl -fSL https://luarocks.org/xml2lua-1.6-2.rockspec -o xml2lua-1.6-2.rockspec \
     && curl -fSL https://luarocks.org/lua-ffi-zlib-0.6-0.rockspec -o lua-ffi-zlib-0.6-0.rockspec \
-    && curl -fSL https://luarocks.org/lua-resty-lrucache-0.09-1.rockspec -o lua-resty-lrucache-0.09-1.rockspec \
     && curl -fSL https://luarocks.org/lua-resty-openssl-1.6.1-1.rockspec -o lua-resty-openssl-1.6.1-1.rockspec \
     && curl -fSL https://luarocks.org/lua-resty-http-0.17.2-0.rockspec -o lua-resty-http-0.17.2-0.rockspec \
     && curl -fSL https://luarocks.org/lua-resty-hmac-ffi-0.06-1.rockspec -o lua-resty-hmac-ffi-0.06-1.rockspec \
@@ -520,7 +519,6 @@ RUN groupmod -n nginx www-data \
     && /usr/local/openresty/luajit/bin/luarocks install lrexlib-pcre-2.9.1-1.rockspec \
     && /usr/local/openresty/luajit/bin/luarocks install jsonschema-0.9.9-0.rockspec \
     && /usr/local/openresty/luajit/bin/luarocks install xml2lua-1.6-2.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-lrucache-0.09-1.rockspec \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-openssl-1.6.1-1.rockspec \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-http-0.17.2-0.rockspec \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-hmac-ffi-0.06-1.rockspec \
