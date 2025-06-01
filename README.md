@@ -98,6 +98,7 @@ The following components are additionally bundled with OpenResty, some of which 
 
 * [ngx_backtrace_module](https://git.hanada.info/hanada/ngx_backtrace_module)
 * [ngx_lua_events_module](https://github.com/Kong/lua-resty-events)
+* [ngx_lua_resty_lmdb_module](https://github.com/Kong/lua-resty-lmdb)
 * [ngx_http_access_control_module](https://git.hanada.info/hanada/ngx_http_access_control_module)
 * [ngx_http_aws_auth_module](https://git.hanada.info/hanada/ngx_http_aws_auth_module)
 * [ngx_http_brotli_module](https://github.com/google/ngx_brotli)
