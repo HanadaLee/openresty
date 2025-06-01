@@ -594,6 +594,36 @@ This directive only affects upstream cache, not response headers for client. If 
 
 > fastcgi_cache_vary, scgi_cache_vary and uwsgi_cache_vary directives are also available.
 
+* **Syntax:** *proxy_cache_force_invalidate string ...;*
+
+* **Default:** *—*
+
+* **Context:** *http, server, location*
+
+Defines conditions under which the cached response will be forcibly invalidated. If at least one value of the string parameters is not empty and is not equal to "0", the corresponding cache entry will be marked as invalid. Subsequent requests matching this cache key will bypass the invalidated entry and fetch content from upstream. Invalidated cache entries receive `MISS` status, which triggers immediate upstream fetching while bypassing cache revalidation.
+
+Example:
+```
+proxy_cache_force_invalidate $cookie_purge_cache $arg_purge$arg_admin;
+proxy_cache_force_invalidate $http_cache_control $http_authorization;
+```
+
+It is primarily designed to address scenarios where requests may hit cached entries before the cache purge operation (based on pattern matching) completes. For other use cases, consider using `proxy_cache_bypass` and `proxy_no_cache` directives instead.
+
+> fastcgi_cache_force_invalidate, scgi_cache_force_invalidate, uwsgi_cache_force_invalidate directives are also available.
+
+* **Syntax:** *proxy_cache_force_expire string ...;*
+
+* **Default:** *—*
+
+* **Context:** *http, server, location*
+
+Defines conditions under which the cached response will be forcibly expired. If at least one value of the string parameters is not empty and is not equal to "0", the corresponding cache entry will be marked as expired. Subsequent requests matching this cache key will fetch new content from upstream. Expired cache entries receive `EXPIRED` status. If the `proxy_cache_revalidate` directive is enabled, cache revalidation can be performed.
+
+It is primarily designed to address scenarios where requests may hit cached entries before the cache purge operation (based on pattern matching) completes. For other use cases, consider using `proxy_cache_bypass` and `proxy_no_cache` directives instead.
+
+> fastcgi_cache_force_expire, scgi_cache_force_expire, uwsgi_cache_force_expire directives are also available.
+
 [Back to TOC](#table-of-contents)
 
 ## ngx_http_upstream_module
