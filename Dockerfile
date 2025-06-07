@@ -12,8 +12,8 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.27.1.2"
-ARG RESTY_RELEASE="221"
-ARG RESTY_LUAROCKS_VERSION="3.11.1"
+ARG RESTY_RELEASE="222"
+ARG RESTY_LUAROCKS_VERSION="3.12.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.12.2"
 ARG RESTY_OPENSSL_FORK="quictls"
@@ -112,6 +112,7 @@ ARG RESTY_CONFIG_OPTIONS_MORE="\
     --add-module=/build/modules/ngx_http_limit_traffic_rate_filter_module \
     --add-module=/build/modules/ngx_http_log_var_set_module \
     --add-module=/build/modules/ngx_http_loop_detect_module \
+    --add-module=/build/modules/ngx_http_lua_config_module \
     --add-module=/build/modules/ngx_http_lua_load_var_index_module \
     --add-module=/build/modules/ngx_http_proxy_connect_module \
     --add-module=/build/modules/ngx_http_proxy_var_set_module \
@@ -380,6 +381,7 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/openresty/replace-filter-nginx-module.git ngx_http_replace_filter_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_error_log_write_module.git ngx_http_error_log_write_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_extra_variables_module.git ngx_http_extra_variables_module \
+    && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_lua_config_module.git ngx_http_lua_config_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_lua_load_var_index_module.git ngx_http_lua_load_var_index_module \ 
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_zstd_module.git ngx_http_zstd_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_cache_dechunk_filter_module.git ngx_http_cache_dechunk_filter_module \
@@ -484,66 +486,35 @@ RUN groupmod -n nginx www-data \
     && cp -r lua-resty-multipart-parser/lib/resty/* /usr/local/openresty/lualib/resty \
     && cp -r lua-resty-balancer/lib/resty/* /usr/local/openresty/lualib/resty \
     && cp -r kong/kong/resty/ctx.lua /usr/local/openresty/lualib/resty \
-    && mkdir -p /build/luarocks \
-    && cd /build/luarocks \
-    && curl -fSL https://luarocks.org/binaryheap-0.4-1.rockspec -o binaryheap-0.4-1.rockspec \
-    && curl -fSL https://luarocks.org/luafilesystem-1.8.0-1.rockspec -o luafilesystem-1.8.0-1.rockspec \
-    && curl -fSL https://luarocks.org/penlight-1.14.0-3.rockspec -o penlight-1.14.0-3.rockspec \
-    && curl -fSL https://luarocks.org/net-url-1.2-1.rockspec -o net-url-1.2-1.rockspec \
-    && curl -fSL https://luarocks.org/api7-dkjson-0.1.1-0.rockspec -o api7-dkjson-0.1.1-0.rockspec \
-    && curl -fSL https://luarocks.org/lyaml-6.2.8-1.rockspec -o lyaml-6.2.8-1.rockspec \
-    && curl -fSL https://luarocks.org/lrandom-20180729-1.rockspec -o lrandom-20180729-1.rockspec \
-    && curl -fSL https://luarocks.org/luaxxhash-1.0.0-1.rockspec -o luaxxhash-1.0.0-1.rockspec \
-    && curl -fSL https://luarocks.org/lrexlib-pcre-2.9.1-1.rockspec -o lrexlib-pcre-2.9.1-1.rockspec \
-    && curl -fSL https://luarocks.org/jsonschema-0.9.9-0.rockspec -o jsonschema-0.9.9-0.rockspec \
-    && curl -fSL https://luarocks.org/xml2lua-1.6-2.rockspec -o xml2lua-1.6-2.rockspec \
-    && curl -fSL https://luarocks.org/lua-ffi-zlib-0.6-0.rockspec -o lua-ffi-zlib-0.6-0.rockspec \
-    && curl -fSL https://luarocks.org/lua-resty-openssl-1.6.1-1.rockspec -o lua-resty-openssl-1.6.1-1.rockspec \
-    && curl -fSL https://luarocks.org/lua-resty-http-0.17.2-0.rockspec -o lua-resty-http-0.17.2-0.rockspec \
-    && curl -fSL https://luarocks.org/lua-resty-hmac-ffi-0.06-1.rockspec -o lua-resty-hmac-ffi-0.06-1.rockspec \
-    && curl -fSL https://luarocks.org/lua-resty-jwt-0.2.3-0.rockspec -o lua-resty-jwt-0.2.3-0.rockspec \
-    && curl -fSL https://luarocks.org/lua-resty-session-4.1.1-1.rockspec -o lua-resty-session-4.1.1-1.rockspec \
-    && curl -fSL https://luarocks.org/lua-resty-openidc-1.8.0-1.rockspec -o lua-resty-openidc-1.8.0-1.rockspec \
-    && curl -fSL https://luarocks.org/lua-resty-timer-1.1.0-1.rockspec -o lua-resty-timer-1.1.0-1.rockspec \
-    && curl -fSL https://luarocks.org/api7-lua-resty-dns-client-7.0.1-0.rockspec -o api7-lua-resty-dns-client-7.0.1-0.rockspec \
-    && curl -fSL https://luarocks.org/lua-resty-kafka-0.23-0.rockspec -o lua-resty-kafka-0.23-0.rockspec \
-    && curl -fSL https://luarocks.org/lua-resty-template-2.0-1.rockspec -o lua-resty-template-2.0-1.rockspec \
-    && curl -fSL https://luarocks.org/lua-resty-mlcache-2.7.0-1.rockspec -o lua-resty-mlcache-2.7.0-1.rockspec \
-    && curl -fSL https://luarocks.org/lua-resty-cookie-0.4.0-1.rockspec -o lua-resty-cookie-0.4.0-1.rockspec \
-    && curl -fSL https://luarocks.org/lua-resty-worker-events-2.0.1-1.rockspec -o lua-resty-worker-events-2.0.1-1.rockspec \
-    && curl -fSL https://luarocks.org/lua-resty-healthcheck-3.1.0-1.rockspec -o lua-resty-healthcheck-3.1.0-1.rockspec \
-    && curl -fSL https://luarocks.org/lua-resty-ipmatcher-0.6.1-0.rockspec -o lua-resty-ipmatcher-0.6.1-0.rockspec \
-    && curl -fSL https://luarocks.org/lua-resty-expr-1.3.2-0.rockspec -o lua-resty-expr-1.3.2-0.rockspec \
-    && curl -fSL https://luarocks.org/lua-resty-redis-connector-0.11.0-0.rockspec -o lua-resty-redis-connector-0.11.0-0.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install binaryheap-0.4-1.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install luafilesystem-1.8.0-1.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install penlight-1.14.0-3.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install net-url-1.2-1.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install api7-dkjson-0.1.1-0.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install lyaml-6.2.8-1.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install lrandom-20180729-1.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install luaxxhash-1.0.0-1.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install lrexlib-pcre-2.9.1-1.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install jsonschema-0.9.9-0.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install xml2lua-1.6-2.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-ffi-zlib-0.6-0.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-openssl-1.6.1-1.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-http-0.17.2-0.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-hmac-ffi-0.06-1.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-jwt-0.2.3-0.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-session-4.1.1-1.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-openidc-1.8.0-1.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-timer-1.1.0-1.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install api7-lua-resty-dns-client-7.0.1-0.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-kafka-0.23-0.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-template-2.0-1.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-mlcache-2.7.0-1.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-cookie-0.4.0-1.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-worker-events-2.0.1-1.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-healthcheck-3.1.0-1.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-ipmatcher-0.6.1-0.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-expr-1.3.2-0.rockspec \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-redis-connector-0.11.0-0.rockspec \
+    && /usr/local/openresty/luajit/bin/luarocks install binaryheap \
+    && /usr/local/openresty/luajit/bin/luarocks install luafilesystem \
+    && /usr/local/openresty/luajit/bin/luarocks install penlight \
+    && /usr/local/openresty/luajit/bin/luarocks install net-url \
+    && /usr/local/openresty/luajit/bin/luarocks install api7-dkjson \
+    && /usr/local/openresty/luajit/bin/luarocks install lyaml \
+    && /usr/local/openresty/luajit/bin/luarocks install lrandom \
+    && /usr/local/openresty/luajit/bin/luarocks install luaxxhash \
+    && /usr/local/openresty/luajit/bin/luarocks install lrexlib-pcre \
+    && /usr/local/openresty/luajit/bin/luarocks install jsonschema \
+    && /usr/local/openresty/luajit/bin/luarocks install xml2lua \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-ffi-zlib \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-openssl \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-http \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-hmac-ffi \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-jwt \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-session \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-openidc \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-timer \
+    && /usr/local/openresty/luajit/bin/luarocks install api7-lua-resty-dns-client \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-kafka \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-template \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-mlcache \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-cookie \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-worker-events \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-healthcheck \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-ipmatcher \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-expr \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-redis-connector \
     && cd /usr/local/openresty/share \
     && curl -fSL https://${RESTY_GIT_MIRROR}/coreruleset/coreruleset/releases/download/v${RESTY_OWSAP_CRS_VERSION}/coreruleset-${RESTY_OWSAP_CRS_VERSION}-minimal.tar.gz -o coreruleset-${RESTY_OWSAP_CRS_VERSION}-minimal.tar.gz \
     && tar xzf coreruleset-${RESTY_OWSAP_CRS_VERSION}-minimal.tar.gz \

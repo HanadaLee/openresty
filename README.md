@@ -95,7 +95,6 @@ For details on OpenResty's bundled components and features, refer to [openresty.
 
 The following components are additionally bundled with OpenResty, some of which are developed and maintained by Hanada.
 
-
 * [ngx_backtrace_module](https://git.hanada.info/hanada/ngx_backtrace_module)
 * [ngx_lua_events_module](https://github.com/Kong/lua-resty-events)
 * [ngx_lua_resty_lmdb_module](https://github.com/Kong/lua-resty-lmdb)
@@ -106,10 +105,9 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_http_compress_normalize_module](https://git.hanada.info/hanada/ngx_http_compress_normalize_module)
 * [ngx_http_compress_vary_filter_module](https://git.hanada.info/hanada/ngx_http_compress_vary_filter_module)
 * [ngx_http_cors_module](https://git.hanada.info/hanada/ngx_http_cors_module)
-* [ngx_http_dechunk_module](https://git.hanada.info/hanada/ngx_http_dechunk_module)
 * [ngx_http_delay_module](https://git.hanada.info/hanada/ngx_http_delay_module)
 * [ngx_http_error_log_write_module](https://git.hanada.info/hanada/ngx_http_error_log_write_module)
-* [ngx_http_extra_vars_module](https://git.hanada.info/hanada/ngx_http_extra_vars_module)
+* [ngx_http_extra_variables_module](https://git.hanada.info/hanada/ngx_http_extra_variables_module)
 * [ngx_http_flv_live_module](https://github.com/winshining/nginx-http-flv-module)
 * [ngx_http_geoip2_module](https://github.com/leev/ngx_http_geoip2_module)
 * [ngx_http_internal_auth_module](https://git.hanada.info/hanada/ngx_http_internal_auth_module)
@@ -118,46 +116,68 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_http_limit_traffic_rate_filter_module](https://github.com/nginx-modules/ngx_http_limit_traffic_ratefilter_module)
 * [ngx_http_log_var_set_module](https://git.hanada.info/hanada/ngx_http_log_var_set_module)
 * [ngx_http_loop_detect_module](https://git.hanada.info/hanada/ngx_http_loop_detect_module)
-* [ngx_http_lua_var_module](https://github.com/api7/lua-var-nginx-module)
+* [ngx_http_lua_config_module](https://git.hanada.info/hanada/ngx_http_lua_config_module)
+* [ngx_http_lua_load_var_index_module](https://git.hanada.info/hanada/ngx_http_lua_load_var_index_module)
 * [ngx_http_proxy_connect_module](https://github.com/chobits/ngx_http_proxy_connect_module)
 * [ngx_http_proxy_var_set_module](https://git.hanada.info/hanada/ngx_http_proxy_var_set_module)
 * [ngx_http_qrcode_module](https://github.com/soulteary/ngx_http_qrcode_module)
 * [ngx_http_replace_filter_module](https://github.com/OpenResty/replace-filter-nginx-module)
+* [ngx_http_rewrite_status_filter_module](https://git.hanada.info/hanada/ngx_http_rewrite_status_filter_module)
 * [ngx_http_secure_link_hash_module](https://git.hanada.info/hanada/ngx_http_secure_link_hash_module)
 * [ngx_http_secure_link_hmac_module](https://git.hanada.info/hanada/ngx_http_secure_link_hmac_module)
 * [ngx_http_security_headers_module](https://git.hanada.info/hanada/ngx_http_security_headers_module)
 * [ngx_http_server_redirect_module](https://git.hanada.info/hanada/ngx_http_server_redirect_module)
-* [ngx_http_sorted_querystring_module](https://git.hanada.info/hanada/ngx_http_sorted_querystring_module)
+* [ngx_http_sorted_args_module](https://git.hanada.info/hanada/ngx_http_sorted_args_module)
 * [ngx_http_sysguard_module](https://github.com/vozlt/nginx-module-sysguard)
 * [ngx_http_trim_filter_module](https://github.com/alibaba/tengine/tree/master/modules/ngx_http_trim_filter_module)
+* [ngx_http_cache_dechunk_filter_module](https://git.hanada.info/hanada/ngx_http_cache_dechunk_filter_module)
 * [ngx_http_unbrotli_filter_module](https://git.hanada.info/hanada/ngx_http_unbrotli_filter_module)
 * [ngx_http_upstream_check_module](https://github.com/yaoweibin/nginx_upstream_check_module)
 * [ngx_http_upstream_log_module](https://git.hanada.info/hanada/ngx_http_upstream_log_module)
+* [ngx_http_var_module](https://git.hanada.info/hanada/ngx_http_var_module)
 * [ngx_http_vhost_traffic_status_module](https://github.com/vozlt/nginx-module-vts)
 * [ngx_http_waf_module](https://github.com/ADD-SP/ngx_waf/tree/current)
 * [ngx_http_weserv_module](https://github.com/weserv/images)
 * [ngx_http_zstd_module](https://git.hanada.info/hanada/ngx_http_zstd_module)
+* [coreruleset](https://github.com/coreruleset/coreruleset)
 * [luarocks](https://luarocks.org/)
 * [lua-resty-maxminddb](https://git.hanada.info/hanada/lua-resty-maxminddb)
 * [lua-resty-multipart-parser](https://github.com/agentzh/lua-resty-multipart-parser)
 * [lua-resty-balancer](https://github.com/OpenResty/lua-resty-balancer)
 * [lua-resty-ctx](https://github.com/Kong/kong/blob/master/kong/resty/ctx.lua)
-* [lua-resty-http](https://luarocks.org/modules/pintsized/lua-resty-http)
-* [lua-resty-hmac-ffi](https://luarocks.org/modules/jkeys089/lua-resty-hmac-ffi)
-* [lua-resty-jwt](https://luarocks.org/modules/cdbattags/lua-resty-jwt)
-* [lua-resty-openidc](https://luarocks.org/modules/hanszandbelt/lua-resty-openidc)
-* [lua-resty-dns-client](https://luarocks.org/modules/membphis/api7-lua-resty-dns-client)
-* [lua-resty-kafka](https://luarocks.org/modules/doujiang24/lua-resty-kafka)
-* [lua-resty-template](https://luarocks.org/modules/bungle/lua-resty-template)
-* [lua-resty-mlcache](https://luarocks.org/modules/thibaultcha/lua-resty-mlcache)
-* [lua-resty-jit-uuid](https://luarocks.org/modules/thibaultcha/lua-resty-jit-uuid)
-* [lua-resty-cookie](https://luarocks.org/modules/utix/lua-resty-cookie)
-* [lua-resty-worker-events](https://luarocks.org/modules/kong/lua-resty-worker-events)
-* [lua-resty-healthcheck](https://luarocks.org/modules/kong/lua-resty-healthcheck)
-* [lua-resty-expr](https://luarocks.org/modules/membphis/lua-resty-expr)
-* [lyaml](https://luarocks.org/modules/gvvaughan/lyaml)
-* [lua-resty-redis-connector](https://luarocks.org/modules/pintsized/lua-resty-redis-connector)
-* [coreruleset](https://github.com/coreruleset/coreruleset)
+
+
+## Components from lualocks
+* binaryheap
+* luafilesystem
+* penlight
+* net-url
+* api7-dkjson
+* lyaml
+* lrandom
+* luaxxhash
+* lrexlib-pcre
+* jsonschema
+* xml2lua
+* lua-ffi-zlib
+* lua-resty-openssl
+* lua-resty-http
+* lua-resty-hmac-ffi
+* lua-resty-jwt
+* lua-resty-session
+* lua-resty-openidc
+* lua-resty-timer
+* api7-lua-resty-dns-client
+* lua-resty-kafka
+* lua-resty-template
+* lua-resty-mlcache
+* lua-resty-cookie
+* lua-resty-worker-events
+* lua-resty-healthcheck
+* lua-resty-ipmatcher
+* lua-resty-expr
+* lua-resty-redis-connector
+
 
 [Back to TOC](#table-of-contents)
 
