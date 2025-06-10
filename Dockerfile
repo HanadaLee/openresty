@@ -249,6 +249,8 @@ RUN groupmod -n nginx www-data \
         libsodium-dev \
         libunwind8 \
         libunwind-dev \
+        libldap-2.5-0 \
+        libldap-dev \
     && ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && dpkg-reconfigure -f noninteractive tzdata \
     && mkdir -p /build/lib /build/patches /build/modules /build/lualib \
@@ -571,6 +573,7 @@ RUN groupmod -n nginx www-data \
         libsodium-dev \
         libcurl4-openssl-dev \
         libunwind-dev \
+        libldap-dev \
     && DEBIAN_FRONTEND=noninteractive apt-get autoremove -y \
     && DEBIAN_FRONTEND=noninteractive apt-get clean -y \
     && rm -rf /build \
