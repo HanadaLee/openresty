@@ -1,0 +1,22 @@
+diff --git a/configure b/configure
+index cb7e518..79e1806 100644
+--- a/configure
++++ b/configure
+@@ -382,11 +382,12 @@ if ($platform eq 'msys') {
+ print "platform: $platform ($OS)\n";
+ 
+ my $ngx_prefix;
+-if ($platform eq 'msys') {
+-    $ngx_prefix = "$prefix";
+-} else {
+-    $ngx_prefix = "$prefix/nginx";
+-}
++#if ($platform eq 'msys') {
++#    $ngx_prefix = "$prefix";
++#} else {
++#    $ngx_prefix = "$prefix/nginx";
++#}
++$ngx_prefix = "$prefix";
+ 
+ my $postamble = '';
+ 

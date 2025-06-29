@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.27.1.2"
-ARG RESTY_RELEASE="225"
+ARG RESTY_RELEASE="226"
 ARG RESTY_LUAROCKS_VERSION="3.12.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.12.2"
@@ -433,6 +433,8 @@ RUN groupmod -n nginx www-data \
     && cd /build \
     && curl -fSL https://openresty.org/download/openresty-${RESTY_VERSION}.tar.gz -o openresty-${RESTY_VERSION}.tar.gz \
     && tar xzf openresty-${RESTY_VERSION}.tar.gz \
+    && cd openresty-${RESTY_VERSION} \
+    && patch -p1 < /build/patches/openresty/patches/openresty-fix_prefix_1.27.1.2+.patch \
     && cd openresty-${RESTY_VERSION}/bundle/headers-more-nginx-module-0.37 \
     && patch -p1 < /build/patches/openresty/patches/ngx_http_headers_more_filter_module_0.37-ext.patch \
     && cd /build \
@@ -455,7 +457,7 @@ RUN groupmod -n nginx www-data \
     && make -j${RESTY_J} \
     && make install \
     && mkdir -p /usr/local/openresty/share \
-    && mv /usr/local/openresty/nginx/html /usr/local/openresty/share \
+    && mv /usr/local/openresty/html /usr/local/openresty/share \
     && rm -rf /usr/local/openresty/nginx \
     && mkdir -p /usr/local/openresty/var/lib/tmp \
     && mkdir -p /usr/local/openresty/cache/fastcgi \
@@ -605,7 +607,7 @@ COPY nginx.conf /usr/local/openresty/etc/nginx.conf
 COPY nginx.vh.default.conf /usr/local/openresty/etc/conf.d/default.conf
 COPY modsecurity.conf /usr/local/openresty/etc/modsecurity/modsecurity.conf
 
-CMD ["/usr/local/openresty/sbin/nginx", "-p", "/usr/local/openresty/", "-g", "daemon off;"]
+CMD ["/usr/local/openresty/sbin/nginx", "-g", "daemon off;"]
 
 # Use SIGQUIT instead of default SIGTERM to cleanly drain requests
 # See https://github.com/openresty/docker-openresty/blob/master/README.md#tips--pitfalls
