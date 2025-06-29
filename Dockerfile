@@ -435,7 +435,7 @@ RUN groupmod -n nginx www-data \
     && tar xzf openresty-${RESTY_VERSION}.tar.gz \
     && cd openresty-${RESTY_VERSION} \
     && patch -p1 < /build/patches/openresty/patches/openresty-fix_prefix_1.27.1.2+.patch \
-    && cd openresty-${RESTY_VERSION}/bundle/headers-more-nginx-module-0.37 \
+    && cd bundle/headers-more-nginx-module-0.37 \
     && patch -p1 < /build/patches/openresty/patches/ngx_http_headers_more_filter_module_0.37-ext.patch \
     && cd /build \
     && cd openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) \
