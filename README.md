@@ -10,6 +10,7 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
 - [Components](#components)
   - [Components of official OpenResty bundle](#components-of-official-openresty-bundle)
   - [Components of this OpenResty bundle](#components-of-this-openresty-bundle)
+  - [Components from lualocks](#components-from-lualocks)
 - [Additional Features](#additional-features)
   - [ngx\_http](#ngx_http)
     - [Variables for timestamps and time spent on related operations](#variables-for-timestamps-and-time-spent-on-related-operations)
@@ -645,6 +646,26 @@ Defines conditions under which the cached response will be forcibly expired. If 
 It is primarily designed to address scenarios where requests may hit cached entries before the cache purge operation (based on pattern matching) completes. For other use cases, consider using `proxy_cache_bypass` and `proxy_no_cache` directives instead.
 
 > fastcgi_cache_force_expire, scgi_cache_force_expire, uwsgi_cache_force_expire directives are also available.
+
+* **Syntax:** *proxy_cache_min_length size;*
+
+* **Default:** *proxy_cache_min_length 0;*
+
+* **Context:** *http, server, location*
+
+Specifies the minimum response length that can be cached. Only the size of Content-Length header is checked. This directive will be ignored for chunked responses or responses with neither Content-Length header nor Transfer-Encoding header.
+
+> fastcgi_cache_min_length, scgi_cache_min_length, uwsgi_cache_min_length directives are also available.
+
+* **Syntax:** *proxy_cache_max_length size;*
+
+* **Default:** *proxy_cache_max_length 0;*
+
+* **Context:** *http, server, location*
+
+Specifies the maximun response length that can be cached. Only the size of Content-Length header is checked. This directive will be ignored for chunked responses or responses with neither Content-Length header nor Transfer-Encoding header. The zero value disables maximum cache size limiting.
+
+> fastcgi_cache_max_length, scgi_cache_max_length, uwsgi_cache_max_length directives are also available.
 
 [Back to TOC](#table-of-contents)
 
