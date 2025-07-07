@@ -585,6 +585,7 @@ RUN groupmod -n nginx www-data \
     && rm -rf /build \
     && cd /usr/local/openresty \
     && rm -rf pod site resty.index bin/md2pod.pl bin/nginx-xml2pod bin/restydoc bin/restydoc-index \
+    && rm -rf /root/.cargo \
     && rm -rf /var/lib/apt/lists/* \
     && rm -rf /usr/local/lib/* \
     && rm -rf /usr/local/share/man/man1/* \
