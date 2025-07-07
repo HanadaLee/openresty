@@ -580,6 +580,10 @@ RUN groupmod -n nginx www-data \
         libcurl4-openssl-dev \
         libunwind-dev \
         libldap-dev \
+        libgdbm-compat4 \
+        libgdbm6 \
+        libperl5.36 \
+        perl-modules-5.36 \
     && DEBIAN_FRONTEND=noninteractive apt-get autoremove -y \
     && DEBIAN_FRONTEND=noninteractive apt-get clean -y \
     && rm -rf /build \
