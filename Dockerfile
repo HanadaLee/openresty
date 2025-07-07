@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.27.1.2"
-ARG RESTY_RELEASE="228"
+ARG RESTY_RELEASE="229"
 ARG RESTY_LUAROCKS_VERSION="3.12.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.12.2"
@@ -201,6 +201,7 @@ RUN groupmod -n nginx www-data \
         libtool \
         pkgconf \
         cmake \
+        cargo \
         libglib2.0-0 \
         libglib2.0-dev \
         libwebpmux3 \
@@ -522,6 +523,7 @@ RUN groupmod -n nginx www-data \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-expr \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-redis-connector \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-timer-ng \
+    && /usr/local/openresty/luajit/bin/luarocks install --server=https://luarocks.org/dev lolhtml \
     && cd /usr/local/openresty/share \
     && curl -fSL https://${RESTY_GIT_MIRROR}/coreruleset/coreruleset/releases/download/v${RESTY_OWSAP_CRS_VERSION}/coreruleset-${RESTY_OWSAP_CRS_VERSION}-minimal.tar.gz -o coreruleset-${RESTY_OWSAP_CRS_VERSION}-minimal.tar.gz \
     && tar xzf coreruleset-${RESTY_OWSAP_CRS_VERSION}-minimal.tar.gz \
@@ -540,6 +542,7 @@ RUN groupmod -n nginx www-data \
         libtool \
         pkgconf \
         cmake \
+        cargo \
         git \
         wget \
         unzip \
