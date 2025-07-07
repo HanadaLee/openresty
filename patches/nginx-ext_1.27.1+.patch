@@ -8819,7 +8819,7 @@ index f6621af..0328a79 100644
  
 +#if (NGX_HTTP_EXT)
 +    off_t                            cache_min_length;
-+    off_t                            cahce_max_length;
++    off_t                            cache_max_length;
 +#endif
      off_t                            cache_max_range_offset;
  
