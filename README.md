@@ -201,7 +201,7 @@ The module [ngx_http_extra_variables_module](https://git.hanada.info/hanada/ngx_
 
 | Variable                               | Description |
 | ---                                    | ---         |
-| **$response_header_sent_mesc**         | Response header sent timestamp in seconds with the milliseconds resolution. |
+| **$response_header_sent_msec**         | Response header sent timestamp in seconds with the milliseconds resolution. |
 | **$request_handling_time**             | Keeps time spent on handling request internally from receiving the request to sending the response header to the client. |
 | **$response_body_time**                | Keeps time spent on sending the response body to the client. |
 
@@ -351,7 +351,7 @@ In case the connection idles for a given amount of time (1s, ssl_dyn_rec_timeout
 
 Enable dynamic tls records.
 
-Unlike the original patch, the directive name is changed from ssl_dyn_rec_enable to ssl_dyn_rec.
+Unlike the original patch, the directive name is changed from `ssl_dyn_rec_enable` to `ssl_dyn_rec`.
 
 * **Syntax:** *ssl_dyn_rec_timeout time;*
 
@@ -607,13 +607,13 @@ If client request contains `Test-Header` header, then cache will be different fo
 
 Example:
 ```
-prproxy_cache_vary "Test-Header-A, Test-Header-B";
+proxy_cache_vary "Test-Header-A, Test-Header-B";
 ```
 The cache will be differentiated based on the values ​​of the request headers `Test-Header-A` **and** `Test-Header-B`.
 
 `bypass` is used to disable `Vary` header handling. In addition, the behavior is consistent with `bypass` if parameter value is empty.
 
-`clear` is used to clear all `Vary` headers.  Parameter value can contain variables.
+`clear` is used to clear all `Vary` headers. Parameter value can contain variables.
 
 This directive only affects upstream cache, not response headers for client. If you want to also change the `Vary` header of the response to the client, use the `proxy_hide_header` and `add_header` directives.
 
@@ -769,14 +769,14 @@ Known limits 1:
 When ues conditional grouping based on brackets. the last character of a conditional statement cannot be `)`, even if it is enclosed in quotes. For example, the following expression will cause a configuration test error.
 ```
 if (($test_var = "test)" && $http_user_agent ~ Mozilla) || $server_port > 808) {
-    return 404
+    return 404;
 }
 ```
 If you must use a string ending with `)`, you might consider using a variable to back it up.
 ```
 set $value "test)";
 if (($test_var = $value && $http_user_agent ~ Mozilla) || $server_port > 808) {
-    return 404
+    return 404;
 }
 ```
 If it is a regular expression, you can avoid using `)` at the end in many ways.
@@ -818,14 +818,11 @@ Similar to if and elif, but does not contain any conditional expressions, it is 
 
 ### Support for forced gzip decompression
 
-This is a simple patch modifying the NGINX gunzip filter module to force inflate compressed responses. This is desirable in the context of an upstream source that sends responses gzipped. Please read the "other comments" section to understand this will decompress all content, so you want to specify its use as specific as possible to avoid decompressing content that you otherwise would want left untouched.
+This is a simple patch modifying the NGINX gunzip filter module to force inflate compressed responses. This is desirable in the context of an upstream source that sends responses gzipped. Please understand this will decompress all content, so you want to specify its use as specific as possible to avoid decompressing content that you otherwise would want left untouched.
 
-This serves multiple purposes:
-
-It maintains transfering gzipped content between upstream server(s) and nginx, thus reducing network bandwidth.
-Some modules require the upstream content to be uncompressed to work properly.
-It allows nginx to recompress the data (i.e. brotli) before sending to the client.
-This has been successfully tested up to version 1.20.0 (the current release as of this writing). I don't think the gunzip module code changes much (if any), so it should patch cleanly against older / future versions.
+* It maintains transfering gzipped content between upstream server(s) and nginx, thus reducing network bandwidth.
+* Some modules require the upstream content to be uncompressed to work properly.
+* It allows nginx to recompress the data (i.e. brotli) before sending to the client.
 
 The original patch is from [A patch to force the gunzip filter module work](http://mailman.nginx.org/pipermail/nginx-devel/2013-January/003276.html). The original author is Weibin Yao.
 
@@ -931,7 +928,7 @@ Sets the maximum length of a response that will be compressed. The length is det
 
 * **Context:** *http, server, location*
 
-Defines conditions under which the response will be compressed. If at least one value of the string parameters is neither empty nor equal to ‘0’, the response will not be compressed.
+Defines conditions under which the response will not be compressed. If at least one value of the string parameters is neither empty nor equal to ‘0’, the response will not be compressed.
 
 [Back to TOC](#table-of-contents)
 
