@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.27.1.2"
-ARG RESTY_RELEASE="232"
+ARG RESTY_RELEASE="233"
 ARG RESTY_LUAROCKS_VERSION="3.12.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.12.2"
@@ -50,7 +50,6 @@ ARG RESTY_ZLIB_URL_BASE="https://zlib.net/fossils"
 ARG RESTY_ZLIB_VERSION="1.3.1"
 ARG RESTY_ZSTD_VERSION="1.5.7"
 ARG RESTY_LIBATOMIC_VERSION="7.8.2"
-ARG RESTY_LIBQRENCODE_VERSION="4.1.1"
 ARG RESTY_LIBVIPS_VERSION="8.16.1"
 ARG RESTY_OWSAP_CRS_VERSION="4.14.0"
 ARG RESTY_PATH_OPTIONS="\
@@ -159,7 +158,6 @@ LABEL resty_zlib_version="${RESTY_ZLIB_VERSION}"
 LABEL resty_zstd_version="${RESTY_ZSTD_VERSION}"
 LABEL resty_jemalloc_version="${RESTY_JEMALLOC_VERSION}"
 LABEL resty_libmaxminddb_version="${RESTY_LIBMAXMINDDB_VERSION}"
-LABEL resty_libqrencode_version="${RESTY_LIBQRENCODE_VERSION}"
 
 ENV TZ="Asia/Shanghai"
 
@@ -254,6 +252,8 @@ RUN groupmod -n nginx www-data \
         libunwind-dev \
         libldap-2.5-0 \
         libldap-dev \
+        libqrencode4 \
+        libqrencode-dev \
     && ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && dpkg-reconfigure -f noninteractive tzdata \
     && mkdir -p /build/lib /build/patches /build/modules /build/lualib \
@@ -329,13 +329,6 @@ RUN groupmod -n nginx www-data \
     && ln -s -f ./.libs/libatomic_ops.a . \
     && cd .. \
     && ./configure \
-    && make -j${RESTY_J} \
-    && make install \
-    && cd /build/lib \
-    && curl -fSL https://${RESTY_GIT_MIRROR}/fukuchi/libqrencode/archive/refs/tags/v${RESTY_LIBQRENCODE_VERSION}.tar.gz -o libqrencode-${RESTY_LIBQRENCODE_VERSION}.tar.gz \
-    && tar xzf libqrencode-${RESTY_LIBQRENCODE_VERSION}.tar.gz \
-    && cd libqrencode-${RESTY_LIBQRENCODE_VERSION} \
-    && cmake . \
     && make -j${RESTY_J} \
     && make install \
     && cd /build/lib \
@@ -415,6 +408,7 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_label_module.git ngx_http_label_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_backtrace_module.git ngx_backtrace_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/vozlt/nginx-module-sysguard.git ngx_http_sysguard_module \
+    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/detailyang/ngx_http_qrcode_module.git ngx_http_qrcode_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/Kong/lua-resty-events.git ngx_lua_events_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/Kong/lua-resty-lmdb.git ngx_lua_resty_lmdb_module \
     && cd ngx_lua_resty_lmdb_module \
@@ -423,9 +417,6 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/alibaba/tengine.git tengine \
     && mv tengine/modules/ngx_http_trim_filter_module ngx_http_trim_filter_module \
     && rm -rf tengine \
-    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/soulteary/ngx_http_qrcode_module.git ngx_http_qrcode_module_full \
-    && mv ngx_http_qrcode_module_full/src ngx_http_qrcode_module \
-    && rm -rf ngx_http_qrcode_module_full \
     && cd /build/lualib \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/lua-resty-maxminddb.git lua-resty-maxminddb \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/agentzh/lua-resty-multipart-parser.git lua-resty-multipart-parser \
@@ -496,7 +487,6 @@ RUN groupmod -n nginx www-data \
     && cp -r lua-resty-maxminddb/lib/resty/* /usr/local/openresty/lualib/resty \
     && cp -r lua-resty-multipart-parser/lib/resty/* /usr/local/openresty/lualib/resty \
     && cp -r lua-resty-balancer/lib/resty/* /usr/local/openresty/lualib/resty \
-    && cp -r kong/kong/resty/ctx.lua /usr/local/openresty/lualib/resty \
     && /usr/local/openresty/luajit/bin/luarocks install binaryheap \
     && /usr/local/openresty/luajit/bin/luarocks install luafilesystem \
     && /usr/local/openresty/luajit/bin/luarocks install penlight \
@@ -588,6 +578,7 @@ RUN groupmod -n nginx www-data \
         libgdbm6 \
         libperl5.36 \
         perl-modules-5.36 \
+        libqrencode-dev \
     && DEBIAN_FRONTEND=noninteractive apt-get autoremove -y \
     && DEBIAN_FRONTEND=noninteractive apt-get clean -y \
     && rm -rf /build \
