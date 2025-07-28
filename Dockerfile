@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.27.1.2"
-ARG RESTY_RELEASE="233"
+ARG RESTY_RELEASE="234"
 ARG RESTY_LUAROCKS_VERSION="3.12.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.12.2"
@@ -129,6 +129,7 @@ ARG RESTY_CONFIG_OPTIONS_MORE="\
     --add-module=/build/modules/ngx_http_sysguard_module \
     --add-module=/build/modules/ngx_http_trim_filter_module \
     --add-module=/build/modules/ngx_http_cache_dechunk_filter_module \
+    --add-module=/build/modules/ngx_http_ua_parser_module \
     --add-module=/build/modules/ngx_http_unbrotli_filter_module \
     --add-module=/build/modules/ngx_http_upstream_check_module \
     --add-module=/build/modules/ngx_http_upstream_log_module \
@@ -175,6 +176,8 @@ RUN groupmod -n nginx www-data \
         libgd-dev \
         libyaml-0-2 \
         libyaml-dev \
+        libyaml-cpp0.7 \
+        libyaml-cpp-dev \
         tzdata \
         unzip \
         wget \
@@ -254,6 +257,9 @@ RUN groupmod -n nginx www-data \
         libldap-dev \
         libqrencode4 \
         libqrencode-dev \
+        libre2-9 \
+        libre2-dev \
+        libgtest-dev \
     && ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && dpkg-reconfigure -f noninteractive tzdata \
     && mkdir -p /build/lib /build/patches /build/modules /build/lualib \
@@ -338,6 +344,17 @@ RUN groupmod -n nginx www-data \
     && meson setup build --libdir=lib --buildtype=release "$@" \
     && ninja -C build \
     && ninja -C build install \
+    && cd /build/lib \
+    && git clone --depth=10 https://${RESTY_GIT_MIRROR}ua-parser/uap-cpp.git uap-cpp \
+    && cd uap-cpp \
+    && git submodule update --init \
+    && mkdir -p build \
+    && cd build \
+    && cmake .. \
+    && make uap-cpp-shared \
+    && make install \
+    && mkdir /usr/include/uap-cpp \
+    && cp /build/lib/uap-cpp/UaParser /usr/include/uap-cpp \
     && cd /build/modules \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/google/ngx_brotli.git ngx_http_brotli_module \
     && cd ngx_http_brotli_module \
@@ -406,6 +423,7 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_loop_detect_module.git ngx_http_loop_detect_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_proxy_var_set_module.git ngx_http_proxy_var_set_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_label_module.git ngx_http_label_module \
+    && git clone --depth=10 https://git.hanada.info/hanada/ngx_http_ua_parser_module.git ngx_http_ua_parser_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_backtrace_module.git ngx_backtrace_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/vozlt/nginx-module-sysguard.git ngx_http_sysguard_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/detailyang/ngx_http_qrcode_module.git ngx_http_qrcode_module \
@@ -519,6 +537,8 @@ RUN groupmod -n nginx www-data \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-timer-ng \
     && /usr/local/openresty/luajit/bin/luarocks install --server=https://luarocks.org/dev lolhtml \
     && cd /usr/local/openresty/share \
+    && mkdir -p uap-core \
+    && cp /build/uap-cpp/uap-core/regexes.yaml uap-core \
     && curl -fSL https://${RESTY_GIT_MIRROR}/coreruleset/coreruleset/releases/download/v${RESTY_OWSAP_CRS_VERSION}/coreruleset-${RESTY_OWSAP_CRS_VERSION}-minimal.tar.gz -o coreruleset-${RESTY_OWSAP_CRS_VERSION}-minimal.tar.gz \
     && tar xzf coreruleset-${RESTY_OWSAP_CRS_VERSION}-minimal.tar.gz \
     && rm -f coreruleset-${RESTY_OWSAP_CRS_VERSION}-minimal.tar.gz \
@@ -561,6 +581,7 @@ RUN groupmod -n nginx www-data \
         libncurses5-dev \
         libgd-dev \
         libyaml-dev \
+        libyaml-cpp-dev \
         libheif-dev \
         libexpat1-dev \
         libffi-dev \
@@ -579,6 +600,8 @@ RUN groupmod -n nginx www-data \
         libperl5.36 \
         perl-modules-5.36 \
         libqrencode-dev \
+        libre2-dev \
+        libgtest-dev \
     && DEBIAN_FRONTEND=noninteractive apt-get autoremove -y \
     && DEBIAN_FRONTEND=noninteractive apt-get clean -y \
     && rm -rf /build \
@@ -586,6 +609,7 @@ RUN groupmod -n nginx www-data \
     && rm -rf pod site resty.index bin/md2pod.pl bin/nginx-xml2pod bin/restydoc bin/restydoc-index \
     && rm -rf /root/.cargo \
     && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /usr/include/uap-cpp \
     && rm -rf /usr/local/lib/* \
     && rm -rf /usr/local/share/man/man1/* \
     && rm -rf /usr/local/share/man/man3/* \
