@@ -345,7 +345,7 @@ RUN groupmod -n nginx www-data \
     && ninja -C build \
     && ninja -C build install \
     && cd /build/lib \
-    && git clone --depth=10 https://${RESTY_GIT_MIRROR}ua-parser/uap-cpp.git uap-cpp \
+    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/ua-parser/uap-cpp.git uap-cpp \
     && cd uap-cpp \
     && git submodule update --init \
     && mkdir -p build \
