@@ -10,16 +10,22 @@ index 1a5e421..e96f428 100644
 +have=NGX_HTTP_EXT . auto/have
 \ No newline at end of file
 diff --git a/src/core/ngx_string.c b/src/core/ngx_string.c
-index f8f7384..d7abbce 100644
+index f8f7384..c6895f1 100644
 --- a/src/core/ngx_string.c
 +++ b/src/core/ngx_string.c
-@@ -687,6 +687,48 @@ ngx_strncasecmp(u_char *s1, u_char *s2, size_t n)
+@@ -687,6 +687,54 @@ ngx_strncasecmp(u_char *s1, u_char *s2, size_t n)
  }
  
  
 +#if (NGX_HTTP_EXT)
++/*
++ * Due to a large number of real-world use cases, we have added this function
++ * to weakly match. When using this function to compare two strings,
++ * '_', '-', and '.' symbols are considered the same.
++ */
++
 +ngx_int_t
-+ngx_strncasecmp_hush(u_char *s1, u_char *s2, size_t n)
++ngx_strncasecmp_weak(u_char *s1, u_char *s2, size_t n)
 +{
 +    ngx_uint_t  c1, c2;
 +
@@ -30,14 +36,14 @@ index f8f7384..d7abbce 100644
 +        if (c1 >= 'A' && c1 <= 'Z') {
 +            c1 |= 0x20;
 +
-+        } else if (c1 == '-') {
++        } else if (c1 == '-' || c1 == '.') {
 +            c1 = '_';
 +        }
 +
 +        if (c2 >= 'A' && c2 <= 'Z') {
 +            c2 |= 0x20;
 +
-+        } else if (c2 == '-') {
++        } else if (c2 == '-' || c1 == '.') {
 +            c2 = '_';
 +        }
 +
@@ -62,13 +68,13 @@ index f8f7384..d7abbce 100644
  u_char *
  ngx_strnstr(u_char *s1, char *s2, size_t len)
  {
-@@ -809,6 +851,46 @@ ngx_strlcasestrn(u_char *s1, u_char *last, u_char *s2, size_t n)
+@@ -809,6 +857,46 @@ ngx_strlcasestrn(u_char *s1, u_char *last, u_char *s2, size_t n)
  }
  
  
 +#if (NGX_HTTP_EXT)
 +u_char *
-+ngx_strlcasestrn_hush(u_char *s1, u_char *last, u_char *s2, size_t n)
++ngx_strlcasestrn_weak(u_char *s1, u_char *last, u_char *s2, size_t n)
 +{
 +    ngx_uint_t  c1, c2;
 +
@@ -99,7 +105,7 @@ index f8f7384..d7abbce 100644
 +
 +        } while (c1 != c2);
 +
-+    } while (ngx_strncasecmp_hush(s1, s2, n) != 0);
++    } while (ngx_strncasecmp_weak(s1, s2, n) != 0);
 +
 +    return --s1;
 +}
@@ -110,7 +116,7 @@ index f8f7384..d7abbce 100644
  ngx_rstrncmp(u_char *s1, u_char *s2, size_t n)
  {
 diff --git a/src/core/ngx_string.h b/src/core/ngx_string.h
-index 713eb42..9333d3f 100644
+index 713eb42..8bfb3e7 100644
 --- a/src/core/ngx_string.h
 +++ b/src/core/ngx_string.h
 @@ -160,12 +160,19 @@ u_char *ngx_vslprintf(u_char *buf, u_char *last, const char *fmt, va_list args);
@@ -118,7 +124,7 @@ index 713eb42..9333d3f 100644
  ngx_int_t ngx_strcasecmp(u_char *s1, u_char *s2);
  ngx_int_t ngx_strncasecmp(u_char *s1, u_char *s2, size_t n);
 +#if (NGX_HTTP_EXT)
-+ngx_int_t ngx_strncasecmp_hush(u_char *s1, u_char *s2, size_t n);
++ngx_int_t ngx_strncasecmp_weak(u_char *s1, u_char *s2, size_t n);
 +#endif
  
  u_char *ngx_strnstr(u_char *s1, char *s2, size_t n);
@@ -127,7 +133,7 @@ index 713eb42..9333d3f 100644
  u_char *ngx_strcasestrn(u_char *s1, char *s2, size_t n);
  u_char *ngx_strlcasestrn(u_char *s1, u_char *last, u_char *s2, size_t n);
 +#if (NGX_HTTP_EXT)
-+u_char *ngx_strlcasestrn_hush(u_char *s1, u_char *last, u_char *s2,
++u_char *ngx_strlcasestrn_weak(u_char *s1, u_char *last, u_char *s2,
 +    size_t n);
 +#endif
  
@@ -5342,7 +5348,7 @@ index d835f89..a66ea68 100644
  #if (NGX_HTTP_V2)
          addrs6[i].conf.http2 = addr[i].opt.http2;
 diff --git a/src/http/ngx_http.h b/src/http/ngx_http.h
-index e06464e..3385b97 100644
+index e06464e..7f6c607 100644
 --- a/src/http/ngx_http.h
 +++ b/src/http/ngx_http.h
 @@ -110,10 +110,23 @@ ngx_int_t ngx_http_parse_header_line(ngx_http_request_t *r, ngx_buf_t *b,
@@ -5350,20 +5356,20 @@ index e06464e..3385b97 100644
  ngx_table_elt_t *ngx_http_parse_multi_header_lines(ngx_http_request_t *r,
      ngx_table_elt_t *headers, ngx_str_t *name, ngx_str_t *value);
 +#if (NGX_HTTP_EXT)
-+ngx_table_elt_t *ngx_http_parse_multi_header_lines_hush(
++ngx_table_elt_t *ngx_http_parse_multi_header_lines_weak(
 +    ngx_http_request_t *r, ngx_table_elt_t *headers, ngx_str_t *name,
 +    ngx_str_t *value);
 +#endif
  ngx_table_elt_t *ngx_http_parse_set_cookie_lines(ngx_http_request_t *r,
      ngx_table_elt_t *headers, ngx_str_t *name, ngx_str_t *value);
 +#if (NGX_HTTP_EXT)
-+ngx_table_elt_t *ngx_http_parse_set_cookie_lines_hush(ngx_http_request_t *r,
++ngx_table_elt_t *ngx_http_parse_set_cookie_lines_weak(ngx_http_request_t *r,
 +    ngx_table_elt_t *headers, ngx_str_t *name, ngx_str_t *value);
 +#endif
  ngx_int_t ngx_http_arg(ngx_http_request_t *r, u_char *name, size_t len,
      ngx_str_t *value);
 +#if (NGX_HTTP_EXT)
-+ngx_int_t ngx_http_arg_hush(ngx_http_request_t *r, u_char *name, size_t len,
++ngx_int_t ngx_http_arg_weak(ngx_http_request_t *r, u_char *name, size_t len,
 +    ngx_str_t *value);
 +#endif
  void ngx_http_split_args(ngx_http_request_t *r, ngx_str_t *uri,
@@ -6207,7 +6213,7 @@ index 90525ef..e156c84 100644
          return NGX_OK;
      }
 diff --git a/src/http/ngx_http_parse.c b/src/http/ngx_http_parse.c
-index f7e5038..9f80c0c 100644
+index f7e5038..75117bb 100644
 --- a/src/http/ngx_http_parse.c
 +++ b/src/http/ngx_http_parse.c
 @@ -2027,6 +2027,78 @@ ngx_http_parse_multi_header_lines(ngx_http_request_t *r,
@@ -6216,7 +6222,7 @@ index f7e5038..9f80c0c 100644
  
 +#if (NGX_HTTP_EXT)
 +ngx_table_elt_t *
-+ngx_http_parse_multi_header_lines_hush(ngx_http_request_t *r,
++ngx_http_parse_multi_header_lines_weak(ngx_http_request_t *r,
 +    ngx_table_elt_t *headers, ngx_str_t *name, ngx_str_t *value)
 +{
 +    u_char           *start, *last, *end, ch;
@@ -6236,7 +6242,7 @@ index f7e5038..9f80c0c 100644
 +
 +        while (start < end) {
 +
-+            if (ngx_strncasecmp_hush(start, name->data, name->len) != 0) {
++            if (ngx_strncasecmp_weak(start, name->data, name->len) != 0) {
 +                goto skip;
 +            }
 +
@@ -6295,7 +6301,7 @@ index f7e5038..9f80c0c 100644
  
 +#if (NGX_HTTP_EXT)
 +ngx_table_elt_t *
-+ngx_http_parse_set_cookie_lines_hush(ngx_http_request_t *r,
++ngx_http_parse_set_cookie_lines_weak(ngx_http_request_t *r,
 +    ngx_table_elt_t *headers, ngx_str_t *name, ngx_str_t *value)
 +{
 +    u_char           *start, *last, *end;
@@ -6313,7 +6319,7 @@ index f7e5038..9f80c0c 100644
 +        start = h->value.data;
 +        end = h->value.data + h->value.len;
 +
-+        if (ngx_strncasecmp_hush(start, name->data, name->len) != 0) {
++        if (ngx_strncasecmp_weak(start, name->data, name->len) != 0) {
 +            continue;
 +        }
 +
@@ -6352,7 +6358,7 @@ index f7e5038..9f80c0c 100644
  
 +#if (NGX_HTTP_EXT)
 +ngx_int_t
-+ngx_http_arg_hush(ngx_http_request_t *r, u_char *name, size_t len, ngx_str_t *value)
++ngx_http_arg_weak(ngx_http_request_t *r, u_char *name, size_t len, ngx_str_t *value)
 +{
 +    u_char  *p, *last;
 +
@@ -6367,7 +6373,7 @@ index f7e5038..9f80c0c 100644
 +
 +        /* we need '=' after name, so drop one char from last */
 +
-+        p = ngx_strlcasestrn_hush(p, last - 1, name, len - 1);
++        p = ngx_strlcasestrn_weak(p, last - 1, name, len - 1);
 +
 +        if (p == NULL) {
 +            return NGX_DECLINED;
@@ -8112,7 +8118,7 @@ index b5db811..4aa8297 100644
 +#endif
 \ No newline at end of file
 diff --git a/src/http/ngx_http_upstream.c b/src/http/ngx_http_upstream.c
-index d04d91e..faa9a50 100644
+index d04d91e..75d9292 100644
 --- a/src/http/ngx_http_upstream.c
 +++ b/src/http/ngx_http_upstream.c
 @@ -21,6 +21,12 @@ static ngx_int_t ngx_http_upstream_cache_background_update(
@@ -8729,7 +8735,7 @@ index d04d91e..faa9a50 100644
      s.data = name->data + sizeof("upstream_cookie_") - 1;
  
 +#if (NGX_HTTP_EXT)
-+    if (ngx_http_parse_set_cookie_lines_hush(r,
++    if (ngx_http_parse_set_cookie_lines_weak(r,
 +            r->upstream->headers_in.set_cookie, &s, &cookie) == NULL)
 +    {
 +        v->not_found = 1;
@@ -8748,7 +8754,7 @@ index d04d91e..faa9a50 100644
      v->len = cookie.len;
      v->valid = 1;
 diff --git a/src/http/ngx_http_upstream.h b/src/http/ngx_http_upstream.h
-index f6621af..0328a79 100644
+index f6621af..1195150 100644
 --- a/src/http/ngx_http_upstream.h
 +++ b/src/http/ngx_http_upstream.h
 @@ -54,6 +54,18 @@
@@ -8868,7 +8874,7 @@ index f6621af..0328a79 100644
  
  #ifndef HAVE_BALANCER_STATUS_CODE_PATCH
 diff --git a/src/http/ngx_http_variables.c b/src/http/ngx_http_variables.c
-index 4f0bd0e..2c889a9 100644
+index 4f0bd0e..f270f26 100644
 --- a/src/http/ngx_http_variables.c
 +++ b/src/http/ngx_http_variables.c
 @@ -1078,12 +1078,21 @@ ngx_http_variable_cookie(ngx_http_request_t *r, ngx_http_variable_value_t *v,
@@ -8876,7 +8882,7 @@ index 4f0bd0e..2c889a9 100644
      s.data = name->data + sizeof("cookie_") - 1;
  
 +#if (NGX_HTTP_EXT)
-+    if (ngx_http_parse_multi_header_lines_hush(r, r->headers_in.cookie,
++    if (ngx_http_parse_multi_header_lines_weak(r, r->headers_in.cookie,
 +        &s, &cookie) == NULL)
 +    {
 +        v->not_found = 1;
@@ -8898,7 +8904,7 @@ index 4f0bd0e..2c889a9 100644
      arg = name->data + sizeof("arg_") - 1;
  
 +#if (NGX_HTTP_EXT)
-+    if (len == 0 || ngx_http_arg_hush(r, arg, len, &value) != NGX_OK) {
++    if (len == 0 || ngx_http_arg_weak(r, arg, len, &value) != NGX_OK) {
 +        v->not_found = 1;
 +        return NGX_OK;
 +    }

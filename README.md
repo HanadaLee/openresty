@@ -21,7 +21,7 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [Support for ignoring invalid Range header](#support-for-ignoring-invalid-range-header)
     - [Support for error\_page directive with if parameter](#support-for-error_page-directive-with-if-parameter)
     - [More directives for not modified checking](#more-directives-for-not-modified-checking)
-    - [Support for hyphen/underscore-insensitive cookie or argument names in variables](#support-for-hyphenunderscore-insensitive-cookie-or-argument-names-in-variables)
+    - [Support for hyphen/dot/underscore-insensitive cookie or argument names in variables](#support-for-hyphendotunderscore-insensitive-cookie-or-argument-names-in-variables)
   - [ngx\_http\_ssl\_module](#ngx_http_ssl_module)
     - [Optimizing TLS over TCP to reduce latency](#optimizing-tls-over-tcp-to-reduce-latency)
     - [Strict SNI validation](#strict-sni-validation)
@@ -322,9 +322,9 @@ Specifies how to check if the response is unmodified (304 Not Modified):
   - If **both headers** are present, **only the `If-None-Match` header's condition must be satisfied** to return 304 (Not Modified).
   - If neither header is present, the response is considered modified.
 
-### Support for hyphen/underscore-insensitive cookie or argument names in variables
+### Support for hyphen/dot/underscore-insensitive cookie or argument names in variables
 
-Let variables like `$arg_name`, `$cookie_name` and `$upstream_cookie_name` support cookie or argument names containing hyphens (`-`). 
+Let variables like `$arg_name`, `$cookie_name` and `$upstream_cookie_name` support cookie or argument names containing hyphens (`-`) and dots (`.`) . 
 
 [Back to TOC](#table-of-contents)
 
