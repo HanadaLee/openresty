@@ -128,6 +128,7 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_http_proxy_var_set_module](https://git.hanada.info/hanada/ngx_http_proxy_var_set_module)
 * [ngx_http_qrcode_module](https://github.com/detailyang/ngx_http_qrcode_module)
 * [ngx_http_replace_filter_module](https://github.com/OpenResty/replace-filter-nginx-module)
+* [ngx_http_request_cookies_filter_module](https://git.hanada.info/hanada/ngx_http_request_cookies_filter_module)
 * [ngx_http_rewrite_status_filter_module](https://git.hanada.info/hanada/ngx_http_rewrite_status_filter_module)
 * [ngx_http_security_headers_module](https://git.hanada.info/hanada/ngx_http_security_headers_module)
 * [ngx_http_server_redirect_module](https://git.hanada.info/hanada/ngx_http_server_redirect_module)
