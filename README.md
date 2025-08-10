@@ -35,6 +35,7 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
   - [ngx\_http\_proxy\_module and related modules](#ngx_http_proxy_module-and-related-modules)
     - [Support for inheritance in "proxy\_set\_header" and its friends](#support-for-inheritance-in-proxy_set_header-and-its-friends)
     - [Configuring sndbuf and rcvbuf for upstream connection](#configuring-sndbuf-and-rcvbuf-for-upstream-connection)
+    - [Enhancement of upstream cookie handler](#enhancement-of-upstream-cookie-handler)
     - [Enhancement of upstream cache control](#enhancement-of-upstream-cache-control)
   - [ngx\_http\_upstream\_module](#ngx_http_upstream_module)
     - [Extra variables for upstream information](#extra-variables-for-upstream-information)
@@ -521,6 +522,81 @@ Sets the sndbuf size for upstream connection. If not set, the system allocated s
 Sets the rcvbuf size for upstream connection. If not set, the system allocated size is followed.
 
 > fastcgi_rcvbuf_size, scgi_rcvbuf_size, uwsgi_rcvbuf_size and grpc_rcvbuf_size are also available.
+
+### Enhancement of upstream cookie handler
+
+In addition to the original three directives(`proxy_cookie_domain`, `proxy_cookie_flags` and `proxy_cookie_path`), more processing directives are added to more efficiently rewrite the the "Set-Cookie" header of the upstream response.
+
+* **Syntax:** *proxy_cookie_value off;*
+*proxy_cookie_value cookie cookie_value replacement;*
+
+* **Default:** *proxy_cookie_value off;*
+
+* **Context:** *http, server, location*
+
+Sets a text that should be changed in the cookie value of the "Set-Cookie" header fields of a proxied server response. Suppose a proxied server returned the "Set-Cookie" header field and cookie name "sessionid" with a value "1234567890". The directive
+```nginx
+proxy_cookie_value sessionid 1234567890 abcdefghij;
+```
+will rewrite cookie value to "abcdefghij".
+
+The `cookie`, `cookie_value` and `replacement` strings can contain variables.
+```nginx
+proxy_cookie_value $http_set_cookie_name $http_match_cookie $http_new_cookie;
+```
+
+The `cookie` can also be specified using regular expressions.
+```nginx
+proxy_cookie_value ~session_.* 1234567890 abcdefghij;
+```
+
+The `cookie_value` can also be specified using regular expressions. In this case, `cookie_value` should either start from the "~" symbol for a case-sensitive matching, or from the "~*" symbols for case-insensitive matching. The regular expression can contain named and positional captures, and `replacement` can reference them:
+```
+proxy_cookie_value sessionid ~(\d+) abcdefghij$1;
+```
+Please note that The regular expression of `cookie` can contain named and positional captures, but `replacement` cannot reference them.
+
+Several `proxy_cookie_value` directives can be specified on the same level. If several directives can be applied to the cookie, the first matching directive will be chosen.
+
+The off parameter cancels the effect of the `proxy_cookie_value` directives inherited from the previous configuration level.
+
+
+* **Syntax:** *proxy_cookie_max_age off;*
+*proxy_cookie_max_age cookie cookie time;*
+
+* **Default:** *proxy_cookie_max_age off;*
+
+* **Context:** *http, server, location*
+
+Sets the maximum age of the cookie in the "Set-Cookie" header fields of a proxied server response.
+
+This directive allows controlling the expiration time of specific cookies by modifying their "Max-Age" or "Expires" attribute. if the "Max-Age" or "Expires" attribute is not set, "Max-Age" will be added to the cookie.
+
+The `cookie` parameter specifies the name of the cookie to be modified, and the `time` parameter defines the maximum age to be set. The time value can be specified in seconds, or with time units like `1h`, `30m`, etc.
+```nginx
+proxy_cookie_max_age SESSION 1h;
+```
+
+The `cookie` can also be specified using regular expressions.
+```nginx
+proxy_cookie_max_age ~SESSION_.* 1h;
+```
+
+Several `proxy_cookie_max_age` directives can be specified on the same level. If several directives can be applied to the cookie, the first matching directive will be chosen.
+
+The off parameter cancels the effect of the `proxy_cookie_max_age` directives inherited from the previous configuration level.
+
+* **Syntax:** *proxy_hide_cookie cookie;*
+
+* **Default:** *-*
+
+* **Context:** *http, server, location*
+
+The `proxy_hide_cookie` directive sets "Set-Cookie" fields that will not be passed by cookie name.
+
+See also the [proxy_hide_header](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_hide_header) directive.
+
+> fastcgi_hide_cookie, scgi_hide_cookie and uwsgi_hide_cookie directives are also available.
 
 ### Enhancement of upstream cache control
 

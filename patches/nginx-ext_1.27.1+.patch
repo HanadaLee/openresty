@@ -706,7 +706,7 @@ index 02d41e8..e80ce78 100644
 +}
 +#endif
 diff --git a/src/http/modules/ngx_http_fastcgi_module.c b/src/http/modules/ngx_http_fastcgi_module.c
-index 46a56f5..806ba2d 100644
+index 46a56f5..f0c1b9e 100644
 --- a/src/http/modules/ngx_http_fastcgi_module.c
 +++ b/src/http/modules/ngx_http_fastcgi_module.c
 @@ -42,6 +42,13 @@ typedef struct {
@@ -839,7 +839,7 @@ index 46a56f5..806ba2d 100644
      { ngx_string("fastcgi_pass_header"),
        NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
        ngx_conf_set_str_array_slot,
-@@ -559,6 +647,15 @@ static ngx_command_t  ngx_http_fastcgi_commands[] = {
+@@ -559,6 +647,23 @@ static ngx_command_t  ngx_http_fastcgi_commands[] = {
        offsetof(ngx_http_fastcgi_loc_conf_t, upstream.ignore_headers),
        &ngx_http_upstream_ignore_headers_masks },
  
@@ -850,12 +850,20 @@ index 46a56f5..806ba2d 100644
 +      NGX_HTTP_LOC_CONF_OFFSET,
 +      offsetof(ngx_http_fastcgi_loc_conf_t, upstream.ignore_cache_control),
 +      &ngx_http_upstream_ignore_cache_control_masks },
++
++    { ngx_string("fastcgi_hide_cookie"),
++      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
++      ngx_conf_set_str_array_slot,
++      NGX_HTTP_LOC_CONF_OFFSET,
++      offsetof(ngx_http_fastcgi_loc_conf_t, upstream.hide_cookies),
++      NULL },
++
 +#endif
 +
      { ngx_string("fastcgi_catch_stderr"),
        NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
        ngx_conf_set_str_array_slot,
-@@ -573,6 +670,22 @@ static ngx_command_t  ngx_http_fastcgi_commands[] = {
+@@ -573,6 +678,22 @@ static ngx_command_t  ngx_http_fastcgi_commands[] = {
        offsetof(ngx_http_fastcgi_loc_conf_t, keep_conn),
        NULL },
  
@@ -878,7 +886,7 @@ index 46a56f5..806ba2d 100644
        ngx_null_command
  };
  
-@@ -728,6 +841,16 @@ ngx_http_fastcgi_handler(ngx_http_request_t *r)
+@@ -728,6 +849,16 @@ ngx_http_fastcgi_handler(ngx_http_request_t *r)
      u->finalize_request = ngx_http_fastcgi_finalize_request;
      r->state = 0;
  
@@ -895,7 +903,7 @@ index 46a56f5..806ba2d 100644
      u->buffering = flcf->upstream.buffering;
  
      u->pipe = ngx_pcalloc(r->pool, sizeof(ngx_event_pipe_t));
-@@ -2868,10 +2991,13 @@ ngx_http_fastcgi_create_loc_conf(ngx_conf_t *cf)
+@@ -2868,10 +2999,13 @@ ngx_http_fastcgi_create_loc_conf(ngx_conf_t *cf)
       *
       *     conf->upstream.bufs.num = 0;
       *     conf->upstream.ignore_headers = 0;
@@ -909,7 +917,7 @@ index 46a56f5..806ba2d 100644
       *     conf->upstream.temp_path = NULL;
       *     conf->upstream.hide_headers_hash = { NULL, 0 };
       *     conf->upstream.store_lengths = NULL;
-@@ -2909,7 +3035,19 @@ ngx_http_fastcgi_create_loc_conf(ngx_conf_t *cf)
+@@ -2909,7 +3043,19 @@ ngx_http_fastcgi_create_loc_conf(ngx_conf_t *cf)
  
  #if (NGX_HTTP_CACHE)
      conf->upstream.cache = NGX_CONF_UNSET;
@@ -929,7 +937,17 @@ index 46a56f5..806ba2d 100644
      conf->upstream.cache_max_range_offset = NGX_CONF_UNSET;
      conf->upstream.cache_bypass = NGX_CONF_UNSET_PTR;
      conf->upstream.no_cache = NGX_CONF_UNSET_PTR;
-@@ -2935,6 +3073,13 @@ ngx_http_fastcgi_create_loc_conf(ngx_conf_t *cf)
+@@ -2923,6 +3069,9 @@ ngx_http_fastcgi_create_loc_conf(ngx_conf_t *cf)
+ 
+     conf->upstream.hide_headers = NGX_CONF_UNSET_PTR;
+     conf->upstream.pass_headers = NGX_CONF_UNSET_PTR;
++#if (NGX_HTTP_EXT)
++    conf->upstream.hide_cookies = NGX_CONF_UNSET_PTR;
++#endif
+ 
+     conf->upstream.intercept_errors = NGX_CONF_UNSET;
+ 
+@@ -2935,6 +3084,13 @@ ngx_http_fastcgi_create_loc_conf(ngx_conf_t *cf)
  
      conf->keep_conn = NGX_CONF_UNSET;
  
@@ -943,7 +961,7 @@ index 46a56f5..806ba2d 100644
      ngx_str_set(&conf->upstream.module, "fastcgi");
  
      return conf;
-@@ -2952,6 +3097,12 @@ ngx_http_fastcgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -2952,6 +3108,12 @@ ngx_http_fastcgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      ngx_hash_init_t               hash;
      ngx_http_core_loc_conf_t     *clcf;
  
@@ -956,7 +974,7 @@ index 46a56f5..806ba2d 100644
  #if (NGX_HTTP_CACHE)
  
      if (conf->upstream.store > 0) {
-@@ -3018,6 +3169,16 @@ ngx_http_fastcgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -3018,6 +3180,16 @@ ngx_http_fastcgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      ngx_conf_merge_ptr_value(conf->upstream.limit_rate,
                                prev->upstream.limit_rate, NULL);
  
@@ -973,7 +991,7 @@ index 46a56f5..806ba2d 100644
  
      ngx_conf_merge_bufs_value(conf->upstream.bufs, prev->upstream.bufs,
                                8, ngx_pagesize);
-@@ -3115,6 +3276,13 @@ ngx_http_fastcgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -3115,6 +3287,13 @@ ngx_http_fastcgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
                                prev->upstream.ignore_headers,
                                NGX_CONF_BITMASK_SET);
  
@@ -987,7 +1005,7 @@ index 46a56f5..806ba2d 100644
  
      ngx_conf_merge_bitmask_value(conf->upstream.next_upstream,
                                prev->upstream.next_upstream,
-@@ -3157,9 +3325,26 @@ ngx_http_fastcgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -3157,9 +3336,26 @@ ngx_http_fastcgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
          return NGX_CONF_ERROR;
      }
  
@@ -1014,7 +1032,7 @@ index 46a56f5..806ba2d 100644
      ngx_conf_merge_off_value(conf->upstream.cache_max_range_offset,
                                prev->upstream.cache_max_range_offset,
                                NGX_MAX_OFF_T_VALUE);
-@@ -3178,6 +3363,27 @@ ngx_http_fastcgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -3178,6 +3374,27 @@ ngx_http_fastcgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
          conf->upstream.cache_use_stale |= NGX_HTTP_UPSTREAM_FT_NOLIVE;
      }
  
@@ -1042,7 +1060,7 @@ index 46a56f5..806ba2d 100644
      if (conf->upstream.cache_methods == 0) {
          conf->upstream.cache_methods = prev->upstream.cache_methods;
      }
-@@ -3190,6 +3396,20 @@ ngx_http_fastcgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -3190,6 +3407,20 @@ ngx_http_fastcgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      ngx_conf_merge_ptr_value(conf->upstream.no_cache,
                               prev->upstream.no_cache, NULL);
  
@@ -1063,7 +1081,19 @@ index 46a56f5..806ba2d 100644
      ngx_conf_merge_ptr_value(conf->upstream.cache_valid,
                               prev->upstream.cache_valid, NULL);
  
-@@ -3274,6 +3494,57 @@ ngx_http_fastcgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -3245,6 +3476,11 @@ ngx_http_fastcgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+         return NGX_CONF_ERROR;
+     }
+ 
++#if (NGX_HTTP_EXT)
++    ngx_conf_merge_ptr_value(conf->upstream.hide_cookies,
++                                prev->upstream.hide_cookies, NULL);
++#endif
++
+     clcf = ngx_http_conf_get_module_loc_conf(cf, ngx_http_core_module);
+ 
+     if (clcf->noname
+@@ -3274,6 +3510,57 @@ ngx_http_fastcgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
          conf->params_cache = prev->params_cache;
  #endif
          conf->params_source = prev->params_source;
@@ -2458,10 +2488,58 @@ index 032ba96..609188e 100644
  
          r->headers_out.status = NGX_HTTP_NOT_MODIFIED;
 diff --git a/src/http/modules/ngx_http_proxy_module.c b/src/http/modules/ngx_http_proxy_module.c
-index c69a476..ced9374 100644
+index c69a476..1d48024 100644
 --- a/src/http/modules/ngx_http_proxy_module.c
 +++ b/src/http/modules/ngx_http_proxy_module.c
-@@ -112,11 +112,20 @@ typedef struct {
+@@ -61,6 +61,36 @@ typedef struct {
+ } ngx_http_proxy_cookie_flags_t;
+ 
+ 
++#if (NGX_HTTP_EXT)
++
++typedef struct {
++    union {
++        ngx_http_complex_value_t   complex;
++#if (NGX_PCRE)
++        ngx_http_regex_t          *regex;
++#endif
++    } cookie;
++
++    ngx_http_proxy_rewrite_t      *pr;
++    ngx_uint_t                     regex;
++} ngx_http_proxy_cookie_value_t;
++
++
++typedef struct {
++    union {
++        ngx_http_complex_value_t   complex;
++#if (NGX_PCRE)
++        ngx_http_regex_t          *regex;
++#endif
++    } cookie;
++
++    time_t                         max_age;
++    ngx_uint_t                     regex;
++} ngx_http_proxy_cookie_max_age_t;
++
++#endif
++
++
+ typedef struct {
+     ngx_str_t                      key_start;
+     ngx_str_t                      schema;
+@@ -99,6 +129,10 @@ typedef struct {
+     ngx_array_t                   *cookie_domains;
+     ngx_array_t                   *cookie_paths;
+     ngx_array_t                   *cookie_flags;
++#if (NGX_HTTP_EXT)
++    ngx_array_t                   *cookie_values;
++    ngx_array_t                   *cookie_max_age;
++#endif
+ 
+     ngx_http_complex_value_t      *method;
+     ngx_str_t                      location;
+@@ -112,11 +146,20 @@ typedef struct {
  
      ngx_flag_t                     redirect;
  
@@ -2482,7 +2560,59 @@ index c69a476..ced9374 100644
  #if (NGX_HTTP_SSL)
      ngx_uint_t                     ssl;
      ngx_uint_t                     ssl_protocols;
-@@ -415,6 +424,15 @@ static ngx_command_t  ngx_http_proxy_commands[] = {
+@@ -191,6 +234,13 @@ static ngx_int_t ngx_http_proxy_rewrite_cookie_flags(ngx_http_request_t *r,
+     ngx_array_t *attrs, ngx_array_t *flags);
+ static ngx_int_t ngx_http_proxy_edit_cookie_flags(ngx_http_request_t *r,
+     ngx_array_t *attrs, ngx_uint_t flags);
++#if (NGX_HTTP_EXT)
++static ngx_int_t ngx_http_proxy_rewrite_cookie_values(ngx_http_request_t *r,
++    ngx_array_t *attrs, ngx_array_t *values);
++static ngx_int_t ngx_http_proxy_rewrite_cookie_max_age(ngx_http_request_t *r,
++    ngx_array_t *attrs, ngx_array_t *max_age, ngx_uint_t is_max_age,
++    ngx_uint_t offset, ngx_int_t *rule);
++#endif
+ static ngx_int_t ngx_http_proxy_rewrite(ngx_http_request_t *r,
+     ngx_str_t *value, size_t prefix, size_t len, ngx_str_t *replacement);
+ 
+@@ -213,6 +263,12 @@ static char *ngx_http_proxy_cookie_path(ngx_conf_t *cf, ngx_command_t *cmd,
+     void *conf);
+ static char *ngx_http_proxy_cookie_flags(ngx_conf_t *cf, ngx_command_t *cmd,
+     void *conf);
++#if (NGX_HTTP_EXT)
++static char *ngx_http_proxy_cookie_value(ngx_conf_t *cf, ngx_command_t *cmd,
++    void *conf);
++static char *ngx_http_proxy_cookie_max_age(ngx_conf_t *cf, ngx_command_t *cmd,
++    void *conf);
++#endif
+ static char *ngx_http_proxy_store(ngx_conf_t *cf, ngx_command_t *cmd,
+     void *conf);
+ #if (NGX_HTTP_CACHE)
+@@ -331,6 +387,24 @@ static ngx_command_t  ngx_http_proxy_commands[] = {
+       0,
+       NULL },
+ 
++#if (NGX_HTTP_EXT)
++
++    { ngx_string("proxy_cookie_value"),
++      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE13,
++      ngx_http_proxy_cookie_value,
++      NGX_HTTP_LOC_CONF_OFFSET,
++      0,
++      NULL },
++
++    { ngx_string("proxy_cookie_max_age"),
++      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE12,
++      ngx_http_proxy_cookie_max_age,
++      NGX_HTTP_LOC_CONF_OFFSET,
++      0,
++      NULL },
++
++#endif
++
+     { ngx_string("proxy_store"),
+       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
+       ngx_http_proxy_store,
+@@ -415,6 +489,15 @@ static ngx_command_t  ngx_http_proxy_commands[] = {
        offsetof(ngx_http_proxy_loc_conf_t, headers_source),
        NULL },
  
@@ -2498,7 +2628,7 @@ index c69a476..ced9374 100644
      { ngx_string("proxy_headers_hash_max_size"),
        NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
        ngx_conf_set_num_slot,
-@@ -536,6 +554,15 @@ static ngx_command_t  ngx_http_proxy_commands[] = {
+@@ -536,6 +619,15 @@ static ngx_command_t  ngx_http_proxy_commands[] = {
        offsetof(ngx_http_proxy_loc_conf_t, upstream.no_cache),
        NULL },
  
@@ -2514,7 +2644,7 @@ index c69a476..ced9374 100644
      { ngx_string("proxy_cache_valid"),
        NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_1MORE,
        ngx_http_file_cache_valid_set_slot,
-@@ -543,6 +570,15 @@ static ngx_command_t  ngx_http_proxy_commands[] = {
+@@ -543,6 +635,15 @@ static ngx_command_t  ngx_http_proxy_commands[] = {
        offsetof(ngx_http_proxy_loc_conf_t, upstream.cache_valid),
        NULL },
  
@@ -2530,7 +2660,7 @@ index c69a476..ced9374 100644
      { ngx_string("proxy_cache_min_uses"),
        NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
        ngx_conf_set_num_slot,
-@@ -550,6 +586,22 @@ static ngx_command_t  ngx_http_proxy_commands[] = {
+@@ -550,6 +651,22 @@ static ngx_command_t  ngx_http_proxy_commands[] = {
        offsetof(ngx_http_proxy_loc_conf_t, upstream.cache_min_uses),
        NULL },
  
@@ -2553,7 +2683,7 @@ index c69a476..ced9374 100644
      { ngx_string("proxy_cache_max_range_offset"),
        NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
        ngx_conf_set_off_slot,
-@@ -564,6 +616,44 @@ static ngx_command_t  ngx_http_proxy_commands[] = {
+@@ -564,6 +681,44 @@ static ngx_command_t  ngx_http_proxy_commands[] = {
        offsetof(ngx_http_proxy_loc_conf_t, upstream.cache_use_stale),
        &ngx_http_proxy_next_upstream_masks },
  
@@ -2598,23 +2728,32 @@ index c69a476..ced9374 100644
      { ngx_string("proxy_cache_methods"),
        NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_1MORE,
        ngx_conf_set_bitmask_slot,
-@@ -678,6 +768,15 @@ static ngx_command_t  ngx_http_proxy_commands[] = {
+@@ -678,6 +833,24 @@ static ngx_command_t  ngx_http_proxy_commands[] = {
        offsetof(ngx_http_proxy_loc_conf_t, upstream.ignore_headers),
        &ngx_http_upstream_ignore_headers_masks },
  
 +#if (NGX_HTTP_EXT)
++
 +    { ngx_string("proxy_ignore_cache_control"),
 +      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_1MORE,
 +      ngx_conf_set_bitmask_slot,
 +      NGX_HTTP_LOC_CONF_OFFSET,
 +      offsetof(ngx_http_proxy_loc_conf_t, upstream.ignore_cache_control),
 +      &ngx_http_upstream_ignore_cache_control_masks },
++
++    { ngx_string("proxy_hide_cookie"),
++      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
++      ngx_conf_set_str_array_slot,
++      NGX_HTTP_LOC_CONF_OFFSET,
++      offsetof(ngx_http_proxy_loc_conf_t, upstream.hide_cookies),
++      NULL },
++
 +#endif
 +
      { ngx_string("proxy_http_version"),
        NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
        ngx_conf_set_enum_slot,
-@@ -685,6 +784,22 @@ static ngx_command_t  ngx_http_proxy_commands[] = {
+@@ -685,6 +858,22 @@ static ngx_command_t  ngx_http_proxy_commands[] = {
        offsetof(ngx_http_proxy_loc_conf_t, http_version),
        &ngx_http_proxy_http_version },
  
@@ -2637,8 +2776,21 @@ index c69a476..ced9374 100644
  #if (NGX_HTTP_SSL)
  
      { ngx_string("proxy_ssl_session_reuse"),
-@@ -998,6 +1113,16 @@ ngx_http_proxy_handler(ngx_http_request_t *r)
+@@ -992,12 +1181,29 @@ ngx_http_proxy_handler(ngx_http_request_t *r)
+         u->rewrite_redirect = ngx_http_proxy_rewrite_redirect;
+     }
  
++#if (NGX_HTTP_EXT)
++    if (plcf->cookie_domains || plcf->cookie_paths || plcf->cookie_flags
++        || plcf->cookie_values || plcf->cookie_max_age)
++    {
++#else
+     if (plcf->cookie_domains || plcf->cookie_paths || plcf->cookie_flags) {
++#endif
+         u->rewrite_cookie = ngx_http_proxy_rewrite_cookie;
+     }
+ 
++
      u->buffering = plcf->upstream.buffering;
  
 +#if (NGX_HTTP_EXT)
@@ -2654,7 +2806,7 @@ index c69a476..ced9374 100644
      u->pipe = ngx_pcalloc(r->pool, sizeof(ngx_event_pipe_t));
      if (u->pipe == NULL) {
          return NGX_HTTP_INTERNAL_SERVER_ERROR;
-@@ -1275,6 +1400,10 @@ ngx_http_proxy_create_request(ngx_http_request_t *r)
+@@ -1275,6 +1481,10 @@ ngx_http_proxy_create_request(ngx_http_request_t *r)
          method = r->method_name;
      }
  
@@ -2665,7 +2817,421 @@ index c69a476..ced9374 100644
      ctx = ngx_http_get_module_ctx(r, ngx_http_proxy_module);
  
      if (method.len == 4
-@@ -3325,10 +3454,13 @@ ngx_http_proxy_create_loc_conf(ngx_conf_t *cf)
+@@ -2707,6 +2917,10 @@ ngx_http_proxy_rewrite_cookie(ngx_http_request_t *r, ngx_table_elt_t *h)
+     ngx_keyval_t               *attr;
+     ngx_http_proxy_loc_conf_t  *plcf;
+ 
++#if (NGX_HTTP_EXT)
++    ngx_int_t                   rule;
++#endif
++
+     if (ngx_array_init(&attrs, r->pool, 2, sizeof(ngx_keyval_t)) != NGX_OK) {
+         return NGX_ERROR;
+     }
+@@ -2717,14 +2931,34 @@ ngx_http_proxy_rewrite_cookie(ngx_http_request_t *r, ngx_table_elt_t *h)
+ 
+     attr = attrs.elts;
+ 
++#if !(NGX_HTTP_EXT)
+     if (attr[0].value.data == NULL) {
+         return NGX_DECLINED;
+     }
++#endif
+ 
+     rv = NGX_DECLINED;
+ 
+     plcf = ngx_http_get_module_loc_conf(r, ngx_http_proxy_module);
+ 
++#if (NGX_HTTP_EXT)
++    if (plcf->cookie_values) {
++        rc = ngx_http_proxy_rewrite_cookie_values(r, &attrs,
++                                                  plcf->cookie_values);
++        if (rc == NGX_ERROR) {
++            return NGX_ERROR;
++        }
++
++        if (rc != NGX_DECLINED) {
++            rv = rc;
++        }
++
++        attr = attrs.elts;
++    }
++
++    rule = -1;
++#endif
++
+     for (i = 1; i < attrs.nelts; i++) {
+ 
+         key = &attr[i].key;
+@@ -2759,8 +2993,62 @@ ngx_http_proxy_rewrite_cookie(ngx_http_request_t *r, ngx_table_elt_t *h)
+                 rv = rc;
+             }
+         }
++
++#if (NGX_HTTP_EXT)
++
++        if (plcf->cookie_max_age && key->len == 7) {
++
++            if (ngx_strncasecmp(key->data, (u_char *) "max-age", 7) == 0
++                && value->data)
++            {
++                rc = ngx_http_proxy_rewrite_cookie_max_age(r, &attrs,
++                                            plcf->cookie_max_age, 1, i, &rule);
++                if (rc == NGX_ERROR) {
++                    return NGX_ERROR;
++                }
++
++                if (rc != NGX_DECLINED) {
++                    rv = rc;
++                }
++            }
++
++            if (ngx_strncasecmp(key->data, (u_char *) "expires", 7) == 0
++                && value->data)
++            {
++                rc = ngx_http_proxy_rewrite_cookie_max_age(r, &attrs,
++                                            plcf->cookie_max_age, 0, i, &rule);
++                if (rc == NGX_ERROR) {
++                    return NGX_ERROR;
++                }
++
++                if (rc != NGX_DECLINED) {
++                    rv = rc;
++                }
++            }
++        }
++
++#endif
++
++    }
++
++#if (NGX_HTTP_EXT)
++
++    if (plcf->cookie_max_age && rule == -1) {
++        rc = ngx_http_proxy_rewrite_cookie_max_age(r, &attrs,
++                                            plcf->cookie_max_age, 1, i, &rule);
++        if (rc == NGX_ERROR) {
++            return NGX_ERROR;
++        }
++
++        if (rc != NGX_DECLINED) {
++            rv = rc;
++        }
++
++        attr = attrs.elts;
+     }
+ 
++#endif
++
+     if (plcf->cookie_flags) {
+         rc = ngx_http_proxy_rewrite_cookie_flags(r, &attrs,
+                                                  plcf->cookie_flags);
+@@ -3146,80 +3434,255 @@ ngx_http_proxy_edit_cookie_flags(ngx_http_request_t *r, ngx_array_t *attrs,
+ }
+ 
+ 
++#if (NGX_HTTP_EXT)
++
+ static ngx_int_t
+-ngx_http_proxy_rewrite_complex_handler(ngx_http_request_t *r, ngx_str_t *value,
+-    size_t prefix, size_t len, ngx_http_proxy_rewrite_t *pr)
++ngx_http_proxy_rewrite_cookie_values(ngx_http_request_t *r, ngx_array_t *attrs,
++    ngx_array_t *values)
+ {
+-    ngx_str_t  pattern, replacement;
++    ngx_str_t                       pattern;
++    ngx_int_t                       rc;
++    ngx_uint_t                      i;
++    ngx_keyval_t                   *attr;
++    ngx_http_proxy_cookie_value_t  *pcv;
+ 
+-    if (ngx_http_complex_value(r, &pr->pattern.complex, &pattern) != NGX_OK) {
+-        return NGX_ERROR;
+-    }
++    attr = attrs->elts;
++    pcv = values->elts;
+ 
+-    if (pattern.len > len
+-        || ngx_rstrncmp(value->data + prefix, pattern.data, pattern.len) != 0)
+-    {
+-        return NGX_DECLINED;
+-    }
++    for (i = 0; i < values->nelts; i++) {
+ 
+-    if (ngx_http_complex_value(r, &pr->replacement, &replacement) != NGX_OK) {
+-        return NGX_ERROR;
+-    }
++#if (NGX_PCRE)
++        if (pcv[i].regex) {
++            rc = ngx_http_regex_exec(r, pcv[i].cookie.regex, &attr[0].key);
+ 
+-    return ngx_http_proxy_rewrite(r, value, prefix, pattern.len, &replacement);
+-}
++            if (rc == NGX_ERROR) {
++                return NGX_ERROR;
++            }
+ 
++            if (rc == NGX_OK) {
++                break;
++            }
+ 
+-#if (NGX_PCRE)
++            /* NGX_DECLINED */
+ 
+-static ngx_int_t
+-ngx_http_proxy_rewrite_regex_handler(ngx_http_request_t *r, ngx_str_t *value,
+-    size_t prefix, size_t len, ngx_http_proxy_rewrite_t *pr)
+-{
+-    ngx_str_t  pattern, replacement;
++            continue;
++        }
++#endif
+ 
+-    pattern.len = len;
+-    pattern.data = value->data + prefix;
++        if (ngx_http_complex_value(r, &pcv[i].cookie.complex, &pattern)
++            != NGX_OK)
++        {
++            return NGX_ERROR;
++        }
+ 
+-    if (ngx_http_regex_exec(r, pr->pattern.regex, &pattern) != NGX_OK) {
+-        return NGX_DECLINED;
++        if (pattern.len == attr[0].key.len
++            && ngx_strncasecmp(attr[0].key.data, pattern.data, pattern.len)
++               == 0)
++        {
++            break;
++        }
+     }
+ 
+-    if (ngx_http_complex_value(r, &pr->replacement, &replacement) != NGX_OK) {
+-        return NGX_ERROR;
++    if (i == values->nelts) {
++        return NGX_DECLINED;
+     }
+ 
+-    return ngx_http_proxy_rewrite(r, value, prefix, len, &replacement);
++    return pcv[i].pr->handler(r, &attr[0].value, 0, attr[0].value.len,
++                             pcv[i].pr);
+ }
+ 
+-#endif
+-
+ 
+ static ngx_int_t
+-ngx_http_proxy_rewrite_domain_handler(ngx_http_request_t *r, ngx_str_t *value,
+-    size_t prefix, size_t len, ngx_http_proxy_rewrite_t *pr)
++ngx_http_proxy_rewrite_cookie_max_age(ngx_http_request_t *r,
++    ngx_array_t *attrs, ngx_array_t *max_age, ngx_uint_t is_max_age,
++    ngx_uint_t offset, ngx_int_t *rule)
+ {
+-    u_char     *p;
+-    ngx_str_t   pattern, replacement;
+-
+-    if (ngx_http_complex_value(r, &pr->pattern.complex, &pattern) != NGX_OK) {
+-        return NGX_ERROR;
+-    }
+-
+-    p = value->data + prefix;
++    ngx_str_t                         pattern, replacement;
++    ngx_int_t                         rc;
++    ngx_uint_t                        i;
++    ngx_keyval_t                     *attr;
++    ngx_http_proxy_cookie_max_age_t  *pcm;
++    u_char                           *p;
+ 
+-    if (len && p[0] == '.') {
+-        p++;
+-        prefix++;
+-        len--;
+-    }
++    attr = attrs->elts;
++    pcm = max_age->elts;
+ 
+-    if (pattern.len != len || ngx_rstrncasecmp(pattern.data, p, len) != 0) {
++    if (*rule == (ngx_int_t) max_age->nelts)  {
+         return NGX_DECLINED;
+     }
+ 
+-    if (ngx_http_complex_value(r, &pr->replacement, &replacement) != NGX_OK) {
+-        return NGX_ERROR;
++    if (*rule != -1) {
++        i = *rule;
++        goto rule_match;
++    }
++
++    for (i = 0; i < max_age->nelts; i++) {
++
++#if (NGX_PCRE)
++        if (pcm[i].regex) {
++            rc = ngx_http_regex_exec(r, pcm[i].cookie.regex, &attr[0].key);
++
++            if (rc == NGX_ERROR) {
++                return NGX_ERROR;
++            }
++
++            if (rc == NGX_OK) {
++                break;
++            }
++
++            /* NGX_DECLINED */
++
++            continue;
++        }
++#endif
++
++        if (ngx_http_complex_value(r, &pcm[i].cookie.complex, &pattern)
++            != NGX_OK)
++        {
++            return NGX_ERROR;
++        }
++
++        if (pattern.len == attr[0].key.len
++            && ngx_strncasecmp(attr[0].key.data, pattern.data, pattern.len)
++               == 0)
++        {
++            break;
++        }
++    }
++
++    *rule = i;
++
++    if (i == max_age->nelts) {
++        return NGX_DECLINED;
++    }
++
++rule_match:
++
++    if (is_max_age) {
++        replacement.data = ngx_pnalloc(r->pool, NGX_TIME_T_LEN);
++        if (replacement.data == NULL) {
++            return NGX_ERROR;
++        }
++
++        p = ngx_sprintf(replacement.data, "%T", pcm[i].max_age);
++        replacement.len = p - replacement.data;
++
++        if (offset == attrs->nelts) {
++            attr = ngx_array_push(attrs);
++            if (attr == NULL) {
++                return NGX_ERROR;
++            }
++
++            ngx_str_set(&attr->key, "Max-Age");
++            attr->value = replacement;
++
++            return NGX_OK;
++        }
++
++    } else {
++        replacement.data = ngx_pnalloc(r->pool,
++                                    sizeof("Thu, 31-Dec-37 23:55:55 GMT") - 1);
++        if (replacement.data == NULL) {
++            return NGX_ERROR;
++        }
++
++        p = ngx_http_cookie_time(replacement.data, ngx_time() + pcm[i].max_age);
++        replacement.len = p - replacement.data;
++
++        if (offset == attrs->nelts) {
++            attr = ngx_array_push(attrs);
++            if (attr == NULL) {
++                return NGX_ERROR;
++            }
++
++            ngx_str_set(&attr->key, "Expires");
++            attr->value = replacement;
++
++            return NGX_OK;
++        }
++    }
++
++    return ngx_http_proxy_rewrite(r, &attr[offset].value, 0,
++                                  attr[offset].value.len, &replacement);
++}
++
++#endif
++
++
++static ngx_int_t
++ngx_http_proxy_rewrite_complex_handler(ngx_http_request_t *r, ngx_str_t *value,
++    size_t prefix, size_t len, ngx_http_proxy_rewrite_t *pr)
++{
++    ngx_str_t  pattern, replacement;
++
++    if (ngx_http_complex_value(r, &pr->pattern.complex, &pattern) != NGX_OK) {
++        return NGX_ERROR;
++    }
++
++    if (pattern.len > len
++        || ngx_rstrncmp(value->data + prefix, pattern.data, pattern.len) != 0)
++    {
++        return NGX_DECLINED;
++    }
++
++    if (ngx_http_complex_value(r, &pr->replacement, &replacement) != NGX_OK) {
++        return NGX_ERROR;
++    }
++
++    return ngx_http_proxy_rewrite(r, value, prefix, pattern.len, &replacement);
++}
++
++
++#if (NGX_PCRE)
++
++static ngx_int_t
++ngx_http_proxy_rewrite_regex_handler(ngx_http_request_t *r, ngx_str_t *value,
++    size_t prefix, size_t len, ngx_http_proxy_rewrite_t *pr)
++{
++    ngx_str_t  pattern, replacement;
++
++    pattern.len = len;
++    pattern.data = value->data + prefix;
++
++    if (ngx_http_regex_exec(r, pr->pattern.regex, &pattern) != NGX_OK) {
++        return NGX_DECLINED;
++    }
++
++    if (ngx_http_complex_value(r, &pr->replacement, &replacement) != NGX_OK) {
++        return NGX_ERROR;
++    }
++
++    return ngx_http_proxy_rewrite(r, value, prefix, len, &replacement);
++}
++
++#endif
++
++
++static ngx_int_t
++ngx_http_proxy_rewrite_domain_handler(ngx_http_request_t *r, ngx_str_t *value,
++    size_t prefix, size_t len, ngx_http_proxy_rewrite_t *pr)
++{
++    u_char     *p;
++    ngx_str_t   pattern, replacement;
++
++    if (ngx_http_complex_value(r, &pr->pattern.complex, &pattern) != NGX_OK) {
++        return NGX_ERROR;
++    }
++
++    p = value->data + prefix;
++
++    if (len && p[0] == '.') {
++        p++;
++        prefix++;
++        len--;
++    }
++
++    if (pattern.len != len || ngx_rstrncasecmp(pattern.data, p, len) != 0) {
++        return NGX_DECLINED;
++    }
++
++    if (ngx_http_complex_value(r, &pr->replacement, &replacement) != NGX_OK) {
++        return NGX_ERROR;
+     }
+ 
+     return ngx_http_proxy_rewrite(r, value, prefix, len, &replacement);
+@@ -3325,10 +3788,13 @@ ngx_http_proxy_create_loc_conf(ngx_conf_t *cf)
       *
       *     conf->upstream.bufs.num = 0;
       *     conf->upstream.ignore_headers = 0;
@@ -2679,7 +3245,7 @@ index c69a476..ced9374 100644
       *     conf->upstream.temp_path = NULL;
       *     conf->upstream.hide_headers_hash = { NULL, 0 };
       *     conf->upstream.store_lengths = NULL;
-@@ -3382,7 +3514,19 @@ ngx_http_proxy_create_loc_conf(ngx_conf_t *cf)
+@@ -3382,7 +3848,19 @@ ngx_http_proxy_create_loc_conf(ngx_conf_t *cf)
  
  #if (NGX_HTTP_CACHE)
      conf->upstream.cache = NGX_CONF_UNSET;
@@ -2699,7 +3265,13 @@ index c69a476..ced9374 100644
      conf->upstream.cache_max_range_offset = NGX_CONF_UNSET;
      conf->upstream.cache_bypass = NGX_CONF_UNSET_PTR;
      conf->upstream.no_cache = NGX_CONF_UNSET_PTR;
-@@ -3400,6 +3544,10 @@ ngx_http_proxy_create_loc_conf(ngx_conf_t *cf)
+@@ -3397,9 +3875,16 @@ ngx_http_proxy_create_loc_conf(ngx_conf_t *cf)
+ 
+     conf->upstream.hide_headers = NGX_CONF_UNSET_PTR;
+     conf->upstream.pass_headers = NGX_CONF_UNSET_PTR;
++#if (NGX_HTTP_EXT)
++    conf->upstream.hide_cookies = NGX_CONF_UNSET_PTR;
++#endif
  
      conf->upstream.intercept_errors = NGX_CONF_UNSET;
  
@@ -2710,7 +3282,17 @@ index c69a476..ced9374 100644
  #if (NGX_HTTP_SSL)
      conf->upstream.ssl_session_reuse = NGX_CONF_UNSET;
      conf->upstream.ssl_name = NGX_CONF_UNSET_PTR;
-@@ -3432,6 +3580,11 @@ ngx_http_proxy_create_loc_conf(ngx_conf_t *cf)
+@@ -3426,12 +3911,21 @@ ngx_http_proxy_create_loc_conf(ngx_conf_t *cf)
+     conf->cookie_domains = NGX_CONF_UNSET_PTR;
+     conf->cookie_paths = NGX_CONF_UNSET_PTR;
+     conf->cookie_flags = NGX_CONF_UNSET_PTR;
++#if (NGX_HTTP_EXT)
++    conf->cookie_values = NGX_CONF_UNSET_PTR;
++    conf->cookie_max_age = NGX_CONF_UNSET_PTR;
++#endif
+ 
+     conf->http_version = NGX_CONF_UNSET_UINT;
+ 
      conf->headers_hash_max_size = NGX_CONF_UNSET_UINT;
      conf->headers_hash_bucket_size = NGX_CONF_UNSET_UINT;
  
@@ -2722,7 +3304,7 @@ index c69a476..ced9374 100644
      ngx_str_set(&conf->upstream.module, "proxy");
  
      return conf;
-@@ -3447,6 +3600,11 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -3447,6 +3941,11 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      u_char                     *p;
      size_t                      size;
      ngx_int_t                   rc;
@@ -2734,7 +3316,7 @@ index c69a476..ced9374 100644
      ngx_hash_init_t             hash;
      ngx_http_core_loc_conf_t   *clcf;
      ngx_http_proxy_rewrite_t   *pr;
-@@ -3518,6 +3676,14 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -3518,6 +4017,14 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      ngx_conf_merge_ptr_value(conf->upstream.limit_rate,
                                prev->upstream.limit_rate, NULL);
  
@@ -2749,7 +3331,7 @@ index c69a476..ced9374 100644
      ngx_conf_merge_bufs_value(conf->upstream.bufs, prev->upstream.bufs,
                                8, ngx_pagesize);
  
-@@ -3613,6 +3779,11 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -3613,6 +4120,11 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
                                prev->upstream.ignore_headers,
                                NGX_CONF_BITMASK_SET);
  
@@ -2761,7 +3343,7 @@ index c69a476..ced9374 100644
  
      ngx_conf_merge_bitmask_value(conf->upstream.next_upstream,
                                prev->upstream.next_upstream,
-@@ -3656,9 +3827,26 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -3656,9 +4168,26 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
          return NGX_CONF_ERROR;
      }
  
@@ -2788,7 +3370,7 @@ index c69a476..ced9374 100644
      ngx_conf_merge_off_value(conf->upstream.cache_max_range_offset,
                                prev->upstream.cache_max_range_offset,
                                NGX_MAX_OFF_T_VALUE);
-@@ -3677,6 +3865,27 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -3677,6 +4206,27 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
          conf->upstream.cache_use_stale |= NGX_HTTP_UPSTREAM_FT_NOLIVE;
      }
  
@@ -2816,7 +3398,7 @@ index c69a476..ced9374 100644
      if (conf->upstream.cache_methods == 0) {
          conf->upstream.cache_methods = prev->upstream.cache_methods;
      }
-@@ -3689,6 +3898,20 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -3689,6 +4239,20 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      ngx_conf_merge_ptr_value(conf->upstream.no_cache,
                               prev->upstream.no_cache, NULL);
  
@@ -2837,7 +3419,7 @@ index c69a476..ced9374 100644
      ngx_conf_merge_ptr_value(conf->upstream.cache_valid,
                               prev->upstream.cache_valid, NULL);
  
-@@ -3724,6 +3947,13 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -3724,6 +4288,13 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      ngx_conf_merge_value(conf->upstream.intercept_errors,
                                prev->upstream.intercept_errors, 0);
  
@@ -2851,7 +3433,34 @@ index c69a476..ced9374 100644
  #if (NGX_HTTP_SSL)
  
      if (ngx_http_proxy_merge_ssl(cf, conf, prev) != NGX_OK) {
-@@ -3905,6 +4135,57 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -3828,6 +4399,14 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+ 
+     ngx_conf_merge_ptr_value(conf->cookie_flags, prev->cookie_flags, NULL);
+ 
++#if (NGX_HTTP_EXT)
++
++    ngx_conf_merge_ptr_value(conf->cookie_values, prev->cookie_values, NULL);
++
++    ngx_conf_merge_ptr_value(conf->cookie_max_age, prev->cookie_max_age, NULL);
++
++#endif
++
+     ngx_conf_merge_uint_value(conf->http_version, prev->http_version,
+                               NGX_HTTP_VERSION_10);
+ 
+@@ -3851,6 +4430,11 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+         return NGX_CONF_ERROR;
+     }
+ 
++#if (NGX_HTTP_EXT)
++    ngx_conf_merge_ptr_value(conf->upstream.hide_cookies,
++                                prev->upstream.hide_cookies, NULL);
++#endif
++
+     clcf = ngx_http_conf_get_module_loc_conf(cf, ngx_http_core_module);
+ 
+     if (clcf->noname
+@@ -3905,6 +4489,57 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
  #if (NGX_HTTP_CACHE)
          conf->headers_cache = prev->headers_cache;
  #endif
@@ -2909,6 +3518,256 @@ index c69a476..ced9374 100644
      }
  
      rc = ngx_http_proxy_init_headers(cf, conf, &conf->headers,
+@@ -4680,6 +5315,249 @@ ngx_http_proxy_cookie_flags(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+ }
+ 
+ 
++#if (NGX_HTTP_EXT)
++
++static char *
++ngx_http_proxy_cookie_value(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
++{
++    ngx_http_proxy_loc_conf_t *plcf = conf;
++
++    ngx_str_t                         *value;
++    ngx_http_proxy_cookie_value_t     *pcv;
++    ngx_http_compile_complex_value_t   ccv;
++#if (NGX_PCRE)
++    ngx_regex_compile_t                rc;
++    u_char                             errstr[NGX_MAX_CONF_ERRSTR];
++#endif
++
++    if (plcf->cookie_values == NULL) {
++        return "is duplicate";
++    }
++
++    value = cf->args->elts;
++
++    if (cf->args->nelts == 2) {
++
++        if (ngx_strcmp(value[1].data, "off") == 0) {
++
++            if (plcf->cookie_values != NGX_CONF_UNSET_PTR) {
++                return "is duplicate";
++            }
++
++            plcf->cookie_values = NULL;
++            return NGX_CONF_OK;
++        }
++
++        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
++                           "invalid parameter \"%V\"", &value[1]);
++        return NGX_CONF_ERROR;
++    }
++
++    if (plcf->cookie_values == NGX_CONF_UNSET_PTR) {
++        plcf->cookie_values = ngx_array_create(cf->pool, 1,
++                                        sizeof(ngx_http_proxy_cookie_value_t));
++        if (plcf->cookie_values == NULL) {
++            return NGX_CONF_ERROR;
++        }
++    }
++
++    pcv = ngx_array_push(plcf->cookie_values);
++    if (pcv == NULL) {
++        return NGX_CONF_ERROR;
++    }
++
++    pcv->regex = 0;
++
++    if (value[1].data[0] == '~') {
++        value[1].len--;
++        value[1].data++;
++
++#if (NGX_PCRE)
++        ngx_memzero(&rc, sizeof(ngx_regex_compile_t));
++
++        rc.pattern = value[1];
++        rc.err.len = NGX_MAX_CONF_ERRSTR;
++        rc.err.data = errstr;
++        rc.options = NGX_REGEX_CASELESS;
++
++        pcv->cookie.regex = ngx_http_regex_compile(cf, &rc);
++        if (pcv->cookie.regex == NULL) {
++            return NGX_CONF_ERROR;
++        }
++
++        pcv->regex = 1;
++#else
++        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
++                           "using regex \"%V\" requires PCRE library",
++                           &value[1]);
++        return NGX_CONF_ERROR;
++#endif
++
++    } else {
++
++        ngx_memzero(&ccv, sizeof(ngx_http_compile_complex_value_t));
++
++        ccv.cf = cf;
++        ccv.value = &value[1];
++        ccv.complex_value = &pcv->cookie.complex;
++
++        if (ngx_http_compile_complex_value(&ccv) != NGX_OK) {
++            return NGX_CONF_ERROR;
++        }
++    }
++
++    pcv->pr = ngx_pcalloc(cf->pool, sizeof(ngx_http_proxy_rewrite_t));
++    if (pcv->pr == NULL) {
++        return NGX_CONF_ERROR;
++    }
++
++    if (value[2].data[0] == '~') {
++        value[2].len--;
++        value[2].data++;
++
++        if (value[2].data[0] == '*') {
++            value[2].len--;
++            value[2].data++;
++
++            if (ngx_http_proxy_rewrite_regex(cf, pcv->pr, &value[2], 1) != NGX_OK) {
++                return NGX_CONF_ERROR;
++            }
++
++        } else {
++            if (ngx_http_proxy_rewrite_regex(cf, pcv->pr, &value[2], 0) != NGX_OK) {
++                return NGX_CONF_ERROR;
++            }
++        }
++
++    } else {
++
++        ngx_memzero(&ccv, sizeof(ngx_http_compile_complex_value_t));
++
++        ccv.cf = cf;
++        ccv.value = &value[2];
++        ccv.complex_value = &pcv->pr->pattern.complex;
++
++        if (ngx_http_compile_complex_value(&ccv) != NGX_OK) {
++            return NGX_CONF_ERROR;
++        }
++
++        pcv->pr->handler = ngx_http_proxy_rewrite_complex_handler;
++    }
++
++    ngx_memzero(&ccv, sizeof(ngx_http_compile_complex_value_t));
++
++    ccv.cf = cf;
++    ccv.value = &value[3];
++    ccv.complex_value = &pcv->pr->replacement;
++
++    if (ngx_http_compile_complex_value(&ccv) != NGX_OK) {
++        return NGX_CONF_ERROR;
++    }
++
++    return NGX_CONF_OK;
++}
++
++
++static char *
++ngx_http_proxy_cookie_max_age(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
++{
++    ngx_http_proxy_loc_conf_t *plcf = conf;
++
++    ngx_str_t                         *value;
++    ngx_http_proxy_cookie_max_age_t   *pcm;
++    ngx_http_compile_complex_value_t   ccv;
++#if (NGX_PCRE)
++    ngx_regex_compile_t                rc;
++    u_char                             errstr[NGX_MAX_CONF_ERRSTR];
++#endif
++
++    if (plcf->cookie_max_age == NULL) {
++        return "is duplicate";
++    }
++
++    value = cf->args->elts;
++
++    if (cf->args->nelts == 2) {
++
++        if (ngx_strcmp(value[1].data, "off") == 0) {
++
++            if (plcf->cookie_max_age != NGX_CONF_UNSET_PTR) {
++                return "is duplicate";
++            }
++
++            plcf->cookie_max_age = NULL;
++            return NGX_CONF_OK;
++        }
++
++        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
++                           "invalid parameter \"%V\"", &value[1]);
++        return NGX_CONF_ERROR;
++    }
++
++    if (plcf->cookie_max_age == NGX_CONF_UNSET_PTR) {
++        plcf->cookie_max_age = ngx_array_create(cf->pool, 1,
++                                        sizeof(ngx_http_proxy_cookie_max_age_t));
++        if (plcf->cookie_max_age == NULL) {
++            return NGX_CONF_ERROR;
++        }
++    }
++
++    pcm = ngx_array_push(plcf->cookie_max_age);
++    if (pcm == NULL) {
++        return NGX_CONF_ERROR;
++    }
++
++    pcm->regex = 0;
++
++    if (value[1].data[0] == '~') {
++        value[1].len--;
++        value[1].data++;
++
++#if (NGX_PCRE)
++        ngx_memzero(&rc, sizeof(ngx_regex_compile_t));
++
++        rc.pattern = value[1];
++        rc.err.len = NGX_MAX_CONF_ERRSTR;
++        rc.err.data = errstr;
++        rc.options = NGX_REGEX_CASELESS;
++
++        pcm->cookie.regex = ngx_http_regex_compile(cf, &rc);
++        if (pcm->cookie.regex == NULL) {
++            return NGX_CONF_ERROR;
++        }
++
++        pcm->regex = 1;
++#else
++        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
++                           "using regex \"%V\" requires PCRE library",
++                           &value[1]);
++        return NGX_CONF_ERROR;
++#endif
++
++    } else {
++
++        ngx_memzero(&ccv, sizeof(ngx_http_compile_complex_value_t));
++
++        ccv.cf = cf;
++        ccv.value = &value[1];
++        ccv.complex_value = &pcm->cookie.complex;
++
++        if (ngx_http_compile_complex_value(&ccv) != NGX_OK) {
++            return NGX_CONF_ERROR;
++        }
++    }
++
++    pcm->max_age = ngx_parse_time(&value[2], 1);
++    if (pcm->max_age == (time_t) NGX_ERROR) {
++        return "invalid value";
++    }
++
++    return NGX_CONF_OK;
++}
++
++#endif
++
++
+ static ngx_int_t
+ ngx_http_proxy_rewrite_regex(ngx_conf_t *cf, ngx_http_proxy_rewrite_t *pr,
+     ngx_str_t *regex, ngx_uint_t caseless)
 diff --git a/src/http/modules/ngx_http_range_filter_module.c b/src/http/modules/ngx_http_range_filter_module.c
 index 27d1875..76a58db 100644
 --- a/src/http/modules/ngx_http_range_filter_module.c
@@ -4006,7 +4865,7 @@ index ff3b687..4575310 100644
  
  static char *
 diff --git a/src/http/modules/ngx_http_scgi_module.c b/src/http/modules/ngx_http_scgi_module.c
-index f818fc4..89e5ebc 100644
+index f818fc4..5a9941b 100644
 --- a/src/http/modules/ngx_http_scgi_module.c
 +++ b/src/http/modules/ngx_http_scgi_module.c
 @@ -40,6 +40,13 @@ typedef struct {
@@ -4139,17 +4998,25 @@ index f818fc4..89e5ebc 100644
      { ngx_string("scgi_pass_header"),
        NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
        ngx_conf_set_str_array_slot,
-@@ -407,6 +495,29 @@ static ngx_command_t ngx_http_scgi_commands[] = {
+@@ -407,6 +495,38 @@ static ngx_command_t ngx_http_scgi_commands[] = {
        offsetof(ngx_http_scgi_loc_conf_t, upstream.ignore_headers),
        &ngx_http_upstream_ignore_headers_masks },
  
 +#if (NGX_HTTP_EXT)
++
 +    { ngx_string("scgi_ignore_cache_control"),
 +      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_1MORE,
 +      ngx_conf_set_bitmask_slot,
 +      NGX_HTTP_LOC_CONF_OFFSET,
 +      offsetof(ngx_http_scgi_loc_conf_t, upstream.ignore_cache_control),
 +      &ngx_http_upstream_ignore_cache_control_masks },
++
++    { ngx_string("scgi_hide_cookie"),
++      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
++      ngx_conf_set_str_array_slot,
++      NGX_HTTP_LOC_CONF_OFFSET,
++      offsetof(ngx_http_scgi_loc_conf_t, upstream.hide_cookies),
++      NULL },
 +
 +    { ngx_string("scgi_sndbuf_size"),
 +      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
@@ -4164,12 +5031,13 @@ index f818fc4..89e5ebc 100644
 +      NGX_HTTP_LOC_CONF_OFFSET,
 +      offsetof(ngx_http_scgi_loc_conf_t, rcvbuf),
 +      NULL },
++
 +#endif
 +
        ngx_null_command
  };
  
-@@ -527,6 +638,16 @@ ngx_http_scgi_handler(ngx_http_request_t *r)
+@@ -527,6 +647,16 @@ ngx_http_scgi_handler(ngx_http_request_t *r)
  
      u->buffering = scf->upstream.buffering;
  
@@ -4186,7 +5054,7 @@ index f818fc4..89e5ebc 100644
      u->pipe = ngx_pcalloc(r->pool, sizeof(ngx_event_pipe_t));
      if (u->pipe == NULL) {
          return NGX_HTTP_INTERNAL_SERVER_ERROR;
-@@ -1312,7 +1433,19 @@ ngx_http_scgi_create_loc_conf(ngx_conf_t *cf)
+@@ -1312,7 +1442,19 @@ ngx_http_scgi_create_loc_conf(ngx_conf_t *cf)
  
  #if (NGX_HTTP_CACHE)
      conf->upstream.cache = NGX_CONF_UNSET;
@@ -4206,7 +5074,17 @@ index f818fc4..89e5ebc 100644
      conf->upstream.cache_max_range_offset = NGX_CONF_UNSET;
      conf->upstream.cache_bypass = NGX_CONF_UNSET_PTR;
      conf->upstream.no_cache = NGX_CONF_UNSET_PTR;
-@@ -1334,6 +1467,13 @@ ngx_http_scgi_create_loc_conf(ngx_conf_t *cf)
+@@ -1326,6 +1468,9 @@ ngx_http_scgi_create_loc_conf(ngx_conf_t *cf)
+ 
+     conf->upstream.hide_headers = NGX_CONF_UNSET_PTR;
+     conf->upstream.pass_headers = NGX_CONF_UNSET_PTR;
++#if (NGX_HTTP_EXT)
++    conf->upstream.hide_cookies = NGX_CONF_UNSET_PTR;
++#endif
+ 
+     conf->upstream.intercept_errors = NGX_CONF_UNSET;
+ 
+@@ -1334,6 +1479,13 @@ ngx_http_scgi_create_loc_conf(ngx_conf_t *cf)
  
      conf->upstream.change_buffering = 1;
  
@@ -4220,7 +5098,7 @@ index f818fc4..89e5ebc 100644
      ngx_str_set(&conf->upstream.module, "scgi");
  
      return conf;
-@@ -1351,6 +1491,12 @@ ngx_http_scgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -1351,6 +1503,12 @@ ngx_http_scgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      ngx_hash_init_t               hash;
      ngx_http_core_loc_conf_t     *clcf;
  
@@ -4233,7 +5111,7 @@ index f818fc4..89e5ebc 100644
  #if (NGX_HTTP_CACHE)
  
      if (conf->upstream.store > 0) {
-@@ -1416,6 +1562,15 @@ ngx_http_scgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -1416,6 +1574,15 @@ ngx_http_scgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      ngx_conf_merge_ptr_value(conf->upstream.limit_rate,
                                prev->upstream.limit_rate, NULL);
  
@@ -4249,7 +5127,7 @@ index f818fc4..89e5ebc 100644
  
      ngx_conf_merge_bufs_value(conf->upstream.bufs, prev->upstream.bufs,
                                8, ngx_pagesize);
-@@ -1513,6 +1668,13 @@ ngx_http_scgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -1513,6 +1680,13 @@ ngx_http_scgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
                                   prev->upstream.ignore_headers,
                                   NGX_CONF_BITMASK_SET);
  
@@ -4263,7 +5141,7 @@ index f818fc4..89e5ebc 100644
  
      ngx_conf_merge_bitmask_value(conf->upstream.next_upstream,
                                   prev->upstream.next_upstream,
-@@ -1555,9 +1717,26 @@ ngx_http_scgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -1555,9 +1729,26 @@ ngx_http_scgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
          return NGX_CONF_ERROR;
      }
  
@@ -4290,7 +5168,7 @@ index f818fc4..89e5ebc 100644
      ngx_conf_merge_off_value(conf->upstream.cache_max_range_offset,
                                prev->upstream.cache_max_range_offset,
                                NGX_MAX_OFF_T_VALUE);
-@@ -1576,6 +1755,26 @@ ngx_http_scgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -1576,6 +1767,26 @@ ngx_http_scgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
          conf->upstream.cache_use_stale |= NGX_HTTP_UPSTREAM_FT_NOLIVE;
      }
  
@@ -4317,7 +5195,7 @@ index f818fc4..89e5ebc 100644
      if (conf->upstream.cache_methods == 0) {
          conf->upstream.cache_methods = prev->upstream.cache_methods;
      }
-@@ -1588,6 +1787,20 @@ ngx_http_scgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -1588,6 +1799,20 @@ ngx_http_scgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      ngx_conf_merge_ptr_value(conf->upstream.no_cache,
                               prev->upstream.no_cache, NULL);
  
@@ -4338,7 +5216,19 @@ index f818fc4..89e5ebc 100644
      ngx_conf_merge_ptr_value(conf->upstream.cache_valid,
                               prev->upstream.cache_valid, NULL);
  
-@@ -1658,6 +1871,57 @@ ngx_http_scgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -1636,6 +1861,11 @@ ngx_http_scgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+         return NGX_CONF_ERROR;
+     }
+ 
++#if (NGX_HTTP_EXT)
++    ngx_conf_merge_ptr_value(conf->upstream.hide_cookies,
++                                prev->upstream.hide_cookies, NULL);
++#endif
++
+     clcf = ngx_http_conf_get_module_loc_conf(cf, ngx_http_core_module);
+ 
+     if (clcf->noname
+@@ -1658,6 +1888,57 @@ ngx_http_scgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
          conf->params_cache = prev->params_cache;
  #endif
          conf->params_source = prev->params_source;
@@ -4901,7 +5791,7 @@ index 456bb27..ae49243 100644
                               &prev->types_keys, &prev->types,
                               ngx_http_html_default_types)
 diff --git a/src/http/modules/ngx_http_uwsgi_module.c b/src/http/modules/ngx_http_uwsgi_module.c
-index c965d4b..38575bb 100644
+index c965d4b..1b6cf0d 100644
 --- a/src/http/modules/ngx_http_uwsgi_module.c
 +++ b/src/http/modules/ngx_http_uwsgi_module.c
 @@ -42,6 +42,13 @@ typedef struct {
@@ -5034,17 +5924,25 @@ index c965d4b..38575bb 100644
      { ngx_string("uwsgi_string"),
        NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
        ngx_conf_set_str_slot,
-@@ -480,6 +568,29 @@ static ngx_command_t ngx_http_uwsgi_commands[] = {
+@@ -480,6 +568,38 @@ static ngx_command_t ngx_http_uwsgi_commands[] = {
        offsetof(ngx_http_uwsgi_loc_conf_t, upstream.ignore_headers),
        &ngx_http_upstream_ignore_headers_masks },
  
 +#if (NGX_HTTP_EXT)
++
 +    { ngx_string("uwsgi_ignore_cache_control"),
 +      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_1MORE,
 +      ngx_conf_set_bitmask_slot,
 +      NGX_HTTP_LOC_CONF_OFFSET,
 +      offsetof(ngx_http_uwsgi_loc_conf_t, upstream.ignore_cache_control),
 +      &ngx_http_upstream_ignore_cache_control_masks },
++
++    { ngx_string("uwsgi_hide_cookie"),
++      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
++      ngx_conf_set_str_array_slot,
++      NGX_HTTP_LOC_CONF_OFFSET,
++      offsetof(ngx_http_uwsgi_loc_conf_t, upstream.hide_cookies),
++      NULL },
 +
 +    { ngx_string("uwsgi_sndbuf_size"),
 +      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
@@ -5059,12 +5957,13 @@ index c965d4b..38575bb 100644
 +      NGX_HTTP_LOC_CONF_OFFSET,
 +      offsetof(ngx_http_uwsgi_loc_conf_t, rcvbuf),
 +      NULL },
++
 +#endif
 +
  #if (NGX_HTTP_SSL)
  
      { ngx_string("uwsgi_ssl_session_reuse"),
-@@ -708,6 +819,16 @@ ngx_http_uwsgi_handler(ngx_http_request_t *r)
+@@ -708,6 +828,16 @@ ngx_http_uwsgi_handler(ngx_http_request_t *r)
  
      u->buffering = uwcf->upstream.buffering;
  
@@ -5081,7 +5980,7 @@ index c965d4b..38575bb 100644
      u->pipe = ngx_pcalloc(r->pool, sizeof(ngx_event_pipe_t));
      if (u->pipe == NULL) {
          return NGX_HTTP_INTERNAL_SERVER_ERROR;
-@@ -1543,7 +1664,19 @@ ngx_http_uwsgi_create_loc_conf(ngx_conf_t *cf)
+@@ -1543,7 +1673,19 @@ ngx_http_uwsgi_create_loc_conf(ngx_conf_t *cf)
  
  #if (NGX_HTTP_CACHE)
      conf->upstream.cache = NGX_CONF_UNSET;
@@ -5101,7 +6000,17 @@ index c965d4b..38575bb 100644
      conf->upstream.cache_max_range_offset = NGX_CONF_UNSET;
      conf->upstream.cache_bypass = NGX_CONF_UNSET_PTR;
      conf->upstream.no_cache = NGX_CONF_UNSET_PTR;
-@@ -1577,6 +1710,13 @@ ngx_http_uwsgi_create_loc_conf(ngx_conf_t *cf)
+@@ -1557,6 +1699,9 @@ ngx_http_uwsgi_create_loc_conf(ngx_conf_t *cf)
+ 
+     conf->upstream.hide_headers = NGX_CONF_UNSET_PTR;
+     conf->upstream.pass_headers = NGX_CONF_UNSET_PTR;
++#if (NGX_HTTP_EXT)
++    conf->upstream.hide_cookies = NGX_CONF_UNSET_PTR;
++#endif
+ 
+     conf->upstream.intercept_errors = NGX_CONF_UNSET;
+ 
+@@ -1577,6 +1722,13 @@ ngx_http_uwsgi_create_loc_conf(ngx_conf_t *cf)
  
      conf->upstream.change_buffering = 1;
  
@@ -5115,7 +6024,7 @@ index c965d4b..38575bb 100644
      ngx_str_set(&conf->upstream.module, "uwsgi");
  
      return conf;
-@@ -1594,6 +1734,12 @@ ngx_http_uwsgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -1594,6 +1746,12 @@ ngx_http_uwsgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      ngx_hash_init_t               hash;
      ngx_http_core_loc_conf_t     *clcf;
  
@@ -5128,7 +6037,7 @@ index c965d4b..38575bb 100644
  #if (NGX_HTTP_CACHE)
  
      if (conf->upstream.store > 0) {
-@@ -1659,6 +1805,15 @@ ngx_http_uwsgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -1659,6 +1817,15 @@ ngx_http_uwsgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      ngx_conf_merge_ptr_value(conf->upstream.limit_rate,
                                prev->upstream.limit_rate, NULL);
  
@@ -5144,7 +6053,7 @@ index c965d4b..38575bb 100644
  
      ngx_conf_merge_bufs_value(conf->upstream.bufs, prev->upstream.bufs,
                                8, ngx_pagesize);
-@@ -1756,6 +1911,13 @@ ngx_http_uwsgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -1756,6 +1923,13 @@ ngx_http_uwsgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
                                   prev->upstream.ignore_headers,
                                   NGX_CONF_BITMASK_SET);
  
@@ -5158,7 +6067,7 @@ index c965d4b..38575bb 100644
  
      ngx_conf_merge_bitmask_value(conf->upstream.next_upstream,
                                   prev->upstream.next_upstream,
-@@ -1798,9 +1960,26 @@ ngx_http_uwsgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -1798,9 +1972,26 @@ ngx_http_uwsgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
          return NGX_CONF_ERROR;
      }
  
@@ -5185,7 +6094,7 @@ index c965d4b..38575bb 100644
      ngx_conf_merge_off_value(conf->upstream.cache_max_range_offset,
                                prev->upstream.cache_max_range_offset,
                                NGX_MAX_OFF_T_VALUE);
-@@ -1819,6 +1998,27 @@ ngx_http_uwsgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -1819,6 +2010,27 @@ ngx_http_uwsgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
          conf->upstream.cache_use_stale |= NGX_HTTP_UPSTREAM_FT_NOLIVE;
      }
  
@@ -5213,7 +6122,7 @@ index c965d4b..38575bb 100644
      if (conf->upstream.cache_methods == 0) {
          conf->upstream.cache_methods = prev->upstream.cache_methods;
      }
-@@ -1831,6 +2031,20 @@ ngx_http_uwsgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -1831,6 +2043,20 @@ ngx_http_uwsgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      ngx_conf_merge_ptr_value(conf->upstream.no_cache,
                               prev->upstream.no_cache, NULL);
  
@@ -5234,7 +6143,19 @@ index c965d4b..38575bb 100644
      ngx_conf_merge_ptr_value(conf->upstream.cache_valid,
                               prev->upstream.cache_valid, NULL);
  
-@@ -1956,6 +2170,57 @@ ngx_http_uwsgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -1926,6 +2152,11 @@ ngx_http_uwsgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+         return NGX_CONF_ERROR;
+     }
+ 
++#if (NGX_HTTP_EXT)
++    ngx_conf_merge_ptr_value(conf->upstream.hide_cookies,
++                                prev->upstream.hide_cookies, NULL);
++#endif
++
+     clcf = ngx_http_conf_get_module_loc_conf(cf, ngx_http_core_module);
+ 
+     if (clcf->noname
+@@ -1956,6 +2187,57 @@ ngx_http_uwsgi_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
          conf->params_cache = prev->params_cache;
  #endif
          conf->params_source = prev->params_source;
@@ -8118,7 +9039,7 @@ index b5db811..4aa8297 100644
 +#endif
 \ No newline at end of file
 diff --git a/src/http/ngx_http_upstream.c b/src/http/ngx_http_upstream.c
-index d04d91e..75d9292 100644
+index d04d91e..3f188a6 100644
 --- a/src/http/ngx_http_upstream.c
 +++ b/src/http/ngx_http_upstream.c
 @@ -21,6 +21,12 @@ static ngx_int_t ngx_http_upstream_cache_background_update(
@@ -8730,7 +9651,57 @@ index d04d91e..75d9292 100644
  static ngx_int_t
  ngx_http_upstream_process_accel_expires(ngx_http_request_t *r,
      ngx_table_elt_t *h, ngx_uint_t offset)
-@@ -5959,6 +6320,14 @@ ngx_http_upstream_cookie_variable(ngx_http_request_t *r,
+@@ -5540,9 +5901,49 @@ static ngx_int_t
+ ngx_http_upstream_rewrite_set_cookie(ngx_http_request_t *r, ngx_table_elt_t *h,
+     ngx_uint_t offset)
+ {
++#if (NGX_HTTP_EXT)
++    ngx_http_upstream_t  *u;
++    ngx_str_t            *hide_cookie;
++    ngx_uint_t            i;
++    u_char               *start, *p;
++    size_t                len;
++#endif
+     ngx_int_t         rc;
+     ngx_table_elt_t  *ho;
+ 
++#if (NGX_HTTP_EXT)
++    u = r->upstream;
++
++    if (u->conf->hide_cookies) {
++        start = h->value.data;
++        p = (u_char *) ngx_strlchr(start, h->value.data + h->value.len, ';');
++        if (p == NULL) {
++            p = start + h->value.len;
++        }
++
++        p = (u_char *) ngx_strlchr(start, p, '=');
++        if (p == NULL) {
++            p = start; /* empty cookie name */
++        }
++
++        while (start < p && *start == ' ') { start++; }
++
++        len = p - start;
++        while (len && *(start + len - 1) == ' ') { len--; }
++
++        hide_cookie = u->conf->hide_cookies->elts;
++        for (i = 0; i < u->conf->hide_cookies->nelts; i++) {
++
++            if (hide_cookie[i].len == len
++                && ngx_strncasecmp(start, hide_cookie[i].data, len)
++                    == 0)
++            {
++                return NGX_OK;
++            }
++        }
++    }
++#endif
++
+     ho = ngx_list_push(&r->headers_out.headers);
+     if (ho == NULL) {
+         return NGX_ERROR;
+@@ -5959,6 +6360,14 @@ ngx_http_upstream_cookie_variable(ngx_http_request_t *r,
      s.len = name->len - (sizeof("upstream_cookie_") - 1);
      s.data = name->data + sizeof("upstream_cookie_") - 1;
  
@@ -8745,7 +9716,7 @@ index d04d91e..75d9292 100644
      if (ngx_http_parse_set_cookie_lines(r, r->upstream->headers_in.set_cookie,
                                          &s, &cookie)
          == NULL)
-@@ -5966,6 +6335,7 @@ ngx_http_upstream_cookie_variable(ngx_http_request_t *r,
+@@ -5966,6 +6375,7 @@ ngx_http_upstream_cookie_variable(ngx_http_request_t *r,
          v->not_found = 1;
          return NGX_OK;
      }
@@ -8754,7 +9725,7 @@ index d04d91e..75d9292 100644
      v->len = cookie.len;
      v->valid = 1;
 diff --git a/src/http/ngx_http_upstream.h b/src/http/ngx_http_upstream.h
-index f6621af..1195150 100644
+index f6621af..74d2f90 100644
 --- a/src/http/ngx_http_upstream.h
 +++ b/src/http/ngx_http_upstream.h
 @@ -54,6 +54,18 @@
@@ -8805,7 +9776,17 @@ index f6621af..1195150 100644
      ngx_uint_t                       next_upstream;
      ngx_uint_t                       store_access;
      ngx_uint_t                       next_upstream_tries;
-@@ -195,10 +222,24 @@ typedef struct {
+@@ -187,6 +214,9 @@ typedef struct {
+     ngx_hash_t                       hide_headers_hash;
+     ngx_array_t                     *hide_headers;
+     ngx_array_t                     *pass_headers;
++#if (NGX_HTTP_EXT)
++    ngx_array_t                     *hide_cookies;
++#endif
+ 
+     ngx_http_upstream_local_t       *local;
+     ngx_flag_t                       socket_keepalive;
+@@ -195,10 +225,24 @@ typedef struct {
      ngx_shm_zone_t                  *cache_zone;
      ngx_http_complex_value_t        *cache_value;
  
@@ -8830,7 +9811,7 @@ index f6621af..1195150 100644
      off_t                            cache_max_range_offset;
  
      ngx_flag_t                       cache_lock;
-@@ -213,6 +254,11 @@ typedef struct {
+@@ -213,6 +257,11 @@ typedef struct {
      ngx_array_t                     *cache_bypass;
      ngx_array_t                     *cache_purge;
      ngx_array_t                     *no_cache;
@@ -8842,7 +9823,7 @@ index f6621af..1195150 100644
  #endif
  
      ngx_array_t                     *store_lengths;
-@@ -286,6 +332,9 @@ typedef struct {
+@@ -286,6 +335,9 @@ typedef struct {
      ngx_table_elt_t                 *vary;
  
      ngx_table_elt_t                 *cache_control;
@@ -8852,7 +9833,7 @@ index f6621af..1195150 100644
      ngx_table_elt_t                 *set_cookie;
  
      off_t                            content_length_n;
-@@ -381,6 +430,10 @@ struct ngx_http_upstream_s {
+@@ -381,6 +433,10 @@ struct ngx_http_upstream_s {
      ngx_str_t                        schema;
      ngx_str_t                        uri;
  
@@ -8863,7 +9844,7 @@ index f6621af..1195150 100644
  #if (NGX_HTTP_SSL || NGX_COMPAT)
      ngx_str_t                        ssl_name;
  #endif
-@@ -442,6 +495,9 @@ ngx_int_t ngx_http_upstream_hide_headers_hash(ngx_conf_t *cf,
+@@ -442,6 +498,9 @@ ngx_int_t ngx_http_upstream_hide_headers_hash(ngx_conf_t *cf,
  extern ngx_module_t        ngx_http_upstream_module;
  extern ngx_conf_bitmask_t  ngx_http_upstream_cache_method_mask[];
  extern ngx_conf_bitmask_t  ngx_http_upstream_ignore_headers_masks[];
