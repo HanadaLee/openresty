@@ -550,7 +550,7 @@ The `cookie` can also be specified using regular expressions.
 proxy_cookie_value ~session_.* 1234567890 abcdefghij;
 ```
 
-The `cookie_value` can also be specified using regular expressions. In this case, `cookie_value` should either start from the "~" symbol for a case-sensitive matching, or from the "~*" symbols for case-insensitive matching. The regular expression can contain named and positional captures, and `replacement` can reference them:
+The `cookie_value` can also be specified using regular expressions. In this case, `cookie_value` should either start from the "\~" symbol for a case-sensitive matching, or from the "\~*" symbols for case-insensitive matching. The regular expression can contain named and positional captures, and `replacement` can reference them:
 ```
 proxy_cookie_value sessionid ~(\d+) abcdefghij$1;
 ```
