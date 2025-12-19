@@ -50,7 +50,7 @@ ARG RESTY_ZLIB_URL_BASE="https://zlib.net/fossils"
 ARG RESTY_ZLIB_VERSION="1.3.1"
 ARG RESTY_ZSTD_VERSION="1.5.7"
 ARG RESTY_LIBATOMIC_VERSION="7.8.2"
-ARG RESTY_LIBVIPS_VERSION="8.16.1"
+ARG RESTY_LIBVIPS_VERSION="8.18.0"
 ARG RESTY_OWSAP_CRS_VERSION="4.14.0"
 ARG RESTY_PATH_OPTIONS="\
     --prefix=/usr/local/openresty \
@@ -212,26 +212,16 @@ RUN groupmod -n nginx www-data \
         libwebpdemux2 \
         libexif12 \
         libexif-dev \
-        librsvg2-2 \
-        librsvg2-dev \
         libcgif0 \
         libcgif-dev \
-        libarchive13 \
-        libarchive-dev \
         libfftw3-dev \
         libfftw3-double3 \
         liblcms2-2 \
         liblcms2-dev \
-        libspng0 \
-        libspng-dev \
         libimagequant0 \
         libimagequant-dev \
         liborc-0.4-0 \
         liborc-0.4-dev \
-        libcfitsio10 \
-        libcfitsio-dev \
-        libopenexr-3-1-30 \
-        libopenexr-dev \
         libopenjp2-7 \
         libopenjp2-7-dev \
         libjxl0.7 \
@@ -373,9 +363,9 @@ RUN groupmod -n nginx www-data \
     && cd ngx_http_weserv_module \
     && mkdir build \
     && cd build \
-    && cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOLS=ON -DINSTALL_NGX_MODULE=OFF \
-    && make -j${RESTY_J} \
-    && make install \
+    && meson setup build --prefix=/usr -Dcli=true \
+    && meson compile -C build \
+    && meson install -C build \
     && cd /build/modules \
     && git clone --depth=10 --branch current https://${RESTY_GIT_MIRROR}/ADD-SP/ngx_waf.git ngx_http_waf_module \
     && cd ngx_http_waf_module \
@@ -568,15 +558,10 @@ RUN groupmod -n nginx www-data \
         libopenjp2-7-dev \
         libjxl-dev \
         libimagequant-dev \
-        libarchive-dev \
-        librsvg2-dev \
-        libopenexr-dev \
-        libcfitsio-dev \
         libcgif-dev \
         libexif-dev \
         liborc-0.4-dev \
         libfftw3-dev \
-        libspng-dev \
         libreadline-dev \
         libxslt1-dev \
         libperl-dev \
