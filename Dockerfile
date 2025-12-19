@@ -361,8 +361,6 @@ RUN groupmod -n nginx www-data \
     && cd /build/modules \
     && git clone --depth=10 --recurse-submodules https://${RESTY_GIT_MIRROR}/weserv/images.git ngx_http_weserv_module \
     && cd ngx_http_weserv_module \
-    && mkdir build \
-    && cd build \
     && meson setup build --prefix=/usr -Dcli=true \
     && meson compile -C build \
     && meson install -C build \
