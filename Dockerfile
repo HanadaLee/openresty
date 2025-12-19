@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.27.1.2"
-ARG RESTY_RELEASE="242"
+ARG RESTY_RELEASE="243"
 ARG RESTY_LUAROCKS_VERSION="3.12.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.12.2"
@@ -94,6 +94,7 @@ ARG RESTY_CONFIG_OPTIONS_MORE="\
     --add-module=/build/modules/ngx_lua_events_module \
     --add-module=/build/modules/ngx_lua_resty_lmdb_module \
     --add-module=/build/modules/ngx_http_access_control_module \
+    --add-module=/build/modules/ngx_http_acme_module \
     --add-module=/build/modules/ngx_http_auth_akamai_g2o_module \
     --add-module=/build/modules/ngx_http_auth_hash_module \
     --add-module=/build/modules/ngx_http_auth_hmac_module \
@@ -205,7 +206,6 @@ RUN groupmod -n nginx www-data \
         libtool \
         pkgconf \
         cmake \
-        cargo \
         libglib2.0-0 \
         libglib2.0-dev \
         libwebpmux3 \
@@ -346,6 +346,9 @@ RUN groupmod -n nginx www-data \
     && make install \
     && mkdir /usr/include/uap-cpp \
     && cp /build/lib/uap-cpp/UaParser /usr/include/uap-cpp \
+    && cd /build/lib \
+    && curl -sSf https://sh.rustup.rs | sh -s -- -y \
+    && . $HOME/.cargo/env \
     && cd /build/modules \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/google/ngx_brotli.git ngx_http_brotli_module \
     && cd ngx_http_brotli_module \
@@ -361,7 +364,7 @@ RUN groupmod -n nginx www-data \
     && cd /build/modules \
     && git clone --depth=10 --recurse-submodules https://${RESTY_GIT_MIRROR}/weserv/images.git ngx_http_weserv_module \
     && cd ngx_http_weserv_module \
-    && meson setup build --prefix=/usr -Dcli=true \
+    && meson setup build --prefix=/usr \
     && meson compile -C build \
     && meson install -C build \
     && cd /build/modules \
@@ -416,6 +419,7 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_ua_parser_module.git ngx_http_ua_parser_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_backtrace_module.git ngx_backtrace_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/vozlt/nginx-module-sysguard.git ngx_http_sysguard_module \
+    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/nginx/nginx-acme.git ngx_http_acme_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_qrcode_module.git ngx_http_qrcode_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/Kong/lua-resty-events.git ngx_lua_events_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/Kong/lua-resty-lmdb.git ngx_lua_resty_lmdb_module \
@@ -538,6 +542,7 @@ RUN groupmod -n nginx www-data \
     && mv crs-setup.conf.example crs-setup.conf \
     && mv rules/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf.example rules/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf \
     && mv rules/RESPONSE-999-EXCLUSION-RULES-AFTER-CRS.conf.example rules/RESPONSE-999-EXCLUSION-RULES-AFTER-CRS.conf \
+    && rustup self uninstall -y \
     && apt-get purge -y \
         libgd-dev \
         make \
@@ -546,7 +551,6 @@ RUN groupmod -n nginx www-data \
         libtool \
         pkgconf \
         cmake \
-        cargo \
         git \
         wget \
         unzip \
@@ -593,7 +597,6 @@ RUN groupmod -n nginx www-data \
     && rm -rf /build \
     && cd /usr/local/openresty \
     && rm -rf pod site resty.index bin/md2pod.pl bin/nginx-xml2pod bin/restydoc bin/restydoc-index \
-    && rm -rf /root/.cargo \
     && rm -rf /var/lib/apt/lists/* \
     && rm -rf /usr/include/uap-cpp \
     && rm -rf /usr/local/lib/* \
