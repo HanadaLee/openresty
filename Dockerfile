@@ -251,6 +251,7 @@ RUN groupmod -n nginx www-data \
         libre2-9 \
         libre2-dev \
         libgtest-dev \
+        libclang-dev \
     && ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && dpkg-reconfigure -f noninteractive tzdata \
     && mkdir -p /build/lib /build/patches /build/modules /build/lualib \
