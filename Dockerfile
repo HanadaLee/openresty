@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.27.1.2"
-ARG RESTY_RELEASE="240"
+ARG RESTY_RELEASE="242"
 ARG RESTY_LUAROCKS_VERSION="3.12.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.12.2"
@@ -425,7 +425,7 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_proxy_var_set_module.git ngx_http_proxy_var_set_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_label_module.git ngx_http_label_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_request_cookies_filter_module.git ngx_http_request_cookies_filter_module \
-    && git clone --depth=10 https://git.hanada.info/hanada/ngx_http_ua_parser_module.git ngx_http_ua_parser_module \
+    && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_ua_parser_module.git ngx_http_ua_parser_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_backtrace_module.git ngx_backtrace_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/vozlt/nginx-module-sysguard.git ngx_http_sysguard_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_qrcode_module.git ngx_http_qrcode_module \
@@ -604,6 +604,7 @@ RUN groupmod -n nginx www-data \
         libqrencode-dev \
         libre2-dev \
         libgtest-dev \
+        libclang-dev \
     && DEBIAN_FRONTEND=noninteractive apt-get autoremove -y \
     && DEBIAN_FRONTEND=noninteractive apt-get clean -y \
     && rm -rf /build \
