@@ -500,6 +500,12 @@ RUN groupmod -n nginx www-data \
     && cp -r lua-resty-maxminddb/lib/resty/* /usr/local/openresty/lualib/resty \
     && cp -r lua-resty-multipart-parser/lib/resty/* /usr/local/openresty/lualib/resty \
     && cp -r lua-resty-balancer/lib/resty/* /usr/local/openresty/lualib/resty \
+    && git clone https://${RESTY_GIT_MIRROR}/HanadaLee/lua-lolhtml.git \
+    && cd lua-lolhtml \
+    && sed -i "s|github.com|${RESTY_GIT_MIRROR}|g" .gitmodules \
+    && git submodule update --init \
+    && make -j${RESTY_J} CFLAGS="-O2 -fPIC -I/usr/local/openresty/luajit/include/luajit-2.1" \
+    && cp lolhtml.so /usr/local/openresty/lualib \
     && /usr/local/openresty/luajit/bin/luarocks install binaryheap \
     && /usr/local/openresty/luajit/bin/luarocks install luafilesystem \
     && /usr/local/openresty/luajit/bin/luarocks install penlight \
@@ -530,7 +536,6 @@ RUN groupmod -n nginx www-data \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-expr \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-redis-connector \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-timer-ng \
-    && /usr/local/openresty/luajit/bin/luarocks install --server=https://luarocks.org/dev lolhtml \
     && cd /usr/local/openresty/share \
     && mkdir -p uap-core \
     && cp /build/lib/uap-cpp/uap-core/regexes.yaml uap-core \
