@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.27.1.2"
-ARG RESTY_RELEASE="244"
+ARG RESTY_RELEASE="245"
 ARG RESTY_LUAROCKS_VERSION="3.12.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.12.2"
@@ -431,7 +431,6 @@ RUN groupmod -n nginx www-data \
     && mv tengine/modules/ngx_http_trim_filter_module ngx_http_trim_filter_module \
     && rm -rf tengine \
     && cd /build/lualib \
-    && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/lua-resty-maxminddb.git lua-resty-maxminddb \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/agentzh/lua-resty-multipart-parser.git lua-resty-multipart-parser \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/openresty/lua-resty-balancer.git lua-resty-balancer \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/Kong/kong.git kong \
@@ -498,7 +497,6 @@ RUN groupmod -n nginx www-data \
     && cp -r ngx_lua_resty_lmdb_module/lib/resty/*.lua /usr/local/openresty/lualib/resty \
     && cp -r ngx_lua_resty_lmdb_module/lib/resty/lmdb/*.lua /usr/local/openresty/lualib/resty/lmdb \
     && cd /build/lualib \
-    && cp -r lua-resty-maxminddb/lib/resty/* /usr/local/openresty/lualib/resty \
     && cp -r lua-resty-multipart-parser/lib/resty/* /usr/local/openresty/lualib/resty \
     && cp -r lua-resty-balancer/lib/resty/* /usr/local/openresty/lualib/resty \
     && git clone https://${RESTY_GIT_MIRROR}/HanadaLee/lua-lolhtml.git \
@@ -537,6 +535,7 @@ RUN groupmod -n nginx www-data \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-expr \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-redis-connector \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-timer-ng \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-maxminddb \
     && cd /usr/local/openresty/share \
     && mkdir -p uap-core \
     && cp /build/lib/uap-cpp/uap-core/regexes.yaml uap-core \
