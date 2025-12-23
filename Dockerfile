@@ -422,12 +422,6 @@ RUN groupmod -n nginx www-data \
     && rm -rf tengine \
     && cd /build/lualib \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/agentzh/lua-resty-multipart-parser.git lua-resty-multipart-parser \
-    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/openresty/lua-resty-balancer.git lua-resty-balancer \
-    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/Kong/kong.git kong \
-    && cd lua-resty-balancer \
-    && git checkout v0.05 \
-    && make -j${RESTY_J} \
-    && make install \
     && cd /build \
     && curl -fSL https://nexus.hanada.info/repository/raw-releases/openresty/src/openresty-${RESTY_VERSION}.tar.gz -o openresty-${RESTY_VERSION}.tar.gz \
     && tar xzf openresty-${RESTY_VERSION}.tar.gz \
@@ -480,7 +474,6 @@ RUN groupmod -n nginx www-data \
     && cp -r ngx_lua_resty_lmdb_module/lib/resty/lmdb/*.lua /usr/local/openresty/lualib/resty/lmdb \
     && cd /build/lualib \
     && cp -r lua-resty-multipart-parser/lib/resty/* /usr/local/openresty/lualib/resty \
-    && cp -r lua-resty-balancer/lib/resty/* /usr/local/openresty/lualib/resty \
     && git clone https://${RESTY_GIT_MIRROR}/HanadaLee/lua-lolhtml.git \
     && cd lua-lolhtml \
     && sed -i "s|github.com|${RESTY_GIT_MIRROR}|g" .gitmodules \
