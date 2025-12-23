@@ -11,16 +11,14 @@ ARG RESTY_IMAGE_TAG="bookworm-slim"
 ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
-ARG RESTY_VERSION="1.27.1.2"
-ARG RESTY_RELEASE="245"
+ARG RESTY_VERSION="1.29.2.1"
+ARG RESTY_RELEASE="246"
 ARG RESTY_LUAROCKS_VERSION="3.12.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.12.2"
-ARG RESTY_OPENSSL_FORK="quictls"
-ARG RESTY_OPENSSL_VERSION="1.1.1w-quic1"
-ARG RESTY_OPENSSL_PATCH_VERSION="1.1.1f"
+ARG RESTY_OPENSSL_VERSION="3.5.4"
+ARG RESTY_OPENSSL_PATCH_VERSION="3.5.4"
 ARG RESTY_OPENSSL_BUILD_OPTIONS="\
-    no-threads \
     shared \
     zlib \
     -g \
@@ -33,9 +31,11 @@ ARG RESTY_OPENSSL_BUILD_OPTIONS="\
     enable-weak-ssl-ciphers \
     enable-ssl3 \
     enable-ssl3-method \
+    enable-md2 \
+    enable-ktls \
+    enable-fips \
 "
 ARG RESTY_PCRE_URL_BASE="https://downloads.sourceforge.net/project/pcre/pcre"
-ARG RESTY_PCRE_LIBRARY="PCRE"
 ARG RESTY_PCRE_VERSION="8.45"
 ARG RESTY_PCRE_BUILD_OPTIONS="\
     --enable-jit \
@@ -45,7 +45,6 @@ ARG RESTY_PCRE_BUILD_OPTIONS="\
     --enable-unicode-properties \
     --with-match-limit=200000 \
 "
-ARG RESTY_PCRE_OPTIONS="--with-pcre-jit"
 ARG RESTY_ZLIB_URL_BASE="https://zlib.net/fossils"
 ARG RESTY_ZLIB_VERSION="1.3.1"
 ARG RESTY_ZSTD_VERSION="1.5.7"
@@ -141,7 +140,8 @@ ARG RESTY_CONFIG_OPTIONS_MORE="\
     --add-module=/build/modules/ngx_http_weserv_module \
     --add-module=/build/modules/ngx_http_zstd_module \
 "
-ARG _RESTY_CONFIG_DEPS="\
+ARG RESTY_LUAJIT_OPTIONS="--with-luajit-xcflags='-DLUAJIT_NUMMODE=2 -DLUAJIT_ENABLE_LUA52COMPAT'"
+ARG RESTY_CONFIG_DEPS="--with-pcre --with-pcre-jit --with-libatomic \
     --with-cc-opt='-DNGX_LUA_ABORT_AT_PANIC -Wp,-D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIC' \
     --with-ld-opt='-Wl,-rpath,/usr/local/openresty/lib/ -Wl,-Bsymbolic-functions -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-whole-archive -Wl,--gc-sections -pie -ljemalloc -Wl,-Bdynamic -lm -lstdc++ -pthread -ldl -Wl,-E' \
 "
@@ -153,8 +153,6 @@ LABEL resty_release="${RESTY_RELEASE}"
 LABEL resty_luarocks_version="${RESTY_LUAROCKS_VERSION}"
 LABEL resty_openssl_patch_version="${RESTY_OPENSSL_PATCH_VERSION}"
 LABEL resty_openssl_version="${RESTY_OPENSSL_VERSION}"
-LABEL resty_openssl_fork="${RESTY_OPENSSL_FORK}"
-LABEL resty_pcre_library="${RESTY_PCRE_LIBRARY}"
 LABEL resty_pcre_version="${RESTY_PCRE_VERSION}"
 LABEL resty_libatomic_version="${RESTY_LIBATOMIC_VERSION}"
 LABEL resty_zlib_version="${RESTY_ZLIB_VERSION}"
@@ -287,25 +285,17 @@ RUN groupmod -n nginx www-data \
     && make -j${RESTY_J} \
     && make install \
     && cd /build/lib \
-    && openssl_version_path=`echo -n ${RESTY_OPENSSL_VERSION} | sed 's/\./_/g'` \
-    && curl -fSL https://${RESTY_GIT_MIRROR}/quictls/openssl/archive/refs/tags/OpenSSL_${openssl_version_path}.tar.gz -o OpenSSL_${openssl_version_path}.tar.gz \
-    && tar xzf OpenSSL_${openssl_version_path}.tar.gz \
-    && mv openssl-OpenSSL_${openssl_version_path} openssl-${RESTY_OPENSSL_VERSION} \
+    && curl -fSL https://${RESTY_GIT_MIRROR}/openssl/openssl/releases/download/openssl-${RESTY_OPENSSL_VERSION}/openssl-${RESTY_OPENSSL_VERSION}.tar.gz -o openssl-${RESTY_OPENSSL_VERSION}.tar.gz \
+    && tar xzf openssl-${RESTY_OPENSSL_VERSION}.tar.gz \
     && cd openssl-${RESTY_OPENSSL_VERSION} \
-    && if [ $(echo ${RESTY_OPENSSL_VERSION} | cut -c 1-5) = "1.1.1" ] ; then \
-        echo 'patching OpenSSL 1.1.1 for OpenResty' \
-        && curl -fSL https://raw.githubusercontent.com/openresty/openresty/master/patches/openssl-${RESTY_OPENSSL_PATCH_VERSION}-sess_set_get_cb_yield.patch | patch -p1 ; \
-    fi \
-    && if [ $(echo ${RESTY_OPENSSL_VERSION} | cut -c 1-5) = "1.1.0" ] ; then \
-        echo 'patching OpenSSL 1.1.0 for OpenResty' \
-        && curl -fSL https://raw.githubusercontent.com/openresty/openresty/ed328977028c3ec3033bc25873ee360056e247cd/patches/openssl-1.1.0j-parallel_build_fix.patch | patch -p1 \
-        && curl -fSL https://raw.githubusercontent.com/openresty/openresty/master/patches/openssl-${RESTY_OPENSSL_PATCH_VERSION}-sess_set_get_cb_yield.patch | patch -p1 ; \
+    && if [ $(echo ${RESTY_OPENSSL_VERSION} | cut -c 1-2) = "3." ] ; then \
+        echo 'patching OpenSSL 3.x for OpenResty' \
+        && curl -s https://raw.githubusercontent.com/openresty/openresty/master/patches/openssl-${RESTY_OPENSSL_PATCH_VERSION}-sess_set_get_cb_yield.patch | patch -p1 ; \
     fi \
     && ./config \
         ${RESTY_OPENSSL_BUILD_OPTIONS} \
-    && make update \
     && make -j${RESTY_J} \
-    && make install_sw \
+    && make -j${RESTY_J} install_sw \
     && cd /build/lib \
     && curl -fSL ${RESTY_PCRE_URL_BASE}/${RESTY_PCRE_VERSION}/pcre-${RESTY_PCRE_VERSION}.tar.gz -o pcre-${RESTY_PCRE_VERSION}.tar.gz \
     && tar xzf pcre-${RESTY_PCRE_VERSION}.tar.gz \
@@ -439,7 +429,7 @@ RUN groupmod -n nginx www-data \
     && make -j${RESTY_J} \
     && make install \
     && cd /build \
-    && curl -fSL https://openresty.org/download/openresty-${RESTY_VERSION}.tar.gz -o openresty-${RESTY_VERSION}.tar.gz \
+    && curl -fSL https://nexus.hanada.info/repository/raw-releases/openresty/src/openresty-${RESTY_VERSION}.tar.gz -o openresty-${RESTY_VERSION}.tar.gz \
     && tar xzf openresty-${RESTY_VERSION}.tar.gz \
     && cd openresty-${RESTY_VERSION} \
     && patch -p1 < /build/patches/openresty/patches/openresty-fix_prefix_1.27.1.2+.patch \
@@ -454,15 +444,7 @@ RUN groupmod -n nginx www-data \
     && sed -i "s/\(openresty\/.*\)\"/\1.${RESTY_RELEASE}\"/" src/core/nginx.h \
     && cd /build/openresty-${RESTY_VERSION} \
     && export NGX_ACME_STATE_PREFIX=/usr/local/openresty/var/acme \
-    && eval ./configure \
-    ${RESTY_PATH_OPTIONS} \
-    ${RESTY_USER_OPTIONS} \
-    ${RESTY_CONFIG_OPTIONS} \
-    --with-pcre \
-    ${RESTY_PCRE_OPTIONS} \
-    --with-libatomic \
-    ${RESTY_CONFIG_OPTIONS_MORE} \
-    ${_RESTY_CONFIG_DEPS} \
+    && eval ./configure -j${RESTY_J} ${RESTY_PATH_OPTIONS} ${RESTY_USER_OPTIONS} ${RESTY_CONFIG_OPTIONS} ${RESTY_CONFIG_OPTIONS_MORE} ${RESTY_CONFIG_DEPS} \
     && make -j${RESTY_J} \
     && make install \
     && mkdir -p /usr/local/openresty/share \
