@@ -422,12 +422,17 @@ RUN groupmod -n nginx www-data \
     && rm -rf tengine \
     && cd /build/lualib \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/agentzh/lua-resty-multipart-parser.git lua-resty-multipart-parser \
+    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/openresty/lua-resty-balancer.git lua-resty-balancer \
+    && cd lua-resty-balancer \
+    && git checkout v0.05 \
+    && make -j${RESTY_J} \
+    && make install \
     && cd /build \
     && curl -fSL https://nexus.hanada.info/repository/raw-releases/openresty/src/openresty-${RESTY_VERSION}.tar.gz -o openresty-${RESTY_VERSION}.tar.gz \
     && tar xzf openresty-${RESTY_VERSION}.tar.gz \
     && cd openresty-${RESTY_VERSION} \
     && patch -p1 < /build/patches/openresty/patches/openresty-fix_prefix_1.27.1.2+.patch \
-    && cd bundle/headers-more-nginx-module-0.37 \
+    && cd bundle/headers-more-nginx-module-* \
     && patch -p1 < /build/patches/openresty/patches/ngx_http_headers_more_filter_module_0.37-ext.patch \
     && cd /build \
     && cd openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) \
@@ -474,6 +479,7 @@ RUN groupmod -n nginx www-data \
     && cp -r ngx_lua_resty_lmdb_module/lib/resty/lmdb/*.lua /usr/local/openresty/lualib/resty/lmdb \
     && cd /build/lualib \
     && cp -r lua-resty-multipart-parser/lib/resty/* /usr/local/openresty/lualib/resty \
+    && cp -r lua-resty-balancer/lib/resty/* /usr/local/openresty/lualib/resty \
     && git clone https://${RESTY_GIT_MIRROR}/HanadaLee/lua-lolhtml.git \
     && cd lua-lolhtml \
     && sed -i "s|github.com|${RESTY_GIT_MIRROR}|g" .gitmodules \

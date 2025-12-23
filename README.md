@@ -151,7 +151,7 @@ The following components are additionally bundled with OpenResty, some of which 
 * [luarocks](https://luarocks.org/)
 * [lua-resty-maxminddb](https://git.hanada.info/hanada/lua-resty-maxminddb)
 * [lua-resty-multipart-parser](https://github.com/agentzh/lua-resty-multipart-parser)
-
+* [lua-resty-balancer](https://github.com/OpenResty/lua-resty-balancer)
 
 ## Components from lualocks
 * binaryheap
