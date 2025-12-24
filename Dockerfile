@@ -12,8 +12,8 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.29.2.1"
-ARG RESTY_RELEASE="247"
-ARG RESTY_LUAROCKS_VERSION="3.12.0"
+ARG RESTY_RELEASE="248"
+ARG RESTY_LUAROCKS_VERSION="3.12.2"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.12.2"
 ARG RESTY_OPENSSL_VERSION="3.5.4"
@@ -38,14 +38,14 @@ ARG RESTY_PCRE_BUILD_OPTIONS="\
     --disable-jit-sealloc --disable-never-backslash-C --enable-newline-is-lf --enable-pcre2-8 --enable-pcre2-16 --enable-pcre2-32 \
     --enable-pcre2grep-callout --enable-pcre2grep-callout-fork --disable-pcre2grep-libbz2 --disable-pcre2grep-libz --disable-pcre2test-libedit \
     --enable-percent-zt --disable-rebuild-chartables --enable-shared --disable-static --disable-silent-rules --enable-unicode --disable-valgrind \
-
+    --with-match-limit=200000 \
 "
 ARG RESTY_ZLIB_URL_BASE="https://zlib.net/fossils"
 ARG RESTY_ZLIB_VERSION="1.3.1"
 ARG RESTY_ZSTD_VERSION="1.5.7"
-ARG RESTY_LIBATOMIC_VERSION="7.8.2"
+ARG RESTY_LIBATOMIC_VERSION="7.10.0"
 ARG RESTY_LIBVIPS_VERSION="8.18.0"
-ARG RESTY_OWSAP_CRS_VERSION="4.14.0"
+ARG RESTY_OWSAP_CRS_VERSION="4.21.0"
 ARG RESTY_PATH_OPTIONS="\
     --prefix=/usr/local/openresty \
     --sbin-path=/usr/local/openresty/sbin/nginx \
@@ -455,6 +455,8 @@ RUN groupmod -n nginx www-data \
     && mkdir -p /usr/local/openresty/lib \
     && cd /usr/local/openresty/lib \
     && cp -r -d /usr/local/lib/*.so* . \
+    && echo "/usr/local/openresty/lib" | tee /etc/ld.so.conf.d/openresty.conf \
+    && ldconfig \
     && cd /usr/local/openresty/lualib \
     && cp -r -d /usr/local/lib/lua/*.so* . \
     && cd /build \
@@ -599,9 +601,8 @@ WORKDIR /usr/local/openresty
 
 # Add additional binaries into PATH for convenience
 ENV PATH=$PATH:/usr/local/openresty/luajit/bin/:/usr/local/openresty/sbin/:/usr/local/openresty/bin/
-ENV LD_LIBRARY_PATH=/usr/local/openresty/lib/
-ENV LUA_PATH="/usr/local/openresty/lualib/?.ljbc;/usr/local/openresty/lualib/?/init.ljbc;/usr/local/openresty/lualib/?.lua;/usr/local/openresty/lualib/?/init.lua;./?.lua;/usr/local/openresty/luajit/share/luajit-2.1/?.lua;/usr/local/share/lua/5.1/?.lua;/usr/local/share/lua/5.1/?/init.lua;/usr/local/openresty/luajit/share/lua/5.1/?.lua;/usr/local/openresty/luajit/share/lua/5.1/?/init.lua"
-ENV LUA_CPATH="/usr/local/openresty/lualib/?.so;./?.so;/usr/local/lib/lua/5.1/?.so;/usr/local/openresty/luajit/lib/lua/5.1/?.so;/usr/local/lib/lua/5.1/loadall.so;/usr/local/openresty/luajit/lib/lua/5.1/?.so"
+ENV LUA_PATH="/usr/local/openresty/lualib/?.ljbc;/usr/local/openresty/lualib/?/init.ljbc;/usr/local/openresty/lualib/?.lua;/usr/local/openresty/lualib/?/init.lua;./?.lua;/usr/local/openresty/luajit/share/luajit-2.1/?.lua;/usr/local/openresty/luajit/share/lua/5.1/?.lua;/usr/local/openresty/luajit/share/lua/5.1/?/init.lua"
+ENV LUA_CPATH="/usr/local/openresty/lualib/?.so;./?.so;/usr/local/openresty/luajit/lib/lua/5.1/?.so"
 
 
 COPY nginx.conf /usr/local/openresty/etc/nginx.conf
