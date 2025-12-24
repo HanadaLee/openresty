@@ -19,9 +19,6 @@ ARG RESTY_LIBMAXMINDDB_VERSION="1.12.2"
 ARG RESTY_OPENSSL_VERSION="3.5.4"
 ARG RESTY_OPENSSL_PATCH_VERSION="3.5.4"
 ARG RESTY_OPENSSL_BUILD_OPTIONS="\
-    shared \
-    zlib \
-    -g \
     enable-camellia \
     enable-seed \
     enable-rfc3779 \
@@ -293,6 +290,8 @@ RUN groupmod -n nginx www-data \
         && curl -s https://raw.githubusercontent.com/openresty/openresty/master/patches/openssl-${RESTY_OPENSSL_PATCH_VERSION}-sess_set_get_cb_yield.patch | patch -p1 ; \
     fi \
     && ./config \
+        shared zlib -g \
+        --libdir=lib \
         ${RESTY_OPENSSL_BUILD_OPTIONS} \
     && make -j${RESTY_J} \
     && make -j${RESTY_J} install_sw \
