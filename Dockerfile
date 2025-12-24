@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.29.2.1"
-ARG RESTY_RELEASE="246"
+ARG RESTY_RELEASE="247"
 ARG RESTY_LUAROCKS_VERSION="3.12.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.12.2"
@@ -32,15 +32,13 @@ ARG RESTY_OPENSSL_BUILD_OPTIONS="\
     enable-ktls \
     enable-fips \
 "
-ARG RESTY_PCRE_URL_BASE="https://downloads.sourceforge.net/project/pcre/pcre"
-ARG RESTY_PCRE_VERSION="8.45"
+ARG RESTY_PCRE_VERSION="10.46"
 ARG RESTY_PCRE_BUILD_OPTIONS="\
-    --enable-jit \
-    --disable-cpp \
-    --enable-jit \
-    --enable-utf \
-    --enable-unicode-properties \
-    --with-match-limit=200000 \
+    --enable-jit --enable-pcre2grep-jit --disable-bsr-anycrlf --disable-coverage --disable-ebcdic --disable-fuzz-support \
+    --disable-jit-sealloc --disable-never-backslash-C --enable-newline-is-lf --enable-pcre2-8 --enable-pcre2-16 --enable-pcre2-32 \
+    --enable-pcre2grep-callout --enable-pcre2grep-callout-fork --disable-pcre2grep-libbz2 --disable-pcre2grep-libz --disable-pcre2test-libedit \
+    --enable-percent-zt --disable-rebuild-chartables --enable-shared --disable-static --disable-silent-rules --enable-unicode --disable-valgrind \
+
 "
 ARG RESTY_ZLIB_URL_BASE="https://zlib.net/fossils"
 ARG RESTY_ZLIB_VERSION="1.3.1"
@@ -296,9 +294,9 @@ RUN groupmod -n nginx www-data \
     && make -j${RESTY_J} \
     && make -j${RESTY_J} install_sw \
     && cd /build/lib \
-    && curl -fSL ${RESTY_PCRE_URL_BASE}/${RESTY_PCRE_VERSION}/pcre-${RESTY_PCRE_VERSION}.tar.gz -o pcre-${RESTY_PCRE_VERSION}.tar.gz \
-    && tar xzf pcre-${RESTY_PCRE_VERSION}.tar.gz \
-    && cd pcre-${RESTY_PCRE_VERSION} \
+    && curl -fSL https://${RESTY_GIT_MIRROR}/PCRE2Project/pcre2/releases/download/pcre2-${RESTY_PCRE_VERSION}/pcre2-${RESTY_PCRE_VERSION}.tar.gz -o pcre2-${RESTY_PCRE_VERSION}.tar.gz \
+    && tar xzf pcre2-${RESTY_PCRE_VERSION}.tar.gz \
+    && cd pcre2-${RESTY_PCRE_VERSION} \
     && ./configure \
         ${RESTY_PCRE_BUILD_OPTIONS} \
     && make -j${RESTY_J} \
@@ -380,7 +378,7 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_proxy_auth_aws_module.git ngx_http_proxy_auth_aws_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/leev/ngx_http_geoip2_module.git ngx_http_geoip2_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/vozlt/nginx-module-vts.git ngx_http_vhost_traffic_status_module \
-    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/yaoweibin/nginx_upstream_check_module.git ngx_http_upstream_check_module \
+    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/hanada/ngx_http_upstream_check_module.git ngx_http_upstream_check_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_sorted_args_module.git ngx_http_sorted_args_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/openresty/replace-filter-nginx-module.git ngx_http_replace_filter_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_error_log_write_module.git ngx_http_error_log_write_module \
@@ -437,7 +435,7 @@ RUN groupmod -n nginx www-data \
     && cd openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) \
     && patch -p1 < /build/patches/openresty/patches/nginx-ext_1.29.2+.patch \
     && patch -p1 < /build/modules/ngx_http_upstream_log_module/ngx_http_upstream_log_1.25.3+.patch \
-    && patch -p1 < /build/modules/ngx_http_upstream_check_module/check_1.20.1+.patch \
+    && patch -p1 < /build/modules/ngx_http_upstream_check_module/check_1.28.0+.patch \
     && patch -p1 < /build/modules/ngx_http_proxy_connect_module/patch/proxy_connect_rewrite_102101.patch \
     && sed -i "s/\(openresty\/.*\)\"/\1.${RESTY_RELEASE}\"/" src/core/nginx.h \
     && cd /build/openresty-${RESTY_VERSION} \
