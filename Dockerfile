@@ -378,7 +378,7 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_proxy_auth_aws_module.git ngx_http_proxy_auth_aws_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/leev/ngx_http_geoip2_module.git ngx_http_geoip2_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/vozlt/nginx-module-vts.git ngx_http_vhost_traffic_status_module \
-    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/hanada/ngx_http_upstream_check_module.git ngx_http_upstream_check_module \
+    && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_upstream_check_module.git ngx_http_upstream_check_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_sorted_args_module.git ngx_http_sorted_args_module \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/openresty/replace-filter-nginx-module.git ngx_http_replace_filter_module \
     && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_http_error_log_write_module.git ngx_http_error_log_write_module \
@@ -420,6 +420,7 @@ RUN groupmod -n nginx www-data \
     && cd /build/lualib \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/agentzh/lua-resty-multipart-parser.git lua-resty-multipart-parser \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/openresty/lua-resty-balancer.git lua-resty-balancer \
+    && git clone --depth=10 https://${RESTY_GIT_MIRROR}/api7/jsonschema.git jsonschema \
     && cd lua-resty-balancer \
     && git checkout v0.05 \
     && make -j${RESTY_J} \
@@ -477,6 +478,7 @@ RUN groupmod -n nginx www-data \
     && cd /build/lualib \
     && cp -r lua-resty-multipart-parser/lib/resty/* /usr/local/openresty/lualib/resty \
     && cp -r lua-resty-balancer/lib/resty/* /usr/local/openresty/lualib/resty \
+    && cp -r jsonschema/lib/* /usr/local/openresty/lualib \
     && git clone https://${RESTY_GIT_MIRROR}/HanadaLee/lua-lolhtml.git \
     && cd lua-lolhtml \
     && sed -i "s|github.com|${RESTY_GIT_MIRROR}|g" .gitmodules \
@@ -491,8 +493,6 @@ RUN groupmod -n nginx www-data \
     && /usr/local/openresty/luajit/bin/luarocks install lyaml \
     && /usr/local/openresty/luajit/bin/luarocks install lrandom \
     && /usr/local/openresty/luajit/bin/luarocks install luaxxhash \
-    && /usr/local/openresty/luajit/bin/luarocks install lrexlib-pcre \
-    && /usr/local/openresty/luajit/bin/luarocks install jsonschema \
     && /usr/local/openresty/luajit/bin/luarocks install xml2lua \
     && /usr/local/openresty/luajit/bin/luarocks install lua-ffi-zlib \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-openssl \
