@@ -369,7 +369,7 @@ RUN groupmod -n nginx www-data \
     && cd /build/modules \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/winshining/nginx-http-flv-module.git ngx_http_flv_live_module \
     && cd ngx_http_flv_live_module \
-    && echo 'patching ngx_http_flv_live_module'
+    && echo 'patching ngx_http_flv_live_module' \
     && patch -p1 < /build/patches/openresty/patches/ngx_http_flv_live_module-server_metadata.patch \
     && cd /build/modules \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_cache_purge.git ngx_http_cache_purge_module \
