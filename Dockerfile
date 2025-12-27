@@ -136,7 +136,7 @@ ARG RESTY_CONFIG_OPTIONS="\
 "
 ARG RESTY_LUAJIT_OPTIONS="--with-luajit-xcflags='-DLUAJIT_NUMMODE=2 -DLUAJIT_ENABLE_LUA52COMPAT'"
 ARG RESTY_CONFIG_DEPS="--with-pcre --with-pcre-jit --with-libatomic \
-    --with-openssl=/build/openssl-${RESTY_OPENSSL_VERSION} --with-openssl-opt='${RESTY_OPENSSL_BUILD_OPTIONS}' \
+    --with-openssl=/build/lib/openssl-${RESTY_OPENSSL_VERSION} --with-openssl-opt='${RESTY_OPENSSL_BUILD_OPTIONS}' \
     --with-cc-opt='-DNGX_LUA_ABORT_AT_PANIC -Wp,-D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIC' \
     --with-ld-opt='-Wl,-rpath,/usr/local/openresty/lib -Wl,-Bsymbolic-functions -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-whole-archive -Wl,--gc-sections -pie -ljemalloc -Wl,-Bdynamic -lm -lstdc++ -pthread -ldl -Wl,-E' \
 "
