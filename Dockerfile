@@ -134,7 +134,7 @@ ARG RESTY_CONFIG_OPTIONS_MORE="\
     --add-module=/build/modules/ngx_http_waf_module \
     --add-module=/build/modules/ngx_http_weserv_module \
     --add-module=/build/modules/ngx_http_zstd_module \
-    --add-module=/build/modules/ngx_ssl_figerprint_module \
+    --add-module=/build/modules/ngx_ssl_fingerprint_module \
 "
 ARG RESTY_LUAJIT_OPTIONS="--with-luajit-xcflags='-DLUAJIT_NUMMODE=2 -DLUAJIT_ENABLE_LUA52COMPAT'"
 ARG RESTY_CONFIG_DEPS="--with-pcre --with-pcre-jit --with-libatomic \
@@ -288,7 +288,7 @@ RUN groupmod -n nginx www-data \
     && cd openssl-${RESTY_OPENSSL_VERSION} \
     && echo 'patching OpenSSL 3.x for OpenResty' \
     && curl -s https://raw.githubusercontent.com/openresty/openresty/master/patches/openssl-${RESTY_OPENSSL_PATCH_VERSION}-sess_set_get_cb_yield.patch | patch -p1 \
-    && echo 'patching OpenSSL 3.x for ngx_ssl_figerprint_module' \
+    && echo 'patching OpenSSL 3.x for ngx_ssl_fingerprint_module' \
     && patch -p1 < /build/modules/ngx_ssl_fingerprint_module/patches/openssl.openssl-3.5.4.ja4.patch \
     && ./config \
         shared zlib -g \
@@ -450,7 +450,7 @@ RUN groupmod -n nginx www-data \
     && patch -p1 < /build/modules/ngx_http_upstream_check_module/check_1.28.0+.patch \
     && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) for ngx_http_proxy_connect_module" \
     && patch -p1 < /build/modules/ngx_http_proxy_connect_module/patch/proxy_connect_rewrite_102101.patch \
-    && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) for ngx_ssl_figerprint_module" \
+    && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) for ngx_ssl_fingerprint_module" \
     && patch -p1 < /build/modules/ngx_ssl_fingerprint_module/patches/nginx-1.29.3.ja4.patch \
     && echo "resetting openresty release version" \
     && sed -i "s/\(openresty\/.*\)\"/\1.${RESTY_RELEASE}\"/" src/core/nginx.h \
