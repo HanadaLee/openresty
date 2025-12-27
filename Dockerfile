@@ -245,6 +245,8 @@ RUN groupmod -n nginx www-data \
         libre2-dev \
         libgtest-dev \
         libclang-dev \
+        ca-certificates \
+    && DEBIAN_FRONTEND=noninteractive apt-get autoremove -y ca-certificates \
     && ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && dpkg-reconfigure -f noninteractive tzdata \
     && mkdir -p /build/lib /build/patches /build/modules /build/lualib \
@@ -543,7 +545,6 @@ RUN groupmod -n nginx www-data \
     && mv rules/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf.example rules/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf \
     && mv rules/RESPONSE-999-EXCLUSION-RULES-AFTER-CRS.conf.example rules/RESPONSE-999-EXCLUSION-RULES-AFTER-CRS.conf \
     && rustup self uninstall -y \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates \
     && apt-get purge -y \
         libgd-dev \
         make \
