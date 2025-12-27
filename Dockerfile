@@ -457,6 +457,7 @@ RUN groupmod -n nginx www-data \
     && sed -i "s/\(openresty\/.*\)\"/\1.${RESTY_RELEASE}\"/" src/core/nginx.h \
     && cd /build/openresty-${RESTY_VERSION} \
     && export NGX_ACME_STATE_PREFIX=/usr/local/openresty/var/acme \
+    && ldconfig \
     && eval ./configure -j${RESTY_J} ${RESTY_PATH_OPTIONS} ${RESTY_USER_OPTIONS} ${RESTY_CONFIG_OPTIONS} ${RESTY_CONFIG_OPTIONS_MORE} ${RESTY_CONFIG_DEPS} \
     && make -j${RESTY_J} \
     && make install \
