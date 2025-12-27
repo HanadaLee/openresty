@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.29.2.1"
-ARG RESTY_RELEASE="248"
+ARG RESTY_RELEASE="249"
 ARG RESTY_LUAROCKS_VERSION="3.12.2"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.12.2"
@@ -134,6 +134,7 @@ ARG RESTY_CONFIG_OPTIONS_MORE="\
     --add-module=/build/modules/ngx_http_waf_module \
     --add-module=/build/modules/ngx_http_weserv_module \
     --add-module=/build/modules/ngx_http_zstd_module \
+    --add-module=/build/modules/ngx_ssl_figerprint_module \
 "
 ARG RESTY_LUAJIT_OPTIONS="--with-luajit-xcflags='-DLUAJIT_NUMMODE=2 -DLUAJIT_ENABLE_LUA52COMPAT'"
 ARG RESTY_CONFIG_DEPS="--with-pcre --with-pcre-jit --with-libatomic \
@@ -279,14 +280,16 @@ RUN groupmod -n nginx www-data \
     && ./configure \
     && make -j${RESTY_J} \
     && make install \
+    && cd /build/modules \
+    && git clone --depth=10 https://${RESTY_GIT_REPO}/hanada/ngx_ssl_fingerprint_module.git ngx_ssl_fingerprint_module \
     && cd /build/lib \
     && curl -fSL https://${RESTY_GIT_MIRROR}/openssl/openssl/releases/download/openssl-${RESTY_OPENSSL_VERSION}/openssl-${RESTY_OPENSSL_VERSION}.tar.gz -o openssl-${RESTY_OPENSSL_VERSION}.tar.gz \
     && tar xzf openssl-${RESTY_OPENSSL_VERSION}.tar.gz \
     && cd openssl-${RESTY_OPENSSL_VERSION} \
-    && if [ $(echo ${RESTY_OPENSSL_VERSION} | cut -c 1-2) = "3." ] ; then \
-        echo 'patching OpenSSL 3.x for OpenResty' \
-        && curl -s https://raw.githubusercontent.com/openresty/openresty/master/patches/openssl-${RESTY_OPENSSL_PATCH_VERSION}-sess_set_get_cb_yield.patch | patch -p1 ; \
-    fi \
+    && echo 'patching OpenSSL 3.x for OpenResty' \
+    && curl -s https://raw.githubusercontent.com/openresty/openresty/master/patches/openssl-${RESTY_OPENSSL_PATCH_VERSION}-sess_set_get_cb_yield.patch | patch -p1 \
+    && echo 'patching OpenSSL 3.x for ngx_ssl_figerprint_module' \
+    && patch -p1 < /build/modules/ngx_ssl_fingerprint_module/patches/openssl.openssl-3.5.4.ja4.patch \
     && ./config \
         shared zlib -g \
         --libdir=lib \
@@ -342,6 +345,7 @@ RUN groupmod -n nginx www-data \
     && cd ngx_http_brotli_module \
     && sed -i "s|github.com|${RESTY_GIT_MIRROR}|g" .gitmodules \
     && git submodule update --init \
+    && echo 'patching ngx_http_brotli_module' \
     && patch -p1 < /build/patches/openresty/patches/ngx_http_brotli_filter_module-ext.patch \
     && mkdir -p deps/brotli/out \
     && cd deps/brotli/out \
@@ -358,12 +362,14 @@ RUN groupmod -n nginx www-data \
     && cd /build/modules \
     && git clone --depth=10 --branch current https://${RESTY_GIT_MIRROR}/ADD-SP/ngx_waf.git ngx_http_waf_module \
     && cd ngx_http_waf_module \
+    && echo 'patching ngx_http_waf_module' \
     && patch -p1 < /build/patches/openresty/patches/ngx_http_waf_module-ext.patch \
     && git clone --depth=10 --branch v1.7.16 https://${RESTY_GIT_MIRROR}/DaveGamble/cJSON.git lib/cjson \
     && git clone --depth=10 --branch v2.3.0 https://${RESTY_GIT_MIRROR}/troydhanson/uthash.git lib/uthash \
     && cd /build/modules \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/winshining/nginx-http-flv-module.git ngx_http_flv_live_module \
     && cd ngx_http_flv_live_module \
+    && echo 'patching ngx_http_flv_live_module'
     && patch -p1 < /build/patches/openresty/patches/ngx_http_flv_live_module-server_metadata.patch \
     && cd /build/modules \
     && git clone --depth=10 https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_cache_purge.git ngx_http_cache_purge_module \
@@ -429,15 +435,24 @@ RUN groupmod -n nginx www-data \
     && curl -fSL https://nexus.hanada.info/repository/raw-releases/openresty/src/openresty-${RESTY_VERSION}.tar.gz -o openresty-${RESTY_VERSION}.tar.gz \
     && tar xzf openresty-${RESTY_VERSION}.tar.gz \
     && cd openresty-${RESTY_VERSION} \
+    && echo "patching openresty-${RESTY_VERSION}" \
     && patch -p1 < /build/patches/openresty/patches/openresty-fix_prefix_1.27.1.2+.patch \
     && cd bundle/headers-more-nginx-module-* \
+    && echo "patching ngx_http_headers_more_filter_module" \
     && patch -p1 < /build/patches/openresty/patches/ngx_http_headers_more_filter_module_0.37-ext.patch \
     && cd /build \
     && cd openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) \
+    && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) ext" \
     && patch -p1 < /build/patches/openresty/patches/nginx-ext_1.29.2+.patch \
+    && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) for ngx_http_upstream_log_module" \
     && patch -p1 < /build/modules/ngx_http_upstream_log_module/ngx_http_upstream_log_1.25.3+.patch \
+    && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) for ngx_http_upstream_check_module" \
     && patch -p1 < /build/modules/ngx_http_upstream_check_module/check_1.28.0+.patch \
+    && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) for ngx_http_proxy_connect_module" \
     && patch -p1 < /build/modules/ngx_http_proxy_connect_module/patch/proxy_connect_rewrite_102101.patch \
+    && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) for ngx_ssl_figerprint_module" \
+    && patch -p1 < /build/modules/ngx_ssl_fingerprint_module/patches/nginx-1.29.3.ja4.patch \
+    && echo "resetting openresty release version" \
     && sed -i "s/\(openresty\/.*\)\"/\1.${RESTY_RELEASE}\"/" src/core/nginx.h \
     && cd /build/openresty-${RESTY_VERSION} \
     && export NGX_ACME_STATE_PREFIX=/usr/local/openresty/var/acme \

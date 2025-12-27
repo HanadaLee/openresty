@@ -316,7 +316,7 @@ index 05255d7..17d5daa 100644
  ngx_ssl_parse_time(
  #if OPENSSL_VERSION_NUMBER > 0x10100000L
 diff --git a/src/event/ngx_event_openssl.h b/src/event/ngx_event_openssl.h
-index aa00e06..c240eab 100644
+index aa00e06..bb4bd29 100644
 --- a/src/event/ngx_event_openssl.h
 +++ b/src/event/ngx_event_openssl.h
 @@ -99,6 +99,16 @@
@@ -346,32 +346,23 @@ index aa00e06..c240eab 100644
  };
  
  
-@@ -127,6 +140,11 @@ struct ngx_ssl_connection_s {
+@@ -127,6 +140,15 @@ struct ngx_ssl_connection_s {
      ngx_event_handler_pt        saved_read_handler;
      ngx_event_handler_pt        saved_write_handler;
  
 +#if (NGX_HTTP_EXT)
 +    ngx_msec_t                  handshake_start_msec;
 +    ngx_msec_t                  handshake_end_msec;
++
++    ngx_ssl_dyn_rec_t           dyn_rec;
++    ngx_msec_t                  dyn_rec_last_write;
++    ngx_uint_t                  dyn_rec_records_sent;
 +#endif
 +
      ngx_ssl_ocsp_t             *ocsp;
  
      u_char                      early_buf;
-@@ -147,6 +165,12 @@ struct ngx_ssl_connection_s {
-     unsigned                    early_preread:1;
-     unsigned                    write_blocked:1;
-     unsigned                    sni_accepted:1;
-+
-+#if (NGX_HTTP_EXT)
-+    ngx_ssl_dyn_rec_t           dyn_rec;
-+    ngx_msec_t                  dyn_rec_last_write;
-+    ngx_uint_t                  dyn_rec_records_sent;
-+#endif
- };
- 
- 
-@@ -156,7 +180,11 @@ struct ngx_ssl_connection_s {
+@@ -156,7 +178,11 @@ struct ngx_ssl_connection_s {
  #define NGX_SSL_DFLT_BUILTIN_SCACHE  -5
  
  
@@ -383,7 +374,7 @@ index aa00e06..c240eab 100644
  
  typedef struct ngx_ssl_sess_id_s  ngx_ssl_sess_id_t;
  
-@@ -367,6 +395,14 @@ ngx_int_t ngx_ssl_get_client_v_end(ngx_connection_t *c, ngx_pool_t *pool,
+@@ -367,6 +393,14 @@ ngx_int_t ngx_ssl_get_client_v_end(ngx_connection_t *c, ngx_pool_t *pool,
      ngx_str_t *s);
  ngx_int_t ngx_ssl_get_client_v_remain(ngx_connection_t *c, ngx_pool_t *pool,
      ngx_str_t *s);

@@ -139,13 +139,14 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_http_cache_dechunk_filter_module](https://git.hanada.info/hanada/ngx_http_cache_dechunk_filter_module)
 * [ngx_http_ua_parser_module](https://git.hanada.info/hanada/ngx_http_ua_parser_module)
 * [ngx_http_unbrotli_filter_module](https://git.hanada.info/hanada/ngx_http_unbrotli_filter_module)
-* [ngx_http_upstream_check_module](https://github.com/yaoweibin/nginx_upstream_check_module)
+* [ngx_http_upstream_check_module](https://git.hanada.info/hanada/ngx_http_upstream_check_module)
 * [ngx_http_upstream_log_module](https://git.hanada.info/hanada/ngx_http_upstream_log_module)
 * [ngx_http_var_module](https://git.hanada.info/hanada/ngx_http_var_module)
 * [ngx_http_vhost_traffic_status_module](https://github.com/vozlt/nginx-module-vts)
 * [ngx_http_waf_module](https://github.com/ADD-SP/ngx_waf/tree/current)
 * [ngx_http_weserv_module](https://github.com/weserv/images)
 * [ngx_http_zstd_module](https://git.hanada.info/hanada/ngx_http_zstd_module)
+* [ngx_ssl_fingerprint_module](https://git.hanada.info/hanada/ngx_ssl_fingerprint_module)
 * [coreruleset](https://github.com/coreruleset/coreruleset)
 * [uap-core](https://github.com/ua-parser/uap-core)
 * [luarocks](https://luarocks.org/)
@@ -183,7 +184,6 @@ The following components are additionally bundled with OpenResty, some of which 
 * lua-resty-ipmatcher
 * lua-resty-expr
 * lua-resty-redis-connector
-
 
 [Back to TOC](#table-of-contents)
 
