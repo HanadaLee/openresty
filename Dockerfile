@@ -82,8 +82,6 @@ ARG RESTY_CONFIG_OPTIONS="\
     --with-ipv6 \
     --with-stream_ssl_module \
     --with-stream_ssl_preread_module \
-"
-ARG RESTY_CONFIG_OPTIONS_MORE="\
     --add-module=/build/modules/ngx_backtrace_module \
     --add-module=/build/modules/ngx_lua_events_module \
     --add-module=/build/modules/ngx_lua_resty_lmdb_module \
@@ -138,6 +136,7 @@ ARG RESTY_CONFIG_OPTIONS_MORE="\
 "
 ARG RESTY_LUAJIT_OPTIONS="--with-luajit-xcflags='-DLUAJIT_NUMMODE=2 -DLUAJIT_ENABLE_LUA52COMPAT'"
 ARG RESTY_CONFIG_DEPS="--with-pcre --with-pcre-jit --with-libatomic \
+    --with-openssl=/build/openssl-${RESTY_OPENSSL_VERSION} --with-openssl-opt='${RESTY_OPENSSL_BUILD_OPTIONS}' \
     --with-cc-opt='-DNGX_LUA_ABORT_AT_PANIC -Wp,-D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIC' \
     --with-ld-opt='-Wl,-rpath,/usr/local/openresty/lib -Wl,-Bsymbolic-functions -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-whole-archive -Wl,--gc-sections -pie -ljemalloc -Wl,-Bdynamic -lm -lstdc++ -pthread -ldl -Wl,-E' \
 "
@@ -246,7 +245,6 @@ RUN groupmod -n nginx www-data \
         libgtest-dev \
         libclang-dev \
         ca-certificates \
-    && DEBIAN_FRONTEND=noninteractive apt-get autoremove -y ca-certificates \
     && ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && dpkg-reconfigure -f noninteractive tzdata \
     && mkdir -p /build/lib /build/patches /build/modules /build/lualib \
@@ -291,12 +289,6 @@ RUN groupmod -n nginx www-data \
     && curl -s https://raw.githubusercontent.com/openresty/openresty/master/patches/openssl-${RESTY_OPENSSL_PATCH_VERSION}-sess_set_get_cb_yield.patch | patch -p1 \
     && echo 'patching OpenSSL 3.x for ngx_ssl_fingerprint_module' \
     && patch -p1 < /build/modules/ngx_ssl_fingerprint_module/patches/openssl.openssl-3.5.4.ja4.patch \
-    && ./config \
-        shared zlib -g \
-        --libdir=lib \
-        ${RESTY_OPENSSL_BUILD_OPTIONS} \
-    && make -j${RESTY_J} \
-    && make -j${RESTY_J} install_sw \
     && cd /build/lib \
     && curl -fSL https://${RESTY_GIT_MIRROR}/PCRE2Project/pcre2/releases/download/pcre2-${RESTY_PCRE_VERSION}/pcre2-${RESTY_PCRE_VERSION}.tar.gz -o pcre2-${RESTY_PCRE_VERSION}.tar.gz \
     && tar xzf pcre2-${RESTY_PCRE_VERSION}.tar.gz \
@@ -457,8 +449,7 @@ RUN groupmod -n nginx www-data \
     && sed -i "s/\(openresty\/.*\)\"/\1.${RESTY_RELEASE}\"/" src/core/nginx.h \
     && cd /build/openresty-${RESTY_VERSION} \
     && export NGX_ACME_STATE_PREFIX=/usr/local/openresty/var/acme \
-    && ldconfig \
-    && eval ./configure -j${RESTY_J} ${RESTY_PATH_OPTIONS} ${RESTY_USER_OPTIONS} ${RESTY_CONFIG_OPTIONS} ${RESTY_CONFIG_OPTIONS_MORE} ${RESTY_CONFIG_DEPS} \
+    && eval ./configure -j${RESTY_J} ${RESTY_PATH_OPTIONS} ${RESTY_USER_OPTIONS} ${RESTY_CONFIG_OPTIONS} ${RESTY_CONFIG_DEPS} \
     && make -j${RESTY_J} \
     && make install \
     && mkdir -p /usr/local/openresty/share \
