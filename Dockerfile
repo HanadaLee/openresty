@@ -246,6 +246,7 @@ RUN groupmod -n nginx www-data \
         libclang-dev \
     && ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && dpkg-reconfigure -f noninteractive tzdata \
+    && mkdir -p /build \
     && cd /build \
     && curl -fSL https://nexus.hanada.info/repository/raw-releases/openresty/src/openresty-${RESTY_VERSION}.tar.gz -o openresty-${RESTY_VERSION}.tar.gz \
     && tar xzf openresty-${RESTY_VERSION}.tar.gz \
