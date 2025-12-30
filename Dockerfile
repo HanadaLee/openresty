@@ -510,11 +510,12 @@ RUN groupmod -n nginx www-data \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-maxminddb \
     && mkdir -p /usr/local/openresty/share/uap-core \
     && cp /build/lib/uap-cpp/uap-core/regexes.yaml /usr/local/openresty/share/uap-core \
+    && cd /usr/local/openresty/share \
     && curl -fSL https://${RESTY_GIT_MIRROR}/coreruleset/coreruleset/releases/download/v${RESTY_OWSAP_CRS_VERSION}/coreruleset-${RESTY_OWSAP_CRS_VERSION}-minimal.tar.gz -o coreruleset-${RESTY_OWSAP_CRS_VERSION}-minimal.tar.gz \
     && tar xzf coreruleset-${RESTY_OWSAP_CRS_VERSION}-minimal.tar.gz \
     && rm -f coreruleset-${RESTY_OWSAP_CRS_VERSION}-minimal.tar.gz \
     && mv coreruleset-${RESTY_OWSAP_CRS_VERSION} coreruleset \
-    && cd /usr/local/openresty/share/coreruleset \
+    && cd coreruleset \
     && rm -rf docs \
     && mv crs-setup.conf.example crs-setup.conf \
     && mv rules/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf.example rules/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf \
