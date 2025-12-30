@@ -329,7 +329,7 @@ RUN groupmod -n nginx www-data \
     && mv tengine/modules/ngx_http_trim_filter_module ngx_http_trim_filter_module \
     && rm -rf tengine \
     && git clone --depth=1 --branch current https://${RESTY_GIT_MIRROR}/ADD-SP/ngx_waf.git ngx_http_waf_module \
-    && cd ngx_http_waf_module \
+    && cd /build/modules/ngx_http_waf_module \
     && git clone --depth=1 --branch v1.7.16 https://${RESTY_GIT_MIRROR}/DaveGamble/cJSON.git lib/cjson \
     && git clone --depth=1 --branch v2.3.0 https://${RESTY_GIT_MIRROR}/troydhanson/uthash.git lib/uthash \
     && cd /build/lualib \
@@ -421,10 +421,10 @@ RUN groupmod -n nginx www-data \
     && cd /build/openresty-${RESTY_VERSION} \
     && echo "patching openresty-${RESTY_VERSION}" \
     && patch -p1 < /build/patches/openresty/patches/openresty-fix_prefix_1.27.1.2+.patch \
-    && cd bundle/headers-more-nginx-module-* \
+    && cd /build/openresty-${RESTY_VERSION}/bundle/headers-more-nginx-module-* \
     && echo "patching ngx_http_headers_more_filter_module" \
     && patch -p1 < /build/patches/openresty/patches/ngx_http_headers_more_filter_module_0.37-ext.patch \
-    && cd bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) \
+    && cd /build/openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) \
     && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) ext" \
     && patch -p1 < /build/patches/openresty/patches/nginx-ext_1.29.2+.patch \
     && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) for ngx_http_upstream_log_module" \
@@ -508,14 +508,13 @@ RUN groupmod -n nginx www-data \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-redis-connector \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-timer-ng \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-maxminddb \
-    && cd /usr/local/openresty/share \
-    && mkdir -p uap-core \
-    && cp /build/lib/uap-cpp/uap-core/regexes.yaml uap-core \
+    && mkdir -p /usr/local/openresty/share/uap-core \
+    && cp /build/lib/uap-cpp/uap-core/regexes.yaml /usr/local/openresty/share/uap-core \
     && curl -fSL https://${RESTY_GIT_MIRROR}/coreruleset/coreruleset/releases/download/v${RESTY_OWSAP_CRS_VERSION}/coreruleset-${RESTY_OWSAP_CRS_VERSION}-minimal.tar.gz -o coreruleset-${RESTY_OWSAP_CRS_VERSION}-minimal.tar.gz \
     && tar xzf coreruleset-${RESTY_OWSAP_CRS_VERSION}-minimal.tar.gz \
     && rm -f coreruleset-${RESTY_OWSAP_CRS_VERSION}-minimal.tar.gz \
     && mv coreruleset-${RESTY_OWSAP_CRS_VERSION} coreruleset \
-    && cd coreruleset \
+    && cd /usr/local/openresty/share/coreruleset \
     && rm -rf docs \
     && mv crs-setup.conf.example crs-setup.conf \
     && mv rules/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf.example rules/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf \
