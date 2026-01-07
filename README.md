@@ -100,7 +100,6 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_lua_events_module](https://github.com/Kong/lua-resty-events)
 * [ngx_lua_resty_lmdb_module](https://github.com/Kong/lua-resty-lmdb)
 * [ngx_http_access_control_module](https://git.hanada.info/hanada/ngx_http_access_control_module)
-* [ngx_http_acme_module](https://github.com/nginx/nginx-acme)
 * [ngx_http_auth_akamai_g2o_module](https://git.hanada.info/hanada/ngx_http_auth_akamai_g2o_module)
 * [ngx_http_auth_hash_module](https://git.hanada.info/hanada/ngx_http_auth_hash_module)
 * [ngx_http_auth_hmac_module](https://git.hanada.info/hanada/ngx_http_auth_hmac_module)

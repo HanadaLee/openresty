@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.29.2.1"
-ARG RESTY_RELEASE="253"
+ARG RESTY_RELEASE="254"
 ARG RESTY_LUAROCKS_VERSION="3.12.2"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.12.2"
@@ -86,7 +86,6 @@ ARG RESTY_CONFIG_OPTIONS="\
     --add-module=/build/modules/ngx_lua_events_module \
     --add-module=/build/modules/ngx_lua_resty_lmdb_module \
     --add-module=/build/modules/ngx_http_access_control_module \
-    --add-module=/build/modules/ngx_http_acme_module \
     --add-module=/build/modules/ngx_http_auth_akamai_g2o_module \
     --add-module=/build/modules/ngx_http_auth_hash_module \
     --add-module=/build/modules/ngx_http_auth_hmac_module \
@@ -320,8 +319,6 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_ua_parser_module.git ngx_http_ua_parser_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_backtrace_module.git ngx_backtrace_module \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/vozlt/nginx-module-sysguard.git ngx_http_sysguard_module \
-    # && git clone --depth=1 https://${RESTY_GIT_MIRROR}/nginx/nginx-acme.git ngx_http_acme_module \
-    && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_acme_module.git ngx_http_acme_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_qrcode_module.git ngx_http_qrcode_module \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/Kong/lua-resty-events.git ngx_lua_events_module \
     && git clone --depth=1 --recurse-submodules https://${RESTY_GIT_MIRROR}/Kong/lua-resty-lmdb.git ngx_lua_resty_lmdb_module \
@@ -438,7 +435,6 @@ RUN groupmod -n nginx www-data \
     && echo "resetting openresty release version" \
     && sed -i "s/\(openresty\/.*\)\"/\1.${RESTY_RELEASE}\"/" src/core/nginx.h \
     && cd /build/openresty-${RESTY_VERSION} \
-    && export NGX_ACME_STATE_PREFIX=/usr/local/openresty/var/acme \
     && eval ./configure -j${RESTY_J} ${RESTY_PATH_OPTIONS} ${RESTY_USER_OPTIONS} ${RESTY_CONFIG_OPTIONS} ${RESTY_CONFIG_DEPS} \
     && make -j${RESTY_J} \
     && make install \
