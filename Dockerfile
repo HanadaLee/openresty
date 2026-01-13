@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.29.2.1"
-ARG RESTY_RELEASE="254"
+ARG RESTY_RELEASE="255"
 ARG RESTY_LUAROCKS_VERSION="3.12.2"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.12.2"
@@ -421,6 +421,12 @@ RUN groupmod -n nginx www-data \
     && cd /build/openresty-${RESTY_VERSION}/bundle/headers-more-nginx-module-* \
     && echo "patching ngx_http_headers_more_filter_module" \
     && patch -p1 < /build/patches/openresty/patches/ngx_http_headers_more_filter_module_0.37-ext.patch \
+    && cd /build/openresty-${RESTY_VERSION}/bundle/ngx_lua-0.10.29R2 \
+    && echo "patching ngx_lua" \
+    && patch -p1 < /build/patches/openresty/patches/ngx_lua-ext-0.10.29R2+.patch \
+    && cd /build/openresty-${RESTY_VERSION}/bundle/lua-resty-core-0.1.32R1 \
+    && echo "patching lua-resty-core" \
+    && patch -p1 < /build/patches/openresty/patches/lua-resty-core-ext-0.1.32R1+.patch \
     && cd /build/openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) \
     && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) ext" \
     && patch -p1 < /build/patches/openresty/patches/nginx-ext_1.29.2+.patch \
