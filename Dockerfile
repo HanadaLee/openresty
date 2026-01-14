@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.29.2.1"
-ARG RESTY_RELEASE="255"
+ARG RESTY_RELEASE="256"
 ARG RESTY_LUAROCKS_VERSION="3.12.2"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.12.2"
@@ -333,6 +333,7 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/agentzh/lua-resty-multipart-parser.git lua-resty-multipart-parser \
     && git clone --depth=1 --branch v0.05 https://${RESTY_GIT_MIRROR}/openresty/lua-resty-balancer.git lua-resty-balancer \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/api7/jsonschema.git jsonschema \
+    && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/lua-resty-dns-client.git lua-resty-dns-client \
     && git clone --depth=1 --recurse-submodules https://${RESTY_GIT_MIRROR}/HanadaLee/lua-lolhtml.git \
     && cd /build \
     && curl -sSf https://sh.rustup.rs | sh -s -- -y \
@@ -478,6 +479,7 @@ RUN groupmod -n nginx www-data \
     && cp -r lua-resty-multipart-parser/lib/resty/* /usr/local/openresty/lualib/resty \
     && cp -r lua-resty-balancer/lib/resty/* /usr/local/openresty/lualib/resty \
     && cp -r jsonschema/lib/* /usr/local/openresty/lualib \
+    && cp -r lua-resty-dns-client/src/resty/dns/* /usr/local/openresty/lualib/resty/dns \
     && cd /build/lualib/lua-lolhtml \
     && make -j${RESTY_J} CFLAGS="-O3 -fPIC -I/usr/local/openresty/luajit/include/luajit-2.1" \
     && cp lolhtml.so /usr/local/openresty/lualib \
@@ -498,7 +500,6 @@ RUN groupmod -n nginx www-data \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-session \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-openidc \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-timer \
-    && /usr/local/openresty/luajit/bin/luarocks install api7-lua-resty-dns-client \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-kafka \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-template \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-mlcache \
