@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.29.2.1"
-ARG RESTY_RELEASE="259"
+ARG RESTY_RELEASE="260"
 ARG RESTY_LUAROCKS_VERSION="3.12.2"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.12.2"
@@ -83,8 +83,7 @@ ARG RESTY_CONFIG_OPTIONS="\
     --with-stream_ssl_module \
     --with-stream_ssl_preread_module \
     --add-module=/build/modules/ngx_backtrace_module \
-    --add-module=/build/modules/ngx_lua_events_module \
-    --add-module=/build/modules/ngx_lua_resty_lmdb_module \
+    --add-module=/build/modules/ngx_geoip2_module \
     --add-module=/build/modules/ngx_http_access_control_module \
     --add-module=/build/modules/ngx_http_auth_akamai_g2o_module \
     --add-module=/build/modules/ngx_http_auth_hash_module \
@@ -95,12 +94,12 @@ ARG RESTY_CONFIG_OPTIONS="\
     --add-module=/build/modules/ngx_http_cache_purge_module \
     --add-module=/build/modules/ngx_http_compression_normalize_module \
     --add-module=/build/modules/ngx_http_compression_vary_filter_module \
+    --add-module=/build/modules/ngx_http_cookies_filter_module \
     --add-module=/build/modules/ngx_http_cors_module \
     --add-module=/build/modules/ngx_http_delay_module \
     --add-module=/build/modules/ngx_http_error_log_write_module \
     --add-module=/build/modules/ngx_http_extra_variables_module \
     --add-module=/build/modules/ngx_http_flv_live_module \
-    --add-module=/build/modules/ngx_http_geoip2_module \
     --add-module=/build/modules/ngx_http_internal_redirect_module \
     --add-module=/build/modules/ngx_http_label_module \
     --add-module=/build/modules/ngx_http_limit_traffic_rate_filter_module \
@@ -113,7 +112,6 @@ ARG RESTY_CONFIG_OPTIONS="\
     --add-module=/build/modules/ngx_http_proxy_connect_module \
     --add-module=/build/modules/ngx_http_proxy_var_set_module \
     --add-module=/build/modules/ngx_http_qrcode_module \
-    --add-module=/build/modules/ngx_http_request_cookies_filter_module \
     --add-module=/build/modules/ngx_http_replace_filter_module \
     --add-module=/build/modules/ngx_http_rewrite_status_filter_module \
     --add-module=/build/modules/ngx_http_security_headers_module \
@@ -131,6 +129,8 @@ ARG RESTY_CONFIG_OPTIONS="\
     --add-module=/build/modules/ngx_http_waf_module \
     --add-module=/build/modules/ngx_http_weserv_module \
     --add-module=/build/modules/ngx_http_zstd_module \
+    --add-module=/build/modules/ngx_lua_events_module \
+    --add-module=/build/modules/ngx_lua_resty_lmdb_module \
     --add-module=/build/modules/ngx_ssl_fingerprint_module \
 "
 ARG RESTY_LUAJIT_OPTIONS="--with-luajit-xcflags='-DLUAJIT_NUMMODE=2 -DLUAJIT_ENABLE_LUA52COMPAT'"
@@ -288,7 +288,7 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_auth_hmac_module.git ngx_http_auth_hmac_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_proxy_auth_akamai_netstorage_module.git ngx_http_proxy_auth_akamai_netstorage_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_proxy_auth_aws_module.git ngx_http_proxy_auth_aws_module \
-    && git clone --depth=1 https://${RESTY_GIT_MIRROR}/leev/ngx_http_geoip2_module.git ngx_http_geoip2_module \
+    && git clone --depth=1 https://${RESTY_GIT_MIRROR}/leev/ngx_http_geoip2_module.git ngx_geoip2_module \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/vozlt/nginx-module-vts.git ngx_http_vhost_traffic_status_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_upstream_check_module.git ngx_http_upstream_check_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_sorted_args_module.git ngx_http_sorted_args_module \
@@ -315,7 +315,7 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_loop_detect_module.git ngx_http_loop_detect_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_proxy_var_set_module.git ngx_http_proxy_var_set_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_label_module.git ngx_http_label_module \
-    && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_request_cookies_filter_module.git ngx_http_request_cookies_filter_module \
+    && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_cookies_filter_module.git ngx_http_cookies_filter_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_ua_parser_module.git ngx_http_ua_parser_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_backtrace_module.git ngx_backtrace_module \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/vozlt/nginx-module-sysguard.git ngx_http_sysguard_module \
