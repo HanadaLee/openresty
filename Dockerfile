@@ -12,12 +12,12 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.29.2.1"
-ARG RESTY_RELEASE="262"
-ARG RESTY_LUAROCKS_VERSION="3.12.2"
+ARG RESTY_RELEASE="263"
+ARG RESTY_LUAROCKS_VERSION="3.13.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.12.2"
-ARG RESTY_OPENSSL_VERSION="3.5.4"
-ARG RESTY_OPENSSL_PATCH_VERSION="3.5.4"
+ARG RESTY_OPENSSL_VERSION="3.5.5"
+ARG RESTY_OPENSSL_PATCH_VERSION="3.5.5"
 ARG RESTY_OPENSSL_BUILD_OPTIONS="\
     enable-camellia \
     enable-seed \
@@ -45,7 +45,7 @@ ARG RESTY_ZLIB_VERSION="1.3.1"
 ARG RESTY_ZSTD_VERSION="1.5.7"
 ARG RESTY_LIBATOMIC_VERSION="7.10.0"
 ARG RESTY_LIBVIPS_VERSION="8.18.0"
-ARG RESTY_OWSAP_CRS_VERSION="4.21.0"
+ARG RESTY_OWSAP_CRS_VERSION="4.23.0"
 ARG RESTY_PATH_OPTIONS="\
     --prefix=/usr/local/openresty \
     --sbin-path=/usr/local/openresty/sbin/nginx \
@@ -243,6 +243,8 @@ RUN groupmod -n nginx www-data \
         libre2-dev \
         libgtest-dev \
         libclang-dev \
+        libcjson1 \
+        libcjson-dev \
     && ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && dpkg-reconfigure -f noninteractive tzdata \
     && mkdir -p /build \
@@ -573,6 +575,7 @@ RUN groupmod -n nginx www-data \
         libre2-dev \
         libgtest-dev \
         libclang-dev \
+        libcjson-dev \
     && DEBIAN_FRONTEND=noninteractive apt-get autoremove -y \
     && DEBIAN_FRONTEND=noninteractive apt-get clean -y \
     && rm -rf /build \
