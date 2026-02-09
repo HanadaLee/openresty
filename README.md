@@ -1114,7 +1114,7 @@ refer to [more_clear_input_headers](https://github.com/openresty/headers-more-ng
 
 ## ngx_lua (3rd-party module)
 
-This module is included in the official openresty bundle.
+Note: this feature has been merged into the lua-nginx-module master branch (https://github.com/openresty/lua-nginx-module/pull/2472). The patch will be removed after the new version is released.
 
 ### precontent_by_lua_block
 

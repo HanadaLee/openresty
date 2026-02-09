@@ -360,7 +360,7 @@ RUN groupmod -n nginx www-data \
     && make install \
     && cd /build/lib/openssl-${RESTY_OPENSSL_VERSION} \
     && echo 'patching OpenSSL 3.x for OpenResty' \
-    && curl -s https://raw.githubusercontent.com/openresty/openresty/master/patches/openssl-${RESTY_OPENSSL_PATCH_VERSION}-sess_set_get_cb_yield.patch | patch -p1 \
+    && curl -s https://raw.githubusercontent.com/HanadaLee/openresty-bundle/refs/heads/patch-fix-openssl3.5.5/patches/openssl-${RESTY_OPENSSL_PATCH_VERSION}-sess_set_get_cb_yield.patch | patch -p1 \
     && echo 'patching OpenSSL 3.x for ngx_ssl_figerprint_module' \
     && patch -p1 < /build/modules/ngx_ssl_fingerprint_module/patches/openssl-3.5.5+.patch \
     && ./config \
