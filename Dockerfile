@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.29.2.1"
-ARG RESTY_RELEASE="263"
+ARG RESTY_RELEASE="264"
 ARG RESTY_LUAROCKS_VERSION="3.13.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.12.2"
@@ -135,7 +135,7 @@ ARG RESTY_CONFIG_OPTIONS="\
 "
 ARG RESTY_LUAJIT_OPTIONS="--with-luajit-xcflags='-DLUAJIT_NUMMODE=2 -DLUAJIT_ENABLE_LUA52COMPAT'"
 ARG RESTY_CONFIG_DEPS="--with-pcre --with-pcre-jit --with-libatomic \
-    --with-cc-opt='-O3 -DNGX_LUA_ABORT_AT_PANIC -Wp,-D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIC' \
+    --with-cc-opt='-DNGX_LUA_ABORT_AT_PANIC -Wp,-D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIC' \
     --with-ld-opt='-Wl,-rpath,/usr/local/openresty/lib -Wl,-Bsymbolic-functions -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-whole-archive -Wl,--gc-sections -pie -ljemalloc -Wl,-Bdynamic -lm -lstdc++ -pthread -ldl -Wl,-E' \
 "
 
@@ -415,6 +415,9 @@ RUN groupmod -n nginx www-data \
     && cd /build/modules/ngx_http_flv_live_module \
     && echo 'patching ngx_http_flv_live_module' \
     && patch -p1 < /build/patches/openresty/patches/ngx_http_flv_live_module-server_metadata.patch \
+    && cd /build/modules/ngx_http_loop_detect_module \
+    && echo 'patching ngx_http_loop_detect_module' \
+    && patch -p1 < /build/patches/openresty/patches/ngx_http_loop_detect_module-cdn_id.patch \
     && cd /build/lualib/lua-resty-balancer \
     && make -j${RESTY_J} \
     && make install \
