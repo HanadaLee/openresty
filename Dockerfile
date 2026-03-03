@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.29.2.1"
-ARG RESTY_RELEASE="266"
+ARG RESTY_RELEASE="267-debug"
 ARG RESTY_LUAROCKS_VERSION="3.13.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.12.2"
@@ -38,7 +38,7 @@ ARG RESTY_PCRE_BUILD_OPTIONS="\
     --disable-jit-sealloc --disable-never-backslash-C --enable-newline-is-lf --enable-pcre2-8 --enable-pcre2-16 --enable-pcre2-32 \
     --enable-pcre2grep-callout --enable-pcre2grep-callout-fork --disable-pcre2grep-libbz2 --disable-pcre2grep-libz --disable-pcre2test-libedit \
     --enable-percent-zt --disable-rebuild-chartables --enable-shared --disable-static --disable-silent-rules --enable-unicode --disable-valgrind \
-    --with-match-limit=200000 \
+    --with-match-limit=200000 --with-debug \
 "
 ARG RESTY_ZLIB_URL_BASE="https://zlib.net/fossils"
 ARG RESTY_ZLIB_VERSION="1.3.1"
@@ -122,7 +122,6 @@ ARG RESTY_CONFIG_OPTIONS="\
     --add-module=/build/modules/ngx_http_cache_dechunk_filter_module \
     --add-module=/build/modules/ngx_http_ua_parser_module \
     --add-module=/build/modules/ngx_http_unbrotli_filter_module \
-    --add-module=/build/modules/ngx_http_undeflate_filter_module \
     --add-module=/build/modules/ngx_http_upstream_check_module \
     --add-module=/build/modules/ngx_http_upstream_log_module \
     --add-module=/build/modules/ngx_http_var_module \
