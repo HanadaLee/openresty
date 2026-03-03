@@ -121,6 +121,8 @@ ARG RESTY_CONFIG_OPTIONS="\
     --add-module=/build/modules/ngx_http_trim_filter_module \
     --add-module=/build/modules/ngx_http_cache_dechunk_filter_module \
     --add-module=/build/modules/ngx_http_ua_parser_module \
+    --add-module=/build/modules/ngx_http_unbrotli_filter_module \
+    --add-module=/build/modules/ngx_http_undeflate_filter_module \
     --add-module=/build/modules/ngx_http_upstream_check_module \
     --add-module=/build/modules/ngx_http_upstream_log_module \
     --add-module=/build/modules/ngx_http_var_module \
@@ -501,7 +503,7 @@ RUN groupmod -n nginx www-data \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-openssl \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-http \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-hmac-ffi \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-jwt \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-jwt 0.2.3-0 \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-session \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-openidc \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-timer \
