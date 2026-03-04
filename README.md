@@ -53,9 +53,6 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [Enhanced request rate limiting with custom key and rate parameters](#enhanced-request-rate-limiting-with-custom-key-and-rate-parameters)
   - [ngx\_http\_log\_module](#ngx_http_log_module)
     - [Inverse condition support for access\_log directive](#inverse-condition-support-for-access_log-directive)
-  - [ngx\_http\_brotli\_filter\_module (3rd-party module)](#ngx_http_brotli_filter_module-3rd-party-module)
-    - [brotli\_max\_length](#brotli_max_length)
-    - [brotli\_bypass](#brotli_bypass)
   - [ngx\_http\_waf\_module (3rd-party module)](#ngx_http_waf_module-3rd-party-module)
     - [waf\_bypass](#waf_bypass)
     - [waf\_cc\_deny\_bypass](#waf_cc_deny_bypass)
@@ -109,7 +106,7 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_http_auth_hmac_module](https://git.hanada.info/hanada/ngx_http_auth_hmac_module)
 * [ngx_http_auth_internal_module](https://git.hanada.info/hanada/ngx_http_auth_internal_module)
 * [ngx_http_auth_ldap_module](https://git.hanada.info/hanada/ngx_http_auth_ldap_module)
-* [ngx_http_brotli_module](https://github.com/google/ngx_brotli)
+* [ngx_http_brotli_module](https://git.hanada.info/hanada/ngx_http_brotli_module)
 * [ngx_http_cache_purge_module](https://github.com/nginx-modules/ngx_cache_purge)
 * [ngx_http_compression_normalize_module](https://git.hanada.info/hanada/ngx_http_compression_normalize_module)
 * [ngx_http_compression_vary_filter_module](https://git.hanada.info/hanada/ngx_http_compression_vary_filter_module)
@@ -126,8 +123,8 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_http_loop_detect_module](https://git.hanada.info/hanada/ngx_http_loop_detect_module)
 * [ngx_http_lua_config_module](https://git.hanada.info/hanada/ngx_http_lua_config_module)
 * [ngx_http_lua_load_var_index_module](https://git.hanada.info/hanada/ngx_http_lua_load_var_index_module)
-* [ngx_http_proxy_auth_akamai_netstorage_module](https://git.hanada.info/hanada/ngx_http_proxy_auth_akamai_netstorage_module)
 * [ngx_http_proxy_auth_aws_module](https://git.hanada.info/hanada/ngx_http_proxy_auth_aws_module)
+* [ngx_http_proxy_auth_netstorage_module](https://git.hanada.info/hanada/ngx_http_proxy_auth_netstorage_module)
 * [ngx_http_proxy_connect_module](https://github.com/chobits/ngx_http_proxy_connect_module)
 * [ngx_http_proxy_var_set_module](https://git.hanada.info/hanada/ngx_http_proxy_var_set_module)
 * [ngx_http_qrcode_module](https://git.hanada.info/hanada/ngx_http_qrcode_module)
@@ -142,6 +139,7 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_http_cache_dechunk_filter_module](https://git.hanada.info/hanada/ngx_http_cache_dechunk_filter_module)
 * [ngx_http_ua_parser_module](https://git.hanada.info/hanada/ngx_http_ua_parser_module)
 * [ngx_http_unbrotli_filter_module](https://git.hanada.info/hanada/ngx_http_unbrotli_filter_module)
+* [ngx_http_undeflate_filter_module](https://git.hanada.info/hanada/ngx_http_undeflate_filter_module)
 * [ngx_http_upstream_check_module](https://git.hanada.info/hanada/ngx_http_upstream_check_module)
 * [ngx_http_upstream_log_module](https://git.hanada.info/hanada/ngx_http_upstream_log_module)
 * [ngx_http_var_module](https://git.hanada.info/hanada/ngx_http_var_module)
@@ -979,32 +977,6 @@ The patch allows configuration in the format of key=string, but is also compatib
 refer to [access_log](https://nginx.org/en/docs/http/ngx_http_log_module.html#access_log)
 
 Based on the original `if=` parameter, you can achieve the opposite effect by changing `if=` to `if!=`.
-
-[Back to TOC](#table-of-contents)
-
-## ngx_http_brotli_filter_module (3rd-party module)
-
-refer to [ngx_brotli](https://github.com/google/ngx_brotli).
-
-### brotli_max_length
-
-* **Syntax:** *brotli_max_length length;*
-
-* **Default:** *brotli_max_length 0*;
-
-* **Context:** *http, server, location*
-
-Sets the maximum length of a response that will be compressed. The length is determined only from the “Content-Length” response header field. A value of 0 means no upper limit.
-
-###	brotli_bypass
-
-* **Syntax:** *brotli_bypass string ...;*
-
-* **Default:** *-*
-
-* **Context:** *http, server, location*
-
-Defines conditions under which the response will not be compressed. If at least one value of the string parameters is neither empty nor equal to ‘0’, the response will not be compressed.
 
 [Back to TOC](#table-of-contents)
 

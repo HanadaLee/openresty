@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.29.2.1"
-ARG RESTY_RELEASE="268"
+ARG RESTY_RELEASE="269"
 ARG RESTY_LUAROCKS_VERSION="3.13.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.12.2"
@@ -277,7 +277,7 @@ RUN groupmod -n nginx www-data \
     && tar xzf libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz \
     && git clone --depth=1 --recurse-submodules https://${RESTY_GIT_MIRROR}/ua-parser/uap-cpp.git uap-cpp \
     && cd /build/modules \
-    && git clone --depth=1 --recurse-submodules https://${RESTY_GIT_MIRROR}/google/ngx_brotli.git ngx_http_brotli_module \
+    && git clone --depth=1 --recurse-submodules https://${RESTY_GIT_REPO}/hanada/ngx_http_brotli_module.git ngx_http_brotli_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_ssl_fingerprint_module.git ngx_ssl_fingerprint_module \
     && git clone --depth=1 --recurse-submodules https://${RESTY_GIT_MIRROR}/weserv/images.git ngx_http_weserv_module \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/winshining/nginx-http-flv-module.git ngx_http_flv_live_module \
@@ -399,8 +399,6 @@ RUN groupmod -n nginx www-data \
     && mkdir /usr/include/uap-cpp \
     && cp /build/lib/uap-cpp/UaParser /usr/include/uap-cpp \
     && cd /build/modules/ngx_http_brotli_module \
-    && echo 'patching ngx_http_brotli_module' \
-    && patch -p1 < /build/patches/openresty/patches/ngx_http_brotli_filter_module-ext.patch \
     && mkdir -p deps/brotli/out \
     && cd deps/brotli/out \
     && cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON \
@@ -503,7 +501,7 @@ RUN groupmod -n nginx www-data \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-openssl \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-http \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-hmac-ffi \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-jwt 0.2.3-0 \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-jwt \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-session \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-openidc \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-timer \
