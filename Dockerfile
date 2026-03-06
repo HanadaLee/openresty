@@ -452,6 +452,7 @@ RUN groupmod -n nginx www-data \
     && eval ./configure -j${RESTY_J} ${RESTY_PATH_OPTIONS} ${RESTY_USER_OPTIONS} ${RESTY_CONFIG_OPTIONS} ${RESTY_CONFIG_DEPS} \
     && make -j${RESTY_J} \
     && make install \
+    && cat /build/openresty-${RESTY_VERSION}/build/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6)/objs/ngx_modules.c \
     && mkdir -p /usr/local/openresty/share \
     && mv /usr/local/openresty/html /usr/local/openresty/share \
     && rm -rf /usr/local/openresty/nginx \
@@ -474,7 +475,6 @@ RUN groupmod -n nginx www-data \
         --with-lua-include=/usr/local/openresty/luajit/include/luajit-2.1 \
     && make -j${RESTY_J} build \
     && make -j${RESTY_J} install \
-    && cat /build/openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6)/objs/ngx_modules.c \
     && cd /build/modules \
     && cp -r ngx_http_lua_load_var_index_module/lualib/resty/*.lua /usr/local/openresty/lualib/resty \
     && mkdir -p /usr/local/openresty/lualib/resty/events/compat \
