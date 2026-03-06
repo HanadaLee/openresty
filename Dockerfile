@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.29.2.1"
-ARG RESTY_RELEASE="269"
+ARG RESTY_RELEASE="270"
 ARG RESTY_LUAROCKS_VERSION="3.13.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.12.2"
@@ -123,6 +123,7 @@ ARG RESTY_CONFIG_OPTIONS="\
     --add-module=/build/modules/ngx_http_ua_parser_module \
     --add-module=/build/modules/ngx_http_unbrotli_filter_module \
     --add-module=/build/modules/ngx_http_undeflate_filter_module \
+    --add-module=/build/modules/ngx_http_unzstd_filter_module \
     --add-module=/build/modules/ngx_http_upstream_check_module \
     --add-module=/build/modules/ngx_http_upstream_log_module \
     --add-module=/build/modules/ngx_http_var_module \
@@ -305,6 +306,7 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/chobits/ngx_http_proxy_connect_module.git ngx_http_proxy_connect_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_unbrotli_filter_module.git ngx_http_unbrotli_filter_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_undeflate_filter_module.git ngx_http_undeflate_filter_module \
+    && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_unzstd_filter_module.git ngx_http_unzstd_filter_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_delay_module.git ngx_http_delay_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_server_redirect_module.git ngx_http_server_redirect_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_internal_redirect_module.git ngx_http_internal_redirect_module \
@@ -472,6 +474,7 @@ RUN groupmod -n nginx www-data \
         --with-lua-include=/usr/local/openresty/luajit/include/luajit-2.1 \
     && make -j${RESTY_J} build \
     && make -j${RESTY_J} install \
+    && cat /build/openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6)/objs/ngx_modules.c \
     && cd /build/modules \
     && cp -r ngx_http_lua_load_var_index_module/lualib/resty/*.lua /usr/local/openresty/lualib/resty \
     && mkdir -p /usr/local/openresty/lualib/resty/events/compat \
