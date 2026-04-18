@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.29.2.3"
-ARG RESTY_RELEASE="283"
+ARG RESTY_RELEASE="284"
 ARG RESTY_LUAROCKS_VERSION="3.13.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.12.2"
@@ -89,7 +89,6 @@ ARG RESTY_CONFIG_OPTIONS="\
     --add-module=/build/modules/ngx_http_auth_hash_module \
     --add-module=/build/modules/ngx_http_auth_hmac_module \
     --add-module=/build/modules/ngx_http_auth_internal_module \
-    --add-module=/build/modules/ngx_http_auth_ldap_module \
     --add-module=/build/modules/ngx_http_brotli_module \
     --add-module=/build/modules/ngx_http_cache_purge_module \
     --add-module=/build/modules/ngx_http_compression_normalize_module \
@@ -237,8 +236,6 @@ RUN groupmod -n nginx www-data \
         libsodium-dev \
         libunwind8 \
         libunwind-dev \
-        libldap-2.5-0 \
-        libldap-dev \
         libqrencode4 \
         libqrencode-dev \
         libre2-9 \
@@ -287,7 +284,6 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_limit_traffic_rate_filter_module.git ngx_http_limit_traffic_rate_filter_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_access_control_module.git ngx_http_access_control_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_auth_akamai_g2o_module.git ngx_http_auth_akamai_g2o_module \
-    && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_auth_ldap_module.git ngx_http_auth_ldap_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_auth_internal_module.git ngx_http_auth_internal_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_auth_hash_module.git ngx_http_auth_hash_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_auth_hmac_module.git ngx_http_auth_hmac_module \
@@ -567,7 +563,6 @@ RUN groupmod -n nginx www-data \
         libsodium-dev \
         libcurl4-openssl-dev \
         libunwind-dev \
-        libldap-dev \
         libgdbm-compat4 \
         libgdbm6 \
         libperl5.36 \
