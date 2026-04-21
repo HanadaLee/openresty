@@ -49,8 +49,6 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
   - [ngx\_http\_gzip\_filter\_module](#ngx_http_gzip_filter_module)
     - [gzip\_max\_length](#gzip_max_length)
     - [gzip\_bypass](#gzip_bypass)
-  - [ngx\_http\_limit\_req\_module](#ngx_http_limit_req_module)
-    - [Enhanced request rate limiting with custom key and rate parameters](#enhanced-request-rate-limiting-with-custom-key-and-rate-parameters)
   - [ngx\_http\_log\_module](#ngx_http_log_module)
     - [Inverse condition support for access\_log directive](#inverse-condition-support-for-access_log-directive)
   - [ngx\_http\_waf\_module (3rd-party module)](#ngx_http_waf_module-3rd-party-module)
@@ -98,8 +96,7 @@ For details on OpenResty's bundled components and features, refer to [openresty.
 The following components are additionally bundled with OpenResty, some of which are developed and maintained by Hanada.
 
 * [ngx_backtrace_module](https://git.hanada.info/hanada/ngx_backtrace_module)
-* [ngx_lua_events_module](https://github.com/Kong/lua-resty-events)
-* [ngx_lua_resty_lmdb_module](https://github.com/Kong/lua-resty-lmdb)
+* [ngx_geoip2_module](https://git.hanada.info/hanada/ngx_geoip2_module)
 * [ngx_http_access_control_module](https://git.hanada.info/hanada/ngx_http_access_control_module)
 * [ngx_http_auth_akamai_g2o_module](https://git.hanada.info/hanada/ngx_http_auth_akamai_g2o_module)
 * [ngx_http_auth_hash_module](https://git.hanada.info/hanada/ngx_http_auth_hash_module)
@@ -115,7 +112,6 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_http_error_log_write_module](https://git.hanada.info/hanada/ngx_http_error_log_write_module)
 * [ngx_http_extra_variables_module](https://git.hanada.info/hanada/ngx_http_extra_variables_module)
 * [ngx_http_flv_live_module](https://github.com/winshining/nginx-http-flv-module)
-* [ngx_http_geoip2_module](https://github.com/leev/ngx_http_geoip2_module)
 * [ngx_http_internal_redirect_module](https://git.hanada.info/hanada/ngx_http_internal_redirect_module)
 * [ngx_http_label_module](https://git.hanada.info/hanada/ngx_http_label_module)
 * [ngx_http_limit_traffic_rate_filter_module](https://github.com/nginx-modules/ngx_http_limit_traffic_ratefilter_module)
@@ -125,15 +121,15 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_http_lua_load_var_index_module](https://git.hanada.info/hanada/ngx_http_lua_load_var_index_module)
 * [ngx_http_proxy_auth_aws_module](https://git.hanada.info/hanada/ngx_http_proxy_auth_aws_module)
 * [ngx_http_proxy_auth_netstorage_module](https://git.hanada.info/hanada/ngx_http_proxy_auth_netstorage_module)
-* [ngx_http_proxy_connect_module](https://github.com/chobits/ngx_http_proxy_connect_module)
 * [ngx_http_proxy_var_set_module](https://git.hanada.info/hanada/ngx_http_proxy_var_set_module)
 * [ngx_http_qrcode_module](https://git.hanada.info/hanada/ngx_http_qrcode_module)
 * [ngx_http_replace_filter_module](https://github.com/OpenResty/replace-filter-nginx-module)
-* [ngx_http_request_cookies_filter_module](https://git.hanada.info/hanada/ngx_http_request_cookies_filter_module)
+* [ngx_http_cookies_filter_module](https://git.hanada.info/hanada/ngx_http_cookies_filter_module)
 * [ngx_http_rewrite_status_filter_module](https://git.hanada.info/hanada/ngx_http_rewrite_status_filter_module)
 * [ngx_http_security_headers_module](https://git.hanada.info/hanada/ngx_http_security_headers_module)
 * [ngx_http_server_redirect_module](https://git.hanada.info/hanada/ngx_http_server_redirect_module)
 * [ngx_http_sorted_args_module](https://git.hanada.info/hanada/ngx_http_sorted_args_module)
+* [ngx_http_stream_server_traffic_status_module](https://github.com/vozlt/nginx-module-sts)
 * [ngx_http_sysguard_module](https://github.com/vozlt/nginx-module-sysguard)
 * [ngx_http_trim_filter_module](https://github.com/alibaba/tengine/tree/master/modules/ngx_http_trim_filter_module)
 * [ngx_http_cache_dechunk_filter_module](https://git.hanada.info/hanada/ngx_http_cache_dechunk_filter_module)
@@ -148,7 +144,17 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_http_waf_module](https://github.com/ADD-SP/ngx_waf/tree/current)
 * [ngx_http_weserv_module](https://github.com/weserv/images)
 * [ngx_http_zstd_module](https://git.hanada.info/hanada/ngx_http_zstd_module)
+* [ngx_lua_events_module](https://github.com/Kong/lua-resty-events)
+* [ngx_lua_resty_lmdb_module](https://github.com/Kong/lua-resty-lmdb)
 * [ngx_ssl_fingerprint_module](https://git.hanada.info/hanada/ngx_ssl_fingerprint_module)
+* [ngx_stream_lua_config_module](https://git.hanada.info/hanada/ngx_stream_lua_config_module)
+* [ngx_stream_access_control_module](https://git.hanada.info/hanada/ngx_stream_access_control_module)
+* [ngx_stream_error_log_write_module](https://git.hanada.info/hanada/ngx_stream_error_log_write_module)
+* [ngx_stream_log_var_set_module](https://git.hanada.info/hanada/ngx_stream_log_var_set_module)
+* [ngx_stream_label_module](https://git.hanada.info/hanada/ngx_stream_label_module)
+* [ngx_stream_var_module](https://git.hanada.info/hanada/ngx_stream_var_module)
+* [ngx_stream_extra_variables_module](https://git.hanada.info/hanada/ngx_stream_extra_variables_module)
+* [ngx_stream_server_traffic_status_module](https://github.com/vozlt/nginx-module-stream-sts)
 * [coreruleset](https://github.com/coreruleset/coreruleset)
 * [uap-core](https://github.com/ua-parser/uap-core)
 * [luarocks](https://luarocks.org/)
@@ -934,34 +940,6 @@ Sets the maximum length of a response that will be gzipped. The length is determ
 * **Context:** *http, server, location*
 
 Defines conditions under which the response will gzipped. If at least one value of the string parameters is not empty and is not equal to “0” then the response will not be gzipped.
-
-[Back to TOC](#table-of-contents)
-
-## ngx_http_limit_req_module
-
-### Enhanced request rate limiting with custom key and rate parameters
-
-* **Syntax:** *limit_req zone=name [burst=number] [nodelay | delay=number] [key=string] [rate=rate]*;
-
-* **Default:** *-*
-
-* **Context:** *http, server, location*
-
-refer to [limit_req](https://nginx.org/en/docs/http/ngx_http_limit_req_module.html#limit_req)
-
-The patch adds two parameters, key and rate. If not specified, the key and rate specified by limit_req_zone are used. The key can contain text, variables, and their combination. Requests with an empty key value are not accounted.
-
-Additionally, multiple limit_req directives in the same configuration level are allowed to use the same zone.
-
-* **Syntax:** *limit_req_zone key | key=string zone=name:size rate=rate*;
-
-* **Default:** *-*
-  
-* **Context:** *http*
-
-refer to [limit_req_zone](https://nginx.org/en/docs/http/ngx_http_limit_req_module.html#limit_req_zone)
-
-The patch allows configuration in the format of key=string, but is also compatible with the original configuration syntax.
 
 [Back to TOC](#table-of-contents)
 

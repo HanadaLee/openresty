@@ -1,0 +1,40 @@
+diff --git a/src/api/ngx_stream_lua_api.h b/src/api/ngx_stream_lua_api.h
+index 740a988..5a8b849 100644
+--- a/src/api/ngx_stream_lua_api.h
++++ b/src/api/ngx_stream_lua_api.h
+@@ -20,6 +20,8 @@
+ #include <ngx_core.h>
+
+
++#include <ngx_stream.h>
++#include "../ngx_stream_lua_request.h"
+
+
+ #include <lua.h>
+@@ -53,6 +55,7 @@ typedef struct {
+
+ lua_State *ngx_stream_lua_get_global_state(ngx_conf_t *cf);
+
++ngx_stream_lua_request_t *ngx_stream_lua_get_request(lua_State *L);
+
+ ngx_int_t ngx_stream_lua_add_package_preload(ngx_conf_t *cf,
+     const char *package, lua_CFunction func);
+diff --git a/src/ngx_stream_lua_api.c b/src/ngx_stream_lua_api.c
+index dfc3862..b72f9be 100644
+--- a/src/ngx_stream_lua_api.c
++++ b/src/ngx_stream_lua_api.c
+@@ -43,6 +43,13 @@ ngx_stream_lua_get_global_state(ngx_conf_t *cf)
+ }
+
+
++ngx_stream_lua_request_t *
++ngx_stream_lua_get_request(lua_State *L)
++{
++    return ngx_stream_lua_get_req(L);
++}
++
++
+ static ngx_int_t ngx_stream_lua_shared_memory_init(ngx_shm_zone_t *shm_zone,
+     void *data);
+
+
