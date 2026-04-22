@@ -438,8 +438,8 @@ RUN groupmod -n nginx www-data \
     && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) ext" \
     && patch -p1 < /build/patches/openresty/patches/nginx-ext_1.29.2+.patch \
     && cd /build/openresty-${RESTY_VERSION}/bundle/ngx_stream_lua-* \
-    && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) for ngx_stream_lua_module" \
-    && patch -p1 < /build/patches/ngx_stream_lua_module_0.0.18RC2-expose_request_struct.patch \
+    && echo "patching ngx_stream_lua_module" \
+    && patch -p1 < /build/patches/openresty/patches/ngx_stream_lua_module_0.0.18RC2-expose_request_struct.patch \
     && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) for ngx_http_upstream_log_module" \
     && patch -p1 < /build/modules/ngx_http_upstream_log_module/ngx_http_upstream_log_1.25.3+.patch \
     && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) for ngx_http_upstream_check_module" \
