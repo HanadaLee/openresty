@@ -158,9 +158,11 @@ The following components are additionally bundled with OpenResty, some of which 
 * [coreruleset](https://github.com/coreruleset/coreruleset)
 * [uap-core](https://github.com/ua-parser/uap-core)
 * [luarocks](https://luarocks.org/)
-* [lua-resty-maxminddb](https://git.hanada.info/hanada/lua-resty-maxminddb)
 * [lua-resty-multipart-parser](https://github.com/agentzh/lua-resty-multipart-parser)
 * [lua-resty-balancer](https://github.com/OpenResty/lua-resty-balancer)
+* [jsonschema](https://github.com/api7/jsonschema)
+* [lua-resty-dns-client](https://git.hanada.info/hanada/lua-resty-dns-client)
+* [lua-lolhtml](https://github.com/HanadaLee/lua-lolhtml)
 
 ## Components from lualocks
 * binaryheap
@@ -171,8 +173,6 @@ The following components are additionally bundled with OpenResty, some of which 
 * lyaml
 * lrandom
 * luaxxhash
-* lrexlib-pcre
-* jsonschema
 * xml2lua
 * lua-ffi-zlib
 * lua-resty-openssl
@@ -182,7 +182,6 @@ The following components are additionally bundled with OpenResty, some of which 
 * lua-resty-session
 * lua-resty-openidc
 * lua-resty-timer
-* api7-lua-resty-dns-client
 * lua-resty-kafka
 * lua-resty-template
 * lua-resty-mlcache
@@ -192,6 +191,8 @@ The following components are additionally bundled with OpenResty, some of which 
 * lua-resty-ipmatcher
 * lua-resty-expr
 * lua-resty-redis-connector
+* lua-resty-timer-ng
+* lua-resty-maxminddb
 
 [Back to TOC](#table-of-contents)
 
