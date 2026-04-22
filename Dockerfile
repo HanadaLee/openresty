@@ -434,12 +434,12 @@ RUN groupmod -n nginx www-data \
     && cd /build/openresty-${RESTY_VERSION}/bundle/headers-more-nginx-module-* \
     && echo "patching ngx_http_headers_more_filter_module" \
     && patch -p1 < /build/patches/openresty/patches/ngx_http_headers_more_filter_module_0.37-ext.patch \
-    && cd /build/openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) \
-    && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) ext" \
-    && patch -p1 < /build/patches/openresty/patches/nginx-ext_1.29.2+.patch \
     && cd /build/openresty-${RESTY_VERSION}/bundle/ngx_stream_lua-* \
     && echo "patching ngx_stream_lua_module" \
     && patch -p1 < /build/patches/openresty/patches/ngx_stream_lua_module_0.0.18RC2-expose_request_struct.patch \
+    && cd /build/openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) \
+    && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) ext" \
+    && patch -p1 < /build/patches/openresty/patches/nginx-ext_1.29.2+.patch \
     && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) for ngx_http_upstream_log_module" \
     && patch -p1 < /build/modules/ngx_http_upstream_log_module/ngx_http_upstream_log_1.25.3+.patch \
     && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) for ngx_http_upstream_check_module" \
