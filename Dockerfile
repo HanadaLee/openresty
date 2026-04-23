@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.29.2.3"
-ARG RESTY_RELEASE="287"
+ARG RESTY_RELEASE="288"
 ARG RESTY_LUAROCKS_VERSION="3.13.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.12.2"
@@ -106,7 +106,6 @@ ARG RESTY_CONFIG_OPTIONS="\
     --add-module=/build/modules/ngx_http_log_var_set_module \
     --add-module=/build/modules/ngx_http_loop_detect_module \
     --add-module=/build/modules/ngx_http_lua_config_module \
-    --add-module=/build/modules/ngx_http_lua_load_var_index_module \
     --add-module=/build/modules/ngx_http_proxy_auth_netstorage_module \
     --add-module=/build/modules/ngx_http_proxy_auth_aws_module \
     --add-module=/build/modules/ngx_http_proxy_var_set_module \
@@ -132,6 +131,7 @@ ARG RESTY_CONFIG_OPTIONS="\
     --add-module=/build/modules/ngx_http_weserv_module \
     --add-module=/build/modules/ngx_http_zstd_module \
     --add-module=/build/modules/ngx_lua_events_module \
+    --add-module=/build/modules/ngx_lua_load_var_index_module \
     --add-module=/build/modules/ngx_lua_resty_lmdb_module \
     --add-module=/build/modules/ngx_ssl_fingerprint_module \
     --add-module=/build/modules/ngx_stream_access_control_module \
@@ -308,7 +308,7 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_error_log_write_module.git ngx_http_error_log_write_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_extra_variables_module.git ngx_http_extra_variables_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_lua_config_module.git ngx_http_lua_config_module \
-    && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_lua_load_var_index_module.git ngx_http_lua_load_var_index_module \
+    && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_lua_load_var_index_module.git ngx_lua_load_var_index_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_zstd_module.git ngx_http_zstd_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_cache_dechunk_filter_module.git ngx_http_cache_dechunk_filter_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_unbrotli_filter_module.git ngx_http_unbrotli_filter_module \
@@ -487,7 +487,7 @@ RUN groupmod -n nginx www-data \
     && make -j${RESTY_J} build \
     && make -j${RESTY_J} install \
     && cd /build/modules \
-    && cp -r ngx_http_lua_load_var_index_module/lualib/resty/*.lua /usr/local/openresty/lualib/resty \
+    && cp -r ngx_lua_load_var_index_module/lualib/resty/*.lua /usr/local/openresty/lualib/resty \
     && mkdir -p /usr/local/openresty/lualib/resty/events/compat \
     && cp -r ngx_lua_events_module/lualib/resty/events/*.lua /usr/local/openresty/lualib/resty/events \
     && cp -r ngx_lua_events_module/lualib/resty/events/compat/*.lua /usr/local/openresty/lualib/resty/events/compat \
