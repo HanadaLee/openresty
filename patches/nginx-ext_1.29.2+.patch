@@ -9294,7 +9294,7 @@ index cc8a152..9d1e770 100644
          return NGX_OK;
      }
 diff --git a/src/stream/ngx_stream_proxy_module.c b/src/stream/ngx_stream_proxy_module.c
-index 64bddc5..63f42bb 100644
+index 64bddc5..b4c707b 100644
 --- a/src/stream/ngx_stream_proxy_module.c
 +++ b/src/stream/ngx_stream_proxy_module.c
 @@ -762,6 +762,10 @@ ngx_stream_proxy_connect(ngx_stream_session_t *s)
@@ -9308,6 +9308,30 @@ index 64bddc5..63f42bb 100644
      u->state->connect_time = (ngx_msec_t) -1;
      u->state->first_byte_time = (ngx_msec_t) -1;
      u->state->response_time = (ngx_msec_t) -1;
+@@ -2084,6 +2088,10 @@ ngx_stream_proxy_next_upstream(ngx_stream_session_t *s)
+ 
+     pscf = ngx_stream_get_module_srv_conf(s, ngx_stream_proxy_module);
+ 
++#if (NGX_RESTY_EXT)
++    u->state->status = NGX_STREAM_BAD_GATEWAY;
++#endif
++
+     timeout = pscf->next_upstream_timeout;
+ 
+     if (u->peer.tries == 0
+@@ -2146,6 +2154,12 @@ ngx_stream_proxy_finalize(ngx_stream_session_t *s, ngx_uint_t rc)
+             u->state->response_time = ngx_current_msec - u->start_time;
+         }
+ 
++#if (NGX_RESTY_EXT)
++        if (u->state->status == 0) {
++            u->state->status = rc;
++        }
++#endif
++
+         if (pc) {
+             u->state->bytes_received = u->received;
+             u->state->bytes_sent = pc->sent;
 diff --git a/src/stream/ngx_stream_ssl_module.c b/src/stream/ngx_stream_ssl_module.c
 index 5436d48..53516ae 100644
 --- a/src/stream/ngx_stream_ssl_module.c
@@ -9354,11 +9378,124 @@ index 5436d48..53516ae 100644
      rc = ngx_ssl_handshake(c);
  
      if (rc == NGX_ERROR) {
+diff --git a/src/stream/ngx_stream_upstream.c b/src/stream/ngx_stream_upstream.c
+index 6526d3c..0c40b33 100644
+--- a/src/stream/ngx_stream_upstream.c
++++ b/src/stream/ngx_stream_upstream.c
+@@ -13,6 +13,10 @@
+ static ngx_int_t ngx_stream_upstream_add_variables(ngx_conf_t *cf);
+ static ngx_int_t ngx_stream_upstream_addr_variable(ngx_stream_session_t *s,
+     ngx_stream_variable_value_t *v, uintptr_t data);
++#if (NGX_RESTY_EXT)
++static ngx_int_t ngx_stream_upstream_status_variable(ngx_stream_session_t *s,
++    ngx_stream_variable_value_t *v, uintptr_t data);
++#endif
+ static ngx_int_t ngx_stream_upstream_response_time_variable(
+     ngx_stream_session_t *s, ngx_stream_variable_value_t *v, uintptr_t data);
+ static ngx_int_t ngx_stream_upstream_bytes_variable(ngx_stream_session_t *s,
+@@ -103,6 +107,12 @@ static ngx_stream_variable_t  ngx_stream_upstream_vars[] = {
+       ngx_stream_upstream_addr_variable, 0,
+       NGX_STREAM_VAR_NOCACHEABLE, 0 },
+ 
++#if (NGX_RESTY_EXT)
++     { ngx_string("upstream_status"), NULL,
++       ngx_stream_upstream_status_variable, 0,
++       NGX_STREAM_VAR_NOCACHEABLE, 0 },
++#endif
++
+     { ngx_string("upstream_bytes_sent"), NULL,
+       ngx_stream_upstream_bytes_variable, 0,
+       NGX_STREAM_VAR_NOCACHEABLE, 0 },
+@@ -203,6 +213,75 @@ ngx_stream_upstream_addr_variable(ngx_stream_session_t *s,
+ }
+ 
+ 
++#if (NGX_RESTY_EXT)
++
++static ngx_int_t
++ngx_stream_upstream_status_variable(ngx_stream_session_t *s,
++    ngx_stream_variable_value_t *v, uintptr_t data)
++{
++    u_char                       *p;
++    size_t                        len;
++    ngx_uint_t                    i;
++    ngx_stream_upstream_state_t  *state;
++
++    v->valid = 1;
++    v->no_cacheable = 0;
++    v->not_found = 0;
++
++    if (s->upstream_states == NULL || s->upstream_states->nelts == 0) {
++        v->not_found = 1;
++        return NGX_OK;
++    }
++
++    len = s->upstream_states->nelts * (3 + 2);
++
++    p = ngx_pnalloc(s->connection->pool, len);
++    if (p == NULL) {
++        return NGX_ERROR;
++    }
++
++    v->data = p;
++
++    i = 0;
++    state = s->upstream_states->elts;
++
++    for ( ;; ) {
++        if (state[i].status) {
++            p = ngx_sprintf(p, "%ui", state[i].status);
++
++        } else {
++            *p++ = '-';
++        }
++
++        if (++i == s->upstream_states->nelts) {
++            break;
++        }
++
++        if (state[i].peer) {
++            *p++ = ',';
++            *p++ = ' ';
++
++        } else {
++            *p++ = ' ';
++            *p++ = ':';
++            *p++ = ' ';
++
++            if (++i == s->upstream_states->nelts) {
++                break;
++            }
++
++            continue;
++        }
++    }
++
++    v->len = p - v->data;
++
++    return NGX_OK;
++}
++
++#endif
++
++
+ static ngx_int_t
+ ngx_stream_upstream_bytes_variable(ngx_stream_session_t *s,
+     ngx_stream_variable_value_t *v, uintptr_t data)
 diff --git a/src/stream/ngx_stream_upstream.h b/src/stream/ngx_stream_upstream.h
-index 2f989ac..96c6cba 100644
+index 2f989ac..2d74e97 100644
 --- a/src/stream/ngx_stream_upstream.h
 +++ b/src/stream/ngx_stream_upstream.h
-@@ -99,6 +99,10 @@ typedef struct {
+@@ -93,12 +93,19 @@ struct ngx_stream_upstream_srv_conf_s {
+ 
+ 
+ typedef struct {
++#if (NGX_RESTY_EXT)
++    ngx_uint_t                         status;
++#endif
+     ngx_msec_t                         response_time;
+     ngx_msec_t                         connect_time;
+     ngx_msec_t                         first_byte_time;
      off_t                              bytes_sent;
      off_t                              bytes_received;
  
