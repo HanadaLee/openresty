@@ -9379,7 +9379,7 @@ index 5436d48..53516ae 100644
  
      if (rc == NGX_ERROR) {
 diff --git a/src/stream/ngx_stream_upstream.c b/src/stream/ngx_stream_upstream.c
-index 6526d3c..0c40b33 100644
+index 6526d3c..140e13a 100644
 --- a/src/stream/ngx_stream_upstream.c
 +++ b/src/stream/ngx_stream_upstream.c
 @@ -13,6 +13,10 @@
@@ -9406,7 +9406,7 @@ index 6526d3c..0c40b33 100644
      { ngx_string("upstream_bytes_sent"), NULL,
        ngx_stream_upstream_bytes_variable, 0,
        NGX_STREAM_VAR_NOCACHEABLE, 0 },
-@@ -203,6 +213,75 @@ ngx_stream_upstream_addr_variable(ngx_stream_session_t *s,
+@@ -203,6 +213,62 @@ ngx_stream_upstream_addr_variable(ngx_stream_session_t *s,
  }
  
  
@@ -9454,21 +9454,8 @@ index 6526d3c..0c40b33 100644
 +            break;
 +        }
 +
-+        if (state[i].peer) {
-+            *p++ = ',';
-+            *p++ = ' ';
-+
-+        } else {
-+            *p++ = ' ';
-+            *p++ = ':';
-+            *p++ = ' ';
-+
-+            if (++i == s->upstream_states->nelts) {
-+                break;
-+            }
-+
-+            continue;
-+        }
++        *p++ = ',';
++        *p++ = ' ';
 +    }
 +
 +    v->len = p - v->data;
