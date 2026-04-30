@@ -2028,7 +2028,7 @@ index 032ba96..faf6af5 100644
  
          r->headers_out.status = NGX_HTTP_NOT_MODIFIED;
 diff --git a/src/http/modules/ngx_http_proxy_module.c b/src/http/modules/ngx_http_proxy_module.c
-index ff8545a..bf4e50c 100644
+index ff8545a..243a905 100644
 --- a/src/http/modules/ngx_http_proxy_module.c
 +++ b/src/http/modules/ngx_http_proxy_module.c
 @@ -44,6 +44,36 @@ struct ngx_http_proxy_rewrite_s {
@@ -2964,18 +2964,16 @@ index ff8545a..bf4e50c 100644
      clcf = ngx_http_conf_get_module_loc_conf(cf, ngx_http_core_module);
  
      if (clcf->noname
-@@ -4037,6 +4621,57 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
- #if (NGX_HTTP_SSL)
-         conf->ssl = prev->ssl;
+@@ -4077,6 +4661,55 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+         conf->headers_cache = prev->headers_cache;
  #endif
-+
+         conf->host_set = prev->host_set;
 +#if (NGX_RESTY_EXT)
 +    } else if (conf->headers_inherit
 +               && conf->headers_source
 +               && prev->headers_source
 +               && prev->headers_source != NGX_CONF_UNSET_PTR)
 +    {
-+
 +        if (ngx_array_init(&headers, cf->temp_pool, 4, sizeof(ngx_keyval_t))
 +            != NGX_OK)
 +        {
@@ -3021,8 +3019,8 @@ index ff8545a..bf4e50c 100644
 +#endif
      }
  
-     if (clcf->lmt_excpt && clcf->handler == NULL
-@@ -4859,6 +5494,249 @@ ngx_http_proxy_cookie_flags(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+     rc = ngx_http_proxy_init_headers(cf, conf, &conf->headers,
+@@ -4859,6 +5492,249 @@ ngx_http_proxy_cookie_flags(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
  }
  
  
