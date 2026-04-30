@@ -136,7 +136,6 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_http_unbrotli_filter_module](https://git.hanada.info/hanada/ngx_http_unbrotli_filter_module)
 * [ngx_http_undeflate_filter_module](https://git.hanada.info/hanada/ngx_http_undeflate_filter_module)
 * [ngx_http_unzstd_filter_module](https://git.hanada.info/hanada/ngx_http_unzstd_filter_module)
-* [ngx_http_upstream_check_module](https://git.hanada.info/hanada/ngx_http_upstream_check_module)
 * [ngx_http_upstream_log_module](https://git.hanada.info/hanada/ngx_http_upstream_log_module)
 * [ngx_http_var_module](https://git.hanada.info/hanada/ngx_http_var_module)
 * [ngx_http_vhost_traffic_status_module](https://github.com/vozlt/nginx-module-vts)

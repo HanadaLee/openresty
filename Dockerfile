@@ -11,8 +11,8 @@ ARG RESTY_IMAGE_TAG="bookworm-slim"
 ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
-ARG RESTY_VERSION="1.29.2.3"
-ARG RESTY_RELEASE="290"
+ARG RESTY_VERSION="1.29.8.1"
+ARG RESTY_RELEASE="291"
 ARG RESTY_LUAROCKS_VERSION="3.13.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.12.2"
@@ -123,7 +123,6 @@ ARG RESTY_CONFIG_OPTIONS="\
     --add-module=/build/modules/ngx_http_unbrotli_filter_module \
     --add-module=/build/modules/ngx_http_undeflate_filter_module \
     --add-module=/build/modules/ngx_http_unzstd_filter_module \
-    --add-module=/build/modules/ngx_http_upstream_check_module \
     --add-module=/build/modules/ngx_http_upstream_log_module \
     --add-module=/build/modules/ngx_http_var_module \
     --add-module=/build/modules/ngx_http_vhost_traffic_status_module \
@@ -258,8 +257,8 @@ RUN groupmod -n nginx www-data \
     && dpkg-reconfigure -f noninteractive tzdata \
     && mkdir -p /build \
     && cd /build \
-    # && curl -fSL https://nexus.hanada.info/repository/raw-releases/openresty/src/openresty-${RESTY_VERSION}.tar.gz -o openresty-${RESTY_VERSION}.tar.gz \
-    && curl -fSL https://openresty.org/download/openresty-${RESTY_VERSION}.tar.gz -o openresty-${RESTY_VERSION}.tar.gz \
+    && curl -fSL https://nexus.hanada.info/repository/raw-releases/openresty/src/openresty-${RESTY_VERSION}.tar.gz -o openresty-${RESTY_VERSION}.tar.gz \
+    # && curl -fSL https://openresty.org/download/openresty-${RESTY_VERSION}.tar.gz -o openresty-${RESTY_VERSION}.tar.gz \
     && tar xzf openresty-${RESTY_VERSION}.tar.gz \
     && curl -fSL https://luarocks.github.io/luarocks/releases/luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz -o luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz \
     && tar xzf luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz \
@@ -301,7 +300,6 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_proxy_auth_aws_module.git ngx_http_proxy_auth_aws_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_geoip2_module.git ngx_geoip2_module \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/vozlt/nginx-module-vts.git ngx_http_vhost_traffic_status_module \
-    && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_upstream_check_module.git ngx_http_upstream_check_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_sorted_args_module.git ngx_http_sorted_args_module \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/vozlt/nginx-module-sts.git ngx_http_stream_server_traffic_status_module \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/openresty/replace-filter-nginx-module.git ngx_http_replace_filter_module \
@@ -453,8 +451,6 @@ RUN groupmod -n nginx www-data \
     && patch -p1 < /build/patches/openresty/patches/nginx-ext_1.29.2+.patch \
     && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) for ngx_http_upstream_log_module" \
     && patch -p1 < /build/modules/ngx_http_upstream_log_module/ngx_http_upstream_log_1.25.3+.patch \
-    && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) for ngx_http_upstream_check_module" \
-    && patch -p1 < /build/modules/ngx_http_upstream_check_module/check_1.28.0+.patch \
     && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) for ngx_ssl_fingerprint_module" \
     && patch -p1 < /build/modules/ngx_ssl_fingerprint_module/patches/nginx-1.29.3+.patch \
     && echo "resetting openresty release version" \
