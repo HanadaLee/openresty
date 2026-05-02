@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.29.8.1"
-ARG RESTY_RELEASE="292"
+ARG RESTY_RELEASE="293"
 ARG RESTY_LUAROCKS_VERSION="3.13.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.12.2"
@@ -132,6 +132,7 @@ ARG RESTY_CONFIG_OPTIONS="\
     --add-module=/build/modules/ngx_lua_events_module \
     --add-module=/build/modules/ngx_lua_load_var_index_module \
     --add-module=/build/modules/ngx_lua_resty_lmdb_module \
+    --add-module=/build/modules/ngx_lua_upstream_state_module \
     --add-module=/build/modules/ngx_ssl_fingerprint_module \
     --add-module=/build/modules/ngx_stream_access_control_module \
     --add-module=/build/modules/ngx_stream_error_log_write_module \
@@ -339,6 +340,7 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_stream_label_module.git ngx_stream_label_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_stream_var_module.git ngx_stream_var_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_stream_extra_variables_module.git ngx_stream_extra_variables_module \
+    && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_lua_upstream_state_module.git ngx_lua_upstream_state_module \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/vozlt/nginx-module-stream-sts.git ngx_stream_server_traffic_status_module \
     && git clone --depth=1 --recurse-submodules https://${RESTY_GIT_MIRROR}/Kong/lua-resty-lmdb.git ngx_lua_resty_lmdb_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_stream_lua_upstream_module.git ngx_stream_lua_upstream_module \
@@ -483,18 +485,15 @@ RUN groupmod -n nginx www-data \
     && make -j${RESTY_J} build \
     && make -j${RESTY_J} install \
     && cd /build/modules \
-    && cp -r ngx_lua_load_var_index_module/lualib/resty/*.lua /usr/local/openresty/lualib/resty \
-    && mkdir -p /usr/local/openresty/lualib/resty/events/compat \
-    && cp -r ngx_lua_events_module/lualib/resty/events/*.lua /usr/local/openresty/lualib/resty/events \
-    && cp -r ngx_lua_events_module/lualib/resty/events/compat/*.lua /usr/local/openresty/lualib/resty/events/compat \
-    && mkdir -p /usr/local/openresty/lualib/resty/lmdb \
-    && cp -r ngx_lua_resty_lmdb_module/lib/resty/*.lua /usr/local/openresty/lualib/resty \
-    && cp -r ngx_lua_resty_lmdb_module/lib/resty/lmdb/*.lua /usr/local/openresty/lualib/resty/lmdb \
+    && cp -r ngx_lua_load_var_index_module/lualib/resty/ /usr/local/openresty/lualib/resty/ \
+    && cp -r ngx_lua_events_module/lualib/resty/events /usr/local/openresty/lualib/resty/ \
+    && cp -r ngx_lua_upstream_state_module/lualib/resty/ /usr/local/openresty/lualib/resty/ \
+    && cp -r ngx_lua_resty_lmdb_module/lib/resty/ /usr/local/openresty/lualib/resty/ \
     && cd /build/lualib \
-    && cp -r lua-resty-multipart-parser/lib/resty/* /usr/local/openresty/lualib/resty \
-    && cp -r lua-resty-balancer/lib/resty/* /usr/local/openresty/lualib/resty \
-    && cp -r jsonschema/lib/* /usr/local/openresty/lualib \
-    && cp -r lua-resty-dns-client/src/resty/dns/* /usr/local/openresty/lualib/resty/dns \
+    && cp -r lua-resty-multipart-parser/lib/resty/ /usr/local/openresty/lualib/resty/ \
+    && cp -r lua-resty-balancer/lib/resty/ /usr/local/openresty/lualib/resty/ \
+    && cp -r jsonschema/lib/ /usr/local/openresty/lualib/ \
+    && cp -r lua-resty-dns-client/src/resty/dns /usr/local/openresty/lualib/resty/ \
     && cd /build/lualib/lua-lolhtml \
     && make -j${RESTY_J} CFLAGS="-O3 -fPIC -I/usr/local/openresty/luajit/include/luajit-2.1" \
     && cp lolhtml.so /usr/local/openresty/lualib \

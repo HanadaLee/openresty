@@ -10,7 +10,7 @@ index f02691e..cc15ed6 100644
 +have=NGX_RESTY_EXT . auto/have
 \ No newline at end of file
 diff --git a/conf/fastcgi.conf b/conf/fastcgi.conf
-index 091738c..bdc0a33 100644
+index 091738c..2283ffb 100644
 --- a/conf/fastcgi.conf
 +++ b/conf/fastcgi.conf
 @@ -1,7 +1,7 @@
@@ -18,42 +18,42 @@ index 091738c..bdc0a33 100644
  fastcgi_param  SCRIPT_FILENAME    $document_root$fastcgi_script_name;
  fastcgi_param  QUERY_STRING       $query_string;
 -fastcgi_param  REQUEST_METHOD     $request_method;
-+fastcgi_param  REQUEST_METHOD     $upstream_request_method;
++fastcgi_param  REQUEST_METHOD     $upstream_method;
  fastcgi_param  CONTENT_TYPE       $content_type;
  fastcgi_param  CONTENT_LENGTH     $content_length;
  
 diff --git a/conf/fastcgi_params b/conf/fastcgi_params
-index 28decb9..786d137 100644
+index 28decb9..c09e2c8 100644
 --- a/conf/fastcgi_params
 +++ b/conf/fastcgi_params
 @@ -1,6 +1,6 @@
  
  fastcgi_param  QUERY_STRING       $query_string;
 -fastcgi_param  REQUEST_METHOD     $request_method;
-+fastcgi_param  REQUEST_METHOD     $upstream_request_method;
++fastcgi_param  REQUEST_METHOD     $upstream_method;
  fastcgi_param  CONTENT_TYPE       $content_type;
  fastcgi_param  CONTENT_LENGTH     $content_length;
  
 diff --git a/conf/scgi_params b/conf/scgi_params
-index 6d4ce4f..3a1b6bd 100644
+index 6d4ce4f..5a0e86b 100644
 --- a/conf/scgi_params
 +++ b/conf/scgi_params
 @@ -1,5 +1,5 @@
  
 -scgi_param  REQUEST_METHOD     $request_method;
-+scgi_param  REQUEST_METHOD     $upstream_request_method;
++scgi_param  REQUEST_METHOD     $upstream_method;
  scgi_param  REQUEST_URI        $request_uri;
  scgi_param  QUERY_STRING       $query_string;
  scgi_param  CONTENT_TYPE       $content_type;
 diff --git a/conf/uwsgi_params b/conf/uwsgi_params
-index 09c732c..1fc9cdf 100644
+index 09c732c..43a67e2 100644
 --- a/conf/uwsgi_params
 +++ b/conf/uwsgi_params
 @@ -1,6 +1,6 @@
  
  uwsgi_param  QUERY_STRING       $query_string;
 -uwsgi_param  REQUEST_METHOD     $request_method;
-+uwsgi_param  REQUEST_METHOD     $upstream_request_method;
++uwsgi_param  REQUEST_METHOD     $upstream_method;
  uwsgi_param  CONTENT_TYPE       $content_type;
  uwsgi_param  CONTENT_LENGTH     $content_length;
  
@@ -8420,7 +8420,7 @@ index 440683e..18b4ab3 100644
 +#endif
 \ No newline at end of file
 diff --git a/src/http/ngx_http_upstream.c b/src/http/ngx_http_upstream.c
-index ec263a6..80c3931 100644
+index ec263a6..9493a4e 100644
 --- a/src/http/ngx_http_upstream.c
 +++ b/src/http/ngx_http_upstream.c
 @@ -21,6 +21,12 @@ static ngx_int_t ngx_http_upstream_cache_background_update(
@@ -8453,7 +8453,7 @@ index ec263a6..80c3931 100644
      ngx_http_request_t *r, ngx_http_variable_value_t *v, uintptr_t data);
 +
 +#if (NGX_RESTY_EXT)
-+static ngx_int_t ngx_http_upstream_request_method_variable(
++static ngx_int_t ngx_http_upstream_method_variable(
 +    ngx_http_request_t *r, ngx_http_variable_value_t *v, uintptr_t data);
 +#endif
 +
@@ -8481,9 +8481,9 @@ index ec263a6..80c3931 100644
 +
 +#if (NGX_RESTY_EXT)
 +
-+    { ngx_string("upstream_request_method"), NULL,
-+      ngx_http_upstream_request_method_variable, 0,
-+      NGX_HTTP_VAR_NOCACHEABLE|NGX_HTTP_VAR_NOHASH, 0 },
++    { ngx_string("upstream_method"), NULL,
++      ngx_http_upstream_method_variable, 0,
++      NGX_HTTP_VAR_NOCACHEABLE, 0 },
 +
  #endif
  
@@ -9136,7 +9136,7 @@ index ec263a6..80c3931 100644
 +#if (NGX_RESTY_EXT)
 +
 +static ngx_int_t
-+ngx_http_upstream_request_method_variable(ngx_http_request_t *r,
++ngx_http_upstream_method_variable(ngx_http_request_t *r,
 +    ngx_http_variable_value_t *v, uintptr_t data)
 +{
 +    ngx_http_upstream_t  *u;
