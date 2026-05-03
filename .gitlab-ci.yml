@@ -1,6 +1,6 @@
 variables:
   RESTY_VERSION: 1.29.8.1
-  RESTY_RELEASE: 294
+  RESTY_RELEASE: 295
   VERSION: ${RESTY_VERSION}.${RESTY_RELEASE}
   IMAGE_NAME: registry.hanada.info/hanada/openresty
 
