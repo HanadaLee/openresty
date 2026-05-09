@@ -159,6 +159,7 @@ The following components are additionally bundled with OpenResty, some of which 
 * [lua-resty-balancer](https://github.com/OpenResty/lua-resty-balancer)
 * [jsonschema](https://github.com/api7/jsonschema)
 * [lua-resty-dns-client](https://git.hanada.info/hanada/lua-resty-dns-client)
+* [lua-resty-mlcache](https://git.hanada.info/hanada/lua-resty-mlcache)
 * [lua-lolhtml](https://github.com/HanadaLee/lua-lolhtml)
 
 ## Components from lualocks
@@ -181,7 +182,7 @@ The following components are additionally bundled with OpenResty, some of which 
 * lua-resty-timer
 * lua-resty-kafka
 * lua-resty-template
-* lua-resty-mlcache
+* lua-resty-m3u8
 * lua-resty-cookie
 * lua-resty-worker-events
 * lua-resty-healthcheck
@@ -190,6 +191,7 @@ The following components are additionally bundled with OpenResty, some of which 
 * lua-resty-redis-connector
 * lua-resty-timer-ng
 * lua-resty-maxminddb
+* lua-resty-ctx
 
 [Back to TOC](#table-of-contents)
 

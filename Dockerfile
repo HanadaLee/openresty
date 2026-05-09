@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.29.8.1"
-ARG RESTY_RELEASE="297"
+ARG RESTY_RELEASE="298"
 ARG RESTY_LUAROCKS_VERSION="3.13.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.12.2"
@@ -350,6 +350,7 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=1 --branch v0.05 https://${RESTY_GIT_MIRROR}/openresty/lua-resty-balancer.git lua-resty-balancer \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/api7/jsonschema.git jsonschema \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/lua-resty-dns-client.git lua-resty-dns-client \
+    && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/lua-resty-mlcache.git lua-resty-mlcache \
     && git clone --depth=1 --recurse-submodules https://${RESTY_GIT_MIRROR}/HanadaLee/lua-lolhtml.git \
     && cd /build \
     && curl -sSf https://sh.rustup.rs | sh -s -- -y \
@@ -488,6 +489,7 @@ RUN groupmod -n nginx www-data \
     && cp -r lua-resty-balancer/lib/* /usr/local/openresty/lualib/ \
     && cp -r jsonschema/lib/* /usr/local/openresty/lualib/ \
     && cp -r lua-resty-dns-client/src/* /usr/local/openresty/lualib/ \
+    && cp -r lua-resty-mlcache/lib/* /usr/local/openresty/lualib/ \
     && cd /build/lualib/lua-lolhtml \
     && make -j${RESTY_J} CFLAGS="-O3 -fPIC -I/usr/local/openresty/luajit/include/luajit-2.1" \
     && cp lolhtml.so /usr/local/openresty/lualib \
@@ -510,7 +512,6 @@ RUN groupmod -n nginx www-data \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-timer \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-kafka \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-template \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-mlcache \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-cookie \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-worker-events \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-healthcheck \
@@ -519,6 +520,8 @@ RUN groupmod -n nginx www-data \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-redis-connector \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-timer-ng \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-maxminddb \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-m3u8 \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-ctx \
     && mkdir -p /usr/local/openresty/share/uap-core \
     && cp /build/lib/uap-cpp/uap-core/regexes.yaml /usr/local/openresty/share/uap-core \
     && cd /usr/local/openresty/share \
