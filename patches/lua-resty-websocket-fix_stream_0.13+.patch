@@ -1,0 +1,17 @@
+diff --git a/lib/resty/websocket/client.lua b/lib/resty/websocket/client.lua
+index ccffd09..c40364f 100644
+--- a/lib/resty/websocket/client.lua
++++ b/lib/resty/websocket/client.lua
+@@ -30,9 +30,9 @@ local ngx_DEBUG = ngx.DEBUG
+ local assert = assert
+ local ssl_support = true
+ 
+-if not ngx.config
+-    or not ngx.config.ngx_lua_version
+-    or ngx.config.ngx_lua_version < 9011
++if not ngx.config.subsystem
++   and (not ngx.config.ngx_lua_version
++        or ngx.config.ngx_lua_version < 9011)
+ then
+     ssl_support = false
+ end

@@ -62,10 +62,10 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [more\_clear\_headers](#more_clear_headers)
     - [more\_set\_input\_headers](#more_set_input_headers)
     - [more\_clear\_input\_headers](#more_clear_input_headers)
-  - [ngx\_lua (3rd-party module)](#ngx_lua-3rd-party-module)
-    - [precontent\_by\_lua\_block](#precontent_by_lua_block)
-    - [precontent\_by\_lua\_file](#precontent_by_lua_file)
-    - [precontent\_by\_lua\_no\_postpone](#precontent_by_lua_no_postpone)
+  - [ngx\_stream\_ssl\_module](#ngx_stream_ssl_module)
+    - [Variables about SSL handshake timestamps and time spent](#variables-about-ssl-handshake-timestamps-and-time-spent-1)
+  - [ngx\_stream\_upstream\_module](#ngx_stream_upstream_module)
+    - [Extra variables for upstream information](#extra-variables-for-upstream-information-1)
 - [Luarocks](#luarocks)
 - [Copyright \& License](#copyright--license)
 
@@ -214,6 +214,8 @@ The module [ngx_http_extra_variables_module](https://git.hanada.info/hanada/ngx_
 | **$response_header_sent_msec**         | Response header sent timestamp in seconds with the milliseconds resolution. |
 | **$request_handling_time**             | Keeps time spent on handling request internally from receiving the request to sending the response header to the client. |
 | **$response_body_time**                | Keeps time spent on sending the response body to the client. |
+| **$request_header_lenth**              | Request header length. |
+| **$request_body_lenth**                | Request body length. |
 
 [Back to TOC](#table-of-contents)
 
@@ -1063,81 +1065,29 @@ refer to [more_clear_input_headers](https://github.com/openresty/headers-more-ng
 
 [Back to TOC](#table-of-contents)
 
-## ngx_lua (3rd-party module)
+## ngx_stream_ssl_module
 
-Note: this feature has been merged into the lua-nginx-module master branch (https://github.com/openresty/lua-nginx-module/pull/2472). The patch will be removed after the new version is released.
+### Variables about SSL handshake timestamps and time spent
 
-### precontent_by_lua_block
+In the stream subsystem, new variables are introduced to get the start timestamp, end timestamp, and time taken for the SSL handshake. The module [ngx_stream_extra_variables_module](https://git.hanada.info/hanada/ngx_stream_extra_variables_module) must be compiled to use these variables.
 
-* **Syntax:** *precontent_by_lua_block { lua-script }*
+| Variable                          | Description |
+| ---                               | ---         |
+| **$ssl_handshake_start_msec**     | SSL handshake start timestamp in seconds with the milliseconds resolution.|
+| **$ssl_handshake_end_msec**       | SSL handshake finish timestamp in seconds with the milliseconds resolution.|
+| **$ssl_handshake_time**           | Keeps time spent on ssl handshaking in seconds with the milliseconds resolution.|
 
-* **Default:** *-*
+[Back to TOC](#table-of-contents)
 
-* **Context:** *http, server, location, location if*
+## ngx_stream_upstream_module
 
-* **Phase:** *precontent tail*
+### Extra variables for upstream information
 
-Acts as a precontent phase handler and executes Lua code string specified in `{ <lua-script }` for every request.
-The Lua code may make [API calls](https://github.com/openresty/lua-nginx-module#nginx-api-for-lua) and is executed as a new spawned coroutine in an independent global environment (i.e. a sandbox).
+| Variable                | Description |
+| ---                     | ---         |
+| **$upstream_status**    | Keeps status of the upstream connection. For multiple connection attempts, values are separated by commas and colons like addresses in the $upstream_addr variable. If no status is available, a dash ("-") is shown. |
 
-Note that this handler always runs *after* the standard [ngx_http_mirror_module](https://nginx.org/en/docs/http/ngx_http_mirror_module.html) and [ngx_http_try_files_module](https://nginx.org/en/docs/http/ngx_http_core_module.html#try_files). For example:
-
-```nginx
- location /images/ {
-     try_files $uri /images/default.gif;
-     precontent_by_lua_block {
-        ngx.log(ngx.NOTICE, "file found")
-     }
- }
-
- location = /images/default.gif {
-     expires 30s;
-     precontent_by_lua_block {
-        ngx.log(ngx.NOTICE, "file not found, use default.gif instead")
-     }
- }
-```
-
-That is, if a request for /images/foo.jpg comes in and the file does not exist, the request will be internally redirected to /images/default.gif before [precontent_by_lua_block](https://github.com/openresty/lua-nginx-module#precontent_by_lua_block), and then the [precontent_by_lua_block](https://github.com/openresty/lua-nginx-module#precontent_by_lua_block) in new location will run and log "file not found, use default.gif instead".
-
-You can use [precontent_by_lua_block](https://github.com/openresty/lua-nginx-module#precontent_by_lua_block) to perform some preparatory functions after the access phase handler but before the proxy or other content handler. Especially some functions that cannot be performed in [balancer_by_lua_block](https://github.com/openresty/lua-nginx-module#balancer_by_lua_block).
-
-you can use the [precontent_by_lua_no_postpone](https://github.com/openresty/lua-nginx-module#precontent_by_lua_no_postpone) directive to control when to run this handler inside the "precontent" request-processing phase
-of Nginx.
-
-### precontent_by_lua_file
-
-* **Syntax:** *precontent_by_lua_file &lt;path-to-lua-script-file&gt;*
-
-* **Default:** *-*
-
-* **Context:** *http, server, location, location if*
-
-* **Phase:** *precontent tail*
-
-Equivalent to [precontent_by_lua_block](https://github.com/openresty/lua-nginx-module#precontent_by_lua_block), except that the file specified by `<path-to-lua-script-file>` contains the Lua code, or, as from the `v0.5.0rc32` release, the [LuaJIT bytecode](https://github.com/openresty/lua-nginx-module#luajit-bytecode-support) to be executed.
-
-Nginx variables can be used in the `<path-to-lua-script-file>` string to provide flexibility. This however carries some risks and is not ordinarily recommended.
-
-When a relative path like `foo/bar.lua` is given, they will be turned into the absolute path relative to the `server prefix` path determined by the `-p PATH` command-line option while starting the Nginx server.
-
-When the Lua code cache is turned on (by default), the user code is loaded once at the first request and cached
-and the Nginx config must be reloaded each time the Lua source file is modified.
-The Lua code cache can be temporarily disabled during development by switching [lua_code_cache](https://github.com/openresty/lua-nginx-module#lua_code_cache) `off` in `nginx.conf` to avoid repeatedly reloading Nginx.
-
-Nginx variables are supported in the file path for dynamic dispatch just as in [content_by_lua_file](https://github.com/openresty/lua-nginx-module#content_by_lua_file).
-
-But be very careful about malicious user inputs and always carefully validate or filter out the user-supplied path components.
-
-### precontent_by_lua_no_postpone
-
-**Syntax:** *precontent_by_lua_no_postpone on|off*
-
-**Default:** *precontent_by_lua_no_postpone off*
-
-**Context:** *http*
-
-Controls whether or not to disable postponing [precontent_by_lua*](https://github.com/openresty/lua-nginx-module#precontent_by_lua_block) directives to run at the end of the `precontent` request-processing phase. By default, this directive is turned off and the Lua code is postponed to run at the end of the `precontent` phase.
+[Back to TOC](#table-of-contents)
 
 # Luarocks
 

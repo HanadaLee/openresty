@@ -6709,7 +6709,7 @@ index fb63a20..821ebdd 100644
          return NGX_OK;
      }
 diff --git a/src/http/ngx_http_request.c b/src/http/ngx_http_request.c
-index a9573a6..4e08a7c 100644
+index a9573a6..fa68d78 100644
 --- a/src/http/ngx_http_request.c
 +++ b/src/http/ngx_http_request.c
 @@ -673,6 +673,9 @@ ngx_http_ssl_handshake(ngx_event_t *rev)
@@ -6747,7 +6747,18 @@ index a9573a6..4e08a7c 100644
          rev->handler = ngx_http_wait_request_handler;
          ngx_http_wait_request_handler(rev);
  
-@@ -2441,7 +2455,12 @@ ngx_http_set_virtual_server(ngx_http_request_t *r, ngx_str_t *host)
+@@ -1555,6 +1569,10 @@ ngx_http_process_request_headers(ngx_event_t *rev)
+ 
+             r->request_length += r->header_in->pos - r->header_name_start;
+ 
++#if (NGX_RESTY_EXT)
++            r->request_header_length = r->request_length;
++#endif
++
+             r->http_state = NGX_HTTP_PROCESS_REQUEST_STATE;
+ 
+             rc = ngx_http_process_request_header(r);
+@@ -2441,7 +2459,12 @@ ngx_http_set_virtual_server(ngx_http_request_t *r, ngx_str_t *host)
  
          sscf = ngx_http_get_module_srv_conf(cscf->ctx, ngx_http_ssl_module);
  
@@ -6760,7 +6771,7 @@ index a9573a6..4e08a7c 100644
              ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
                            "client attempted to request the server name "
                            "different from the one that was negotiated");
-@@ -4041,6 +4060,10 @@ ngx_http_log_error(ngx_log_t *log, u_char *buf, size_t len)
+@@ -4041,6 +4064,10 @@ ngx_http_log_error(ngx_log_t *log, u_char *buf, size_t len)
      ngx_http_request_t  *r;
      ngx_http_log_ctx_t  *ctx;
  
@@ -6771,7 +6782,7 @@ index a9573a6..4e08a7c 100644
      if (log->action) {
          p = ngx_snprintf(buf, len, " while %s", log->action);
          len -= p - buf;
-@@ -4055,6 +4078,19 @@ ngx_http_log_error(ngx_log_t *log, u_char *buf, size_t len)
+@@ -4055,6 +4082,19 @@ ngx_http_log_error(ngx_log_t *log, u_char *buf, size_t len)
      r = ctx->request;
  
      if (r) {
@@ -6792,7 +6803,7 @@ index a9573a6..4e08a7c 100644
  
      } else {
 diff --git a/src/http/ngx_http_request.h b/src/http/ngx_http_request.h
-index 48eb43e..55ffec2 100644
+index 48eb43e..189e151 100644
 --- a/src/http/ngx_http_request.h
 +++ b/src/http/ngx_http_request.h
 @@ -415,6 +415,11 @@ struct ngx_http_request_s {
@@ -6818,6 +6829,16 @@ index 48eb43e..55ffec2 100644
      ngx_chain_t                      *out;
      ngx_http_request_t               *main;
      ngx_http_request_t               *parent;
+@@ -454,6 +463,9 @@ struct ngx_http_request_s {
+     size_t                            header_size;
+ 
+     off_t                             request_length;
++#if (NGX_RESTY_EXT)
++    off_t                             request_header_length;
++#endif
+ 
+     ngx_uint_t                        err_status;
+ 
 diff --git a/src/http/ngx_http_script.c b/src/http/ngx_http_script.c
 index a2b9f1b..e620bdc 100644
 --- a/src/http/ngx_http_script.c
@@ -9325,6 +9346,22 @@ index 37cd0d2..1ec0f00 100644
  
  static ngx_int_t
  ngx_http_variable_connection(ngx_http_request_t *r,
+diff --git a/src/http/v2/ngx_http_v2.c b/src/http/v2/ngx_http_v2.c
+index efe2290..173bfc8 100644
+--- a/src/http/v2/ngx_http_v2.c
++++ b/src/http/v2/ngx_http_v2.c
+@@ -3896,6 +3896,11 @@ ngx_http_v2_run_request(ngx_http_request_t *r)
+ 
+     h2c->payload_bytes += r->request_length;
+ 
++#if (NGX_RESTY_EXT)
++    r->request_header_length = r->request_length;
++#endif
++
++
+     ngx_http_process_request(r);
+ 
+ failed:
 diff --git a/src/http/v2/ngx_http_v2_filter_module.c b/src/http/v2/ngx_http_v2_filter_module.c
 index fba7af2..65c57f8 100644
 --- a/src/http/v2/ngx_http_v2_filter_module.c
@@ -9379,6 +9416,21 @@ index cc8a152..9d1e770 100644
      if (r != r->main) {
          return NGX_OK;
      }
+diff --git a/src/http/v3/ngx_http_v3_request.c b/src/http/v3/ngx_http_v3_request.c
+index 7bb6131..7864409 100644
+--- a/src/http/v3/ngx_http_v3_request.c
++++ b/src/http/v3/ngx_http_v3_request.c
+@@ -552,6 +552,10 @@ ngx_http_v3_process_request(ngx_event_t *rev)
+         r->request_length += b->pos - p;
+         h3c->total_bytes += b->pos - p;
+ 
++#if (NGX_RESTY_EXT)
++        r->request_header_length = r->request_length;
++#endif
++
+         if (ngx_http_v3_check_flood(c) != NGX_OK) {
+             ngx_http_close_request(r, NGX_HTTP_CLOSE);
+             break;
 diff --git a/src/stream/ngx_stream_proxy_module.c b/src/stream/ngx_stream_proxy_module.c
 index 9f88aff..d9e9178 100644
 --- a/src/stream/ngx_stream_proxy_module.c

@@ -12,7 +12,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.29.8.1"
-ARG RESTY_RELEASE="298"
+ARG RESTY_RELEASE="299"
 ARG RESTY_LUAROCKS_VERSION="3.13.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.12.2"
@@ -443,6 +443,9 @@ RUN groupmod -n nginx www-data \
     && cd /build/openresty-${RESTY_VERSION}/bundle/ngx_stream_lua-* \
     && echo "patching ngx_stream_lua_module" \
     && patch -p1 < /build/patches/openresty/patches/ngx_stream_lua_module_0.0.18RC2-expose_request_struct.patch \
+    && cd /build/openresty-${RESTY_VERSION}/bundle/lua-resty-websocket-* \
+    && echo "patching lua-resty-websocket" \
+    && patch -p1 < /build/patches/openresty/patches/lua-resty-websocket-fix_stream_0.13+.patch \
     && cd /build/openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) \
     && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) ext" \
     && patch -p1 < /build/patches/openresty/patches/nginx-ext_1.29.8+.patch \
