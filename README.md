@@ -188,7 +188,8 @@ The following components are additionally bundled with OpenResty, some of which 
 * lua-resty-healthcheck
 * lua-resty-ipmatcher
 * lua-resty-expr
-* lua-resty-redis-connector
+* api7-lua-resty-redis-connector
+* lua-resty-redis-cluster
 * lua-resty-timer-ng
 * lua-resty-maxminddb
 * lua-resty-ctx

@@ -12,12 +12,12 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.29.8.1"
-ARG RESTY_RELEASE="299"
+ARG RESTY_RELEASE="300"
 ARG RESTY_LUAROCKS_VERSION="3.13.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.12.2"
-ARG RESTY_OPENSSL_VERSION="3.5.5"
-ARG RESTY_OPENSSL_PATCH_VERSION="3.5.5"
+ARG RESTY_OPENSSL_VERSION="3.5.6"
+ARG RESTY_OPENSSL_PATCH_VERSION="3.5.6"
 ARG RESTY_OPENSSL_BUILD_OPTIONS="\
     enable-camellia \
     enable-seed \
@@ -520,7 +520,8 @@ RUN groupmod -n nginx www-data \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-healthcheck \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-ipmatcher \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-expr \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-redis-connector \
+    && /usr/local/openresty/luajit/bin/luarocks install api7-lua-resty-redis-connector \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-redis-cluster \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-timer-ng \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-maxminddb \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-m3u8 \
