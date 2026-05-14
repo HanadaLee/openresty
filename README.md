@@ -33,7 +33,6 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [Conditional response replacement bypass](#conditional-response-replacement-bypass)
   - [ngx\_http\_proxy\_module and related modules](#ngx_http_proxy_module-and-related-modules)
     - [Support for inheritance in "proxy\_set\_header" and its friends](#support-for-inheritance-in-proxy_set_header-and-its-friends)
-    - [Configuring sndbuf and rcvbuf for upstream connection](#configuring-sndbuf-and-rcvbuf-for-upstream-connection)
     - [Enhancement of upstream cookie handler](#enhancement-of-upstream-cookie-handler)
     - [Enhancement of upstream cache control](#enhancement-of-upstream-cache-control)
   - [ngx\_http\_upstream\_module](#ngx_http_upstream_module)
@@ -504,30 +503,6 @@ Allows the merge inheritance of proxy_set_header in receiving contexts.
 Allows the merge inheritance of fastcgi_param in receiving contexts.
 
 > scgi_param_inherit and uwsgi_param_inherit are also available.
-
-### Configuring sndbuf and rcvbuf for upstream connection
-
-Introduces two new directives to set sndbuf and rcvbuf for upstream connection. The original work is from [Tengine](https://github.com/alibaba/tengine).
-
-* **Syntax:** *proxy_sndbuf_size size;*
-
-* **Default:** *-*
-
-* **Context:** *http, server, location*
-
-Sets the sndbuf size for upstream connection. If not set, the system allocated size is followed.
-
-> fastcgi_sndbuf_size, scgi_sndbuf_size, uwsgi_sndbuf_size and grpc_sndbuf_size directives are also available.
-
-* **Syntax:** *proxy_rcvbuf_size size;*
-
-* **Default:** *-*
-
-* **Context:** *http, server, location*
-
-Sets the rcvbuf size for upstream connection. If not set, the system allocated size is followed.
-
-> fastcgi_rcvbuf_size, scgi_rcvbuf_size, uwsgi_rcvbuf_size and grpc_rcvbuf_size are also available.
 
 ### Enhancement of upstream cookie handler
 
