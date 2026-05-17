@@ -17,13 +17,13 @@ build-amd64:
       - main
   script:
     - >
-      docker login -u "${HARBOR_USERNAME}" -p "${HARBOR_PASSWORD}" registry.hanada.info
-    - >
       docker build \
         --build-arg RESTY_VERSION="${RESTY_VERSION}" \
         --build-arg RESTY_RELEASE="${RESTY_RELEASE}" \
         -t "${IMAGE_NAME}:${VERSION}-amd64" \
         .
+    - >
+      docker login -u "${HARBOR_USERNAME}" -p "${HARBOR_PASSWORD}" registry.hanada.info
     - >
       docker push "${IMAGE_NAME}:${VERSION}-amd64"
 
@@ -36,13 +36,13 @@ build-arm64:
       - main
   script:
     - >
-      docker login -u "${HARBOR_USERNAME}" -p "${HARBOR_PASSWORD}" registry.hanada.info
-    - >
       docker build \
         --build-arg RESTY_VERSION="${RESTY_VERSION}" \
         --build-arg RESTY_RELEASE="${RESTY_RELEASE}" \
         -t "${IMAGE_NAME}:${VERSION}-arm64" \
         .
+    - >
+      docker login -u "${HARBOR_USERNAME}" -p "${HARBOR_PASSWORD}" registry.hanada.info
     - >
       docker push "${IMAGE_NAME}:${VERSION}-arm64"
 
