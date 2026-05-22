@@ -56,11 +56,6 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [waf\_under\_attack\_bypass](#waf_under_attack_bypass)
     - [waf\_captcha\_bypass](#waf_captcha_bypass)
     - [waf\_modsecurity\_bypass](#waf_modsecurity_bypass)
-  - [ngx\_http\_headers\_more\_filter\_module (3rd-party module)](#ngx_http_headers_more_filter_module-3rd-party-module)
-    - [more\_set\_headers](#more_set_headers)
-    - [more\_clear\_headers](#more_clear_headers)
-    - [more\_set\_input\_headers](#more_set_input_headers)
-    - [more\_clear\_input\_headers](#more_clear_input_headers)
   - [ngx\_stream\_ssl\_module](#ngx_stream_ssl_module)
     - [Variables about SSL handshake timestamps and time spent](#variables-about-ssl-handshake-timestamps-and-time-spent-1)
   - [ngx\_stream\_upstream\_module](#ngx_stream_upstream_module)
@@ -123,6 +118,7 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_http_qrcode_module](https://git.hanada.info/hanada/ngx_http_qrcode_module)
 * [ngx_http_replace_filter_module](https://github.com/OpenResty/replace-filter-nginx-module)
 * [ngx_http_cookies_filter_module](https://git.hanada.info/hanada/ngx_http_cookies_filter_module)
+* [ngx_http_headers_control_module](https://git.hanada.info/hanada/ngx_http_headers_control_module)
 * [ngx_http_rewrite_status_filter_module](https://git.hanada.info/hanada/ngx_http_rewrite_status_filter_module)
 * [ngx_http_security_headers_module](https://git.hanada.info/hanada/ngx_http_security_headers_module)
 * [ngx_http_server_redirect_module](https://git.hanada.info/hanada/ngx_http_server_redirect_module)
@@ -992,52 +988,6 @@ Defines conditions under which the request will be checked by waf captcha functi
 * **Context:** *http, server, location*
 
 Defines conditions under which the request will be checked by waf modsecurity function. If at least one value of the string parameters is not empty and is not equal to “0” then the request will be checked by waf modsecurity function.
-
-[Back to TOC](#table-of-contents)
-
-## ngx_http_headers_more_filter_module (3rd-party module)
-
-This module is included in the official openresty bundle.
-
-### more_set_headers
-
-* **Syntax:** *more_set_headers [-t <content-type list>]... [-s <status-code list>]... [-a] <new-header>... [if=condition];*
-
-* **Default:** *-*
-
-* **Context:** *http, server, location, location if*
-
-refer to [more_set_headers](https://github.com/openresty/headers-more-nginx-module#more_set_headers). Only the `if` parameter is added, nothing else changes. You can also achieve the opposite effect by changing `if=` to `if!=`.
-
-### more_clear_headers
-
-* **Syntax:** *more_clear_headers [-t <content-type list>]... [-s <status-code list>]... <new-header>... [if=condition];*
-
-* **Default:** *-*
-
-* **Context:** *http, server, location, location if*
-
-refer to [more_clear_headers](https://github.com/openresty/headers-more-nginx-module#more_clear_headers). Only the `if` parameter is added, nothing else changes. You can also achieve the opposite effect by changing `if=` to `if!=`.
-
-###	more_set_input_headers
-
-* **Syntax:** *more_set_input_headers [-r] [-t <content-type list>]... <new-header>... [if=condition];*
-
-* **Default:** *-*
-
-* **Context:** *http, server, location, location if*
-
-refer to [more_set_input_headers](https://github.com/openresty/headers-more-nginx-module#more_set_input_headers). Only the `if` parameter is added, nothing else changes. You can also achieve the opposite effect by changing `if=` to `if!=`.
-
-### more_clear_input_headers
-
-* **Syntax:** *more_clear_input_headers [-t <content-type list>]... <new-header>... [if=condition];*
-
-* **Default:** *-*
-
-* **Context:** *http, server, location, location if*
-
-refer to [more_clear_input_headers](https://github.com/openresty/headers-more-nginx-module#more_clear_input_headers). Only the `if` parameter is added, nothing else changes. You can also achieve the opposite effect by changing `if=` to `if!=`.
 
 [Back to TOC](#table-of-contents)
 
