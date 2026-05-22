@@ -435,9 +435,6 @@ RUN groupmod -n nginx www-data \
     && cd /build/openresty-${RESTY_VERSION} \
     && echo "patching openresty-${RESTY_VERSION}" \
     && patch -p1 < /build/patches/openresty/patches/openresty-fix_prefix_1.27.1.2+.patch \
-    && cd /build/openresty-${RESTY_VERSION}/bundle/headers-more-nginx-module-* \
-    && echo "patching ngx_http_headers_more_filter_module" \
-    && patch -p1 < /build/patches/openresty/patches/ngx_http_headers_more_filter_module-ext_0.37+.patch \
     && cd /build/openresty-${RESTY_VERSION}/bundle/ngx_stream_lua-* \
     && echo "patching ngx_stream_lua_module" \
     && patch -p1 < /build/patches/openresty/patches/ngx_stream_lua_module-expose_request_struct_0.0.18RC2+.patch \
