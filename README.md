@@ -32,6 +32,7 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
   - [ngx\_http\_sub\_filter\_module](#ngx_http_sub_filter_module)
     - [Conditional response replacement bypass](#conditional-response-replacement-bypass)
   - [ngx\_http\_proxy\_module and related modules](#ngx_http_proxy_module-and-related-modules)
+    - [Proxy filter Framework](#proxy-filter-framework)
     - [Support for inheritance in "proxy\_set\_header" and its friends](#support-for-inheritance-in-proxy_set_header-and-its-friends)
     - [Enhancement of upstream cookie handler](#enhancement-of-upstream-cookie-handler)
     - [Enhancement of upstream cache control](#enhancement-of-upstream-cache-control)
@@ -112,6 +113,8 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_http_log_var_set_module](https://git.hanada.info/hanada/ngx_http_log_var_set_module)
 * [ngx_http_loop_detect_module](https://git.hanada.info/hanada/ngx_http_loop_detect_module)
 * [ngx_http_lua_config_module](https://git.hanada.info/hanada/ngx_http_lua_config_module)
+* [ngx_http_proxy_filter_module](https://git.hanada.info/hanada/ngx_http_proxy_filter_module)
+* [ngx_http_proxy_headers_control_module](https://git.hanada.info/hanada/ngx_http_proxy_headers_control_module)
 * [ngx_http_proxy_auth_aws_module](https://git.hanada.info/hanada/ngx_http_proxy_auth_aws_module)
 * [ngx_http_proxy_auth_netstorage_module](https://git.hanada.info/hanada/ngx_http_proxy_auth_netstorage_module)
 * [ngx_http_proxy_var_set_module](https://git.hanada.info/hanada/ngx_http_proxy_var_set_module)
@@ -474,6 +477,17 @@ sub_filter_bypass $http_pragma    $http_authorization;
 
 ## ngx_http_proxy_module and related modules
 
+### Proxy filter Framework
+
+Provides a hook-based filter framework for proxy requests, allowing third-party modules to attach custom handlers at various phases of the upstream proxy lifecycle. See [ngx_http_proxy_filter_module](https://git.hanada.info/hanada/ngx_http_proxy_filter_module) for details and usage.
+
+Modules currently integrated with this framework:
+
+* [ngx_http_proxy_auth_aws_module](https://git.hanada.info/hanada/ngx_http_proxy_auth_aws_module)
+* [ngx_http_proxy_auth_netstorage_module](https://git.hanada.info/hanada/ngx_http_proxy_auth_netstorage_module)
+* [ngx_http_proxy_headers_control_module](https://git.hanada.info/hanada/ngx_http_proxy_headers_control_module)
+* [ngx_http_proxy_var_set_module](https://git.hanada.info/hanada/ngx_http_proxy_var_set_module)
+
 ### Support for inheritance in "proxy_set_header" and its friends
 
 Introduces the `proxy_set_header_inherit` directive which blocks the merge inheritance in receiving contexts when set to off. The purpose of the added mechanics is to reduce repetition within the nginx configuration for universally set (or boilerplate) request headers, while maintaining flexibility to set additional headers for specific paths. The original patch is from [[PATCH] Added merge inheritance to proxy_set_header](https://mailman.nginx.org/pipermail/nginx-devel/2023-November/XUGFHDLSLRTFLWIBYPSE7LTXFJHNZE3E.html).
@@ -538,8 +552,7 @@ Several `proxy_cookie_value` directives can be specified on the same level. If s
 The off parameter cancels the effect of the `proxy_cookie_value` directives inherited from the previous configuration level.
 
 
-* **Syntax:** *proxy_cookie_max_age off;*
-*proxy_cookie_max_age cookie cookie time;*
+* **Syntax:** *proxy_cookie_max_age off;*  *proxy_cookie_max_age cookie cookie time;*
 
 * **Default:** *proxy_cookie_max_age off;*
 
@@ -569,11 +582,21 @@ The off parameter cancels the effect of the `proxy_cookie_max_age` directives in
 
 * **Context:** *http, server, location*
 
-The `proxy_hide_cookie` directive sets "Set-Cookie" fields that will not be passed by cookie name.
+Sets "Set-Cookie" fields that will not be passed by cookie name.
 
 See also the [proxy_hide_header](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_hide_header) directive.
 
 > fastcgi_hide_cookie, scgi_hide_cookie and uwsgi_hide_cookie directives are also available.
+
+* **Syntax:** *proxy_cache_hide_cookies on | off;*
+
+* **Default:** *proxy_cache_hide_cookies off;*
+
+* **Context:** *http, server, location*
+
+Prevents Set-Cookie headers from being passed when the response is served from cache.
+
+> fastcgi_hide_cookies, scgi_hide_cookies and uwsgi_hide_cookies directives are also available.
 
 ### Enhancement of upstream cache control
 
@@ -673,36 +696,6 @@ The cache will be differentiated based on the values ​​of the request header
 This directive only affects upstream cache, not response headers for client. If you want to also change the `Vary` header of the response to the client, use the `proxy_hide_header` and `add_header` directives.
 
 > fastcgi_cache_vary, scgi_cache_vary and uwsgi_cache_vary directives are also available.
-
-* **Syntax:** *proxy_cache_force_invalidate string ...;*
-
-* **Default:** *—*
-
-* **Context:** *http, server, location*
-
-Defines conditions under which the cached response will be forcibly invalidated. If at least one value of the string parameters is not empty and is not equal to "0", the corresponding cache entry will be marked as invalid. Subsequent requests matching this cache key will bypass the invalidated entry and fetch content from upstream. Invalidated cache entries receive `MISS` status, which triggers immediate upstream fetching while bypassing cache revalidation.
-
-Example:
-```
-proxy_cache_force_invalidate $cookie_purge_cache $arg_purge$arg_admin;
-proxy_cache_force_invalidate $http_cache_control $http_authorization;
-```
-
-It is primarily designed to address scenarios where requests may hit cached entries before the cache purge operation (based on pattern matching) completes. For other use cases, consider using `proxy_cache_bypass` and `proxy_no_cache` directives instead.
-
-> fastcgi_cache_force_invalidate, scgi_cache_force_invalidate, uwsgi_cache_force_invalidate directives are also available.
-
-* **Syntax:** *proxy_cache_force_expire string ...;*
-
-* **Default:** *—*
-
-* **Context:** *http, server, location*
-
-Defines conditions under which the cached response will be forcibly expired. If at least one value of the string parameters is not empty and is not equal to "0", the corresponding cache entry will be marked as expired. Subsequent requests matching this cache key will fetch new content from upstream. Expired cache entries receive `EXPIRED` status. If the `proxy_cache_revalidate` directive is enabled, cache revalidation can be performed.
-
-It is primarily designed to address scenarios where requests may hit cached entries before the cache purge operation (based on pattern matching) completes. For other use cases, consider using `proxy_cache_bypass` and `proxy_no_cache` directives instead.
-
-> fastcgi_cache_force_expire, scgi_cache_force_expire, uwsgi_cache_force_expire directives are also available.
 
 * **Syntax:** *proxy_cache_min_length size;*
 
@@ -819,31 +812,11 @@ if ($remote_addr = 192.168.1.1 && ($http_user_agent ~ Mozilla || $server_port > 
 }
 ```
 
-Known limits 1: 
+**Known limitations:**
 
-When ues conditional grouping based on brackets. the last character of a conditional statement cannot be `)`, even if it is enclosed in quotes. For example, the following expression will cause a configuration test error.
-```
-if (($test_var = "test)" && $http_user_agent ~ Mozilla) || $server_port > 808) {
-    return 404;
-}
-```
-If you must use a string ending with `)`, you might consider using a variable to back it up.
-```
-set $value "test)";
-if (($test_var = $value && $http_user_agent ~ Mozilla) || $server_port > 808) {
-    return 404;
-}
-```
-If it is a regular expression, you can avoid using `)` at the end in many ways.
+1. All sub-conditions are evaluated first before calculating the expression result. This is different from the sub-condition processing logic of general programming languages.
 
-
-Known limits 2:
-
-All sub-conditions are evaluated first before calculating the expression result. This is different from the sub-condition processing logic of general programming languages.
-
-Known limits 3:
-
-Due to the limitations of nginx script engine, if you use regular capture, you will only get the capture group of the last matching regular expression.
+2. Due to the limitations of nginx script engine, if you use regular capture, you will only get the capture group of the last matching regular expression.
 
 ### Support for "elif" and "else" directives
 
