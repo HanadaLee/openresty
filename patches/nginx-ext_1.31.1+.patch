@@ -1880,7 +1880,7 @@ index 032ba96..faf6af5 100644
  
          r->headers_out.status = NGX_HTTP_NOT_MODIFIED;
 diff --git a/src/http/modules/ngx_http_proxy_module.c b/src/http/modules/ngx_http_proxy_module.c
-index f3e43ef..2b99c8a 100644
+index f3e43ef..5c87b3f 100644
 --- a/src/http/modules/ngx_http_proxy_module.c
 +++ b/src/http/modules/ngx_http_proxy_module.c
 @@ -9,6 +9,9 @@
@@ -1930,7 +1930,18 @@ index f3e43ef..2b99c8a 100644
  typedef struct {
      union {
          ngx_http_complex_value_t   complex;
-@@ -89,6 +122,10 @@ static ngx_int_t
+@@ -57,6 +90,10 @@ typedef struct {
+ } ngx_http_proxy_cookie_flags_t;
+ 
+ 
++#if (NGX_RESTY_EXT && NGX_HTTP_PROXY_FILTER)
++static ngx_int_t ngx_http_proxy_build_uri(ngx_http_request_t *r,
++    ngx_str_t *uri);
++#endif
+ static ngx_int_t ngx_http_proxy_create_request(ngx_http_request_t *r);
+ static ngx_int_t ngx_http_proxy_reinit_request(ngx_http_request_t *r);
+ static ngx_int_t ngx_http_proxy_body_output_filter(void *data, ngx_chain_t *in);
+@@ -89,6 +126,10 @@ static ngx_int_t
      ngx_http_variable_value_t *v, uintptr_t data);
  static ngx_int_t ngx_http_proxy_internal_chunked_variable(ngx_http_request_t *r,
      ngx_http_variable_value_t *v, uintptr_t data);
@@ -1941,7 +1952,7 @@ index f3e43ef..2b99c8a 100644
  static ngx_int_t ngx_http_proxy_parse_cookie(ngx_str_t *value,
      ngx_array_t *attrs);
  static ngx_int_t ngx_http_proxy_rewrite_cookie_value(ngx_http_request_t *r,
-@@ -97,6 +134,13 @@ static ngx_int_t ngx_http_proxy_rewrite_cookie_flags(ngx_http_request_t *r,
+@@ -97,6 +138,13 @@ static ngx_int_t ngx_http_proxy_rewrite_cookie_flags(ngx_http_request_t *r,
      ngx_array_t *attrs, ngx_array_t *flags);
  static ngx_int_t ngx_http_proxy_edit_cookie_flags(ngx_http_request_t *r,
      ngx_array_t *attrs, ngx_uint_t flags);
@@ -1955,7 +1966,7 @@ index f3e43ef..2b99c8a 100644
  static ngx_int_t ngx_http_proxy_rewrite(ngx_http_request_t *r,
      ngx_str_t *value, size_t prefix, size_t len, ngx_str_t *replacement);
  
-@@ -119,6 +163,12 @@ static char *ngx_http_proxy_cookie_path(ngx_conf_t *cf, ngx_command_t *cmd,
+@@ -119,6 +167,12 @@ static char *ngx_http_proxy_cookie_path(ngx_conf_t *cf, ngx_command_t *cmd,
      void *conf);
  static char *ngx_http_proxy_cookie_flags(ngx_conf_t *cf, ngx_command_t *cmd,
      void *conf);
@@ -1968,7 +1979,7 @@ index f3e43ef..2b99c8a 100644
  static char *ngx_http_proxy_store(ngx_conf_t *cf, ngx_command_t *cmd,
      void *conf);
  #if (NGX_HTTP_CACHE)
-@@ -242,6 +292,24 @@ static ngx_command_t  ngx_http_proxy_commands[] = {
+@@ -242,6 +296,24 @@ static ngx_command_t  ngx_http_proxy_commands[] = {
        0,
        NULL },
  
@@ -1993,7 +2004,7 @@ index f3e43ef..2b99c8a 100644
      { ngx_string("proxy_store"),
        NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
        ngx_http_proxy_store,
-@@ -326,6 +394,15 @@ static ngx_command_t  ngx_http_proxy_commands[] = {
+@@ -326,6 +398,15 @@ static ngx_command_t  ngx_http_proxy_commands[] = {
        offsetof(ngx_http_proxy_loc_conf_t, headers_source),
        NULL },
  
@@ -2009,7 +2020,7 @@ index f3e43ef..2b99c8a 100644
      { ngx_string("proxy_headers_hash_max_size"),
        NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
        ngx_conf_set_num_slot,
-@@ -454,6 +531,15 @@ static ngx_command_t  ngx_http_proxy_commands[] = {
+@@ -454,6 +535,15 @@ static ngx_command_t  ngx_http_proxy_commands[] = {
        offsetof(ngx_http_proxy_loc_conf_t, upstream.no_cache),
        NULL },
  
@@ -2025,7 +2036,7 @@ index f3e43ef..2b99c8a 100644
      { ngx_string("proxy_cache_valid"),
        NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_1MORE,
        ngx_http_file_cache_valid_set_slot,
-@@ -461,6 +547,15 @@ static ngx_command_t  ngx_http_proxy_commands[] = {
+@@ -461,6 +551,15 @@ static ngx_command_t  ngx_http_proxy_commands[] = {
        offsetof(ngx_http_proxy_loc_conf_t, upstream.cache_valid),
        NULL },
  
@@ -2041,7 +2052,7 @@ index f3e43ef..2b99c8a 100644
      { ngx_string("proxy_cache_min_uses"),
        NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
        ngx_conf_set_num_slot,
-@@ -468,6 +563,22 @@ static ngx_command_t  ngx_http_proxy_commands[] = {
+@@ -468,6 +567,22 @@ static ngx_command_t  ngx_http_proxy_commands[] = {
        offsetof(ngx_http_proxy_loc_conf_t, upstream.cache_min_uses),
        NULL },
  
@@ -2064,7 +2075,7 @@ index f3e43ef..2b99c8a 100644
      { ngx_string("proxy_cache_max_range_offset"),
        NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
        ngx_conf_set_off_slot,
-@@ -482,6 +593,37 @@ static ngx_command_t  ngx_http_proxy_commands[] = {
+@@ -482,6 +597,37 @@ static ngx_command_t  ngx_http_proxy_commands[] = {
        offsetof(ngx_http_proxy_loc_conf_t, upstream.cache_use_stale),
        &ngx_http_proxy_next_upstream_masks },
  
@@ -2102,7 +2113,7 @@ index f3e43ef..2b99c8a 100644
      { ngx_string("proxy_cache_methods"),
        NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_1MORE,
        ngx_conf_set_bitmask_slot,
-@@ -596,6 +738,24 @@ static ngx_command_t  ngx_http_proxy_commands[] = {
+@@ -596,6 +742,24 @@ static ngx_command_t  ngx_http_proxy_commands[] = {
        offsetof(ngx_http_proxy_loc_conf_t, upstream.ignore_headers),
        &ngx_http_upstream_ignore_headers_masks },
  
@@ -2127,7 +2138,7 @@ index f3e43ef..2b99c8a 100644
      { ngx_string("proxy_http_version"),
        NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
        ngx_conf_set_enum_slot,
-@@ -823,6 +983,11 @@ static ngx_http_variable_t  ngx_http_proxy_vars[] = {
+@@ -823,6 +987,11 @@ static ngx_http_variable_t  ngx_http_proxy_vars[] = {
        ngx_http_proxy_internal_chunked_variable, 0,
        NGX_HTTP_VAR_NOCACHEABLE|NGX_HTTP_VAR_NOHASH, 0 },
  
@@ -2139,7 +2150,7 @@ index f3e43ef..2b99c8a 100644
        ngx_http_null_variable
  };
  
-@@ -931,9 +1096,24 @@ ngx_http_proxy_handler(ngx_http_request_t *r)
+@@ -931,9 +1100,24 @@ ngx_http_proxy_handler(ngx_http_request_t *r)
          u->rewrite_redirect = ngx_http_proxy_rewrite_redirect;
      }
  
@@ -2164,7 +2175,79 @@ index f3e43ef..2b99c8a 100644
  
      u->buffering = plcf->upstream.buffering;
  
-@@ -1183,7 +1363,11 @@ ngx_http_proxy_create_request(ngx_http_request_t *r)
+@@ -1172,6 +1356,71 @@ ngx_http_proxy_create_key(ngx_http_request_t *r)
+ #endif
+ 
+ 
++#if (NGX_RESTY_EXT && NGX_HTTP_PROXY_FILTER)
++
++static ngx_int_t
++ngx_http_proxy_build_uri(ngx_http_request_t *r, ngx_str_t *uri)
++{
++    u_char                    *p;
++    size_t                     loc_len;
++    uintptr_t                  escape;
++    ngx_http_proxy_ctx_t      *ctx;
++    ngx_http_proxy_loc_conf_t *plcf;
++
++    ctx = ngx_http_get_module_ctx(r, ngx_http_proxy_module);
++    if (ctx == NULL) {
++        return NGX_ERROR;
++    }
++
++    plcf = ngx_http_get_module_loc_conf(r, ngx_http_proxy_module);
++
++    p = uri->data;
++
++    if (plcf->proxy_lengths && ctx->vars.uri.len) {
++        p = ngx_copy(p, ctx->vars.uri.data, ctx->vars.uri.len);
++
++    } else if (ctx->vars.uri.len == 0 && r->valid_unparsed_uri) {
++        p = ngx_copy(p, r->unparsed_uri.data, r->unparsed_uri.len);
++
++    } else {
++        loc_len = (r->valid_location && ctx->vars.uri.len)
++                  ? ngx_min(plcf->location.len, r->uri.len) : 0;
++
++        if (r->valid_location) {
++            p = ngx_copy(p, ctx->vars.uri.data, ctx->vars.uri.len);
++        }
++
++        if (r->quoted_uri || r->internal) {
++            escape = 2 * ngx_escape_uri(NULL, r->uri.data + loc_len,
++                                        r->uri.len - loc_len, NGX_ESCAPE_URI);
++
++        } else {
++            escape = 0;
++        }
++
++        if (escape) {
++            ngx_escape_uri(p, r->uri.data + loc_len,
++                           r->uri.len - loc_len, NGX_ESCAPE_URI);
++            p += r->uri.len - loc_len + escape;
++
++        } else {
++            p = ngx_copy(p, r->uri.data + loc_len, r->uri.len - loc_len);
++        }
++
++        if (r->args.len > 0) {
++            *p++ = '?';
++            p = ngx_copy(p, r->args.data, r->args.len);
++        }
++    }
++
++    uri->len = p - uri->data;
++
++    return NGX_OK;
++}
++
++#endif
++
++
+ static ngx_int_t
+ ngx_http_proxy_create_request(ngx_http_request_t *r)
+ {
+@@ -1183,7 +1432,11 @@ ngx_http_proxy_create_request(ngx_http_request_t *r)
      ngx_uint_t                    i, unparsed_uri;
      ngx_chain_t                  *cl, *body;
      ngx_list_part_t              *part;
@@ -2176,18 +2259,21 @@ index f3e43ef..2b99c8a 100644
      ngx_http_upstream_t          *u;
      ngx_http_proxy_ctx_t         *ctx;
      ngx_http_script_code_pt       code;
-@@ -1191,6 +1375,10 @@ ngx_http_proxy_create_request(ngx_http_request_t *r)
+@@ -1191,6 +1444,13 @@ ngx_http_proxy_create_request(ngx_http_request_t *r)
      ngx_http_script_engine_t      e, le;
      ngx_http_proxy_loc_conf_t    *plcf;
      ngx_http_script_len_code_pt   lcode;
 +#if (NGX_RESTY_EXT)
 +    u_char                       *key_pos, *val_pos, *tmp;
 +    size_t                        tmp_len;
++#if (NGX_HTTP_PROXY_FILTER)
++    ngx_uint_t                    method_set;
++#endif
 +#endif
  
      u = r->upstream;
  
-@@ -1202,6 +1390,21 @@ ngx_http_proxy_create_request(ngx_http_request_t *r)
+@@ -1202,6 +1462,21 @@ ngx_http_proxy_create_request(ngx_http_request_t *r)
      headers = &plcf->headers;
  #endif
  
@@ -2209,7 +2295,7 @@ index f3e43ef..2b99c8a 100644
      if (u->method.len) {
          /* HEAD was changed to GET to cache response */
          method = u->method;
-@@ -1215,6 +1418,8 @@ ngx_http_proxy_create_request(ngx_http_request_t *r)
+@@ -1215,6 +1490,8 @@ ngx_http_proxy_create_request(ngx_http_request_t *r)
          method = r->method_name;
      }
  
@@ -2218,7 +2304,7 @@ index f3e43ef..2b99c8a 100644
      ctx = ngx_http_get_module_ctx(r, ngx_http_proxy_module);
  
      if (method.len == 4
-@@ -1285,10 +1490,29 @@ ngx_http_proxy_create_request(ngx_http_request_t *r)
+@@ -1285,10 +1562,29 @@ ngx_http_proxy_create_request(ngx_http_request_t *r)
          ctx->internal_body_length = r->headers_in.content_length_n;
      }
  
@@ -2248,7 +2334,7 @@ index f3e43ef..2b99c8a 100644
      while (*(uintptr_t *) le.ip) {
  
          lcode = *(ngx_http_script_len_code_pt *) le.ip;
-@@ -1299,13 +1523,117 @@ ngx_http_proxy_create_request(ngx_http_request_t *r)
+@@ -1299,90 +1595,292 @@ ngx_http_proxy_create_request(ngx_http_request_t *r)
          }
          le.ip += sizeof(uintptr_t);
  
@@ -2264,48 +2350,90 @@ index f3e43ef..2b99c8a 100644
              continue;
          }
  
+-        len += key_len + sizeof(": ") - 1 + val_len + sizeof(CRLF) - 1;
+-    }
+-
+-
+-    if (plcf->upstream.pass_request_headers) {
+-        part = &r->headers_in.headers.part;
+-        header = part->elts;
+-
+-        for (i = 0; /* void */; i++) {
+-
+-            if (i >= part->nelts) {
+-                if (part->next == NULL) {
+-                    break;
+-                }
+-
+-                part = part->next;
+-                header = part->elts;
+-                i = 0;
+-            }
+-
+-            if (ngx_hash_find(&headers->hash, header[i].hash,
+-                              header[i].lowcase_key, header[i].key.len))
+-            {
+-                continue;
+-            }
 +#if (NGX_RESTY_EXT)
 +        if (tmp_len < key_len) {
 +            tmp_len = key_len;
 +        }
-+
+ 
+-            len += header[i].key.len + sizeof(": ") - 1
+-                + header[i].value.len + sizeof(CRLF) - 1;
 +        if (tmp_len < val_len) {
 +            tmp_len = val_len;
-+        }
+         }
 +#else
-         len += key_len + sizeof(": ") - 1 + val_len + sizeof(CRLF) - 1;
++        len += key_len + sizeof(": ") - 1 + val_len + sizeof(CRLF) - 1;
 +#endif
-+    }
-+
-+
+     }
+ 
+ 
+-    b = ngx_create_temp_buf(r->pool, len);
+-    if (b == NULL) {
+-        return NGX_ERROR;
+-    }
 +#if (NGX_RESTY_EXT)
-+
+ 
+-    cl = ngx_alloc_chain_link(r->pool);
+-    if (cl == NULL) {
 +    tmp = ngx_pnalloc(r->pool, tmp_len * 2);
 +    if (tmp == NULL) {
-+        return NGX_ERROR;
-+    }
-+
+         return NGX_ERROR;
+     }
+ 
+-    cl->buf = b;
 +    ngx_memzero(&e, sizeof(ngx_http_script_engine_t));
-+
+ 
 +    e.ip = headers->values->elts;
 +    e.pos = tmp;
 +    e.request = r;
 +    e.flushed = 1;
-+
+ 
+-    /* the request line */
 +    le.ip = headers->lengths->elts;
 +    le.request = r;
 +    le.flushed = 1;
-+
+ 
+-    b->last = ngx_copy(b->last, method.data, method.len);
+-    *b->last++ = ' ';
 +    while (*(uintptr_t *) le.ip) {
-+
+ 
+-    u->uri.data = b->last;
 +        lcode = *(ngx_http_script_len_code_pt *) le.ip;
 +        key_len = lcode(&le);
-+
+ 
+-    if (plcf->proxy_lengths && ctx->vars.uri.len) {
+-        b->last = ngx_copy(b->last, ctx->vars.uri.data, ctx->vars.uri.len);
 +        for (val_len = 0; *(uintptr_t *) le.ip; val_len += lcode(&le)) {
 +            lcode = *(ngx_http_script_len_code_pt *) le.ip;
 +        }
 +        le.ip += sizeof(uintptr_t);
-+
+ 
+-    } else if (unparsed_uri) {
+-        b->last = ngx_copy(b->last, r->unparsed_uri.data, r->unparsed_uri.len);
 +        if (val_len == 0) {
 +            e.skip = 1;
 +            while (*(uintptr_t *) e.ip) {
@@ -2313,14 +2441,24 @@ index f3e43ef..2b99c8a 100644
 +                code((ngx_http_script_engine_t *) &e);
 +            }
 +            e.ip += sizeof(uintptr_t);
-+
+ 
+-    } else {
+-        if (r->valid_location) {
+-            b->last = ngx_copy(b->last, ctx->vars.uri.data, ctx->vars.uri.len);
 +            e.skip = 0;
 +
 +            continue;
-+        }
-+
+         }
+ 
+-        if (escape) {
+-            ngx_escape_uri(b->last, r->uri.data + loc_len,
+-                           r->uri.len - loc_len, NGX_ESCAPE_URI);
+-            b->last += r->uri.len - loc_len + escape;
 +        e.pos = tmp;
-+
+ 
+-        } else {
+-            b->last = ngx_copy(b->last, r->uri.data + loc_len,
+-                               r->uri.len - loc_len);
 +        code = *(ngx_http_script_code_pt *) e.ip;
 +        code((ngx_http_script_engine_t *) &e);
 +
@@ -2330,9 +2468,12 @@ index f3e43ef..2b99c8a 100644
 +        while (*(uintptr_t *) e.ip) {
 +            code = *(ngx_http_script_code_pt *) e.ip;
 +            code((ngx_http_script_engine_t *) &e);
-+        }
+         }
 +        e.ip += sizeof(uintptr_t);
-+
+ 
+-        if (r->args.len > 0) {
+-            *b->last++ = '?';
+-            b->last = ngx_copy(b->last, r->args.data, r->args.len);
 +        th = ngx_list_push(&ctx->headers_in);
 +        if (th == NULL) {
 +            return NGX_ERROR;
@@ -2359,17 +2500,33 @@ index f3e43ef..2b99c8a 100644
 +
 +        th->hash = ngx_hash_key_lc(th->key.data, th->key.len);
 +        th->next = NULL;
-     }
- 
++    }
++
 +#endif
 +
- 
-     if (plcf->upstream.pass_request_headers) {
-         part = &r->headers_in.headers.part;
-@@ -1329,11 +1657,58 @@ ngx_http_proxy_create_request(ngx_http_request_t *r)
-                 continue;
-             }
- 
++
++    if (plcf->upstream.pass_request_headers) {
++        part = &r->headers_in.headers.part;
++        header = part->elts;
++
++        for (i = 0; /* void */; i++) {
++
++            if (i >= part->nelts) {
++                if (part->next == NULL) {
++                    break;
++                }
++
++                part = part->next;
++                header = part->elts;
++                i = 0;
++            }
++
++            if (ngx_hash_find(&headers->hash, header[i].hash,
++                              header[i].lowcase_key, header[i].key.len))
++            {
++                continue;
++            }
++
 +#if (NGX_RESTY_EXT)
 +            th = ngx_list_push(&ctx->headers_in);
 +            if (th == NULL) {
@@ -2382,8 +2539,8 @@ index f3e43ef..2b99c8a 100644
 +            th->lowcase_key = header[i].lowcase_key;
 +            th->next = NULL;
 +#else
-             len += header[i].key.len + sizeof(": ") - 1
-                 + header[i].value.len + sizeof(CRLF) - 1;
++            len += header[i].key.len + sizeof(": ") - 1
++                + header[i].value.len + sizeof(CRLF) - 1;
 +#endif
 +        }
 +    }
@@ -2392,8 +2549,45 @@ index f3e43ef..2b99c8a 100644
 +#if (NGX_RESTY_EXT)
 +
 +#if (NGX_HTTP_PROXY_FILTER)
-+    if (ngx_http_proxy_filter_request_hook(r, &ctx->headers_in) != NGX_OK) {
++    ngx_str_null(&u->uri);
++    method_set = 0;
++
++    if (ngx_http_proxy_filter_request_hook(r, &ctx->headers_in, uri_len,
++                                           ngx_http_proxy_build_uri,
++                                           &method_set)
++        != NGX_OK)
++    {
 +        return NGX_ERROR;
++    }
++
++    if (method_set) {
++        if (u->method.len == 0 || u->method.data == NULL) {
++            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
++                          "invalid method to proxy");
++            return NGX_ERROR;
++        }
++
++        len = len - method.len + u->method.len;
++        method = u->method;
++
++        ctx->head = 0;
++
++        if (method.len == 4
++            && ngx_strncasecmp(method.data, (u_char *) "HEAD", 4) == 0)
++        {
++            ctx->head = 1;
++        }
++    }
++
++    if (u->uri.data != NULL) {
++        if (u->uri.len == 0) {
++            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
++                          "zero length URI to proxy");
++            return NGX_ERROR;
++        }
++
++        len = len - uri_len + u->uri.len;
++        uri_len = u->uri.len;
 +    }
 +#endif
 +
@@ -2418,44 +2612,98 @@ index f3e43ef..2b99c8a 100644
 +
 +        len += header[i].key.len + sizeof(": ") - 1
 +            + header[i].value.len + sizeof(CRLF) - 1;
-     }
- 
++    }
++
 +#endif
 +
++
++    b = ngx_create_temp_buf(r->pool, len);
++    if (b == NULL) {
++        return NGX_ERROR;
++    }
++
++    cl = ngx_alloc_chain_link(r->pool);
++    if (cl == NULL) {
++        return NGX_ERROR;
+     }
  
-     b = ngx_create_temp_buf(r->pool, len);
-     if (b == NULL) {
-@@ -1393,21 +1768,54 @@ ngx_http_proxy_create_request(ngx_http_request_t *r)
+-    u->uri.len = b->last - u->uri.data;
++    cl->buf = b;
++
++
++    /* the request line */
++
++    b->last = ngx_copy(b->last, method.data, method.len);
++    *b->last++ = ' ';
++
++#if (NGX_RESTY_EXT && NGX_HTTP_PROXY_FILTER)
++    if (u->uri.data) {
++        b->last = ngx_copy(b->last, u->uri.data, u->uri.len);
++
++    } else {
++#endif
++
++        u->uri.data = b->last;
++
++        if (plcf->proxy_lengths && ctx->vars.uri.len) {
++            b->last = ngx_copy(b->last, ctx->vars.uri.data,
++                               ctx->vars.uri.len);
++
++        } else if (unparsed_uri) {
++            b->last = ngx_copy(b->last, r->unparsed_uri.data,
++                               r->unparsed_uri.len);
++
++        } else {
++            if (r->valid_location) {
++                b->last = ngx_copy(b->last, ctx->vars.uri.data,
++                                   ctx->vars.uri.len);
++            }
++
++            if (escape) {
++                ngx_escape_uri(b->last, r->uri.data + loc_len,
++                               r->uri.len - loc_len, NGX_ESCAPE_URI);
++                b->last += r->uri.len - loc_len + escape;
++
++            } else {
++                b->last = ngx_copy(b->last, r->uri.data + loc_len,
++                                   r->uri.len - loc_len);
++            }
++
++            if (r->args.len > 0) {
++                *b->last++ = '?';
++                b->last = ngx_copy(b->last, r->args.data, r->args.len);
++            }
++        }
++
++        u->uri.len = b->last - u->uri.data;
++
++#if (NGX_RESTY_EXT && NGX_HTTP_PROXY_FILTER)
++    }
++#endif
+ 
+     if (plcf->http_version == NGX_HTTP_VERSION_11) {
+         b->last = ngx_cpymem(b->last, ngx_http_proxy_version_11,
+@@ -1393,6 +1891,39 @@ ngx_http_proxy_create_request(ngx_http_request_t *r)
                               sizeof(ngx_http_proxy_version) - 1);
      }
  
--    ngx_memzero(&e, sizeof(ngx_http_script_engine_t));
 +#if (NGX_RESTY_EXT)
- 
--    e.ip = headers->values->elts;
--    e.pos = b->last;
--    e.request = r;
--    e.flushed = 1;
++
 +    part = &ctx->headers_in.part;
 +    header = part->elts;
- 
--    le.ip = headers->lengths->elts;
++
 +    for (i = 0; /* void */; i++) {
- 
--    while (*(uintptr_t *) le.ip) {
++
 +        if (i >= part->nelts) {
 +            if (part->next == NULL) {
 +                break;
 +            }
- 
--        lcode = *(ngx_http_script_len_code_pt *) le.ip;
--        (void) lcode(&le);
++
 +            part = part->next;
 +            header = part->elts;
 +            i = 0;
 +        }
- 
--        for (val_len = 0; *(uintptr_t *) le.ip; val_len += lcode(&le)) {
++
 +        if (header[i].hash == 0) {
 +            continue;
 +        }
@@ -2472,25 +2720,10 @@ index f3e43ef..2b99c8a 100644
 +
 +#else
 +
-+    ngx_memzero(&e, sizeof(ngx_http_script_engine_t));
-+
-+    e.ip = headers->values->elts;
-+    e.pos = b->last;
-+    e.request = r;
-+    e.flushed = 1;
-+
-+    le.ip = headers->lengths->elts;
-+
-+    while (*(uintptr_t *) le.ip) {
-+
-+        lcode = *(ngx_http_script_len_code_pt *) le.ip;
-+        (void) lcode(&le);
-+
-+        for (val_len = 0; *(uintptr_t *) le.ip; val_len += lcode(&le)) {
-             lcode = *(ngx_http_script_len_code_pt *) le.ip;
-         }
-         le.ip += sizeof(uintptr_t);
-@@ -1480,6 +1888,8 @@ ngx_http_proxy_create_request(ngx_http_request_t *r)
+     ngx_memzero(&e, sizeof(ngx_http_script_engine_t));
+ 
+     e.ip = headers->values->elts;
+@@ -1480,6 +2011,8 @@ ngx_http_proxy_create_request(ngx_http_request_t *r)
          }
      }
  
@@ -2499,7 +2732,7 @@ index f3e43ef..2b99c8a 100644
  
      /* add "\r\n" at the header end */
      *b->last++ = CR; *b->last++ = LF;
-@@ -1829,6 +2239,10 @@ static ngx_int_t
+@@ -1829,6 +2362,10 @@ static ngx_int_t
  ngx_http_proxy_process_header(ngx_http_request_t *r)
  {
      ngx_int_t                       rc;
@@ -2510,7 +2743,7 @@ index f3e43ef..2b99c8a 100644
      ngx_table_elt_t                *h;
      ngx_http_upstream_t            *u;
      ngx_http_proxy_ctx_t           *ctx;
-@@ -1885,6 +2299,7 @@ ngx_http_proxy_process_header(ngx_http_request_t *r)
+@@ -1885,6 +2422,7 @@ ngx_http_proxy_process_header(ngx_http_request_t *r)
                  continue;
              }
  
@@ -2518,7 +2751,7 @@ index f3e43ef..2b99c8a 100644
              hh = ngx_hash_find(&umcf->headers_in_hash, h->hash,
                                 h->lowcase_key, h->key.len);
  
-@@ -1895,6 +2310,7 @@ ngx_http_proxy_process_header(ngx_http_request_t *r)
+@@ -1895,6 +2433,7 @@ ngx_http_proxy_process_header(ngx_http_request_t *r)
                      return rc;
                  }
              }
@@ -2526,7 +2759,7 @@ index f3e43ef..2b99c8a 100644
  
              continue;
          }
-@@ -1920,6 +2336,46 @@ ngx_http_proxy_process_header(ngx_http_request_t *r)
+@@ -1920,6 +2459,46 @@ ngx_http_proxy_process_header(ngx_http_request_t *r)
                  return NGX_HTTP_UPSTREAM_EARLY_HINTS;
              }
  
@@ -2573,7 +2806,7 @@ index f3e43ef..2b99c8a 100644
              /*
               * if no "Server" and "Date" in header line,
               * then add the special empty headers
-@@ -2067,6 +2523,9 @@ ngx_http_proxy_copy_filter(ngx_event_pipe_t *p, ngx_buf_t *buf)
+@@ -2067,6 +2646,9 @@ ngx_http_proxy_copy_filter(ngx_event_pipe_t *p, ngx_buf_t *buf)
  {
      ngx_buf_t           *b;
      ngx_chain_t         *cl;
@@ -2583,7 +2816,7 @@ index f3e43ef..2b99c8a 100644
      ngx_http_request_t  *r;
  
      if (buf->pos == buf->last) {
-@@ -2079,13 +2538,19 @@ ngx_http_proxy_copy_filter(ngx_event_pipe_t *p, ngx_buf_t *buf)
+@@ -2079,13 +2661,19 @@ ngx_http_proxy_copy_filter(ngx_event_pipe_t *p, ngx_buf_t *buf)
          return NGX_OK;
      }
  
@@ -2603,7 +2836,7 @@ index f3e43ef..2b99c8a 100644
          r->upstream->keepalive = 0;
          p->upstream_done = 1;
  
-@@ -2108,6 +2573,10 @@ ngx_http_proxy_copy_filter(ngx_event_pipe_t *p, ngx_buf_t *buf)
+@@ -2108,6 +2696,10 @@ ngx_http_proxy_copy_filter(ngx_event_pipe_t *p, ngx_buf_t *buf)
  
      ngx_log_debug1(NGX_LOG_DEBUG_EVENT, p->log, 0, "input buf #%d", b->num);
  
@@ -2614,7 +2847,7 @@ index f3e43ef..2b99c8a 100644
      if (p->in) {
          *p->last_in = cl;
      } else {
-@@ -2116,6 +2585,16 @@ ngx_http_proxy_copy_filter(ngx_event_pipe_t *p, ngx_buf_t *buf)
+@@ -2116,6 +2708,16 @@ ngx_http_proxy_copy_filter(ngx_event_pipe_t *p, ngx_buf_t *buf)
      p->last_in = &cl->next;
  
      if (p->length == -1) {
@@ -2631,7 +2864,7 @@ index f3e43ef..2b99c8a 100644
          return NGX_OK;
      }
  
-@@ -2128,16 +2607,38 @@ ngx_http_proxy_copy_filter(ngx_event_pipe_t *p, ngx_buf_t *buf)
+@@ -2128,16 +2730,38 @@ ngx_http_proxy_copy_filter(ngx_event_pipe_t *p, ngx_buf_t *buf)
          b->last = b->pos + p->length;
          p->upstream_done = 1;
  
@@ -2670,7 +2903,7 @@ index f3e43ef..2b99c8a 100644
      return NGX_OK;
  }
  
-@@ -2148,6 +2649,9 @@ ngx_http_proxy_chunked_filter(ngx_event_pipe_t *p, ngx_buf_t *buf)
+@@ -2148,6 +2772,9 @@ ngx_http_proxy_chunked_filter(ngx_event_pipe_t *p, ngx_buf_t *buf)
      ngx_int_t                   rc;
      ngx_buf_t                  *b, **prev;
      ngx_chain_t                *cl;
@@ -2680,7 +2913,7 @@ index f3e43ef..2b99c8a 100644
      ngx_http_request_t         *r;
      ngx_http_proxy_ctx_t       *ctx;
      ngx_http_proxy_loc_conf_t  *plcf;
-@@ -2208,6 +2712,10 @@ ngx_http_proxy_chunked_filter(ngx_event_pipe_t *p, ngx_buf_t *buf)
+@@ -2208,6 +2835,10 @@ ngx_http_proxy_chunked_filter(ngx_event_pipe_t *p, ngx_buf_t *buf)
  
      plcf = ngx_http_get_module_loc_conf(r, ngx_http_proxy_module);
  
@@ -2691,7 +2924,7 @@ index f3e43ef..2b99c8a 100644
      prev = &buf->shadow;
  
      for ( ;; ) {
-@@ -2325,6 +2833,16 @@ free_buf:
+@@ -2325,6 +2956,16 @@ free_buf:
          ngx_log_debug2(NGX_LOG_DEBUG_EVENT, p->log, 0,
                         "input buf %p %z", b->pos, b->last - b->pos);
  
@@ -2708,7 +2941,7 @@ index f3e43ef..2b99c8a 100644
          return NGX_OK;
      }
  
-@@ -2345,6 +2863,9 @@ ngx_http_proxy_non_buffered_copy_filter(void *data, ssize_t bytes)
+@@ -2345,6 +2986,9 @@ ngx_http_proxy_non_buffered_copy_filter(void *data, ssize_t bytes)
  
      ngx_buf_t            *b;
      ngx_chain_t          *cl, **ll;
@@ -2718,7 +2951,7 @@ index f3e43ef..2b99c8a 100644
      ngx_http_upstream_t  *u;
  
      u = r->upstream;
-@@ -2361,6 +2882,10 @@ ngx_http_proxy_non_buffered_copy_filter(void *data, ssize_t bytes)
+@@ -2361,6 +3005,10 @@ ngx_http_proxy_non_buffered_copy_filter(void *data, ssize_t bytes)
          ll = &cl->next;
      }
  
@@ -2729,7 +2962,7 @@ index f3e43ef..2b99c8a 100644
      cl = ngx_chain_get_free_buf(r->pool, &u->free_bufs);
      if (cl == NULL) {
          return NGX_ERROR;
-@@ -2379,6 +2904,12 @@ ngx_http_proxy_non_buffered_copy_filter(void *data, ssize_t bytes)
+@@ -2379,6 +3027,12 @@ ngx_http_proxy_non_buffered_copy_filter(void *data, ssize_t bytes)
      cl->buf->tag = u->output.tag;
  
      if (u->length == -1) {
@@ -2742,7 +2975,7 @@ index f3e43ef..2b99c8a 100644
          return NGX_OK;
      }
  
-@@ -2391,6 +2922,12 @@ ngx_http_proxy_non_buffered_copy_filter(void *data, ssize_t bytes)
+@@ -2391,6 +3045,12 @@ ngx_http_proxy_non_buffered_copy_filter(void *data, ssize_t bytes)
          cl->buf->last = cl->buf->pos + u->length;
          u->length = 0;
  
@@ -2755,7 +2988,7 @@ index f3e43ef..2b99c8a 100644
          return NGX_OK;
      }
  
-@@ -2400,6 +2937,12 @@ ngx_http_proxy_non_buffered_copy_filter(void *data, ssize_t bytes)
+@@ -2400,6 +3060,12 @@ ngx_http_proxy_non_buffered_copy_filter(void *data, ssize_t bytes)
          u->keepalive = !u->headers_in.connection_close;
      }
  
@@ -2768,7 +3001,7 @@ index f3e43ef..2b99c8a 100644
      return NGX_OK;
  }
  
-@@ -2412,6 +2955,9 @@ ngx_http_proxy_non_buffered_chunked_filter(void *data, ssize_t bytes)
+@@ -2412,6 +3078,9 @@ ngx_http_proxy_non_buffered_chunked_filter(void *data, ssize_t bytes)
      ngx_int_t                   rc;
      ngx_buf_t                  *b, *buf;
      ngx_chain_t                *cl, **ll;
@@ -2778,7 +3011,7 @@ index f3e43ef..2b99c8a 100644
      ngx_http_upstream_t        *u;
      ngx_http_proxy_ctx_t       *ctx;
      ngx_http_proxy_loc_conf_t  *plcf;
-@@ -2458,6 +3004,10 @@ ngx_http_proxy_non_buffered_chunked_filter(void *data, ssize_t bytes)
+@@ -2458,6 +3127,10 @@ ngx_http_proxy_non_buffered_chunked_filter(void *data, ssize_t bytes)
          ll = &cl->next;
      }
  
@@ -2789,7 +3022,7 @@ index f3e43ef..2b99c8a 100644
      for ( ;; ) {
  
          rc = ngx_http_parse_chunked(r, buf, &ctx->chunked,
-@@ -2542,6 +3092,12 @@ ngx_http_proxy_non_buffered_chunked_filter(void *data, ssize_t bytes)
+@@ -2542,6 +3215,12 @@ ngx_http_proxy_non_buffered_chunked_filter(void *data, ssize_t bytes)
          return NGX_ERROR;
      }
  
@@ -2802,7 +3035,7 @@ index f3e43ef..2b99c8a 100644
      return NGX_OK;
  }
  
-@@ -2671,6 +3227,10 @@ ngx_http_proxy_finalize_request(ngx_http_request_t *r, ngx_int_t rc)
+@@ -2671,6 +3350,10 @@ ngx_http_proxy_finalize_request(ngx_http_request_t *r, ngx_int_t rc)
      ngx_log_debug0(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
                     "finalize http proxy request");
  
@@ -2813,16 +3046,21 @@ index f3e43ef..2b99c8a 100644
      return;
  }
  
-@@ -2826,6 +3386,29 @@ ngx_http_proxy_internal_chunked_variable(ngx_http_request_t *r,
+@@ -2826,12 +3509,35 @@ ngx_http_proxy_internal_chunked_variable(ngx_http_request_t *r,
  }
  
  
+-ngx_int_t
+-ngx_http_proxy_rewrite_redirect(ngx_http_request_t *r, ngx_table_elt_t *h,
+-    size_t prefix)
 +#if (NGX_RESTY_EXT)
 +
 +static ngx_int_t
 +ngx_http_proxy_http_variable(ngx_http_request_t *r,
 +    ngx_http_variable_value_t *v, uintptr_t data)
-+{
+ {
+-    size_t                      len;
+-    ngx_int_t                   rc;
 +    ngx_http_proxy_ctx_t  *ctx;
 +
 +    ctx = ngx_http_get_module_ctx(r, ngx_http_proxy_module);
@@ -2840,10 +3078,16 @@ index f3e43ef..2b99c8a 100644
 +#endif
 +
 +
- ngx_int_t
- ngx_http_proxy_rewrite_redirect(ngx_http_request_t *r, ngx_table_elt_t *h,
-     size_t prefix)
-@@ -2870,6 +3453,10 @@ ngx_http_proxy_rewrite_cookie(ngx_http_request_t *r, ngx_table_elt_t *h)
++ngx_int_t
++ngx_http_proxy_rewrite_redirect(ngx_http_request_t *r, ngx_table_elt_t *h,
++    size_t prefix)
++{
++    size_t                      len;
++    ngx_int_t                   rc;
+     ngx_uint_t                  i;
+     ngx_http_proxy_rewrite_t   *pr;
+     ngx_http_proxy_loc_conf_t  *plcf;
+@@ -2870,6 +3576,10 @@ ngx_http_proxy_rewrite_cookie(ngx_http_request_t *r, ngx_table_elt_t *h)
      ngx_keyval_t               *attr;
      ngx_http_proxy_loc_conf_t  *plcf;
  
@@ -2854,7 +3098,7 @@ index f3e43ef..2b99c8a 100644
      if (ngx_array_init(&attrs, r->pool, 2, sizeof(ngx_keyval_t)) != NGX_OK) {
          return NGX_ERROR;
      }
-@@ -2880,14 +3467,34 @@ ngx_http_proxy_rewrite_cookie(ngx_http_request_t *r, ngx_table_elt_t *h)
+@@ -2880,14 +3590,34 @@ ngx_http_proxy_rewrite_cookie(ngx_http_request_t *r, ngx_table_elt_t *h)
  
      attr = attrs.elts;
  
@@ -2889,7 +3133,7 @@ index f3e43ef..2b99c8a 100644
      for (i = 1; i < attrs.nelts; i++) {
  
          key = &attr[i].key;
-@@ -2922,8 +3529,62 @@ ngx_http_proxy_rewrite_cookie(ngx_http_request_t *r, ngx_table_elt_t *h)
+@@ -2922,8 +3652,62 @@ ngx_http_proxy_rewrite_cookie(ngx_http_request_t *r, ngx_table_elt_t *h)
                  rv = rc;
              }
          }
@@ -2952,143 +3196,92 @@ index f3e43ef..2b99c8a 100644
      if (plcf->cookie_flags) {
          rc = ngx_http_proxy_rewrite_cookie_flags(r, &attrs,
                                                   plcf->cookie_flags);
-@@ -3309,84 +3970,259 @@ ngx_http_proxy_edit_cookie_flags(ngx_http_request_t *r, ngx_array_t *attrs,
+@@ -3309,6 +4093,181 @@ ngx_http_proxy_edit_cookie_flags(ngx_http_request_t *r, ngx_array_t *attrs,
  }
  
  
 +#if (NGX_RESTY_EXT)
 +
- static ngx_int_t
--ngx_http_proxy_rewrite_complex_handler(ngx_http_request_t *r, ngx_str_t *value,
--    size_t prefix, size_t len, ngx_http_proxy_rewrite_t *pr)
++static ngx_int_t
 +ngx_http_proxy_rewrite_cookie_values(ngx_http_request_t *r, ngx_array_t *attrs,
 +    ngx_array_t *values)
- {
--    ngx_str_t  pattern, replacement;
++{
 +    ngx_str_t                       pattern;
 +    ngx_int_t                       rc;
 +    ngx_uint_t                      i;
 +    ngx_keyval_t                   *attr;
 +    ngx_http_proxy_cookie_value_t  *pcv;
- 
--    if (ngx_http_complex_value(r, &pr->pattern.complex, &pattern) != NGX_OK) {
--        return NGX_ERROR;
--    }
++
 +    attr = attrs->elts;
 +    pcv = values->elts;
- 
--    if (pattern.len > len
--        || ngx_rstrncmp(value->data + prefix, pattern.data, pattern.len) != 0)
--    {
--        return NGX_DECLINED;
--    }
++
 +    for (i = 0; i < values->nelts; i++) {
- 
--    if (ngx_http_complex_value(r, &pr->replacement, &replacement) != NGX_OK) {
--        return NGX_ERROR;
--    }
++
 +#if (NGX_PCRE)
 +        if (pcv[i].regex) {
 +            rc = ngx_http_regex_exec(r, pcv[i].cookie.regex, &attr[0].key);
- 
--    return ngx_http_proxy_rewrite(r, value, prefix, pattern.len, &replacement);
--}
++
 +            if (rc == NGX_ERROR) {
 +                return NGX_ERROR;
 +            }
- 
++
 +            if (rc == NGX_OK) {
 +                break;
 +            }
- 
--#if (NGX_PCRE)
++
 +            /* NGX_DECLINED */
- 
--static ngx_int_t
--ngx_http_proxy_rewrite_regex_handler(ngx_http_request_t *r, ngx_str_t *value,
--    size_t prefix, size_t len, ngx_http_proxy_rewrite_t *pr)
--{
--    ngx_str_t  pattern, replacement;
++
 +            continue;
 +        }
 +#endif
- 
--    pattern.len = len;
--    pattern.data = value->data + prefix;
++
 +        if (ngx_http_complex_value(r, &pcv[i].cookie.complex, &pattern)
 +            != NGX_OK)
 +        {
 +            return NGX_ERROR;
 +        }
- 
--    if (ngx_http_regex_exec(r, pr->pattern.regex, &pattern) != NGX_OK) {
--        return NGX_DECLINED;
++
 +        if (pattern.len == attr[0].key.len
 +            && ngx_strncasecmp(attr[0].key.data, pattern.data, pattern.len)
 +               == 0)
 +        {
 +            break;
 +        }
-     }
- 
--    if (ngx_http_complex_value(r, &pr->replacement, &replacement) != NGX_OK) {
--        return NGX_ERROR;
++    }
++
 +    if (i == values->nelts) {
 +        return NGX_DECLINED;
-     }
- 
--    return ngx_http_proxy_rewrite(r, value, prefix, len, &replacement);
++    }
++
 +    return pcv[i].pr->handler(r, &attr[0].value, 0, attr[0].value.len,
 +                             pcv[i].pr);
- }
- 
--#endif
--
- 
- static ngx_int_t
--ngx_http_proxy_rewrite_domain_handler(ngx_http_request_t *r, ngx_str_t *value,
--    size_t prefix, size_t len, ngx_http_proxy_rewrite_t *pr)
++}
++
++
++static ngx_int_t
 +ngx_http_proxy_rewrite_cookie_max_age(ngx_http_request_t *r,
 +    ngx_array_t *attrs, ngx_array_t *max_age, ngx_uint_t is_max_age,
 +    ngx_uint_t offset, ngx_int_t *rule)
- {
--    u_char     *p;
--    ngx_str_t   pattern, replacement;
--
--    if (ngx_http_complex_value(r, &pr->pattern.complex, &pattern) != NGX_OK) {
--        return NGX_ERROR;
--    }
--
--    p = value->data + prefix;
++{
 +    ngx_str_t                         pattern, replacement;
 +    ngx_int_t                         rc;
 +    ngx_uint_t                        i;
 +    ngx_keyval_t                     *attr;
 +    ngx_http_proxy_cookie_max_age_t  *pcm;
 +    u_char                           *p;
- 
--    if (len && p[0] == '.') {
--        p++;
--        prefix++;
--        len--;
--    }
++
 +    attr = attrs->elts;
 +    pcm = max_age->elts;
- 
--    if (pattern.len != len || ngx_rstrncasecmp(pattern.data, p, len) != 0) {
++
 +    if (*rule == (ngx_int_t) max_age->nelts)  {
-         return NGX_DECLINED;
-     }
- 
--    if (ngx_http_complex_value(r, &pr->replacement, &replacement) != NGX_OK) {
--        return NGX_ERROR;
++        return NGX_DECLINED;
++    }
++
 +    if (*rule != -1) {
 +        i = *rule;
 +        goto rule_match;
-     }
- 
--    return ngx_http_proxy_rewrite(r, value, prefix, len, &replacement);
--}
++    }
++
 +    for (i = 0; i < max_age->nelts; i++) {
 +
 +#if (NGX_PCRE)
@@ -3182,88 +3375,10 @@ index f3e43ef..2b99c8a 100644
 +#endif
 +
 +
-+static ngx_int_t
-+ngx_http_proxy_rewrite_complex_handler(ngx_http_request_t *r, ngx_str_t *value,
-+    size_t prefix, size_t len, ngx_http_proxy_rewrite_t *pr)
-+{
-+    ngx_str_t  pattern, replacement;
-+
-+    if (ngx_http_complex_value(r, &pr->pattern.complex, &pattern) != NGX_OK) {
-+        return NGX_ERROR;
-+    }
-+
-+    if (pattern.len > len
-+        || ngx_rstrncmp(value->data + prefix, pattern.data, pattern.len) != 0)
-+    {
-+        return NGX_DECLINED;
-+    }
-+
-+    if (ngx_http_complex_value(r, &pr->replacement, &replacement) != NGX_OK) {
-+        return NGX_ERROR;
-+    }
-+
-+    return ngx_http_proxy_rewrite(r, value, prefix, pattern.len, &replacement);
-+}
-+
-+
-+#if (NGX_PCRE)
-+
-+static ngx_int_t
-+ngx_http_proxy_rewrite_regex_handler(ngx_http_request_t *r, ngx_str_t *value,
-+    size_t prefix, size_t len, ngx_http_proxy_rewrite_t *pr)
-+{
-+    ngx_str_t  pattern, replacement;
-+
-+    pattern.len = len;
-+    pattern.data = value->data + prefix;
-+
-+    if (ngx_http_regex_exec(r, pr->pattern.regex, &pattern) != NGX_OK) {
-+        return NGX_DECLINED;
-+    }
-+
-+    if (ngx_http_complex_value(r, &pr->replacement, &replacement) != NGX_OK) {
-+        return NGX_ERROR;
-+    }
-+
-+    return ngx_http_proxy_rewrite(r, value, prefix, len, &replacement);
-+}
-+
-+#endif
-+
-+
-+static ngx_int_t
-+ngx_http_proxy_rewrite_domain_handler(ngx_http_request_t *r, ngx_str_t *value,
-+    size_t prefix, size_t len, ngx_http_proxy_rewrite_t *pr)
-+{
-+    u_char     *p;
-+    ngx_str_t   pattern, replacement;
-+
-+    if (ngx_http_complex_value(r, &pr->pattern.complex, &pattern) != NGX_OK) {
-+        return NGX_ERROR;
-+    }
-+
-+    p = value->data + prefix;
-+
-+    if (len && p[0] == '.') {
-+        p++;
-+        prefix++;
-+        len--;
-+    }
-+
-+    if (pattern.len != len || ngx_rstrncasecmp(pattern.data, p, len) != 0) {
-+        return NGX_DECLINED;
-+    }
-+
-+    if (ngx_http_complex_value(r, &pr->replacement, &replacement) != NGX_OK) {
-+        return NGX_ERROR;
-+    }
-+
-+    return ngx_http_proxy_rewrite(r, value, prefix, len, &replacement);
-+}
- 
- 
  static ngx_int_t
-@@ -3488,10 +4324,13 @@ ngx_http_proxy_create_loc_conf(ngx_conf_t *cf)
+ ngx_http_proxy_rewrite_complex_handler(ngx_http_request_t *r, ngx_str_t *value,
+     size_t prefix, size_t len, ngx_http_proxy_rewrite_t *pr)
+@@ -3488,10 +4447,13 @@ ngx_http_proxy_create_loc_conf(ngx_conf_t *cf)
       *
       *     conf->upstream.bufs.num = 0;
       *     conf->upstream.ignore_headers = 0;
@@ -3277,7 +3392,7 @@ index f3e43ef..2b99c8a 100644
       *     conf->upstream.temp_path = NULL;
       *     conf->upstream.hide_headers_hash = { NULL, 0 };
       *     conf->upstream.store_lengths = NULL;
-@@ -3547,7 +4386,18 @@ ngx_http_proxy_create_loc_conf(ngx_conf_t *cf)
+@@ -3547,7 +4509,18 @@ ngx_http_proxy_create_loc_conf(ngx_conf_t *cf)
  
  #if (NGX_HTTP_CACHE)
      conf->upstream.cache = NGX_CONF_UNSET;
@@ -3296,7 +3411,7 @@ index f3e43ef..2b99c8a 100644
      conf->upstream.cache_max_range_offset = NGX_CONF_UNSET;
      conf->upstream.cache_bypass = NGX_CONF_UNSET_PTR;
      conf->upstream.no_cache = NGX_CONF_UNSET_PTR;
-@@ -3562,9 +4412,16 @@ ngx_http_proxy_create_loc_conf(ngx_conf_t *cf)
+@@ -3562,9 +4535,16 @@ ngx_http_proxy_create_loc_conf(ngx_conf_t *cf)
  
      conf->upstream.hide_headers = NGX_CONF_UNSET_PTR;
      conf->upstream.pass_headers = NGX_CONF_UNSET_PTR;
@@ -3313,7 +3428,7 @@ index f3e43ef..2b99c8a 100644
  #if (NGX_HTTP_SSL)
      conf->upstream.ssl_session_reuse = NGX_CONF_UNSET;
      conf->upstream.ssl_name = NGX_CONF_UNSET_PTR;
-@@ -3592,6 +4449,10 @@ ngx_http_proxy_create_loc_conf(ngx_conf_t *cf)
+@@ -3592,6 +4572,10 @@ ngx_http_proxy_create_loc_conf(ngx_conf_t *cf)
      conf->cookie_domains = NGX_CONF_UNSET_PTR;
      conf->cookie_paths = NGX_CONF_UNSET_PTR;
      conf->cookie_flags = NGX_CONF_UNSET_PTR;
@@ -3324,7 +3439,7 @@ index f3e43ef..2b99c8a 100644
  
      conf->http_version = NGX_CONF_UNSET_UINT;
  
-@@ -3613,6 +4474,11 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -3613,6 +4597,11 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      u_char                     *p;
      size_t                      size;
      ngx_int_t                   rc;
@@ -3336,7 +3451,7 @@ index f3e43ef..2b99c8a 100644
      ngx_hash_init_t             hash;
      ngx_http_core_loc_conf_t   *clcf;
      ngx_http_proxy_rewrite_t   *pr;
-@@ -3779,6 +4645,11 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -3779,6 +4768,11 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
                                prev->upstream.ignore_headers,
                                NGX_CONF_BITMASK_SET);
  
@@ -3348,7 +3463,7 @@ index f3e43ef..2b99c8a 100644
  
      ngx_conf_merge_bitmask_value(conf->upstream.next_upstream,
                                prev->upstream.next_upstream,
-@@ -3822,9 +4693,26 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -3822,9 +4816,26 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
          return NGX_CONF_ERROR;
      }
  
@@ -3375,7 +3490,7 @@ index f3e43ef..2b99c8a 100644
      ngx_conf_merge_off_value(conf->upstream.cache_max_range_offset,
                                prev->upstream.cache_max_range_offset,
                                NGX_MAX_OFF_T_VALUE);
-@@ -3843,6 +4731,24 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -3843,6 +4854,24 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
          conf->upstream.cache_use_stale |= NGX_HTTP_UPSTREAM_FT_NOLIVE;
      }
  
@@ -3400,7 +3515,7 @@ index f3e43ef..2b99c8a 100644
      if (conf->upstream.cache_methods == 0) {
          conf->upstream.cache_methods = prev->upstream.cache_methods;
      }
-@@ -3855,6 +4761,20 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -3855,6 +4884,20 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      ngx_conf_merge_ptr_value(conf->upstream.no_cache,
                               prev->upstream.no_cache, NULL);
  
@@ -3421,7 +3536,7 @@ index f3e43ef..2b99c8a 100644
      ngx_conf_merge_ptr_value(conf->upstream.cache_valid,
                               prev->upstream.cache_valid, NULL);
  
-@@ -3893,6 +4813,13 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -3893,6 +4936,13 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      ngx_conf_merge_value(conf->upstream.intercept_errors,
                                prev->upstream.intercept_errors, 0);
  
@@ -3435,7 +3550,7 @@ index f3e43ef..2b99c8a 100644
  #if (NGX_HTTP_SSL)
  
      if (ngx_http_proxy_merge_ssl(cf, conf, prev) != NGX_OK) {
-@@ -4002,6 +4929,14 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -4002,6 +5052,14 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
  
      ngx_conf_merge_ptr_value(conf->cookie_flags, prev->cookie_flags, NULL);
  
@@ -3450,7 +3565,7 @@ index f3e43ef..2b99c8a 100644
      ngx_conf_merge_uint_value(conf->http_version, prev->http_version,
                                NGX_HTTP_VERSION_11);
  
-@@ -4025,6 +4960,11 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -4025,6 +5083,11 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
          return NGX_CONF_ERROR;
      }
  
@@ -3462,7 +3577,7 @@ index f3e43ef..2b99c8a 100644
      clcf = ngx_http_conf_get_module_loc_conf(cf, ngx_http_core_module);
  
      if (clcf->noname
-@@ -4080,6 +5020,55 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -4080,6 +5143,55 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
          conf->headers_cache = prev->headers_cache;
  #endif
          conf->host_set = prev->host_set;
@@ -3518,7 +3633,7 @@ index f3e43ef..2b99c8a 100644
      }
  
      rc = ngx_http_proxy_init_headers(cf, conf, &conf->headers,
-@@ -4862,6 +5851,249 @@ ngx_http_proxy_cookie_flags(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+@@ -4862,6 +5974,249 @@ ngx_http_proxy_cookie_flags(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
  }
  
  
@@ -3806,7 +3921,7 @@ index a0f79bc..a494d92 100644
      unsigned                       internal_chunked:1;
      unsigned                       header_sent:1;
 diff --git a/src/http/modules/ngx_http_proxy_v2_module.c b/src/http/modules/ngx_http_proxy_v2_module.c
-index 0be5691..053e2bb 100644
+index 0be5691..f5d15fd 100644
 --- a/src/http/modules/ngx_http_proxy_v2_module.c
 +++ b/src/http/modules/ngx_http_proxy_v2_module.c
 @@ -9,6 +9,9 @@
@@ -3819,7 +3934,18 @@ index 0be5691..053e2bb 100644
  
  
  typedef enum {
-@@ -278,9 +281,24 @@ ngx_http_proxy_v2_handler(ngx_http_request_t *r)
+@@ -109,6 +112,10 @@ typedef struct {
+ } ngx_http_proxy_v2_frame_t;
+ 
+ 
++#if (NGX_RESTY_EXT && NGX_HTTP_PROXY_FILTER)
++static ngx_int_t ngx_http_proxy_v2_build_uri(ngx_http_request_t *r,
++    ngx_str_t *uri);
++#endif
+ static ngx_int_t ngx_http_proxy_v2_create_request(ngx_http_request_t *r);
+ static ngx_int_t ngx_http_proxy_v2_reinit_request(ngx_http_request_t *r);
+ static ngx_int_t ngx_http_proxy_v2_body_output_filter(void *data,
+@@ -278,9 +285,24 @@ ngx_http_proxy_v2_handler(ngx_http_request_t *r)
          u->rewrite_redirect = ngx_http_proxy_rewrite_redirect;
      }
  
@@ -3844,7 +3970,75 @@ index 0be5691..053e2bb 100644
  
      u->buffering = plcf->upstream.buffering;
  
-@@ -317,16 +335,26 @@ ngx_http_proxy_v2_handler(ngx_http_request_t *r)
+@@ -314,19 +336,100 @@ ngx_http_proxy_v2_handler(ngx_http_request_t *r)
+ }
+ 
+ 
++#if (NGX_RESTY_EXT && NGX_HTTP_PROXY_FILTER)
++
++static ngx_int_t
++ngx_http_proxy_v2_build_uri(ngx_http_request_t *r, ngx_str_t *uri)
++{
++    u_char                       *p;
++    size_t                        loc_len;
++    uintptr_t                     escape;
++    ngx_http_proxy_v2_ctx_t      *ctx;
++    ngx_http_proxy_loc_conf_t    *plcf;
++
++    ctx = ngx_http_get_module_ctx(r, ngx_http_proxy_v2_module);
++    if (ctx == NULL) {
++        return NGX_ERROR;
++    }
++
++    plcf = ngx_http_get_module_loc_conf(r, ngx_http_proxy_module);
++
++    p = uri->data;
++
++    if (plcf->proxy_lengths && ctx->ctx.vars.uri.len) {
++        p = ngx_copy(p, ctx->ctx.vars.uri.data, ctx->ctx.vars.uri.len);
++
++    } else if (ctx->ctx.vars.uri.len == 0 && r->valid_unparsed_uri) {
++        p = ngx_copy(p, r->unparsed_uri.data, r->unparsed_uri.len);
++
++    } else {
++        loc_len = (r->valid_location && ctx->ctx.vars.uri.len)
++                  ? ngx_min(plcf->location.len, r->uri.len) : 0;
++
++        if (r->valid_location) {
++            p = ngx_copy(p, ctx->ctx.vars.uri.data, ctx->ctx.vars.uri.len);
++        }
++
++        if (r->quoted_uri || r->internal) {
++            escape = 2 * ngx_escape_uri(NULL, r->uri.data + loc_len,
++                                        r->uri.len - loc_len, NGX_ESCAPE_URI);
++
++        } else {
++            escape = 0;
++        }
++
++        if (escape) {
++            ngx_escape_uri(p, r->uri.data + loc_len,
++                           r->uri.len - loc_len, NGX_ESCAPE_URI);
++            p += r->uri.len - loc_len + escape;
++
++        } else {
++            p = ngx_copy(p, r->uri.data + loc_len, r->uri.len - loc_len);
++        }
++
++        if (r->args.len > 0) {
++            *p++ = '?';
++            p = ngx_copy(p, r->args.data, r->args.len);
++        }
++    }
++
++    uri->len = p - uri->data;
++
++    return NGX_OK;
++}
++
++#endif
++
++
  static ngx_int_t
  ngx_http_proxy_v2_create_request(ngx_http_request_t *r)
  {
@@ -3852,6 +4046,9 @@ index 0be5691..053e2bb 100644
 +    u_char                       *p, *tmp, *val_tmp, *headers_frame;
 +    size_t                        len, tmp_len, old_tmp_len, key_len, val_len,
 +                                  uri_len, loc_len, body_len;
++#if (NGX_HTTP_PROXY_FILTER)
++    size_t                        method_len;
++#endif
 +#else
      u_char                       *p, *tmp, *key_tmp, *val_tmp, *headers_frame;
      size_t                        len, tmp_len, key_len, val_len, uri_len,
@@ -3868,10 +4065,13 @@ index 0be5691..053e2bb 100644
 +#else
      ngx_table_elt_t              *header;
 +#endif
++#if (NGX_RESTY_EXT && NGX_HTTP_PROXY_FILTER)
++    ngx_uint_t                    method_set;
++#endif
      ngx_http_upstream_t          *u;
      ngx_http_proxy_v2_ctx_t      *ctx;
      ngx_http_script_code_pt       code;
-@@ -346,6 +374,21 @@ ngx_http_proxy_v2_create_request(ngx_http_request_t *r)
+@@ -346,6 +449,21 @@ ngx_http_proxy_v2_create_request(ngx_http_request_t *r)
      headers = &plcf->headers;
  #endif
  
@@ -3893,7 +4093,7 @@ index 0be5691..053e2bb 100644
      if (u->method.len) {
          /* HEAD was changed to GET to cache response */
          method = u->method;
-@@ -359,6 +402,8 @@ ngx_http_proxy_v2_create_request(ngx_http_request_t *r)
+@@ -359,6 +477,8 @@ ngx_http_proxy_v2_create_request(ngx_http_request_t *r)
          method = r->method_name;
      }
  
@@ -3902,7 +4102,40 @@ index 0be5691..053e2bb 100644
      ctx = ngx_http_get_module_ctx(r, ngx_http_proxy_v2_module);
  
      if (method.len == 4
-@@ -465,6 +510,24 @@ ngx_http_proxy_v2_create_request(ngx_http_request_t *r)
+@@ -372,6 +492,23 @@ ngx_http_proxy_v2_create_request(ngx_http_request_t *r)
+ 
+     /* :method header */
+ 
++#if (NGX_RESTY_EXT && NGX_HTTP_PROXY_FILTER)
++
++    if ((method.len == 3 && ngx_strncmp(method.data, "GET", 3) == 0)
++        || (method.len == 4 && ngx_strncmp(method.data, "POST", 4) == 0))
++    {
++        method_len = 1;
++        tmp_len = 0;
++
++    } else {
++        method_len = 1 + NGX_HTTP_V2_INT_OCTETS + method.len;
++        tmp_len = method.len;
++    }
++
++    len += method_len;
++
++#else
++
+     if ((method.len == 3 && ngx_strncmp(method.data, "GET", 3) == 0)
+         || (method.len == 4 && ngx_strncmp(method.data, "POST", 4) == 0))
+     {
+@@ -383,6 +520,8 @@ ngx_http_proxy_v2_create_request(ngx_http_request_t *r)
+         tmp_len = method.len;
+     }
+ 
++#endif
++
+     /* :scheme header */
+ 
+     len += 1;
+@@ -465,6 +604,24 @@ ngx_http_proxy_v2_create_request(ngx_http_request_t *r)
          ctx->ctx.internal_body_length = r->headers_in.content_length_n;
      }
  
@@ -3927,7 +4160,7 @@ index 0be5691..053e2bb 100644
      le.ip = headers->lengths->elts;
      le.request = r;
      le.flushed = 1;
-@@ -479,12 +542,22 @@ ngx_http_proxy_v2_create_request(ngx_http_request_t *r)
+@@ -479,12 +636,22 @@ ngx_http_proxy_v2_create_request(ngx_http_request_t *r)
          }
          le.ip += sizeof(uintptr_t);
  
@@ -3950,7 +4183,7 @@ index 0be5691..053e2bb 100644
  
          if (tmp_len < key_len) {
              tmp_len = key_len;
-@@ -495,6 +568,90 @@ ngx_http_proxy_v2_create_request(ngx_http_request_t *r)
+@@ -495,6 +662,90 @@ ngx_http_proxy_v2_create_request(ngx_http_request_t *r)
          }
      }
  
@@ -4041,7 +4274,7 @@ index 0be5691..053e2bb 100644
      if (plcf->upstream.pass_request_headers) {
          part = &r->headers_in.headers.part;
          header = part->elts;
-@@ -517,6 +674,18 @@ ngx_http_proxy_v2_create_request(ngx_http_request_t *r)
+@@ -517,6 +768,18 @@ ngx_http_proxy_v2_create_request(ngx_http_request_t *r)
                  continue;
              }
  
@@ -4060,7 +4293,7 @@ index 0be5691..053e2bb 100644
              len += 1 + NGX_HTTP_V2_INT_OCTETS + header[i].key.len
                       + NGX_HTTP_V2_INT_OCTETS + header[i].value.len;
  
-@@ -527,9 +696,62 @@ ngx_http_proxy_v2_create_request(ngx_http_request_t *r)
+@@ -527,9 +790,116 @@ ngx_http_proxy_v2_create_request(ngx_http_request_t *r)
              if (tmp_len < header[i].value.len) {
                  tmp_len = header[i].value.len;
              }
@@ -4071,10 +4304,64 @@ index 0be5691..053e2bb 100644
 +#if (NGX_RESTY_EXT)
 +
 +#if (NGX_HTTP_PROXY_FILTER)
-+    if (ngx_http_proxy_filter_request_hook(r, &ctx->ctx.headers_in)
++    ngx_str_null(&u->uri);
++    method_set = 0;
++
++    if (ngx_http_proxy_filter_request_hook(r, &ctx->ctx.headers_in, uri_len,
++                                           ngx_http_proxy_v2_build_uri,
++                                           &method_set)
 +        != NGX_OK)
 +    {
 +        return NGX_ERROR;
++    }
++
++    if (method_set) {
++        if (u->method.len == 0 || u->method.data == NULL) {
++            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
++                          "invalid method to proxy");
++            return NGX_ERROR;
++        }
++
++        len -= method_len;
++        method = u->method;
++
++        ctx->ctx.head = 0;
++
++        if (method.len == 4
++            && ngx_strncasecmp(method.data, (u_char *) "HEAD", 4) == 0)
++        {
++            ctx->ctx.head = 1;
++        }
++
++        if ((method.len == 3 && ngx_strncmp(method.data, "GET", 3) == 0)
++            || (method.len == 4 && ngx_strncmp(method.data, "POST", 4) == 0))
++        {
++            method_len = 1;
++
++        } else {
++            method_len = 1 + NGX_HTTP_V2_INT_OCTETS + method.len;
++
++            if (tmp_len < method.len) {
++                tmp_len = method.len;
++            }
++        }
++
++        len += method_len;
++    }
++
++    if (u->uri.data != NULL) {
++        if (u->uri.len == 0) {
++            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
++                          "zero length URI to proxy");
++            return NGX_ERROR;
++        }
++
++        len = len - uri_len + u->uri.len;
++        uri_len = u->uri.len;
++
++        if (tmp_len < uri_len) {
++            tmp_len = uri_len;
++        }
 +    }
 +#endif
 +
@@ -4108,22 +4395,22 @@ index 0be5691..053e2bb 100644
 +
 +        if (tmp_len < header[i].value.len) {
 +            tmp_len = header[i].value.len;
-         }
-     }
- 
++        }
++    }
++
 +    if (tmp_len > old_tmp_len) {
 +        tmp = ngx_palloc(r->pool, tmp_len * 3);
 +        if (tmp == NULL) {
 +            return NGX_ERROR;
-+        }
-+    }
-+
+         }
+     }
+ 
 +#endif
 +
      /* continuation frames */
  
      len += sizeof(ngx_http_proxy_v2_frame_t)
-@@ -549,12 +771,14 @@ ngx_http_proxy_v2_create_request(ngx_http_request_t *r)
+@@ -549,12 +919,14 @@ ngx_http_proxy_v2_create_request(ngx_http_request_t *r)
      cl->buf = b;
      cl->next = NULL;
  
@@ -4138,7 +4425,38 @@ index 0be5691..053e2bb 100644
      val_tmp = tmp + 2 * tmp_len;
  
      /* connection preface */
-@@ -675,6 +899,48 @@ ngx_http_proxy_v2_create_request(ngx_http_request_t *r)
+@@ -615,6 +987,19 @@ ngx_http_proxy_v2_create_request(ngx_http_request_t *r)
+                        "http proxy header: \":scheme: http\"");
+     }
+ 
++#if (NGX_RESTY_EXT && NGX_HTTP_PROXY_FILTER)
++    if (u->uri.data) {
++
++        *b->last++ = ngx_http_v2_inc_indexed(NGX_HTTP_V2_PATH_INDEX);
++        b->last = ngx_http_v2_write_value(b->last, u->uri.data,
++                                          u->uri.len, tmp);
++
++        ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
++                       "http proxy header: \":path: %V\"", &u->uri);
++
++    } else {
++#endif
++
+     if (plcf->proxy_lengths && ctx->ctx.vars.uri.len) {
+ 
+         *b->last++ = ngx_http_v2_inc_indexed(NGX_HTTP_V2_PATH_INDEX);
+@@ -667,6 +1052,10 @@ ngx_http_proxy_v2_create_request(ngx_http_request_t *r)
+                        val_tmp);
+     }
+ 
++#if (NGX_RESTY_EXT && NGX_HTTP_PROXY_FILTER)
++    }
++#endif
++
+     if (!plcf->host_set) {
+         *b->last++ = ngx_http_v2_inc_indexed(NGX_HTTP_V2_AUTHORITY_INDEX);
+         b->last = ngx_http_v2_write_value(b->last, host->data, host->len, tmp);
+@@ -675,6 +1064,48 @@ ngx_http_proxy_v2_create_request(ngx_http_request_t *r)
                         "http proxy header: \":authority: %V\"", host);
      }
  
@@ -4187,7 +4505,7 @@ index 0be5691..053e2bb 100644
      ngx_memzero(&e, sizeof(ngx_http_script_engine_t));
  
      e.ip = headers->values->elts;
-@@ -779,6 +1045,8 @@ ngx_http_proxy_v2_create_request(ngx_http_request_t *r)
+@@ -779,6 +1210,8 @@ ngx_http_proxy_v2_create_request(ngx_http_request_t *r)
          }
      }
  
@@ -4196,7 +4514,7 @@ index 0be5691..053e2bb 100644
      /* update headers frame length */
  
      len = b->last - headers_frame - sizeof(ngx_http_proxy_v2_frame_t);
-@@ -1324,8 +1592,14 @@ ngx_http_proxy_v2_process_header(ngx_http_request_t *r)
+@@ -1324,8 +1757,14 @@ ngx_http_proxy_v2_process_header(ngx_http_request_t *r)
      u_char                         *pos;
      ngx_str_t                      *status_line;
      ngx_int_t                       rc, status;
@@ -4211,7 +4529,7 @@ index 0be5691..053e2bb 100644
      ngx_http_upstream_t            *u;
      ngx_http_proxy_v2_ctx_t        *ctx;
      ngx_http_upstream_header_t     *hh;
-@@ -1548,6 +1822,7 @@ ngx_http_proxy_v2_process_header(ngx_http_request_t *r)
+@@ -1548,6 +1987,7 @@ ngx_http_proxy_v2_process_header(ngx_http_request_t *r)
                      continue;
                  }
  
@@ -4219,7 +4537,7 @@ index 0be5691..053e2bb 100644
                  hh = ngx_hash_find(&umcf->headers_in_hash, h->hash,
                                     h->lowcase_key, h->key.len);
  
-@@ -1558,6 +1833,7 @@ ngx_http_proxy_v2_process_header(ngx_http_request_t *r)
+@@ -1558,6 +1998,7 @@ ngx_http_proxy_v2_process_header(ngx_http_request_t *r)
                          return rc;
                      }
                  }
@@ -4227,7 +4545,7 @@ index 0be5691..053e2bb 100644
  
                  continue;
              }
-@@ -1580,6 +1856,46 @@ ngx_http_proxy_v2_process_header(ngx_http_request_t *r)
+@@ -1580,6 +2021,46 @@ ngx_http_proxy_v2_process_header(ngx_http_request_t *r)
                      return NGX_HTTP_UPSTREAM_EARLY_HINTS;
                  }
  
@@ -4274,7 +4592,7 @@ index 0be5691..053e2bb 100644
                  if (ctx->end_stream
                      && ctx->in == NULL
                      && ctx->out == NULL
-@@ -1667,6 +1983,9 @@ ngx_http_proxy_v2_non_buffered_filter(void *data, ssize_t bytes)
+@@ -1667,6 +2148,9 @@ ngx_http_proxy_v2_non_buffered_filter(void *data, ssize_t bytes)
      ngx_int_t                 rc;
      ngx_buf_t                *b, *buf;
      ngx_chain_t              *cl, **ll;
@@ -4284,7 +4602,7 @@ index 0be5691..053e2bb 100644
      ngx_http_upstream_t      *u;
      ngx_http_proxy_v2_ctx_t  *ctx;
  
-@@ -1689,6 +2008,10 @@ ngx_http_proxy_v2_non_buffered_filter(void *data, ssize_t bytes)
+@@ -1689,6 +2173,10 @@ ngx_http_proxy_v2_non_buffered_filter(void *data, ssize_t bytes)
          ll = &cl->next;
      }
  
@@ -4295,7 +4613,7 @@ index 0be5691..053e2bb 100644
      for ( ;; ) {
  
          rc = ngx_http_proxy_v2_process_frames(r, ctx, b);
-@@ -1746,6 +2069,12 @@ ngx_http_proxy_v2_non_buffered_filter(void *data, ssize_t bytes)
+@@ -1746,6 +2234,12 @@ ngx_http_proxy_v2_non_buffered_filter(void *data, ssize_t bytes)
          }
  
          if (rc == NGX_AGAIN) {
@@ -4308,7 +4626,7 @@ index 0be5691..053e2bb 100644
              return NGX_AGAIN;
          }
  
-@@ -1754,6 +2083,12 @@ ngx_http_proxy_v2_non_buffered_filter(void *data, ssize_t bytes)
+@@ -1754,6 +2248,12 @@ ngx_http_proxy_v2_non_buffered_filter(void *data, ssize_t bytes)
          return NGX_ERROR;
      }
  
@@ -4321,7 +4639,7 @@ index 0be5691..053e2bb 100644
      return NGX_OK;
  }
  
-@@ -1764,6 +2099,9 @@ ngx_http_proxy_v2_body_filter(ngx_event_pipe_t *p, ngx_buf_t *b)
+@@ -1764,6 +2264,9 @@ ngx_http_proxy_v2_body_filter(ngx_event_pipe_t *p, ngx_buf_t *b)
      ngx_int_t                 rc;
      ngx_buf_t                *buf, **prev;
      ngx_chain_t              *cl;
@@ -4331,7 +4649,7 @@ index 0be5691..053e2bb 100644
      ngx_http_request_t       *r;
      ngx_http_proxy_v2_ctx_t  *ctx;
  
-@@ -1781,6 +2119,10 @@ ngx_http_proxy_v2_body_filter(ngx_event_pipe_t *p, ngx_buf_t *b)
+@@ -1781,6 +2284,10 @@ ngx_http_proxy_v2_body_filter(ngx_event_pipe_t *p, ngx_buf_t *b)
      buf = NULL;
      prev = &b->shadow;
  
@@ -4342,7 +4660,7 @@ index 0be5691..053e2bb 100644
      ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
                     "http proxy filter bytes:%z", b->last - b->pos);
  
-@@ -1872,6 +2214,16 @@ ngx_http_proxy_v2_body_filter(ngx_event_pipe_t *p, ngx_buf_t *b)
+@@ -1872,6 +2379,16 @@ ngx_http_proxy_v2_body_filter(ngx_event_pipe_t *p, ngx_buf_t *b)
          ngx_log_debug2(NGX_LOG_DEBUG_EVENT, p->log, 0,
                         "input buf %p %z", buf->pos, buf->last - buf->pos);
  
@@ -4359,7 +4677,7 @@ index 0be5691..053e2bb 100644
          return NGX_OK;
      }
  
-@@ -4162,5 +4514,8 @@ ngx_http_proxy_v2_finalize_request(ngx_http_request_t *r, ngx_int_t rc)
+@@ -4162,5 +4679,8 @@ ngx_http_proxy_v2_finalize_request(ngx_http_request_t *r, ngx_int_t rc)
  {
      ngx_log_debug0(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
                     "finalize proxy http2 request");
