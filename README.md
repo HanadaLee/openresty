@@ -114,6 +114,8 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_http_loop_detect_module](https://git.hanada.info/hanada/ngx_http_loop_detect_module)
 * [ngx_http_lua_config_module](https://git.hanada.info/hanada/ngx_http_lua_config_module)
 * [ngx_http_proxy_filter_module](https://git.hanada.info/hanada/ngx_http_proxy_filter_module)
+* [ngx_http_proxy_args_control_module](https://git.hanada.info/hanada/ngx_http_proxy_args_control_module)
+* [ngx_http_proxy_request_cookies_control_module](https://git.hanada.info/hanada/ngx_http_proxy_request_cookies_control_module)
 * [ngx_http_proxy_headers_control_module](https://git.hanada.info/hanada/ngx_http_proxy_headers_control_module)
 * [ngx_http_proxy_auth_aws_module](https://git.hanada.info/hanada/ngx_http_proxy_auth_aws_module)
 * [ngx_http_proxy_auth_netstorage_module](https://git.hanada.info/hanada/ngx_http_proxy_auth_netstorage_module)
