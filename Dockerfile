@@ -297,6 +297,8 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_auth_hash_module.git ngx_http_auth_hash_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_auth_hmac_module.git ngx_http_auth_hmac_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_proxy_filter_module.git ngx_http_proxy_filter_module \
+    && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_proxy_args_control_module.git ngx_http_proxy_args_control_module \
+    && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_proxy_request_cookies_control_module.git ngx_http_proxy_request_cookies_control_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_proxy_headers_control_module.git ngx_http_proxy_headers_control_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_proxy_auth_netstorage_module.git ngx_http_proxy_auth_netstorage_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_proxy_auth_aws_module.git ngx_http_proxy_auth_aws_module \
@@ -328,7 +330,6 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_log_var_set_module.git ngx_http_log_var_set_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_loop_detect_module.git ngx_http_loop_detect_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_label_module.git ngx_http_label_module \
-    && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_proxy_request_cookies_control_module.git ngx_http_proxy_request_cookies_control_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_headers_control_module.git ngx_http_headers_control_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_ua_parser_module.git ngx_http_ua_parser_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_backtrace_module.git ngx_backtrace_module \
