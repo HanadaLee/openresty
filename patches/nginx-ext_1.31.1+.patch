@@ -10231,12 +10231,12 @@ index fa90bd6..6d39625 100644
 +
 +            if (vary.len == 0
 +                || (vary.len == 6
-+                    && ngx_strcasecmp(vary.data, (u_char *) "bypass") == 0))
++                    && ngx_strcasecmp(vary.data, (u_char *) "on") == 0))
 +            {
 +                /* do not rewrite the vary value */
 +
 +            } else if (vary.len == 5
-+                       && ngx_strcasecmp(vary.data, (u_char *) "clear") == 0)
++                       && ngx_strcasecmp(vary.data, (u_char *) "off") == 0)
 +            {
 +                ngx_str_null(&r->cache->vary);
 +

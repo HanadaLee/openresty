@@ -11,7 +11,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.31.1.1"
-ARG RESTY_RELEASE="321"
+ARG RESTY_RELEASE="322"
 # ARG RESTY_SRC_URL_BASE="https://openresty.org/download"
 ARG RESTY_SRC_URL_BASE="https://rmp.hanada.info/directlink/raw-repo/openresty/src"
 ARG RESTY_LUAROCKS_VERSION="3.13.0"
@@ -531,6 +531,8 @@ RUN groupmod -n nginx www-data \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-maxminddb \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-m3u8 \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-ctx \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-gd \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-captcha \
     && mkdir -p /usr/local/openresty/share/uap-core \
     && cp /build/lib/uap-cpp/uap-core/regexes.yaml /usr/local/openresty/share/uap-core \
     && cd /usr/local/openresty/share \

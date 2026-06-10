@@ -195,6 +195,8 @@ The following components are additionally bundled with OpenResty, some of which 
 * lua-resty-timer-ng
 * lua-resty-maxminddb
 * lua-resty-ctx
+* lua-resty-gd
+* lua-resty-captcha
 
 [Back to TOC](#table-of-contents)
 
@@ -674,31 +676,27 @@ Enables upstream cache with the specified MIME types in addition to “text/html
 Refer to [proxy_cache_valid](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_valid).
 This directive has been changed to support configuring the cache time as a variable. Other behaviors remain unchanged.
 
-* **Syntax:** *proxy_cache_vary bypass | clear | string;*
+* **Syntax:** *proxy_cache_vary on | off | string;*
 
-* **Default:** *proxy_cache_vary bypass;*
+* **Default:** *proxy_cache_vary on;*
 
 * **Context:** *http, server, location*
 
-Controls Vary header handling for upstream cache.
+Enables or disables `Vary` header handling for upstream cache.
 
-Example:
+The string parameter can be used to explicitly specify one or more header names to vary on, instead of relying on the upstream response's `Vary` header. An empty string disables the `Vary` header handling. The parameter value can contain variables.
+
 ```
 proxy_cache_vary Test-Header;
 ```
-If client request contains `Test-Header` header, then cache will be different for different values of `Test-Header` header.
+The cache will be differentiated by the value of the `Test-Header` request header.
 
-Example:
 ```
 proxy_cache_vary "Test-Header-A, Test-Header-B";
 ```
-The cache will be differentiated based on the values ​​of the request headers `Test-Header-A` **and** `Test-Header-B`.
+The cache will be differentiated based on the values of **both** `Test-Header-A` and `Test-Header-B`.
 
-`bypass` is used to disable `Vary` header handling. In addition, the behavior is consistent with `bypass` if parameter value is empty.
-
-`clear` is used to clear all `Vary` headers. Parameter value can contain variables.
-
-This directive only affects upstream cache, not response headers for client. If you want to also change the `Vary` header of the response to the client, use the `proxy_hide_header` and `add_header` directives.
+Note that this directive only affects upstream cache, not the response headers sent to the client. If you want to also modify the `Vary` response header, use the `proxy_hide_header` and `add_header` directives.
 
 > fastcgi_cache_vary, scgi_cache_vary and uwsgi_cache_vary directives are also available.
 
