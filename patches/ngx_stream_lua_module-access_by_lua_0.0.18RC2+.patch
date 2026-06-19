@@ -1,0 +1,1345 @@
+diff --git a/README.md b/README.md
+index cf62587..a0e3a10 100644
+--- a/README.md
++++ b/README.md
+@@ -141,6 +141,8 @@ behavior.
+ * [init_worker_by_lua_file](https://github.com/openresty/lua-nginx-module#init_worker_by_lua_file)
+ * [preread_by_lua_block](#preread_by_lua_block)
+ * [preread_by_lua_file](#preread_by_lua_file)
++* [access_by_lua_block](https://github.com/openresty/lua-nginx-module#access_by_lua_block)
++* [access_by_lua_file](https://github.com/openresty/lua-nginx-module#access_by_lua_file)
+ * [content_by_lua_block](https://github.com/openresty/lua-nginx-module#content_by_lua_block)
+ * [content_by_lua_file](https://github.com/openresty/lua-nginx-module#content_by_lua_file)
+ * [balancer_by_lua_block](https://github.com/openresty/lua-nginx-module#balancer_by_lua_block)
+@@ -178,6 +180,7 @@ behavior.
+ * [lua_add_variable](#lua_add_variable)
+ * [lua_capture_error_log](https://github.com/openresty/lua-nginx-module#lua_capture_error_log)
+ * [preread_by_lua_no_postpone](#preread_by_lua_no_postpone)
++* [access_by_lua_no_postpone](#access_by_lua_no_postpone)
+ 
+ The [send_timeout](https://nginx.org/r/send_timeout) directive in the Nginx
+ "http" subsystem is missing in the "stream" subsystem. As such,
+@@ -308,6 +311,19 @@ This directive was first introduced in the `v0.0.4` release.
+ 
+ [Back to TOC](#directives)
+ 
++access_by_lua_no_postpone
++--------------------------
++
++**syntax:** *access_by_lua_no_postpone on|off*
++
++**context:** *stream*
++
++Controls whether or not to disable postponing [access\_by\_lua*](#access_by_lua_block) directives
++to run at the end of the `access` processing phase. By default, this directive is turned off
++and the Lua code is postponed to run at the end of the `access` phase.
++
++[Back to TOC](#directives)
++
+ Nginx API for Lua
+ -----------------
+ 
+@@ -537,7 +553,6 @@ output to be completely flushed out (to the system socket send buffers).
+ TODO
+ ====
+ 
+-* Add new directives `access_by_lua_block` and `access_by_lua_file`.
+ * Add `lua_postpone_output` to emulate the [postpone_output](https://nginx.org/r/postpone_output) directive.
+ 
+ [Back to TOC](#table-of-contents)
+diff --git a/config b/config
+index 56c7b55..d541c25 100644
+--- a/config
++++ b/config
+@@ -282,6 +282,7 @@ STREAM_LUA_SRCS=" \
+                 $ngx_addon_dir/src/ngx_stream_lua_proxy_ssl_verifyby.c \
+                 $ngx_addon_dir/src/ngx_stream_lua_log_ringbuf.c \
+                 $ngx_addon_dir/src/ngx_stream_lua_input_filters.c \
++                $ngx_addon_dir/src/ngx_stream_lua_accessby.c \
+                 "
+ 
+ STREAM_LUA_DEPS=" \
+@@ -328,6 +329,7 @@ STREAM_LUA_DEPS=" \
+                 $ngx_addon_dir/src/ngx_stream_lua_proxy_ssl_verifyby.h \
+                 $ngx_addon_dir/src/ngx_stream_lua_log_ringbuf.h \
+                 $ngx_addon_dir/src/ngx_stream_lua_input_filters.h \
++                $ngx_addon_dir/src/ngx_stream_lua_accessby.h \
+                 "
+ 
+ # ----------------------------------------
+diff --git a/src/ngx_stream_lua_accessby.c b/src/ngx_stream_lua_accessby.c
+new file mode 100644
+index 0000000..e910f31
+--- /dev/null
++++ b/src/ngx_stream_lua_accessby.c
+@@ -0,0 +1,326 @@
++
++/*
++ * Copyright (C) Hanada <im@hanada.info>
++ * Copyright (C) Arcadiy Ivanov (arcivanov)
++ * Copyright (C) OpenResty Inc.
++ */
++
++
++#ifndef DDEBUG
++#define DDEBUG 0
++#endif
++#include "ddebug.h"
++
++
++#include <nginx.h>
++#include "ngx_stream_lua_accessby.h"
++#include "ngx_stream_lua_util.h"
++#include "ngx_stream_lua_exception.h"
++#include "ngx_stream_lua_cache.h"
++
++
++static ngx_int_t ngx_stream_lua_access_by_chunk(lua_State *L,
++    ngx_stream_lua_request_t *r);
++
++
++ngx_int_t
++ngx_stream_lua_access_handler(ngx_stream_session_t *s)
++{
++    ngx_int_t                     rc;
++    ngx_stream_lua_ctx_t         *ctx;
++    ngx_stream_lua_srv_conf_t    *lscf;
++    ngx_stream_lua_main_conf_t   *lmcf;
++    ngx_stream_lua_request_t     *r;
++
++    ngx_log_debug0(NGX_LOG_DEBUG_STREAM, s->connection->log, 0,
++                   "lua access handler");
++
++    lmcf = ngx_stream_get_module_main_conf(s, ngx_stream_lua_module);
++
++    if (!lmcf->postponed_to_access_phase_end) {
++        ngx_stream_core_main_conf_t       *cmcf;
++        ngx_stream_phase_handler_t         tmp;
++        ngx_stream_phase_handler_t        *ph;
++        ngx_stream_phase_handler_t        *cur_ph;
++        ngx_stream_phase_handler_t        *last_ph;
++
++        lmcf->postponed_to_access_phase_end = 1;
++
++        cmcf = ngx_stream_get_module_main_conf(s, ngx_stream_core_module);
++
++        ph = cmcf->phase_engine.handlers;
++        cur_ph = &ph[s->phase_handler];
++        last_ph = &ph[cur_ph->next - 1];
++
++        if (cur_ph < last_ph) {
++            tmp      = *cur_ph;
++
++            ngx_memmove(cur_ph, cur_ph + 1, (last_ph - cur_ph)
++                        * sizeof (ngx_stream_phase_handler_t));
++
++            *last_ph = tmp;
++
++            s->phase_handler--; /* redo the current ph */
++
++            return NGX_DECLINED;
++        }
++    }
++
++    lscf = ngx_stream_get_module_srv_conf(s, ngx_stream_lua_module);
++
++    if (lscf->access_handler == NULL) {
++        ngx_log_debug0(NGX_LOG_DEBUG_STREAM, s->connection->log, 0,
++                       "no acces handler found");
++        return NGX_DECLINED;
++    }
++
++    ctx = ngx_stream_get_module_ctx(s, ngx_stream_lua_module);
++
++    dd("ctx = %p", ctx);
++
++    if (ctx == NULL) {
++        ctx = ngx_stream_lua_create_ctx(s);
++        if (ctx == NULL) {
++            return NGX_STREAM_INTERNAL_SERVER_ERROR;
++        }
++    }
++
++    r = ctx->request;
++
++    dd("entered? %d", (int) ctx->entered_access_phase);
++
++    if (ctx->entered_access_phase) {
++        dd("calling wev handler");
++        rc = ctx->resume_handler(r);
++        dd("wev handler returns %d", (int) rc);
++
++        if (rc == NGX_ERROR || rc > NGX_OK) {
++            ngx_stream_lua_finalize_request(ctx->request, rc);
++            return NGX_DONE;
++        }
++
++        if (rc == NGX_OK || rc == NGX_DONE) {
++            return rc;
++        }
++
++        return NGX_DECLINED;
++    }
++
++    r->connection->read->handler = ngx_stream_lua_request_handler;
++    r->connection->write->handler = ngx_stream_lua_request_handler;
++
++    dd("calling access handler");
++    rc = lscf->access_handler(r);
++
++    if (rc == NGX_ERROR || rc > NGX_OK) {
++        ngx_stream_lua_finalize_request(ctx->request, rc);
++        return NGX_DONE;
++    }
++
++    return rc;
++}
++
++
++ngx_int_t
++ngx_stream_lua_access_handler_inline(ngx_stream_lua_request_t *r)
++{
++    ngx_int_t                    rc;
++    lua_State                   *L;
++    ngx_stream_lua_srv_conf_t   *lscf;
++
++    lscf = ngx_stream_lua_get_module_srv_conf(r, ngx_stream_lua_module);
++
++    L = ngx_stream_lua_get_lua_vm(r, NULL);
++
++    /*  load Lua inline script (w/ cache) sp = 1 */
++    rc = ngx_stream_lua_cache_loadbuffer(r->connection->log, L,
++                                         lscf->access_src.value.data,
++                                         lscf->access_src.value.len,
++                                         lscf->access_src_key,
++                                         (const char *) lscf->access_chunkname);
++
++    if (rc != NGX_OK) {
++        return NGX_STREAM_INTERNAL_SERVER_ERROR;
++    }
++
++    return ngx_stream_lua_access_by_chunk(L, r);
++}
++
++
++ngx_int_t
++ngx_stream_lua_access_handler_file(ngx_stream_lua_request_t *r)
++{
++    u_char                      *script_path;
++    ngx_int_t                    rc;
++    ngx_str_t                    eval_src;
++    lua_State                   *L;
++    ngx_stream_lua_srv_conf_t   *lscf;
++
++    lscf = ngx_stream_lua_get_module_srv_conf(r, ngx_stream_lua_module);
++
++    /* Eval nginx variables in code path string first */
++    if (ngx_stream_complex_value(r->session, &lscf->access_src, &eval_src)
++        != NGX_OK)
++    {
++        return NGX_ERROR;
++    }
++
++    script_path = ngx_stream_lua_rebase_path(r->pool, eval_src.data,
++                                             eval_src.len);
++
++    if (script_path == NULL) {
++        return NGX_ERROR;
++    }
++
++    L = ngx_stream_lua_get_lua_vm(r, NULL);
++
++    /*  load Lua script file (w/ cache)        sp = 1 */
++    rc = ngx_stream_lua_cache_loadfile(r->connection->log, L, script_path,
++                                       lscf->access_src_key);
++    if (rc != NGX_OK) {
++        return rc;
++    }
++
++    /*  make sure we have a valid code chunk */
++    ngx_stream_lua_assert(lua_isfunction(L, -1));
++
++    return ngx_stream_lua_access_by_chunk(L, r);
++}
++
++
++static ngx_int_t
++ngx_stream_lua_access_by_chunk(lua_State *L, ngx_stream_lua_request_t *r)
++{
++    int                          co_ref;
++    ngx_int_t                    rc;
++    lua_State                   *co;
++    ngx_event_t                 *rev;
++    ngx_connection_t            *c;
++    ngx_stream_lua_ctx_t        *ctx;
++    ngx_stream_lua_cleanup_t    *cln;
++
++    ngx_stream_lua_srv_conf_t     *lscf;
++
++    /*  {{{ new coroutine to handle request */
++    co = ngx_stream_lua_new_thread(r, L, &co_ref);
++
++    if (co == NULL) {
++        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
++                      "lua: failed to create new coroutine "
++                      "to handle request");
++
++        return NGX_STREAM_INTERNAL_SERVER_ERROR;
++    }
++
++    /*  move code closure to new coroutine */
++    lua_xmove(L, co, 1);
++
++#ifndef OPENRESTY_LUAJIT
++    /*  set closure's env table to new coroutine's globals table */
++    ngx_stream_lua_get_globals_table(co);
++    lua_setfenv(co, -2);
++#endif
++
++    /*  save nginx request in coroutine globals table */
++    ngx_stream_lua_set_req(co, r);
++
++    /*  {{{ initialize request context */
++    ctx = ngx_stream_lua_get_module_ctx(r, ngx_stream_lua_module);
++
++    dd("ctx = %p", ctx);
++
++    if (ctx == NULL) {
++        return NGX_ERROR;
++    }
++
++    ngx_stream_lua_reset_ctx(r, L, ctx);
++
++    ctx->entered_access_phase = 1;
++
++    ctx->cur_co_ctx = &ctx->entry_co_ctx;
++    ctx->cur_co_ctx->co = co;
++    ctx->cur_co_ctx->co_ref = co_ref;
++#ifdef NGX_LUA_USE_ASSERT
++    ctx->cur_co_ctx->co_top = 1;
++#endif
++
++    ngx_stream_lua_attach_co_ctx_to_L(co, ctx->cur_co_ctx);
++
++    /*  }}} */
++
++    /*  {{{ register request cleanup hooks */
++    if (ctx->cleanup == NULL) {
++        cln = ngx_stream_lua_cleanup_add(r, 0);
++        if (cln == NULL) {
++            return NGX_STREAM_INTERNAL_SERVER_ERROR;
++        }
++
++        cln->handler = ngx_stream_lua_request_cleanup_handler;
++        cln->data = ctx;
++        ctx->cleanup = &cln->handler;
++    }
++    /*  }}} */
++
++    ctx->context = NGX_STREAM_LUA_CONTEXT_ACCESS;
++
++    lscf = ngx_stream_lua_get_module_srv_conf(r, ngx_stream_lua_module);
++
++    if (lscf->check_client_abort) {
++        r->read_event_handler = ngx_stream_lua_rd_check_broken_connection;
++
++        rev = r->connection->read;
++
++        if (!rev->active) {
++            if (ngx_add_event(rev, NGX_READ_EVENT, 0) != NGX_OK) {
++                return NGX_ERROR;
++            }
++        }
++
++    } else {
++        r->read_event_handler = ngx_stream_lua_block_reading;
++    }
++
++    rc = ngx_stream_lua_run_thread(L, r, ctx, 0);
++
++    ngx_log_debug1(NGX_LOG_DEBUG_STREAM, r->connection->log, 0,
++                   "access run thread returned %d", (int) rc);
++
++    if (rc == NGX_ERROR || rc > NGX_OK) {
++        return rc;
++    }
++
++    c = r->connection;
++
++    if (rc == NGX_AGAIN) {
++        rc = ngx_stream_lua_run_posted_threads(c, L, r, ctx, 0);
++
++        if (rc == NGX_ERROR || rc == NGX_DONE || rc > NGX_OK) {
++            return rc;
++        }
++
++        if (rc != NGX_OK) {
++            return NGX_DECLINED;
++        }
++
++    } else if (rc == NGX_DONE) {
++        ngx_stream_lua_finalize_request(r, NGX_DONE);
++
++        rc = ngx_stream_lua_run_posted_threads(c, L, r, ctx, 0);
++
++        if (rc == NGX_ERROR || rc == NGX_DONE || rc > NGX_OK) {
++            return rc;
++        }
++
++        if (rc != NGX_OK) {
++            return NGX_DECLINED;
++        }
++    }
++
++    if (rc == NGX_OK) {
++        return NGX_OK;
++    }
++
++    return NGX_DECLINED;
++}
++
++/* vi:set ft=c ts=4 sw=4 et fdm=marker: */
+diff --git a/src/ngx_stream_lua_accessby.h b/src/ngx_stream_lua_accessby.h
+new file mode 100644
+index 0000000..dbd4f13
+--- /dev/null
++++ b/src/ngx_stream_lua_accessby.h
+@@ -0,0 +1,23 @@
++
++/*
++ * Copyright (C) Hanada <im@hanada.info>
++ * Copyright (C) Arcadiy Ivanov (arcivanov)
++ * Copyright (C) OpenResty Inc.
++ */
++
++
++#ifndef _NGX_STREAM_LUA_ACCESSBY_H_INCLUDED_
++#define _NGX_STREAM_LUA_ACCESSBY_H_INCLUDED_
++
++
++#include "ngx_stream_lua_common.h"
++
++
++ngx_int_t ngx_stream_lua_access_handler(ngx_stream_session_t *s);
++ngx_int_t ngx_stream_lua_access_handler_inline(ngx_stream_lua_request_t *r);
++ngx_int_t ngx_stream_lua_access_handler_file(ngx_stream_lua_request_t *r);
++
++
++#endif /* _NGX_STREAM_LUA_ACCESSBY_H_INCLUDED_ */
++
++/* vi:set ft=c ts=4 sw=4 et fdm=marker: */
+diff --git a/src/ngx_stream_lua_common.h b/src/ngx_stream_lua_common.h
+index 1126f7d..5d84595 100644
+--- a/src/ngx_stream_lua_common.h
++++ b/src/ngx_stream_lua_common.h
+@@ -154,6 +154,7 @@
+ #define NGX_STREAM_LUA_CONTEXT_SSL_CLIENT_HELLO                     0x0080
+ #define NGX_STREAM_LUA_CONTEXT_PROXY_SSL_VERIFY                     0x0100
+ #define NGX_STREAM_LUA_CONTEXT_PROXY_SSL_CERT                       0x0200
++#define NGX_STREAM_LUA_CONTEXT_ACCESS                               0x0400
+ 
+ 
+ #define NGX_STREAM_LUA_FFI_NO_REQ_CTX         -100
+@@ -232,6 +233,7 @@ struct ngx_stream_lua_main_conf_s {
+     ngx_array_t         *preload_hooks; /* of ngx_stream_lua_preload_hook_t */
+ 
+     ngx_flag_t           postponed_to_preread_phase_end;
++    ngx_flag_t           postponed_to_access_phase_end;
+ 
+     ngx_stream_lua_main_conf_handler_pt          init_handler;
+     ngx_str_t                                    init_src;
+@@ -258,7 +260,7 @@ struct ngx_stream_lua_main_conf_s {
+     ngx_flag_t           set_sa_restart;
+ 
+     unsigned             requires_preread:1;
+-
++    unsigned             requires_access:1;
+     unsigned             requires_log:1;
+     unsigned             requires_shm:1;
+     unsigned             requires_capture_log:1;
+@@ -314,6 +316,11 @@ struct ngx_stream_lua_srv_conf_s {
+     ngx_stream_complex_value_t          preread_src;
+     u_char                             *preread_src_key;
+ 
++    ngx_stream_lua_handler_pt           access_handler;
++    u_char                             *access_chunkname;
++    ngx_stream_complex_value_t          access_src;
++    u_char                             *access_src_key;
++
+     ngx_stream_lua_handler_pt           content_handler;
+     u_char                             *content_chunkname;
+     ngx_stream_complex_value_t          content_src;
+@@ -518,7 +525,7 @@ typedef struct ngx_stream_lua_ctx_s {
+                                        response headers */
+ 
+     unsigned         entered_preread_phase:1;
+-
++    unsigned         entered_access_phase:1;
+     unsigned         entered_content_phase:1;
+ 
+     unsigned         buffering:1; /* HTTP 1.0 response body buffering flag */
+diff --git a/src/ngx_stream_lua_control.c b/src/ngx_stream_lua_control.c
+index 6d9089c..65dbf49 100644
+--- a/src/ngx_stream_lua_control.c
++++ b/src/ngx_stream_lua_control.c
+@@ -120,7 +120,8 @@ ngx_stream_lua_ffi_exit(ngx_stream_lua_request_t *r, int status, u_char *err,
+         | NGX_STREAM_LUA_CONTEXT_PROXY_SSL_CERT
+         | NGX_STREAM_LUA_CONTEXT_PROXY_SSL_VERIFY
+ #endif
+-        | NGX_STREAM_LUA_CONTEXT_PREREAD,
++        | NGX_STREAM_LUA_CONTEXT_PREREAD
++        | NGX_STREAM_LUA_CONTEXT_ACCESS,
+         err, errlen) != NGX_OK)
+     {
+         return NGX_ERROR;
+diff --git a/src/ngx_stream_lua_coroutine.c b/src/ngx_stream_lua_coroutine.c
+index a8533ca..d97df3e 100644
+--- a/src/ngx_stream_lua_coroutine.c
++++ b/src/ngx_stream_lua_coroutine.c
+@@ -210,6 +210,7 @@ ngx_stream_lua_coroutine_resume(lua_State *L)
+                                  | NGX_STREAM_LUA_CONTEXT_PROXY_SSL_VERIFY
+ #endif
+                                  | NGX_STREAM_LUA_CONTEXT_PREREAD
++                                 | NGX_STREAM_LUA_CONTEXT_ACCESS
+                                  );
+ 
+     p_coctx = ctx->cur_co_ctx;
+@@ -275,6 +276,7 @@ ngx_stream_lua_coroutine_yield(lua_State *L)
+                                  | NGX_STREAM_LUA_CONTEXT_PROXY_SSL_VERIFY
+ #endif
+                                  | NGX_STREAM_LUA_CONTEXT_PREREAD
++                                 | NGX_STREAM_LUA_CONTEXT_ACCESS
+                                  );
+ 
+     coctx = ctx->cur_co_ctx;
+@@ -439,6 +441,7 @@ ngx_stream_lua_coroutine_status(lua_State *L)
+                                  | NGX_STREAM_LUA_CONTEXT_PROXY_SSL_VERIFY
+ #endif
+                                  | NGX_STREAM_LUA_CONTEXT_PREREAD
++                                 | NGX_STREAM_LUA_CONTEXT_ACCESS
+                                  );
+ 
+     coctx = ngx_stream_lua_get_co_ctx(co, ctx);
+diff --git a/src/ngx_stream_lua_directive.c b/src/ngx_stream_lua_directive.c
+index 61519e9..fbffa5e 100644
+--- a/src/ngx_stream_lua_directive.c
++++ b/src/ngx_stream_lua_directive.c
+@@ -34,6 +34,7 @@
+ #include "api/ngx_stream_lua_api.h"
+ 
+ #include "ngx_stream_lua_prereadby.h"
++#include "ngx_stream_lua_accessby.h"
+ 
+ 
+ typedef struct ngx_stream_lua_block_parser_ctx_s
+@@ -234,6 +235,121 @@ ngx_stream_lua_package_path(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+ }
+ 
+ 
++char *
++ngx_stream_lua_access_by_lua_block(ngx_conf_t *cf, ngx_command_t *cmd,
++    void *conf)
++{
++    char        *rv;
++    ngx_conf_t   save;
++
++    save = *cf;
++    cf->handler = ngx_stream_lua_access_by_lua;
++    cf->handler_conf = conf;
++
++    rv = ngx_stream_lua_conf_lua_block_parse(cf, cmd);
++
++    *cf = save;
++
++    return rv;
++}
++
++
++char *
++ngx_stream_lua_access_by_lua(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
++{
++    size_t                                 chunkname_len;
++    u_char                                *p, *chunkname;
++    ngx_str_t                             *value;
++    ngx_stream_lua_main_conf_t            *lmcf;
++    ngx_stream_lua_srv_conf_t             *lscf = conf;
++
++    ngx_stream_compile_complex_value_t     ccv;
++
++    dd("enter");
++
++    /*  must specify an access handler */
++    if (cmd->post == NULL) {
++        return NGX_CONF_ERROR;
++    }
++
++    if (lscf->access_handler) {
++        return "is duplicate";
++    }
++
++    value = cf->args->elts;
++
++    if (value[1].len == 0) {
++        /*  Oops...Invalid server conf */
++        ngx_conf_log_error(NGX_LOG_ERR, cf, 0,
++                           "invalid server config: no runnable Lua code");
++
++        return NGX_CONF_ERROR;
++    }
++
++    if (cmd->post == ngx_stream_lua_access_handler_inline) {
++        chunkname = ngx_stream_lua_gen_chunk_name(cf, "access_by_lua",
++                                                  sizeof("access_by_lua") - 1,
++                                                  &chunkname_len);
++        if (chunkname == NULL) {
++            return NGX_CONF_ERROR;
++        }
++
++        lscf->access_chunkname = chunkname;
++
++        /* Don't eval nginx variables for inline lua code */
++
++        lscf->access_src.value = value[1];
++
++        p = ngx_palloc(cf->pool,
++                       chunkname_len + NGX_STREAM_LUA_INLINE_KEY_LEN + 1);
++        if (p == NULL) {
++            return NGX_CONF_ERROR;
++        }
++
++        lscf->access_src_key = p;
++
++        p = ngx_copy(p, chunkname, chunkname_len);
++        p = ngx_copy(p, NGX_STREAM_LUA_INLINE_TAG,
++                     NGX_STREAM_LUA_INLINE_TAG_LEN);
++        p = ngx_stream_lua_digest_hex(p, value[1].data, value[1].len);
++        *p = '\0';
++
++    } else {
++        ngx_memzero(&ccv, sizeof(ngx_stream_compile_complex_value_t));
++        ccv.cf = cf;
++        ccv.value = &value[1];
++        ccv.complex_value = &lscf->access_src;
++
++        if (ngx_stream_compile_complex_value(&ccv) != NGX_OK) {
++            return NGX_CONF_ERROR;
++        }
++
++        if (lscf->access_src.lengths == NULL) {
++            /* no variable found */
++            p = ngx_palloc(cf->pool, NGX_STREAM_LUA_FILE_KEY_LEN + 1);
++            if (p == NULL) {
++                return NGX_CONF_ERROR;
++            }
++
++            lscf->access_src_key = p;
++
++            p = ngx_copy(p, NGX_STREAM_LUA_FILE_TAG,
++                         NGX_STREAM_LUA_FILE_TAG_LEN);
++            p = ngx_stream_lua_digest_hex(p, value[1].data, value[1].len);
++            *p = '\0';
++        }
++    }
++
++    lscf->access_handler = (ngx_stream_lua_handler_pt) cmd->post;
++
++    lmcf = ngx_stream_conf_get_module_main_conf(cf, ngx_stream_lua_module);
++
++    lmcf->requires_access = 1;
++
++    return NGX_CONF_OK;
++}
++
++
+ char *
+ ngx_stream_lua_preread_by_lua_block(ngx_conf_t *cf, ngx_command_t *cmd,
+     void *conf)
+diff --git a/src/ngx_stream_lua_directive.h b/src/ngx_stream_lua_directive.h
+index 6b36bb1..3fce692 100644
+--- a/src/ngx_stream_lua_directive.h
++++ b/src/ngx_stream_lua_directive.h
+@@ -54,6 +54,10 @@ ngx_stream_lua_preread_by_lua_block(ngx_conf_t *cf, ngx_command_t *cmd,
+     void *conf);
+ char *
+ ngx_stream_lua_preread_by_lua(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
++char *ngx_stream_lua_access_by_lua_block(ngx_conf_t *cf, ngx_command_t *cmd,
++    void *conf);
++char *ngx_stream_lua_access_by_lua(ngx_conf_t *cf, ngx_command_t *cmd,
++    void *conf);
+ char *
+ ngx_stream_lua_add_variable(ngx_conf_t *cf, ngx_command_t *cmd,
+     void *conf);
+diff --git a/src/ngx_stream_lua_module.c b/src/ngx_stream_lua_module.c
+index 772e8c5..1cbb3a6 100644
+--- a/src/ngx_stream_lua_module.c
++++ b/src/ngx_stream_lua_module.c
+@@ -37,6 +37,7 @@
+ #endif
+ 
+ #include "ngx_stream_lua_prereadby.h"
++#include "ngx_stream_lua_accessby.h"
+ 
+ 
+ #if !defined(OPENSSL_VERSION_NUMBER) || OPENSSL_VERSION_NUMBER > 0x101010afL
+@@ -256,6 +257,28 @@ static ngx_command_t ngx_stream_lua_cmds[] = {
+       0,
+       (void *) ngx_stream_lua_preread_handler_inline },
+ 
++    /* access_by_lua_block { <inline script> } */
++    { ngx_string("access_by_lua_block"),
++      NGX_STREAM_MAIN_CONF|NGX_STREAM_SRV_CONF|NGX_CONF_BLOCK|NGX_CONF_NOARGS,
++      ngx_stream_lua_access_by_lua_block,
++      NGX_STREAM_SRV_CONF_OFFSET,
++      0,
++      (void *) ngx_stream_lua_access_handler_inline },
++
++    /* access_by_lua_file rel/or/abs/path/to/script */
++    { ngx_string("access_by_lua_file"),
++      NGX_STREAM_MAIN_CONF|NGX_STREAM_SRV_CONF|NGX_CONF_TAKE1,
++      ngx_stream_lua_access_by_lua,
++      NGX_STREAM_SRV_CONF_OFFSET,
++      0,
++      (void *) ngx_stream_lua_access_handler_file },
++
++    { ngx_string("access_by_lua_no_postpone"),
++      NGX_STREAM_MAIN_CONF|NGX_CONF_FLAG,
++      ngx_conf_set_flag_slot,
++      NGX_STREAM_MAIN_CONF_OFFSET,
++      offsetof(ngx_stream_lua_main_conf_t, postponed_to_access_phase_end),
++      NULL },
+ 
+     /* content_by_lua "<inline script>" */
+     { ngx_string("content_by_lua"),
+@@ -607,6 +630,21 @@ ngx_stream_lua_init(ngx_conf_t *cf)
+         lmcf->postponed_to_preread_phase_end = 0;
+     }
+ 
++    dd("requires access: %d", (int) lmcf->requires_access);
++
++    if (lmcf->requires_access) {
++        h = ngx_array_push(&cmcf->phases[NGX_STREAM_ACCESS_PHASE].handlers);
++        if (h == NULL) {
++            return NGX_ERROR;
++        }
++
++        *h = ngx_stream_lua_access_handler;
++    }
++
++    if (lmcf->postponed_to_access_phase_end == NGX_CONF_UNSET) {
++        lmcf->postponed_to_access_phase_end = 0;
++    }
++
+     dd("requires log: %d", (int) lmcf->requires_log);
+ 
+     if (lmcf->requires_log) {
+@@ -802,6 +840,7 @@ ngx_stream_lua_create_main_conf(ngx_conf_t *cf)
+ #endif
+ 
+     lmcf->postponed_to_preread_phase_end = NGX_CONF_UNSET;
++    lmcf->postponed_to_access_phase_end = NGX_CONF_UNSET;
+ 
+     lmcf->set_sa_restart = NGX_CONF_UNSET;
+ 
+@@ -1127,6 +1166,13 @@ ngx_stream_lua_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
+         conf->preread_chunkname = prev->preread_chunkname;
+     }
+ 
++    if (conf->access_src.value.len == 0) {
++        conf->access_src = prev->access_src;
++        conf->access_handler = prev->access_handler;
++        conf->access_src_key = prev->access_src_key;
++        conf->access_chunkname = prev->access_chunkname;
++    }
++
+     if (conf->log_src.value.len == 0) {
+         conf->log_src = prev->log_src;
+         conf->log_handler = prev->log_handler;
+diff --git a/src/ngx_stream_lua_output.c b/src/ngx_stream_lua_output.c
+index 2e5317e..a059148 100644
+--- a/src/ngx_stream_lua_output.c
++++ b/src/ngx_stream_lua_output.c
+@@ -76,7 +76,8 @@ ngx_stream_lua_ngx_echo(lua_State *L, unsigned newline)
+     }
+ 
+     ngx_stream_lua_check_context(L, ctx, NGX_STREAM_LUA_CONTEXT_CONTENT
+-                                 | NGX_STREAM_LUA_CONTEXT_PREREAD);
++                                 | NGX_STREAM_LUA_CONTEXT_PREREAD
++                                 | NGX_STREAM_LUA_CONTEXT_ACCESS);
+ 
+ 
+     if (ctx->eof) {
+@@ -496,7 +497,8 @@ ngx_stream_lua_ngx_flush(lua_State *L)
+     }
+ 
+     ngx_stream_lua_check_context(L, ctx, NGX_STREAM_LUA_CONTEXT_CONTENT
+-                                 | NGX_STREAM_LUA_CONTEXT_PREREAD);
++                                 | NGX_STREAM_LUA_CONTEXT_PREREAD
++                                 | NGX_STREAM_LUA_CONTEXT_ACCESS);
+ 
+ 
+     coctx = ctx->cur_co_ctx;
+@@ -619,7 +621,8 @@ ngx_stream_lua_ngx_eof(lua_State *L)
+     }
+ 
+     ngx_stream_lua_check_context(L, ctx, NGX_STREAM_LUA_CONTEXT_CONTENT
+-                                 | NGX_STREAM_LUA_CONTEXT_PREREAD);
++                                 | NGX_STREAM_LUA_CONTEXT_PREREAD
++                                 | NGX_STREAM_LUA_CONTEXT_ACCESS);
+ 
+     ngx_log_debug0(NGX_LOG_DEBUG_STREAM, r->connection->log, 0,
+                    "lua send eof");
+diff --git a/src/ngx_stream_lua_phase.c b/src/ngx_stream_lua_phase.c
+index 35bbfe5..42e1288 100644
+--- a/src/ngx_stream_lua_phase.c
++++ b/src/ngx_stream_lua_phase.c
+@@ -62,6 +62,10 @@ ngx_stream_lua_ngx_get_phase(lua_State *L)
+         lua_pushliteral(L, "preread");
+         break;
+ 
++    case NGX_STREAM_LUA_CONTEXT_ACCESS:
++        lua_pushliteral(L, "access");
++        break;
++
+     case NGX_STREAM_LUA_CONTEXT_CONTENT:
+         lua_pushliteral(L, "content");
+         break;
+diff --git a/src/ngx_stream_lua_socket_tcp.c b/src/ngx_stream_lua_socket_tcp.c
+index e579d59..e5b3e5e 100644
+--- a/src/ngx_stream_lua_socket_tcp.c
++++ b/src/ngx_stream_lua_socket_tcp.c
+@@ -5865,7 +5865,8 @@ ngx_stream_lua_req_socket_tcp(lua_State *L)
+     }
+ 
+     ngx_stream_lua_check_context(L, ctx, NGX_STREAM_LUA_CONTEXT_CONTENT
+-                                 |NGX_STREAM_LUA_CONTEXT_PREREAD);
++                                 | NGX_STREAM_LUA_CONTEXT_ACCESS
++                                 | NGX_STREAM_LUA_CONTEXT_PREREAD);
+ 
+     c = r->connection;
+ 
+diff --git a/src/ngx_stream_lua_socket_udp.c b/src/ngx_stream_lua_socket_udp.c
+index b0ed4d1..57ebea4 100644
+--- a/src/ngx_stream_lua_socket_udp.c
++++ b/src/ngx_stream_lua_socket_udp.c
+@@ -2093,6 +2093,7 @@ ngx_stream_lua_req_socket_udp(lua_State *L)
+     }
+ 
+     ngx_stream_lua_check_context(L, ctx, NGX_STREAM_LUA_CONTEXT_CONTENT
++                                 | NGX_STREAM_LUA_CONTEXT_ACCESS
+                                  |NGX_STREAM_LUA_CONTEXT_PREREAD);
+ 
+     c = r->connection;
+diff --git a/src/ngx_stream_lua_uthread.c b/src/ngx_stream_lua_uthread.c
+index e91baca..21d18fc 100644
+--- a/src/ngx_stream_lua_uthread.c
++++ b/src/ngx_stream_lua_uthread.c
+@@ -232,7 +232,7 @@ ngx_stream_lua_uthread_kill(lua_State *L)
+     }
+ 
+     ngx_stream_lua_check_context(L, ctx, NGX_STREAM_LUA_CONTEXT_CONTENT
+-
++                               | NGX_STREAM_LUA_CONTEXT_ACCESS
+                                | NGX_STREAM_LUA_CONTEXT_PREREAD
+                                | NGX_STREAM_LUA_CONTEXT_SSL_CLIENT_HELLO
+                                | NGX_STREAM_LUA_CONTEXT_SSL_CERT
+diff --git a/src/ngx_stream_lua_util.h b/src/ngx_stream_lua_util.h
+index e395ecc..6cd1929 100644
+--- a/src/ngx_stream_lua_util.h
++++ b/src/ngx_stream_lua_util.h
+@@ -78,7 +78,8 @@ extern char ngx_stream_lua_headers_metatable_key;
+                                 | NGX_STREAM_LUA_CONTEXT_SSL_CLIENT_HELLO    \
+                                 | NGX_STREAM_LUA_CONTEXT_SSL_CERT            \
+                                 | NGX_STREAM_LUA_CONTEXT_PROXY_SSL_CERT      \
+-                                | NGX_STREAM_LUA_CONTEXT_PROXY_SSL_VERIFY)
++                                | NGX_STREAM_LUA_CONTEXT_PROXY_SSL_VERIFY    \
++                                | NGX_STREAM_LUA_CONTEXT_ACCESS)
+ 
+ 
+ #define ngx_stream_lua_context_name(c)                                       \
+@@ -95,6 +96,7 @@ extern char ngx_stream_lua_headers_metatable_key;
+                                             "proxy_ssl_certificate_by_lua*"  \
+      : (c) == NGX_STREAM_LUA_CONTEXT_PROXY_SSL_VERIFY ?                      \
+                                                  "proxy_ssl_verify_by_lua*"  \
++     : (c) == NGX_STREAM_LUA_CONTEXT_ACCESS ? "access_by_lua*"               \
+      : "(unknown)")
+ 
+ 
+diff --git a/t/024-access/exit.t b/t/024-access/exit.t
+new file mode 100644
+index 0000000..a018a57
+--- /dev/null
++++ b/t/024-access/exit.t
+@@ -0,0 +1,66 @@
++# vim:set ft= ts=4 sw=4 et fdm=marker:
++
++use Test::Nginx::Socket::Lua::Stream;
++
++repeat_each(2);
++
++#master_on();
++#workers(1);
++#log_level('debug');
++#log_level('warn');
++#worker_connections(1024);
++
++plan tests => repeat_each() * (blocks() * 2);
++
++no_long_string();
++#no_shuffle();
++
++run_tests();
++
++__DATA__
++
++=== TEST 1: throw 500
++--- stream_server_config
++    access_by_lua_block { ngx.exit(500) }
++    content_by_lua_block { ngx.exit(ngx.OK) }
++--- error_log
++finalize stream request: 500
++
++
++
++=== TEST 2: throw 0
++--- stream_server_config
++    access_by_lua_block { ngx.say('Hi'); ngx.eof(); ngx.exit(0) }
++    content_by_lua_block { ngx.exit(ngx.OK) }
++--- stream_response
++Hi
++
++
++
++=== TEST 3: sync output + exit 200 in access_by_lua
++--- stream_server_config
++    access_by_lua_block {
++        ngx.say("sync output")
++        ngx.exit(200)
++    }
++    content_by_lua_block { ngx.say("should not appear") }
++--- stream_response
++sync output
++
++--- timeout: 5
++
++
++
++=== TEST 4: sleep + say then exit 0 without trailing sleep
++--- stream_server_config
++    access_by_lua_block {
++        ngx.sleep(0.001)
++        ngx.say("done")
++        ngx.eof()
++        ngx.exit(0)
++    }
++    content_by_lua_block { ngx.say("should not appear") }
++--- stream_response
++done
++
++--- timeout: 5
+diff --git a/t/024-access/sanity.t b/t/024-access/sanity.t
+new file mode 100644
+index 0000000..47bd9e1
+--- /dev/null
++++ b/t/024-access/sanity.t
+@@ -0,0 +1,199 @@
++# vim:set ft= ts=4 sw=4 et fdm=marker:
++use Test::Nginx::Socket::Lua::Stream;
++#worker_connections(1014);
++#no_nginx_manager();
++#log_level('debug');
++#master_on();
++
++repeat_each(2);
++
++plan tests => repeat_each() * (blocks() * 2);
++
++#no_diff();
++#no_long_string();
++run_tests();
++
++__DATA__
++
++=== TEST 1: basic print
++--- stream_server_config
++    access_by_lua_block { ngx.print("Hello, Lua!\n") }
++
++    content_by_lua return;
++    #content_by_lua 'ngx.say("Hi")';
++--- stream_response
++Hello, Lua!
++
++
++
++=== TEST 2: basic say
++--- stream_server_config
++    access_by_lua_block {
++        ngx.say("Hello, Lua!")
++        ngx.say("Yay! ", 123);
++    }
++
++    content_by_lua_block { ngx.exit(ngx.OK) }
++--- stream_response
++Hello, Lua!
++Yay! 123
++
++
++
++=== TEST 3: no ngx.echo
++--- stream_server_config
++    access_by_lua_block { ngx.echo("Hello, Lua!\\n") }
++    content_by_lua_block { ngx.exit(ngx.OK) }
++--- error_log
++attempt to call field 'echo' (a nil value)
++
++
++
++=== TEST 4: variable
++--- stream_server_config
++    # NOTE: the newline escape sequence must be double-escaped, as nginx config
++    # parser will unescape first!
++    access_by_lua_block { v = ngx.var["remote_addr"] ngx.print("remote_addr: ", v, "\n") }
++    content_by_lua_block { ngx.exit(ngx.OK) }
++--- stream_response
++remote_addr: 127.0.0.1
++
++
++
++=== TEST 5: variable (file)
++--- stream_server_config
++    access_by_lua_file html/test.lua;
++    content_by_lua_block { ngx.exit(ngx.OK) }
++--- user_files
++>>> test.lua
++v = ngx.var["remote_addr"]
++ngx.print("remote_addr: ", v, "\n")
++--- stream_response
++remote_addr: 127.0.0.1
++
++
++
++=== TEST 6: nil is "nil"
++--- stream_server_config
++    access_by_lua_block { ngx.say(nil) }
++
++    content_by_lua return;
++--- stream_response
++nil
++
++
++
++=== TEST 7: write boolean
++--- stream_server_config
++    access_by_lua_block { ngx.say(true, " ", false) }
++
++    content_by_lua return;
++--- stream_response
++true false
++
++
++
++=== TEST 8: nginx quote sql string 1
++--- stream_server_config
++    access_by_lua_block { ngx.say(ngx.quote_sql_str('hello\n\r\'"\\')) }
++    content_by_lua_block { ngx.exit(ngx.OK) }
++--- stream_response
++'hello\n\r\'\"\\'
++
++
++
++=== TEST 9: nginx quote sql string 2
++--- stream_server_config
++    access_by_lua_block { ngx.say(ngx.quote_sql_str("hello\n\r'\"\\")) }
++    content_by_lua_block { ngx.exit(ngx.OK) }
++--- stream_response
++'hello\n\r\'\"\\'
++
++
++
++=== TEST 10: use dollar
++--- stream_server_config
++    access_by_lua_block {
++        local s = "hello 112";
++        ngx.say(string.find(s, "%d+$"));
++    }
++
++    content_by_lua_block { ngx.exit(ngx.OK) }
++--- stream_response
++79
++
++
++
++=== TEST 11: short circuit
++--- stream_server_config
++    access_by_lua_block {
++        ngx.say("Hi")
++        ngx.eof()
++        ngx.exit(ngx.OK)
++    }
++
++    content_by_lua_block {
++            print("HERE")
++            ngx.print("BAD")
++    }
++--- stream_response
++Hi
++
++
++
++=== TEST 12: nginx vars in script path
++--- stream_server_config
++    access_by_lua_file html/$remote_addr.lua;
++
++    content_by_lua_block {
++            print("HERE")
++            ngx.print("BAD")
++    }
++--- user_files
++>>> 127.0.0.1.lua
++ngx.say("Hi")
++ngx.eof()
++ngx.exit(ngx.OK)
++--- stream_response
++Hi
++
++
++
++=== TEST 13: Lua file does not exist
++--- stream_server_config
++    access_by_lua_file html/test2.lua;
++    return here;
++--- user_files
++>>> test.lua
++v = ngx.var["remote_addr"]
++ngx.print("remote_addr: ", v, "\n")
++--- error_log eval
++qr/failed to load external Lua file ".*?\btest2\.lua": cannot open .*? No such file or directory/
++
++
++
++=== TEST 14: default postpone - deny all runs before access_by_lua
++--- stream_server_config
++    deny all;
++    access_by_lua_block { ngx.say("should not appear") }
++    content_by_lua_block { ngx.exit(ngx.OK) }
++--- stream_response
++
++--- timeout: 5
++
++
++
++=== TEST 15: no_postpone - access_by_lua runs before deny all
++--- stream_config
++    access_by_lua_no_postpone on;
++--- stream_server_config
++    deny all;
++    access_by_lua_block {
++        ngx.say("access_by_lua runs first")
++        ngx.exit(200)
++    }
++    content_by_lua_block { ngx.say("should not appear") }
++--- stream_response
++access_by_lua runs first
++
++--- timeout: 5
+diff --git a/t/024-access/sleep.t b/t/024-access/sleep.t
+new file mode 100644
+index 0000000..0b163e3
+--- /dev/null
++++ b/t/024-access/sleep.t
+@@ -0,0 +1,117 @@
++# vim:set ft= ts=4 sw=4 et fdm=marker:
++
++use Test::Nginx::Socket::Lua::Stream;
++#worker_connections(1014);
++#master_on();
++#workers(2);
++log_level('debug');
++
++repeat_each(2);
++
++plan tests => repeat_each() * 21;
++
++#no_diff();
++#no_long_string();
++run_tests();
++
++__DATA__
++
++=== TEST 1: sleep 0.5
++--- stream_server_config
++    access_by_lua_block {
++            ngx.update_time()
++            local before = ngx.now()
++            ngx.sleep(0.5)
++            local now = ngx.now()
++            ngx.say(now - before)
++            ngx.exit(200)
++    }
++
++    return here;
++--- stream_response_like chop
++^0\.(?:4[5-9]\d*|5[0-9]\d*|5)$
++--- error_log
++lua ready to sleep for
++stream lua sleep timer expired
++
++
++
++=== TEST 2: sleep ag
++--- stream_server_config
++    access_by_lua_block {
++            ngx.update_time()
++            local before = ngx.now()
++            ngx.sleep("a")
++            local now = ngx.now()
++            ngx.say(now - before)
++            ngx.exit(200)
++    }
++
++    return here;
++--- error_log
++bad argument #1 to 'sleep'
++
++
++
++=== TEST 3: sleep 0.5 - multi-times
++--- stream_server_config
++    access_by_lua_block {
++        ngx.update_time()
++        local start = ngx.now()
++        ngx.sleep(0.3)
++        ngx.sleep(0.3)
++        ngx.sleep(0.3)
++        ngx.say(ngx.now() - start)
++        ngx.exit(200)
++    }
++
++    return here;
++--- stream_response_like chop
++^0\.(?:8[5-9]\d*|9[0-9]\d*|9)$
++--- error_log
++lua ready to sleep for
++stream lua sleep timer expired
++--- no_error_log
++[error]
++
++
++
++=== TEST 4: sleep 0.5 - interleaved by ngx.say() - ended by ngx.sleep
++--- stream_server_config
++    access_by_lua_block {
++        ngx.sleep(1)
++        ngx.say("blah")
++        ngx.sleep(1)
++        ngx.exit(200)
++    }
++
++    return here;
++--- stream_response
++blah
++--- error_log
++lua ready to sleep
++stream lua sleep timer expired
++--- no_error_log
++[error]
++
++
++
++=== TEST 5: sleep 0.5 - interleaved by ngx.say() - not ended by ngx.sleep
++--- stream_server_config
++    access_by_lua_block {
++        ngx.sleep(0.3)
++        ngx.say("blah")
++        ngx.sleep(0.5)
++        ngx.say("hiya")
++        ngx.exit(200)
++    }
++
++    return here;
++--- stream_response
++blah
++hiya
++--- error_log
++lua ready to sleep for
++stream lua sleep timer expired
++--- no_error_log
++[error]
+diff --git a/t/089-phase.t b/t/089-phase.t
+index c00773e..39e96b8 100644
+--- a/t/089-phase.t
++++ b/t/089-phase.t
+@@ -28,13 +28,14 @@ init
+ 
+ 
+ === TEST 2: get_phase in access_by_lua
+-TODO
+---- SKIP
+ --- stream_server_config
+     access_by_lua_block {
+         ngx.say(ngx.get_phase())
+         ngx.exit(200)
+     }
++    content_by_lua_block {
++        return;
++    }
+ --- stream_response
+ access
+ 
+diff --git a/t/132-lua-blocks.t b/t/132-lua-blocks.t
+index eeba068..973b56c 100644
+--- a/t/132-lua-blocks.t
++++ b/t/132-lua-blocks.t
+@@ -9,7 +9,7 @@ use Test::Nginx::Socket::Lua::Stream;
+ repeat_each(2);
+ #repeat_each(1);
+ 
+-plan tests => repeat_each() * ((blocks() * 3) + 1);
++plan tests => repeat_each() * ((blocks() * 3) + 3);
+ 
+ #no_diff();
+ no_long_string();
+@@ -207,13 +207,12 @@ close: 1 nil
+         glob = glob .. ", init worker }here{"
+     }
+ --- stream_server_config
+-#access_by_lua_block {
+-    #local s = ngx.var.a
+-    #s = s .. '}access{\n'
+-    #ngx.var.a = s
+-    #}
++    access_by_lua_block {
++        local s = '}access{\n'
++        ngx.ctx.a = s
++    }
+     content_by_lua_block {
+-        s = [[}content{]]
++        local s = ngx.ctx.a .. [[}content{]]
+         ngx.ctx.a = s
+         ngx.say(s)
+         ngx.say("glob: ", glob)
+@@ -224,6 +223,7 @@ close: 1 nil
+ 
+ --- config
+ --- stream_response
++}access{
+ }content{
+ glob: init by lua }here{, init worker }here{
+ 
+@@ -369,8 +369,6 @@ done
+ 
+ 
+ === TEST 17: double quotes in long brackets
+-TODO
+---- SKIP
+ --- stream_server_config
+     access_by_lua_block { print([[Hey, it is "!]]) } content_by_lua_block { ngx.say([["]]) }
+ 
+@@ -385,8 +383,6 @@ Hey, it is "!
+ 
+ 
+ === TEST 18: single quotes in long brackets
+-TODO
+---- SKIP
+ --- stream_server_config
+     access_by_lua_block { print([[Hey, it is '!]]) } content_by_lua_block { ngx.say([[']]) }
+ 
