@@ -1,0 +1,12 @@
+diff --git a/lib/resty/core/phase.lua b/lib/resty/core/phase.lua
+index 4a8e730..4543153 100644
+--- a/lib/resty/core/phase.lua
++++ b/lib/resty/core/phase.lua
+@@ -35,6 +35,7 @@ local context_names = {
+     [0x00010000] = "proxy_ssl_verify",
+     [0x00020000] = "precontent",
+     [0x00040000] = "proxy_ssl_cert",
++    [0x00080000] = "preaccess",
+ }
+ 
+ 

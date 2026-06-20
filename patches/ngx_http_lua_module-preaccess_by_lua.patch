@@ -1,0 +1,1294 @@
+diff --git a/README.markdown b/README.markdown
+index 94b1620d..fef73bff 100644
+--- a/README.markdown
++++ b/README.markdown
+@@ -1141,6 +1141,8 @@ Directives
+ * [set_by_lua](#set_by_lua)
+ * [set_by_lua_block](#set_by_lua_block)
+ * [set_by_lua_file](#set_by_lua_file)
++* [preaccess_by_lua_block](#preaccess_by_lua_block)
++* [preaccess_by_lua_file](#preaccess_by_lua_file)
+ * [precontent_by_lua_block](#precontent_by_lua_block)
+ * [precontent_by_lua_file](#precontent_by_lua_file)
+ * [content_by_lua](#content_by_lua)
+@@ -1201,6 +1203,7 @@ Directives
+ * [lua_http10_buffering](#lua_http10_buffering)
+ * [rewrite_by_lua_no_postpone](#rewrite_by_lua_no_postpone)
+ * [access_by_lua_no_postpone](#access_by_lua_no_postpone)
++* [preaccess_by_lua_no_postpone](#preaccess_by_lua_no_postpone)
+ * [precontent_by_lua_no_postpone](#precontent_by_lua_no_postpone)
+ * [lua_transform_underscores_in_response_headers](#lua_transform_underscores_in_response_headers)
+ * [lua_check_client_abort](#lua_check_client_abort)
+@@ -1848,6 +1851,47 @@ This directive requires the [ngx_devel_kit](https://github.com/simplresty/ngx_de
+ 
+ [Back to TOC](#directives)
+ 
++preaccess_by_lua_block
++--------------------
++
++**syntax:** *preaccess_by_lua_block { lua-script }*
++
++**context:** *http, server, location, location if*
++
++**phase:** *preaccess tail*
++
++Acts as a preaccess phase handler and executes Lua code string specified in `{ <lua-script }` for every request.
++The Lua code may make [API calls](#nginx-api-for-lua) and is executed as a new spawned coroutine in an independent global environment (i.e. a sandbox).
++
++Note that this handler always runs *after* the standard [ngx_http_post_rewrite_module](https://nginx.org/en/docs/http/ngx_http_core_module.html#post_rewrite) but *before* the access phase handlers such as [ngx_http_limit_req_module](https://nginx.org/en/docs/http/ngx_http_limit_req_module.html), [ngx_http_limit_conn_module](https://nginx.org/en/docs/http/ngx_http_limit_conn_module.html), and [ngx_http_access_module](https://nginx.org/en/docs/http/ngx_http_access_module.html).
++
++You can use [preaccess_by_lua_block](#preaccess_by_lua_block) to perform early request filtering, authentication, or other pre-access checks.
++
++You can use the [preaccess_by_lua_no_postpone](#preaccess_by_lua_no_postpone) directive to control when to run this handler inside the `preaccess` request-processing phase of Nginx. By default, the Lua code is postponed to run at the very end of the `preaccess` phase so that it runs after all other preaccess handlers.
++
++[Back to TOC](#directives)
++
++preaccess_by_lua_file
++-------------------
++
++**syntax:** *preaccess_by_lua_file &lt;path-to-lua-script-file&gt;*
++
++**context:** *http, server, location, location if*
++
++**phase:** *preaccess tail*
++
++Equivalent to [preaccess_by_lua_block](#preaccess_by_lua_block), except that the file specified by `<path-to-lua-script-file>` contains the Lua code, or, as from the `v0.5.0rc32` release, the [LuaJIT bytecode](#luajit-bytecode-support) to be executed.
++
++Nginx variables can be used in the `<path-to-lua-script-file>` string to provide flexibility. This however carries some risks and is not ordinarily recommended.
++
++When a relative path like `foo/bar.lua` is given, they will be turned into the absolute path relative to the `server prefix` path determined by the `-p PATH` command-line option while starting the Nginx server.
++
++When the Lua code cache is turned on (by default), the user code is loaded once at the first request and cached
++and the Nginx config must be reloaded each time the Lua source file is modified.
++The Lua code cache can be temporarily disabled during development by switching [lua_code_cache](#lua_code_cache) `off` in `nginx.conf` to avoid repeatedly reloading Nginx.
++
++[Back to TOC](#directives)
++
+ precontent_by_lua_block
+ --------------------
+ 
+@@ -3807,6 +3851,21 @@ This directive was first introduced in the `v0.9.20` release.
+ 
+ [Back to TOC](#directives)
+ 
++preaccess_by_lua_no_postpone
++--------------------------
++
++**syntax:** *preaccess_by_lua_no_postpone on|off*
++
++**default:** *preaccess_by_lua_no_postpone off*
++
++**context:** *http*
++
++Controls whether or not to disable postponing [preaccess_by_lua*](#preaccess_by_lua_block) directives to run at the end of the `preaccess` request-processing phase. By default, this directive is turned off and the Lua code is postponed to run at the end of the `preaccess` phase.
++
++When turned on, the preaccess_by_lua handler will run in its natural position among other preaccess phase handlers (such as `limit_req`, `limit_conn`, etc.) and will not skip them on normal completion.
++
++[Back to TOC](#directives)
++
+ precontent_by_lua_no_postpone
+ -------------------------
+ 
+diff --git a/config b/config
+index 6de04966..f74f8872 100644
+--- a/config
++++ b/config
+@@ -260,6 +260,7 @@ HTTP_LUA_SRCS=" \
+             $ngx_addon_dir/src/ngx_http_lua_exception.c \
+             $ngx_addon_dir/src/ngx_http_lua_util.c \
+             $ngx_addon_dir/src/ngx_http_lua_cache.c \
++            $ngx_addon_dir/src/ngx_http_lua_preaccessby.c \
+             $ngx_addon_dir/src/ngx_http_lua_precontentby.c \
+             $ngx_addon_dir/src/ngx_http_lua_contentby.c \
+             $ngx_addon_dir/src/ngx_http_lua_server_rewriteby.c \
+@@ -329,6 +330,7 @@ HTTP_LUA_DEPS=" \
+             $ngx_addon_dir/src/ngx_http_lua_exception.h \
+             $ngx_addon_dir/src/ngx_http_lua_util.h \
+             $ngx_addon_dir/src/ngx_http_lua_cache.h \
++            $ngx_addon_dir/src/ngx_http_lua_preaccessby.h \
+             $ngx_addon_dir/src/ngx_http_lua_precontentby.h \
+             $ngx_addon_dir/src/ngx_http_lua_contentby.h \
+             $ngx_addon_dir/src/ngx_http_lua_server_rewriteby.h \
+diff --git a/doc/HttpLuaModule.wiki b/doc/HttpLuaModule.wiki
+index 18473ce7..8eea7087 100644
+--- a/doc/HttpLuaModule.wiki
++++ b/doc/HttpLuaModule.wiki
+@@ -1491,6 +1491,41 @@ switching [[#lua_code_cache|lua_code_cache]] <code>off</code> in <code>nginx.con
+ 
+ This directive requires the [https://github.com/simplresty/ngx_devel_kit ngx_devel_kit] module.
+ 
++== preaccess_by_lua_block ==
++
++'''syntax:''' ''preaccess_by_lua_block { lua-script }''
++
++'''context:''' ''http, server, location, location if''
++
++'''phase:''' ''preaccess tail''
++
++Acts as a preaccess phase handler and executes Lua code string specified in <code>{ <lua-script }</code> for every request.
++The Lua code may make [[#Nginx API for Lua|API calls]] and is executed as a new spawned coroutine in an independent global environment (i.e. a sandbox).
++
++Note that this handler always runs *after* the standard [[HttpPostRewriteModule|post-rewrite phase]] but *before* the access phase handlers such as [[HttpLimitReqModule]], [[HttpLimitConnModule]], and [[HttpAccessModule]].
++
++You can use [[#preaccess_by_lua_block|preaccess_by_lua_block]] to perform early request filtering, authentication, or other pre-access checks.
++
++You can use the [[#preaccess_by_lua_no_postpone|preaccess_by_lua_no_postpone]] directive to control when to run this handler inside the <code>preaccess</code> request-processing phase of Nginx. By default, the Lua code is postponed to run at the very end of the <code>preaccess</code> phase so that it runs after all other preaccess handlers.
++
++== preaccess_by_lua_file ==
++
++'''syntax:''' ''preaccess_by_lua_file <path-to-lua-script-file>''
++
++'''context:''' ''http, server, location, location if''
++
++'''phase:''' ''preaccess tail''
++
++Equivalent to [[#preaccess_by_lua_block|preaccess_by_lua_block]], except that the file specified by <code><path-to-lua-script-file></code> contains the Lua code, or, as from the <code>v0.5.0rc32</code> release, the [[#LuaJIT bytecode support|LuaJIT bytecode]] to be executed.
++
++Nginx variables can be used in the <code><path-to-lua-script-file></code> string to provide flexibility. This however carries some risks and is not ordinarily recommended.
++
++When a relative path like <code>foo/bar.lua</code> is given, they will be turned into the absolute path relative to the <code>server prefix</code> path determined by the <code>-p PATH</code> command-line option while starting the Nginx server.
++
++When the Lua code cache is turned on (by default), the user code is loaded once at the first request and cached
++and the Nginx config must be reloaded each time the Lua source file is modified.
++The Lua code cache can be temporarily disabled during development by switching [[#lua_code_cache|lua_code_cache]] <code>off</code> in <code>nginx.conf</code> to avoid repeatedly reloading Nginx.
++
+ == precontent_by_lua_block ==
+ 
+ '''syntax:''' ''precontent_by_lua_block { lua-script }''
+@@ -3072,6 +3107,18 @@ Controls whether or not to disable postponing [[#access_by_lua|access_by_lua*]]
+ 
+ This directive was first introduced in the <code>v0.9.20</code> release.
+ 
++== preaccess_by_lua_no_postpone ==
++
++'''syntax:''' ''preaccess_by_lua_no_postpone on|off''
++
++'''default:''' ''preaccess_by_lua_no_postpone off''
++
++'''context:''' ''http''
++
++Controls whether or not to disable postponing [[#preaccess_by_lua_block|preaccess_by_lua_block*]] directives to run at the end of the <code>preaccess</code> request-processing phase. By default, this directive is turned off and the Lua code is postponed to run at the end of the <code>preaccess</code> phase.
++
++When turned on, the preaccess_by_lua handler will run in its natural position among other preaccess phase handlers (such as <code>limit_req</code>, <code>limit_conn</code>, etc.) and will not skip them on normal completion.
++
+ == precontent_by_lua_no_postpone ==
+ 
+ '''syntax:''' ''precontent_by_lua_no_postpone on|off''
+diff --git a/src/ngx_http_lua_common.h b/src/ngx_http_lua_common.h
+index 28538cc2..c79cfcef 100644
+--- a/src/ngx_http_lua_common.h
++++ b/src/ngx_http_lua_common.h
+@@ -173,6 +173,7 @@ typedef struct {
+ #define NGX_HTTP_LUA_CONTEXT_PROXY_SSL_VERIFY   0x00010000
+ #define NGX_HTTP_LUA_CONTEXT_PRECONTENT         0x00020000
+ #define NGX_HTTP_LUA_CONTEXT_PROXY_SSL_CERT     0x00040000
++#define NGX_HTTP_LUA_CONTEXT_PREACCESS          0x00080000
+ 
+ #define NGX_HTTP_LUA_FFI_NO_REQ_CTX         -100
+ #define NGX_HTTP_LUA_FFI_BAD_CONTEXT        -101
+@@ -274,6 +275,7 @@ struct ngx_http_lua_main_conf_s {
+ 
+     ngx_flag_t           postponed_to_rewrite_phase_end;
+     ngx_flag_t           postponed_to_access_phase_end;
++    ngx_flag_t           postponed_to_preaccess_phase_end;
+     ngx_flag_t           postponed_to_precontent_phase_end;
+ 
+     ngx_http_lua_main_conf_handler_pt    init_handler;
+@@ -343,6 +345,7 @@ struct ngx_http_lua_main_conf_s {
+     unsigned             requires_shm:1;
+     unsigned             requires_capture_log:1;
+     unsigned             requires_server_rewrite:1;
++    unsigned             requires_preaccess:1;
+     unsigned             requires_precontent:1;
+ };
+ 
+@@ -442,6 +445,7 @@ struct ngx_http_lua_loc_conf_s {
+ 
+     ngx_http_handler_pt     rewrite_handler;
+     ngx_http_handler_pt     access_handler;
++    ngx_http_handler_pt     preaccess_handler;
+     ngx_http_handler_pt     precontent_handler;
+     ngx_http_handler_pt     content_handler;
+     ngx_http_handler_pt     log_handler;
+@@ -467,6 +471,15 @@ struct ngx_http_lua_loc_conf_s {
+     u_char                  *access_src_key; /* cached key for access_src */
+     int                      access_src_ref;
+ 
++    u_char                  *preaccess_chunkname;
++    ngx_http_complex_value_t preaccess_src;    /*  preaccess_by_lua
++                                                inline script/script
++                                                file path */
++
++    u_char                  *preaccess_src_key; /* cached key for
++                                                    preaccess_src */
++    int                      preaccess_src_ref;
++
+     u_char                  *precontent_chunkname;
+     ngx_http_complex_value_t precontent_src;    /*  precontent_by_lua
+                                                 inline script/script
+@@ -721,6 +734,7 @@ typedef struct ngx_http_lua_ctx_s {
+     unsigned         entered_server_rewrite_phase:1;
+     unsigned         entered_rewrite_phase:1;
+     unsigned         entered_access_phase:1;
++    unsigned         entered_preaccess_phase:1;
+     unsigned         entered_precontent_phase:1;
+     unsigned         entered_content_phase:1;
+ 
+diff --git a/src/ngx_http_lua_control.c b/src/ngx_http_lua_control.c
+index 895604c4..ec22d08b 100644
+--- a/src/ngx_http_lua_control.c
++++ b/src/ngx_http_lua_control.c
+@@ -93,6 +93,7 @@ ngx_http_lua_ngx_exec(lua_State *L)
+     ngx_http_lua_check_context(L, ctx, NGX_HTTP_LUA_CONTEXT_REWRITE
+                                | NGX_HTTP_LUA_CONTEXT_SERVER_REWRITE
+                                | NGX_HTTP_LUA_CONTEXT_ACCESS
++                               | NGX_HTTP_LUA_CONTEXT_PREACCESS
+                                | NGX_HTTP_LUA_CONTEXT_PRECONTENT
+                                | NGX_HTTP_LUA_CONTEXT_CONTENT);
+ 
+@@ -236,6 +237,7 @@ ngx_http_lua_ngx_redirect(lua_State *L)
+     ngx_http_lua_check_context(L, ctx, NGX_HTTP_LUA_CONTEXT_REWRITE
+                                | NGX_HTTP_LUA_CONTEXT_SERVER_REWRITE
+                                | NGX_HTTP_LUA_CONTEXT_ACCESS
++                               | NGX_HTTP_LUA_CONTEXT_PREACCESS
+                                | NGX_HTTP_LUA_CONTEXT_PRECONTENT
+                                | NGX_HTTP_LUA_CONTEXT_CONTENT);
+ 
+@@ -382,6 +384,7 @@ ngx_http_lua_ffi_exit(ngx_http_request_t *r, int status, u_char *err,
+     if (ngx_http_lua_ffi_check_context(ctx, NGX_HTTP_LUA_CONTEXT_REWRITE
+                                        | NGX_HTTP_LUA_CONTEXT_SERVER_REWRITE
+                                        | NGX_HTTP_LUA_CONTEXT_ACCESS
++                                       | NGX_HTTP_LUA_CONTEXT_PREACCESS
+                                        | NGX_HTTP_LUA_CONTEXT_PRECONTENT
+                                        | NGX_HTTP_LUA_CONTEXT_CONTENT
+                                        | NGX_HTTP_LUA_CONTEXT_TIMER
+diff --git a/src/ngx_http_lua_directive.c b/src/ngx_http_lua_directive.c
+index 784835fe..62fc8a40 100644
+--- a/src/ngx_http_lua_directive.c
++++ b/src/ngx_http_lua_directive.c
+@@ -15,6 +15,7 @@
+ #include "ngx_http_lua_directive.h"
+ #include "ngx_http_lua_util.h"
+ #include "ngx_http_lua_cache.h"
++#include "ngx_http_lua_preaccessby.h"
+ #include "ngx_http_lua_precontentby.h"
+ #include "ngx_http_lua_contentby.h"
+ #include "ngx_http_lua_accessby.h"
+@@ -799,6 +800,107 @@ ngx_http_lua_access_by_lua(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+ }
+ 
+ 
++char *
++ngx_http_lua_preaccess_by_lua_block(ngx_conf_t *cf, ngx_command_t *cmd,
++    void *conf)
++{
++    char        *rv;
++    ngx_conf_t   save;
++
++    save = *cf;
++    cf->handler = ngx_http_lua_preaccess_by_lua;
++    cf->handler_conf = conf;
++
++    rv = ngx_http_lua_conf_lua_block_parse(cf, cmd);
++
++    *cf = save;
++
++    return rv;
++}
++
++
++char *
++ngx_http_lua_preaccess_by_lua(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
++{
++    size_t                       chunkname_len;
++    u_char                      *cache_key = NULL, *chunkname;
++    ngx_str_t                   *value;
++    ngx_http_lua_main_conf_t    *lmcf;
++    ngx_http_lua_loc_conf_t     *llcf = conf;
++
++    ngx_http_compile_complex_value_t         ccv;
++
++    dd("enter");
++
++    /*  must specify a content handler */
++    if (cmd->post == NULL) {
++        return NGX_CONF_ERROR;
++    }
++
++    if (llcf->preaccess_handler) {
++        return "is duplicate";
++    }
++
++    value = cf->args->elts;
++
++    if (value[1].len == 0) {
++        /*  Oops...Invalid location conf */
++        ngx_conf_log_error(NGX_LOG_ERR, cf, 0,
++                           "invalid location config: no runnable Lua code");
++        return NGX_CONF_ERROR;
++    }
++
++    if (cmd->post == ngx_http_lua_preaccess_handler_inline) {
++        chunkname = ngx_http_lua_gen_chunk_name(cf, "preaccess_by_lua",
++                                                sizeof("preaccess_by_lua") - 1,
++                                                &chunkname_len);
++        if (chunkname == NULL) {
++            return NGX_CONF_ERROR;
++        }
++
++        cache_key = ngx_http_lua_gen_chunk_cache_key(cf, "preaccess_by_lua",
++                                                     value[1].data,
++                                                     value[1].len);
++        if (cache_key == NULL) {
++            return NGX_CONF_ERROR;
++        }
++
++        /* Don't eval nginx variables for inline lua code */
++        llcf->preaccess_src.value = value[1];
++        llcf->preaccess_chunkname = chunkname;
++
++    } else {
++        ngx_memzero(&ccv, sizeof(ngx_http_compile_complex_value_t));
++        ccv.cf = cf;
++        ccv.value = &value[1];
++        ccv.complex_value = &llcf->preaccess_src;
++
++        if (ngx_http_compile_complex_value(&ccv) != NGX_OK) {
++            return NGX_CONF_ERROR;
++        }
++
++        if (llcf->preaccess_src.lengths == NULL) {
++            /* no variable found */
++            cache_key = ngx_http_lua_gen_file_cache_key(cf, value[1].data,
++                                                        value[1].len);
++            if (cache_key == NULL) {
++                return NGX_CONF_ERROR;
++            }
++        }
++    }
++
++    llcf->preaccess_src_key = cache_key;
++    llcf->preaccess_handler = (ngx_http_handler_pt) cmd->post;
++
++    lmcf = ngx_http_conf_get_module_main_conf(cf, ngx_http_lua_module);
++
++    lmcf->requires_preaccess = 1;
++    lmcf->requires_capture_filter = 1;
++
++    return NGX_CONF_OK;
++}
++
++
+ char *
+ ngx_http_lua_precontent_by_lua_block(ngx_conf_t *cf, ngx_command_t *cmd,
+     void *conf)
+diff --git a/src/ngx_http_lua_directive.h b/src/ngx_http_lua_directive.h
+index 45478305..40e01b02 100644
+--- a/src/ngx_http_lua_directive.h
++++ b/src/ngx_http_lua_directive.h
+@@ -21,6 +21,10 @@ char *ngx_http_lua_regex_cache_max_entries(ngx_conf_t *cf, ngx_command_t *cmd,
+     void *conf);
+ char *ngx_http_lua_regex_match_limit(ngx_conf_t *cf, ngx_command_t *cmd,
+     void *conf);
++char *ngx_http_lua_preaccess_by_lua_block(ngx_conf_t *cf, ngx_command_t *cmd,
++    void *conf);
++char *ngx_http_lua_preaccess_by_lua(ngx_conf_t *cf, ngx_command_t *cmd,
++    void *conf);
+ char *ngx_http_lua_precontent_by_lua_block(ngx_conf_t *cf, ngx_command_t *cmd,
+     void *conf);
+ char *ngx_http_lua_precontent_by_lua(ngx_conf_t *cf, ngx_command_t *cmd,
+diff --git a/src/ngx_http_lua_module.c b/src/ngx_http_lua_module.c
+index 19880ff5..f62f8eb6 100644
+--- a/src/ngx_http_lua_module.c
++++ b/src/ngx_http_lua_module.c
+@@ -13,6 +13,7 @@
+ 
+ #include "ngx_http_lua_directive.h"
+ #include "ngx_http_lua_capturefilter.h"
++#include "ngx_http_lua_preaccessby.h"
+ #include "ngx_http_lua_precontentby.h"
+ #include "ngx_http_lua_contentby.h"
+ #include "ngx_http_lua_server_rewriteby.h"
+@@ -367,6 +368,31 @@ static ngx_command_t ngx_http_lua_cmds[] = {
+       0,
+       (void *) ngx_http_lua_access_handler_inline },
+ 
++    /* preaccess_by_lua_block { <inline script> } */
++    { ngx_string("preaccess_by_lua_block"),
++      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF
++                        |NGX_CONF_BLOCK|NGX_CONF_NOARGS,
++      ngx_http_lua_preaccess_by_lua_block,
++      NGX_HTTP_LOC_CONF_OFFSET,
++      0,
++      (void *) ngx_http_lua_preaccess_handler_inline },
++
++    /* preaccess_by_lua_file filename; */
++    { ngx_string("preaccess_by_lua_file"),
++      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF
++                        |NGX_CONF_TAKE1,
++      ngx_http_lua_preaccess_by_lua,
++      NGX_HTTP_LOC_CONF_OFFSET,
++      0,
++      (void *) ngx_http_lua_preaccess_handler_file },
++
++    { ngx_string("preaccess_by_lua_no_postpone"),
++      NGX_HTTP_MAIN_CONF|NGX_CONF_FLAG,
++      ngx_conf_set_flag_slot,
++      NGX_HTTP_MAIN_CONF_OFFSET,
++      offsetof(ngx_http_lua_main_conf_t, postponed_to_preaccess_phase_end),
++      NULL },
++
+     /* precontent_by_lua_block { <inline script> } */
+     { ngx_string("precontent_by_lua_block"),
+       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF
+@@ -883,6 +909,10 @@ ngx_http_lua_init(ngx_conf_t *cf)
+         lmcf->postponed_to_access_phase_end = 0;
+     }
+ 
++    if (lmcf->postponed_to_preaccess_phase_end == NGX_CONF_UNSET) {
++        lmcf->postponed_to_preaccess_phase_end = 0;
++    }
++
+     if (lmcf->postponed_to_precontent_phase_end == NGX_CONF_UNSET) {
+         lmcf->postponed_to_precontent_phase_end = 0;
+     }
+@@ -917,6 +947,15 @@ ngx_http_lua_init(ngx_conf_t *cf)
+         *h = ngx_http_lua_access_handler;
+     }
+ 
++    if (lmcf->requires_preaccess) {
++        h = ngx_array_push(&cmcf->phases[NGX_HTTP_PREACCESS_PHASE].handlers);
++        if (h == NULL) {
++            return NGX_ERROR;
++        }
++
++        *h = ngx_http_lua_preaccess_handler;
++    }
++
+     if (lmcf->requires_precontent) {
+         h = ngx_array_push(&cmcf->phases[NGX_HTTP_PRECONTENT_PHASE].handlers);
+         if (h == NULL) {
+@@ -1159,6 +1198,7 @@ ngx_http_lua_create_main_conf(ngx_conf_t *cf)
+ #endif
+     lmcf->postponed_to_rewrite_phase_end = NGX_CONF_UNSET;
+     lmcf->postponed_to_access_phase_end = NGX_CONF_UNSET;
++    lmcf->postponed_to_preaccess_phase_end = NGX_CONF_UNSET;
+     lmcf->postponed_to_precontent_phase_end = NGX_CONF_UNSET;
+ 
+     lmcf->set_sa_restart = NGX_CONF_UNSET;
+@@ -1509,6 +1549,11 @@ ngx_http_lua_create_loc_conf(ngx_conf_t *cf)
+      *      conf->rewrite_handler = NULL;
+      *      conf->rewrite_chunkname = NULL;
+      *
++     *      conf->preaccess_src = {{ 0, NULL }, NULL, NULL, NULL};
++     *      conf->preaccess_src_key = NULL;
++     *      conf->preaccess_handler = NULL;
++     *      conf->preaccess_chunkname = NULL;
++     *
+      *      conf->precontent_src = {{ 0, NULL }, NULL, NULL, NULL};
+      *      conf->precontent_src_key = NULL;
+      *      conf->precontent_handler = NULL;
+@@ -1571,6 +1616,7 @@ ngx_http_lua_create_loc_conf(ngx_conf_t *cf)
+ 
+     conf->rewrite_src_ref = LUA_REFNIL;
+     conf->access_src_ref = LUA_REFNIL;
++    conf->preaccess_src_ref = LUA_REFNIL;
+     conf->precontent_src_ref = LUA_REFNIL;
+     conf->content_src_ref = LUA_REFNIL;
+     conf->header_filter_src_ref = LUA_REFNIL;
+@@ -1617,6 +1663,14 @@ ngx_http_lua_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+         conf->access_chunkname = prev->access_chunkname;
+     }
+ 
++    if (conf->preaccess_src.value.len == 0) {
++        conf->preaccess_src = prev->preaccess_src;
++        conf->preaccess_handler = prev->preaccess_handler;
++        conf->preaccess_src_ref = prev->preaccess_src_ref;
++        conf->preaccess_src_key = prev->preaccess_src_key;
++        conf->preaccess_chunkname = prev->preaccess_chunkname;
++    }
++
+     if (conf->precontent_src.value.len == 0) {
+         conf->precontent_src = prev->precontent_src;
+         conf->precontent_handler = prev->precontent_handler;
+diff --git a/src/ngx_http_lua_output.c b/src/ngx_http_lua_output.c
+index 2db9e91c..dedd77c2 100644
+--- a/src/ngx_http_lua_output.c
++++ b/src/ngx_http_lua_output.c
+@@ -65,6 +65,7 @@ ngx_http_lua_ngx_echo(lua_State *L, unsigned newline)
+     ngx_http_lua_check_context(L, ctx, NGX_HTTP_LUA_CONTEXT_REWRITE
+                                | NGX_HTTP_LUA_CONTEXT_SERVER_REWRITE
+                                | NGX_HTTP_LUA_CONTEXT_ACCESS
++                               | NGX_HTTP_LUA_CONTEXT_PREACCESS
+                                | NGX_HTTP_LUA_CONTEXT_PRECONTENT
+                                | NGX_HTTP_LUA_CONTEXT_CONTENT);
+ 
+@@ -503,6 +504,7 @@ ngx_http_lua_ngx_flush(lua_State *L)
+     ngx_http_lua_check_context(L, ctx, NGX_HTTP_LUA_CONTEXT_REWRITE
+                                | NGX_HTTP_LUA_CONTEXT_SERVER_REWRITE
+                                | NGX_HTTP_LUA_CONTEXT_ACCESS
++                               | NGX_HTTP_LUA_CONTEXT_PREACCESS
+                                | NGX_HTTP_LUA_CONTEXT_PRECONTENT
+                                | NGX_HTTP_LUA_CONTEXT_CONTENT);
+ 
+@@ -659,6 +661,7 @@ ngx_http_lua_ngx_eof(lua_State *L)
+     ngx_http_lua_check_context(L, ctx, NGX_HTTP_LUA_CONTEXT_REWRITE
+                                | NGX_HTTP_LUA_CONTEXT_SERVER_REWRITE
+                                | NGX_HTTP_LUA_CONTEXT_ACCESS
++                               | NGX_HTTP_LUA_CONTEXT_PREACCESS
+                                | NGX_HTTP_LUA_CONTEXT_PRECONTENT
+                                | NGX_HTTP_LUA_CONTEXT_CONTENT);
+ 
+@@ -723,6 +726,7 @@ ngx_http_lua_ngx_send_headers(lua_State *L)
+     ngx_http_lua_check_context(L, ctx, NGX_HTTP_LUA_CONTEXT_REWRITE
+                                | NGX_HTTP_LUA_CONTEXT_SERVER_REWRITE
+                                | NGX_HTTP_LUA_CONTEXT_ACCESS
++                               | NGX_HTTP_LUA_CONTEXT_PREACCESS
+                                | NGX_HTTP_LUA_CONTEXT_PRECONTENT
+                                | NGX_HTTP_LUA_CONTEXT_CONTENT);
+ 
+diff --git a/src/ngx_http_lua_preaccessby.c b/src/ngx_http_lua_preaccessby.c
+new file mode 100644
+index 00000000..67e91ff2
+--- /dev/null
++++ b/src/ngx_http_lua_preaccessby.c
+@@ -0,0 +1,399 @@
++
++/*
++ * Copyright (C) Hanada <im@hanada.info>
++ * Copyright (C) Yichun Zhang (agentzh)
++ */
++
++
++#ifndef DDEBUG
++#define DDEBUG 0
++#endif
++#include "ddebug.h"
++
++
++#include <nginx.h>
++#include "ngx_http_lua_preaccessby.h"
++#include "ngx_http_lua_util.h"
++#include "ngx_http_lua_exception.h"
++#include "ngx_http_lua_cache.h"
++
++
++static ngx_int_t ngx_http_lua_preaccess_by_chunk(lua_State *L,
++    ngx_http_request_t *r);
++
++
++ngx_int_t
++ngx_http_lua_preaccess_handler(ngx_http_request_t *r)
++{
++    ngx_int_t                   rc;
++    ngx_http_lua_ctx_t         *ctx;
++    ngx_http_lua_loc_conf_t    *llcf;
++    ngx_http_lua_main_conf_t   *lmcf;
++    ngx_http_phase_handler_t    tmp, *ph, *cur_ph, *last_ph;
++    ngx_http_core_main_conf_t  *cmcf;
++
++    ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
++                   "lua preaccess handler, uri:\"%V\" c:%ud", &r->uri,
++                   r->main->count);
++
++    lmcf = ngx_http_get_module_main_conf(r, ngx_http_lua_module);
++
++    if (!lmcf->postponed_to_preaccess_phase_end) {
++
++        lmcf->postponed_to_preaccess_phase_end = 1;
++
++        cmcf = ngx_http_get_module_main_conf(r, ngx_http_core_module);
++
++        ph = cmcf->phase_engine.handlers;
++        cur_ph = &ph[r->phase_handler];
++        last_ph = &ph[cur_ph->next - 1];
++
++        dd("ph cur: %d, ph next: %d", (int) r->phase_handler,
++           (int) (cur_ph->next - 2));
++
++        if (cur_ph < last_ph) {
++            dd("swapping the contents of cur_ph and last_ph...");
++
++            tmp = *cur_ph;
++
++            ngx_memmove(cur_ph, cur_ph + 1,
++                        (last_ph - cur_ph) * sizeof(ngx_http_phase_handler_t));
++
++            *last_ph = tmp;
++
++            r->phase_handler--; /* redo the current ph */
++
++            return NGX_DECLINED;
++        }
++    }
++
++    llcf = ngx_http_get_module_loc_conf(r, ngx_http_lua_module);
++
++    if (llcf->preaccess_handler == NULL) {
++        dd("no preaccess handler found");
++        return NGX_DECLINED;
++    }
++
++    ctx = ngx_http_get_module_ctx(r, ngx_http_lua_module);
++
++    dd("ctx = %p", ctx);
++
++    if (ctx == NULL) {
++        ctx = ngx_http_lua_create_ctx(r);
++        if (ctx == NULL) {
++            return NGX_HTTP_INTERNAL_SERVER_ERROR;
++        }
++    }
++
++    dd("entered? %d", (int) ctx->entered_preaccess_phase);
++
++
++    if (ctx->entered_preaccess_phase) {
++        dd("preaccessby: calling wev handler");
++        rc = ctx->resume_handler(r);
++        dd("preaccessby: wev handler returns %d", (int) rc);
++
++        if (rc == NGX_ERROR || rc == NGX_DONE || rc > NGX_OK) {
++            return rc;
++        }
++
++        if (rc == NGX_OK
++            && (r->header_sent
++                || (r->headers_out.status != 0 && ctx->out != NULL)))
++        {
++            dd("header already sent");
++
++            /* response header was already generated in preaccess_by_lua*,
++             * so it is no longer safe to proceed to later phases
++             * which may generate responses again */
++
++            if (!ctx->eof) {
++                dd("eof not yet sent");
++
++                rc = ngx_http_lua_send_chain_link(r, ctx, NULL
++                                                  /* indicate last_buf */);
++                if (rc == NGX_ERROR || rc > NGX_OK) {
++                    return rc;
++                }
++            }
++
++            return NGX_HTTP_OK;
++        }
++
++        return NGX_DECLINED;
++    }
++
++    if (ctx->waiting_more_body) {
++        dd("WAITING MORE BODY");
++        return NGX_DONE;
++    }
++
++    if (llcf->force_read_body && !ctx->read_body_done) {
++        r->request_body_in_single_buf = 1;
++        r->request_body_in_persistent_file = 1;
++        r->request_body_in_clean_file = 1;
++
++        rc = ngx_http_read_client_request_body(r,
++                                       ngx_http_lua_generic_phase_post_read);
++
++        if (rc == NGX_ERROR || rc >= NGX_HTTP_SPECIAL_RESPONSE) {
++            return rc;
++        }
++
++        if (rc == NGX_AGAIN) {
++            ctx->waiting_more_body = 1;
++            return NGX_DONE;
++        }
++    }
++
++    dd("calling preaccess handler");
++    return llcf->preaccess_handler(r);
++}
++
++
++ngx_int_t
++ngx_http_lua_preaccess_handler_inline(ngx_http_request_t *r)
++{
++    ngx_int_t                  rc;
++    lua_State                 *L;
++    ngx_http_lua_loc_conf_t   *llcf;
++
++    llcf = ngx_http_get_module_loc_conf(r, ngx_http_lua_module);
++
++    L = ngx_http_lua_get_lua_vm(r, NULL);
++
++    if (!llcf->enable_code_cache) {
++        llcf->preaccess_src_ref = LUA_REFNIL;
++    }
++
++    /*  load Lua inline script (w/ cache) sp = 1 */
++    rc = ngx_http_lua_cache_loadbuffer(r->connection->log, L,
++                                       llcf->preaccess_src.value.data,
++                                       llcf->preaccess_src.value.len,
++                                       &llcf->preaccess_src_ref,
++                                       llcf->preaccess_src_key,
++                                       (const char *)
++                                       llcf->preaccess_chunkname);
++
++    if (rc != NGX_OK) {
++        return NGX_HTTP_INTERNAL_SERVER_ERROR;
++    }
++
++    return ngx_http_lua_preaccess_by_chunk(L, r);
++}
++
++
++ngx_int_t
++ngx_http_lua_preaccess_handler_file(ngx_http_request_t *r)
++{
++    u_char                    *script_path;
++    ngx_int_t                  rc;
++    ngx_str_t                  eval_src;
++    lua_State                 *L;
++    ngx_http_lua_loc_conf_t   *llcf;
++
++    llcf = ngx_http_get_module_loc_conf(r, ngx_http_lua_module);
++
++    /* Eval nginx variables in code path string first */
++    if (ngx_http_complex_value(r, &llcf->preaccess_src,
++                               &eval_src) != NGX_OK)
++    {
++        return NGX_ERROR;
++    }
++
++    script_path = ngx_http_lua_rebase_path(r->pool, eval_src.data,
++                                           eval_src.len);
++
++    if (script_path == NULL) {
++        return NGX_ERROR;
++    }
++
++    L = ngx_http_lua_get_lua_vm(r, NULL);
++
++    if (!llcf->enable_code_cache) {
++        llcf->preaccess_src_ref = LUA_REFNIL;
++    }
++
++    /*  load Lua script file (w/ cache)        sp = 1 */
++    rc = ngx_http_lua_cache_loadfile(r->connection->log, L, script_path,
++                                     &llcf->preaccess_src_ref,
++                                     llcf->preaccess_src_key);
++    if (rc != NGX_OK) {
++        if (rc < NGX_HTTP_SPECIAL_RESPONSE) {
++            return NGX_HTTP_INTERNAL_SERVER_ERROR;
++        }
++
++        return rc;
++    }
++
++    /*  make sure we have a valid code chunk */
++    ngx_http_lua_assert(lua_isfunction(L, -1));
++
++    return ngx_http_lua_preaccess_by_chunk(L, r);
++}
++
++
++static ngx_int_t
++ngx_http_lua_preaccess_by_chunk(lua_State *L, ngx_http_request_t *r)
++{
++    int                  co_ref;
++    ngx_int_t            rc;
++    ngx_uint_t           nreqs;
++    lua_State           *co;
++    ngx_event_t         *rev;
++    ngx_connection_t    *c;
++    ngx_http_lua_ctx_t  *ctx;
++    ngx_pool_cleanup_t  *cln;
++
++    ngx_http_lua_loc_conf_t     *llcf;
++
++    /*  {{{ new coroutine to handle request */
++    co = ngx_http_lua_new_thread(r, L, &co_ref);
++
++    if (co == NULL) {
++        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
++                      "lua: failed to create new coroutine "
++                      "to handle request");
++
++        return NGX_HTTP_INTERNAL_SERVER_ERROR;
++    }
++
++    /*  move code closure to new coroutine */
++    lua_xmove(L, co, 1);
++
++#ifndef OPENRESTY_LUAJIT
++    /*  set closure's env table to new coroutine's globals table */
++    ngx_http_lua_get_globals_table(co);
++    lua_setfenv(co, -2);
++#endif
++
++    /*  save nginx request in coroutine globals table */
++    ngx_http_lua_set_req(co, r);
++
++    /*  {{{ initialize request context */
++    ctx = ngx_http_get_module_ctx(r, ngx_http_lua_module);
++
++    dd("ctx = %p", ctx);
++
++    if (ctx == NULL) {
++        return NGX_ERROR;
++    }
++
++    ngx_http_lua_reset_ctx(r, L, ctx);
++
++    ctx->entered_preaccess_phase = 1;
++
++    ctx->cur_co_ctx = &ctx->entry_co_ctx;
++    ctx->cur_co_ctx->co = co;
++    ctx->cur_co_ctx->co_ref = co_ref;
++#ifdef NGX_LUA_USE_ASSERT
++    ctx->cur_co_ctx->co_top = 1;
++#endif
++
++    ngx_http_lua_attach_co_ctx_to_L(co, ctx->cur_co_ctx);
++
++    /*  }}} */
++
++    /*  {{{ register nginx pool cleanup hooks */
++    if (ctx->cleanup == NULL) {
++        cln = ngx_pool_cleanup_add(r->pool, 0);
++        if (cln == NULL) {
++            return NGX_HTTP_INTERNAL_SERVER_ERROR;
++        }
++
++        cln->handler = ngx_http_lua_request_cleanup_handler;
++        cln->data = ctx;
++        ctx->cleanup = &cln->handler;
++    }
++    /*  }}} */
++
++    ctx->context = NGX_HTTP_LUA_CONTEXT_PREACCESS;
++
++    llcf = ngx_http_get_module_loc_conf(r, ngx_http_lua_module);
++
++    if (llcf->check_client_abort) {
++        r->read_event_handler = ngx_http_lua_rd_check_broken_connection;
++
++#if (NGX_HTTP_V2)
++        if (!r->stream) {
++#endif
++
++        rev = r->connection->read;
++
++        if (!rev->active) {
++            if (ngx_add_event(rev, NGX_READ_EVENT, 0) != NGX_OK) {
++                return NGX_ERROR;
++            }
++        }
++
++#if (NGX_HTTP_V2)
++        }
++#endif
++
++    } else {
++        r->read_event_handler = ngx_http_block_reading;
++    }
++
++    c = r->connection;
++    nreqs = c->requests;
++
++    rc = ngx_http_lua_run_thread(L, r, ctx, 0);
++
++    dd("returned %d", (int) rc);
++
++    if (rc == NGX_ERROR || rc > NGX_OK) {
++        return rc;
++    }
++
++    if (rc == NGX_AGAIN) {
++        rc = ngx_http_lua_run_posted_threads(c, L, r, ctx, nreqs);
++
++        if (rc == NGX_ERROR || rc == NGX_DONE || rc > NGX_OK) {
++            return rc;
++        }
++
++        if (rc != NGX_OK) {
++            return NGX_DECLINED;
++        }
++
++    } else if (rc == NGX_DONE) {
++        ngx_http_lua_finalize_request(r, NGX_DONE);
++
++        rc = ngx_http_lua_run_posted_threads(c, L, r, ctx, nreqs);
++
++        if (rc == NGX_ERROR || rc == NGX_DONE || rc > NGX_OK) {
++            return rc;
++        }
++
++        if (rc != NGX_OK) {
++            return NGX_DECLINED;
++        }
++    }
++
++    if (rc == NGX_OK
++        && (r->header_sent
++            || (r->headers_out.status != 0 && ctx->out != NULL)))
++    {
++        dd("header already sent");
++
++        /* response header was already generated in preaccess_by_lua*,
++         * so it is no longer safe to proceed to later phases
++         * which may generate responses again */
++
++        if (!ctx->eof) {
++            dd("eof not yet sent");
++
++            rc = ngx_http_lua_send_chain_link(r, ctx, NULL
++                                              /* indicate last_buf */);
++            if (rc == NGX_ERROR || rc > NGX_OK) {
++                return rc;
++            }
++        }
++
++        return NGX_HTTP_OK;
++    }
++
++    return NGX_DECLINED;
++}
++
++/* vi:set ft=c ts=4 sw=4 et fdm=marker: */
+diff --git a/src/ngx_http_lua_preaccessby.h b/src/ngx_http_lua_preaccessby.h
+new file mode 100644
+index 00000000..4e9ce7d6
+--- /dev/null
++++ b/src/ngx_http_lua_preaccessby.h
+@@ -0,0 +1,22 @@
++
++/*
++ * Copyright (C) Hanada <im@hanada.info>
++ * Copyright (C) Yichun Zhang (agentzh)
++ */
++
++
++#ifndef _NGX_HTTP_LUA_PREACCESSBY_H_INCLUDED_
++#define _NGX_HTTP_LUA_PREACCESSBY_H_INCLUDED_
++
++
++#include "ngx_http_lua_common.h"
++
++
++ngx_int_t ngx_http_lua_preaccess_handler(ngx_http_request_t *r);
++ngx_int_t ngx_http_lua_preaccess_handler_inline(ngx_http_request_t *r);
++ngx_int_t ngx_http_lua_preaccess_handler_file(ngx_http_request_t *r);
++
++
++#endif /* _NGX_HTTP_LUA_PREACCESSBY_H_INCLUDED_ */
++
++/* vi:set ft=c ts=4 sw=4 et fdm=marker: */
+diff --git a/src/ngx_http_lua_req_body.c b/src/ngx_http_lua_req_body.c
+index 8af6fcbc..61f46d05 100644
+--- a/src/ngx_http_lua_req_body.c
++++ b/src/ngx_http_lua_req_body.c
+@@ -103,6 +103,7 @@ ngx_http_lua_ngx_req_read_body(lua_State *L)
+     ngx_http_lua_check_context(L, ctx, NGX_HTTP_LUA_CONTEXT_REWRITE
+                                | NGX_HTTP_LUA_CONTEXT_SERVER_REWRITE
+                                | NGX_HTTP_LUA_CONTEXT_ACCESS
++                               | NGX_HTTP_LUA_CONTEXT_PREACCESS
+                                | NGX_HTTP_LUA_CONTEXT_PRECONTENT
+                                | NGX_HTTP_LUA_CONTEXT_CONTENT);
+ 
+diff --git a/src/ngx_http_lua_socket_tcp.c b/src/ngx_http_lua_socket_tcp.c
+index 08c02ae0..bbd44b01 100644
+--- a/src/ngx_http_lua_socket_tcp.c
++++ b/src/ngx_http_lua_socket_tcp.c
+@@ -5378,6 +5378,7 @@ ngx_http_lua_req_socket(lua_State *L)
+     ngx_http_lua_check_context(L, ctx, NGX_HTTP_LUA_CONTEXT_REWRITE
+                                | NGX_HTTP_LUA_CONTEXT_SERVER_REWRITE
+                                | NGX_HTTP_LUA_CONTEXT_ACCESS
++                               | NGX_HTTP_LUA_CONTEXT_PREACCESS
+                                | NGX_HTTP_LUA_CONTEXT_PRECONTENT
+                                | NGX_HTTP_LUA_CONTEXT_CONTENT);
+ 
+diff --git a/src/ngx_http_lua_util.c b/src/ngx_http_lua_util.c
+index 01c36440..41fc30c8 100644
+--- a/src/ngx_http_lua_util.c
++++ b/src/ngx_http_lua_util.c
+@@ -1016,6 +1016,7 @@ ngx_http_lua_reset_ctx(ngx_http_request_t *r, lua_State *L,
+     ctx->entered_server_rewrite_phase = 0;
+     ctx->entered_rewrite_phase = 0;
+     ctx->entered_access_phase = 0;
++    ctx->entered_preaccess_phase = 0;
+     ctx->entered_precontent_phase = 0;
+     ctx->entered_content_phase = 0;
+ 
+diff --git a/src/ngx_http_lua_util.h b/src/ngx_http_lua_util.h
+index dc6709fb..74994fde 100644
+--- a/src/ngx_http_lua_util.h
++++ b/src/ngx_http_lua_util.h
+@@ -35,6 +35,7 @@
+ #define NGX_HTTP_LUA_CONTEXT_YIELDABLE (NGX_HTTP_LUA_CONTEXT_REWRITE         \
+                                 | NGX_HTTP_LUA_CONTEXT_SERVER_REWRITE        \
+                                 | NGX_HTTP_LUA_CONTEXT_ACCESS                \
++                                | NGX_HTTP_LUA_CONTEXT_PREACCESS             \
+                                 | NGX_HTTP_LUA_CONTEXT_PRECONTENT            \
+                                 | NGX_HTTP_LUA_CONTEXT_CONTENT               \
+                                 | NGX_HTTP_LUA_CONTEXT_TIMER                 \
+@@ -52,6 +53,7 @@
+      : (c) == NGX_HTTP_LUA_CONTEXT_REWRITE ? "rewrite_by_lua*"               \
+      : (c) == NGX_HTTP_LUA_CONTEXT_SERVER_REWRITE ? "server_rewrite_by_lua*" \
+      : (c) == NGX_HTTP_LUA_CONTEXT_ACCESS ? "access_by_lua*"                 \
++     : (c) == NGX_HTTP_LUA_CONTEXT_PREACCESS ? "preaccess_by_lua*"           \
+      : (c) == NGX_HTTP_LUA_CONTEXT_PRECONTENT ? "precontent_by_lua*"         \
+      : (c) == NGX_HTTP_LUA_CONTEXT_CONTENT ? "content_by_lua*"               \
+      : (c) == NGX_HTTP_LUA_CONTEXT_LOG ? "log_by_lua*"                       \
+diff --git a/t/190-preaccess.t b/t/190-preaccess.t
+new file mode 100644
+index 00000000..2ab990e0
+--- /dev/null
++++ b/t/190-preaccess.t
+@@ -0,0 +1,250 @@
++# vim:set ft= ts=4 sw=4 et fdm=marker:
++
++use Test::Nginx::Socket::Lua;
++
++repeat_each(2);
++
++plan tests => repeat_each() * (blocks() * 3 + 3);
++
++#log_level("info");
++#no_long_string();
++
++run_tests();
++
++__DATA__
++
++=== TEST 1: preaccess_by_lua_block basic test
++--- config
++    location /lua {
++        preaccess_by_lua_block {
++            ngx.log(ngx.INFO, "preaccess_by_lua_block executed")
++        }
++        content_by_lua_block {
++            ngx.say("content phase executed")
++        }
++    }
++--- request
++GET /lua
++--- response_body
++content phase executed
++--- error_log
++preaccess_by_lua_block executed
++--- no_error_log
++[error]
++
++
++
++=== TEST 2: preaccess_by_lua_no_postpone enabled
++--- http_config
++    preaccess_by_lua_no_postpone on;
++--- config
++    location /lua {
++        preaccess_by_lua_block {
++            ngx.log(ngx.INFO, "preaccess no postpone")
++            ngx.say("preaccess response")
++        }
++        content_by_lua_block {
++            ngx.say("content")
++        }
++    }
++--- request
++GET /lua
++--- response_body
++preaccess response
++--- error_log
++preaccess no postpone
++--- no_error_log
++[error]
++
++
++
++=== TEST 3: preaccess_by_lua ngx.exit
++--- config
++    location /lua {
++        preaccess_by_lua_block {
++            ngx.exit(403)
++        }
++        content_by_lua_block {
++            ngx.say("should not reach")
++        }
++    }
++--- request
++GET /lua
++--- error_code: 403
++--- response_body_like: .*
++--- no_error_log
++should not reach
++
++
++
++=== TEST 4: preaccess_by_lua_file test
++--- user_files
++>>> preaccess.lua
++ngx.log(ngx.INFO, "preaccess file loaded")
++ngx.say("preaccess file")
++--- config
++    location /lua {
++        preaccess_by_lua_file html/preaccess.lua;
++        content_by_lua_block {
++            ngx.say("content")
++        }
++    }
++--- request
++GET /lua
++--- response_body
++preaccess file
++--- error_log
++preaccess file loaded
++--- no_error_log
++[error]
++
++
++
++=== TEST 5: multiple headers in preaccess
++--- config
++    location /lua {
++        preaccess_by_lua_block {
++            ngx.header["X-Preaccess"] = "1"
++        }
++        content_by_lua_block {
++            ngx.say("content")
++        }
++    }
++--- request
++GET /lua
++--- response_body
++content
++--- response_headers
++X-Preaccess: 1
++--- no_error_log
++[error]
++
++
++
++=== TEST 6: no_postpone does not block other preaccess handlers
++--- http_config
++    preaccess_by_lua_no_postpone on;
++    limit_req_zone $binary_remote_addr zone=preaccess:10m rate=1r/s;
++--- config
++    location /lua {
++        limit_req zone=preaccess burst=100 nodelay;
++        preaccess_by_lua_block {
++            ngx.log(ngx.INFO, "lua preaccess handler executed")
++        }
++        content_by_lua_block {
++            ngx.say("limit status: ", ngx.var.limit_req_status or "not run")
++        }
++    }
++--- request
++GET /lua
++--- response_body
++limit status: PASSED
++--- error_log
++lua preaccess handler executed
++--- no_error_log
++[error]
++
++
++
++=== TEST 7: async sleep in preaccess
++--- http_config
++    preaccess_by_lua_no_postpone on;
++    limit_req_zone $binary_remote_addr zone=preaccess:10m rate=1r/s;
++--- config
++    location /lua {
++        limit_req zone=preaccess burst=100 nodelay;
++        preaccess_by_lua_block {
++            ngx.log(ngx.INFO, "preaccess sleep begin")
++            ngx.sleep(0.01)
++            ngx.log(ngx.INFO, "preaccess sleep end")
++        }
++        content_by_lua_block {
++            ngx.say("limit status: ", ngx.var.limit_req_status or "not run")
++        }
++    }
++--- request
++GET /lua
++--- response_body
++limit status: PASSED
++--- error_log
++preaccess sleep begin
++preaccess sleep end
++--- no_error_log
++[error]
++
++
++
++=== TEST 8: ngx.req.read_body in preaccess
++--- config
++    location /lua {
++        lua_need_request_body on;
++        preaccess_by_lua_block {
++            ngx.req.read_body()
++            local data = ngx.req.get_body_data()
++            ngx.log(ngx.INFO, "body read: ", data)
++        }
++        content_by_lua_block {
++            ngx.say("ok")
++        }
++    }
++--- request
++POST /lua
++hello body
++--- response_body
++ok
++--- error_log
++body read: hello body
++--- no_error_log
++[error]
++
++
++
++=== TEST 9: ngx.exec in preaccess (internal redirect)
++--- config
++    location /lua {
++        preaccess_by_lua_block {
++            ngx.exec("/bar")
++        }
++        content_by_lua_block {
++            ngx.say("should not reach")
++        }
++    }
++    location /bar {
++        content_by_lua_block {
++            ngx.say("redirected")
++        }
++    }
++--- request
++GET /lua
++--- response_body
++redirected
++--- no_error_log
++[error]
++
++
++
++=== TEST 10: subrequest in preaccess
++--- config
++    location /lua {
++        preaccess_by_lua_block {
++            local res = ngx.location.capture("/sub")
++            ngx.log(ngx.INFO, "subrequest status: ", res.status)
++            ngx.say("sub:" .. res.body)
++        }
++        content_by_lua_block {
++            ngx.say("should not reach")
++        }
++    }
++    location /sub {
++        content_by_lua_block {
++            ngx.say("subresponse")
++        }
++    }
++--- request
++GET /lua
++--- response_body
++sub:subresponse
++--- error_log
++subrequest status: 200
++--- no_error_log
++[error]

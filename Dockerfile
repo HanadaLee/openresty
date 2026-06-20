@@ -11,7 +11,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.31.1.1"
-ARG RESTY_RELEASE="325"
+ARG RESTY_RELEASE="326"
 # ARG RESTY_SRC_URL_BASE="https://openresty.org/download"
 ARG RESTY_SRC_URL_BASE="https://rmp.hanada.info/directlink/raw-repo/openresty/src"
 ARG RESTY_LUAROCKS_VERSION="3.13.0"
@@ -167,6 +167,9 @@ LABEL resty_zlib_version="${RESTY_ZLIB_VERSION}"
 LABEL resty_zstd_version="${RESTY_ZSTD_VERSION}"
 LABEL resty_jemalloc_version="${RESTY_JEMALLOC_VERSION}"
 LABEL resty_libmaxminddb_version="${RESTY_LIBMAXMINDDB_VERSION}"
+
+COPY patches/lua-resty-core-preaccess_by_lua.patch /build/patches/lua-resty-core-preaccess_by_lua.patch
+COPY patches/ngx_http_lua_module-preaccess_by_lua.patch /build/patches/ngx_http_lua_module-preaccess_by_lua.patch
 
 RUN groupmod -n nginx www-data \
     && usermod -l nginx www-data \
@@ -452,6 +455,12 @@ RUN groupmod -n nginx www-data \
     && cd /build/openresty-${RESTY_VERSION}/bundle/lua-resty-websocket-* \
     && echo "patching lua-resty-websocket" \
     && patch -p1 < /build/patches/openresty/patches/lua-resty-websocket-fix_stream_0.13+.patch \
+    && cd /build/openresty-${RESTY_VERSION}/bundle/lua-resty-core-* \
+    && echo "patching lua-resty-core for preaccess_by_lua" \
+    && patch -p1 < /build/patches/lua-resty-core-preaccess_by_lua.patch \
+    && cd /build/openresty-${RESTY_VERSION}/bundle/ngx_lua-* \
+    && echo "patching ngx_http_lua_module for preaccess_by_lua" \
+    && patch -p1 < /build/patches/ngx_http_lua_module-preaccess_by_lua.patch \
     && cd /build/openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) \
     && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) ext" \
     && patch -p1 < /build/patches/openresty/patches/nginx-ext_1.31.1+.patch \
