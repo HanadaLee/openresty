@@ -454,12 +454,12 @@ RUN groupmod -n nginx www-data \
     && patch -p1 < /build/patches/openresty/patches/lua-resty-websocket-fix_stream_0.13+.patch \
     && cd /build/openresty-${RESTY_VERSION}/bundle/lua-resty-core-* \
     && echo "patching lua-resty-core for preaccess_by_lua" \
-    && patch -p1 < /build/patches/lua-resty-core-preaccess_by_lua.patch \
+    && patch -p1 < /build/patches/openresty/patches/lua-resty-core-preaccess_by_lua.patch \
     && cd /build/openresty-${RESTY_VERSION}/bundle/ngx_lua-* \
     && echo "patching ngx_http_lua_module for preaccess_by_lua" \
-    && patch -p1 < /build/patches/ngx_http_lua_module-preaccess_by_lua.patch \
+    && patch -p1 < /build/patches/openresty/patches/ngx_http_lua_module-preaccess_by_lua.patch \
     && echo "patching ngx_http_lua_module context truncation" \
-    && patch -p1 < /build/patches/ngx_http_lua_module-fix_context_truncation.patch \
+    && patch -p1 < /build/patches/openresty/patches/ngx_http_lua_module-fix_context_truncation.patch \
     && cd /build/openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) \
     && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) ext" \
     && patch -p1 < /build/patches/openresty/patches/nginx-ext_1.31.1+.patch \
