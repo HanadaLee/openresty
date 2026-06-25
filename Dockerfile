@@ -429,7 +429,7 @@ RUN groupmod -n nginx www-data \
     && cp /build/lib/uap-cpp/UaParser /usr/include/uap-cpp \
     && cd /build/lib/modsecurity \
     && ./build.sh \
-    && ./configure \
+    && ./configure --disable-examples \
     && make -j${RESTY_J} \
     && make install \
     && ldconfig \
