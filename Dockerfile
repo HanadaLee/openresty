@@ -11,7 +11,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.31.1.1"
-ARG RESTY_RELEASE="329"
+ARG RESTY_RELEASE="330"
 # ARG RESTY_SRC_URL_BASE="https://openresty.org/download"
 ARG RESTY_SRC_URL_BASE="https://rmp.hanada.info/directlink/raw-repo/openresty/src"
 ARG RESTY_LUAROCKS_VERSION="3.13.0"
@@ -367,18 +367,22 @@ RUN groupmod -n nginx www-data \
         EXTRA_CXXFLAGS="-Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIC" \
         EXTRA_CFLAGS="-Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIC" \
     && make install \
+    && ldconfig \
     && cd /build/lib/libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION} \
     && ./configure \
     && make -j${RESTY_J} \
     && make check \
     && make install \
+    && ldconfig \
     && cd /build/lib/sregex \
     && make -j${RESTY_J} \
     && make install \
+    && ldconfig \
     && cd /build/lib/zlib-${RESTY_ZLIB_VERSION} \
     && ./configure \
     && make -j${RESTY_J} \
     && make install \
+    && ldconfig \
     && cd /build/lib/openssl-${RESTY_OPENSSL_VERSION} \
     && echo 'patching OpenSSL 3.x for OpenResty' \
     && curl -s https://${RESTY_GIT_RAW_MIRROR}/openresty/openresty/refs/heads/master/patches/openssl-${RESTY_OPENSSL_PATCH_VERSION}-sess_set_get_cb_yield.patch | patch -p1 \
@@ -391,30 +395,36 @@ RUN groupmod -n nginx www-data \
     && make update \
     && make -j${RESTY_J} \
     && make -j${RESTY_J} install_sw \
+    && ldconfig \
     && cd /build/lib/pcre2-${RESTY_PCRE_VERSION} \
     && ./configure \
         ${RESTY_PCRE_BUILD_OPTIONS} \
     && make -j${RESTY_J} \
     && make install \
+    && ldconfig \
     && cd /build/lib/zstd-${RESTY_ZSTD_VERSION} \
     && make -j${RESTY_J} \
     && make install \
+    && ldconfig \
     && cd /build/lib/libatomic_ops-${RESTY_LIBATOMIC_VERSION}/src \
     && ln -s -f ./.libs/libatomic_ops.a . \
     && cd .. \
     && ./configure \
     && make -j${RESTY_J} \
     && make install \
+    && ldconfig \
     && cd /build/lib/vips-${RESTY_LIBVIPS_VERSION} \
     && meson setup build --libdir=lib --buildtype=release "$@" \
     && ninja -C build \
     && ninja -C build install \
+    && ldconfig \
     && cd /build/lib/uap-cpp \
     && mkdir -p build \
     && cd build \
     && cmake .. \
     && make uap-cpp-shared \
     && make install \
+    && ldconfig \
     && mkdir /usr/include/uap-cpp \
     && cp /build/lib/uap-cpp/UaParser /usr/include/uap-cpp \
     && cd /build/lib/modsecurity \
@@ -430,10 +440,12 @@ RUN groupmod -n nginx www-data \
         -DCMAKE_C_FLAGS="-O3 -flto -funroll-loops -ffunction-sections -fdata-sections -Wl,--gc-sections" \
         -DCMAKE_CXX_FLAGS="-O3 -flto -funroll-loops -ffunction-sections -fdata-sections -Wl,--gc-sections" .. \
     && cmake --build . --config Release --target install \
+    && ldconfig \
     && cd /build/modules/ngx_http_weserv_module \
     && meson setup build --prefix=/usr \
     && meson compile -C build \
     && meson install -C build \
+    && ldconfig \
     && cd /build/modules/ngx_http_modsecurity_module \
     && echo 'patching ngx_http_modsecurity_module' \
     && patch -p1 < /build/patches/openresty/patches/ngx_http_modsecurity_module-ext.patch \
@@ -489,6 +501,8 @@ RUN groupmod -n nginx www-data \
     && mkdir -p /usr/local/openresty/lib \
     && cd /usr/local/openresty/lib \
     && cp -r -d /usr/local/lib/*.so* . \
+    && mv /usr/local/modsecurity/lib/*.so* /usr/local/openresty/lib/ \
+    && rm -rf /usr/local/modsecurity \
     && echo "/usr/local/openresty/lib" | tee /etc/ld.so.conf.d/openresty.conf \
     && ldconfig \
     && cd /usr/local/openresty/lualib \
@@ -622,6 +636,7 @@ RUN groupmod -n nginx www-data \
     && rm -rf /var/log/apt/* \
     && rm -rf /var/log/*.log \
     && rm -rf /tmp/* \
+    && rm -f /root/.wget-hsts \
     && ldconfig
 
 WORKDIR /usr/local/openresty
