@@ -425,6 +425,7 @@ RUN groupmod -n nginx www-data \
     && ./configure \
     && make -j${RESTY_J} \
     && make install \
+    && ldconfig \
     && cd /build/modules/ngx_http_brotli_module \
     && mkdir -p deps/brotli/out \
     && cd deps/brotli/out \
