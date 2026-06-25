@@ -132,7 +132,7 @@ ARG RESTY_CONFIG_OPTIONS="\
     --add-module=/build/modules/ngx_http_unzstd_filter_module \
     --add-module=/build/modules/ngx_http_upstream_log_module \
     --add-module=/build/modules/ngx_http_var_module \
-    --add-module=/build/modules/ngx_http_waf_module \
+    --add-module=/build/modules/ngx_http_modsecurity_module \
     --add-module=/build/modules/ngx_http_weserv_module \
     --add-module=/build/modules/ngx_http_zstd_module \
     --add-module=/build/modules/ngx_lua_events_module \
@@ -350,10 +350,7 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/alibaba/tengine.git tengine \
     && mv tengine/modules/ngx_http_trim_filter_module ngx_http_trim_filter_module \
     && rm -rf tengine \
-    && git clone --depth=1 --branch current https://${RESTY_GIT_MIRROR}/ADD-SP/ngx_waf.git ngx_http_waf_module \
-    && cd /build/modules/ngx_http_waf_module \
-    && git clone --depth=1 --branch v1.7.16 https://${RESTY_GIT_MIRROR}/DaveGamble/cJSON.git lib/cjson \
-    && git clone --depth=1 --branch v2.3.0 https://${RESTY_GIT_MIRROR}/troydhanson/uthash.git lib/uthash \
+    && git clone --depth=1 https://${RESTY_GIT_MIRROR}/owasp-modsecurity/ModSecurity-nginx.git ngx_http_modsecurity_module \
     && cd /build/lualib \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/agentzh/lua-resty-multipart-parser.git lua-resty-multipart-parser \
     && git clone --depth=1 --branch v0.05 https://${RESTY_GIT_MIRROR}/openresty/lua-resty-balancer.git lua-resty-balancer \
@@ -437,9 +434,9 @@ RUN groupmod -n nginx www-data \
     && meson setup build --prefix=/usr \
     && meson compile -C build \
     && meson install -C build \
-    && cd /build/modules/ngx_http_waf_module \
-    && echo 'patching ngx_http_waf_module' \
-    && patch -p1 < /build/patches/openresty/patches/ngx_http_waf_module-ext.patch \
+    && cd /build/modules/ngx_http_modsecurity_module \
+    && echo 'patching ngx_http_modsecurity_module' \
+    && patch -p1 < /build/patches/openresty/patches/ngx_http_modsecurity_module-ext.patch \
     && cd /build/modules/ngx_http_flv_live_module \
     && echo 'patching ngx_http_flv_live_module' \
     && patch -p1 < /build/patches/openresty/patches/ngx_http_flv_live_module-server_metadata.patch \

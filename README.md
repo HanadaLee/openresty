@@ -51,12 +51,8 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [gzip\_bypass](#gzip_bypass)
   - [ngx\_http\_log\_module](#ngx_http_log_module)
     - [Inverse condition support for access\_log directive](#inverse-condition-support-for-access_log-directive)
-  - [ngx\_http\_waf\_module (3rd-party module)](#ngx_http_waf_module-3rd-party-module)
-    - [waf\_bypass](#waf_bypass)
-    - [waf\_cc\_deny\_bypass](#waf_cc_deny_bypass)
-    - [waf\_under\_attack\_bypass](#waf_under_attack_bypass)
-    - [waf\_captcha\_bypass](#waf_captcha_bypass)
-    - [waf\_modsecurity\_bypass](#waf_modsecurity_bypass)
+  - [ngx\_http\_modsecurity\_module (3rd-party module)](#ngx_http_modsecurity_module-3rd-party-module)
+    - [modsecurity\_bypass](#modsecurity_bypass)
   - [ngx\_stream\_ssl\_module](#ngx_stream_ssl_module)
     - [Variables about SSL handshake timestamps and time spent](#variables-about-ssl-handshake-timestamps-and-time-spent-1)
   - [ngx\_stream\_upstream\_module](#ngx_stream_upstream_module)
@@ -139,7 +135,7 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_http_unzstd_filter_module](https://git.hanada.info/hanada/ngx_http_unzstd_filter_module)
 * [ngx_http_upstream_log_module](https://git.hanada.info/hanada/ngx_http_upstream_log_module)
 * [ngx_http_var_module](https://git.hanada.info/hanada/ngx_http_var_module)
-* [ngx_http_waf_module](https://github.com/ADD-SP/ngx_waf/tree/current)
+* [ngx_http_modsecurity_module](https://github.com/HanadaLee/ngx_http_modsecurity_module)
 * [ngx_http_weserv_module](https://github.com/weserv/images)
 * [ngx_http_zstd_module](https://git.hanada.info/hanada/ngx_http_zstd_module)
 * [ngx_lua_events_module](https://github.com/Kong/lua-resty-events)
@@ -909,61 +905,19 @@ Based on the original `if=` parameter, you can achieve the opposite effect by ch
 
 [Back to TOC](#table-of-contents)
 
-## ngx_http_waf_module (3rd-party module)
+## ngx_http_modsecurity_module (3rd-party module)
 
-refer to [ngx_waf](https://github.com/ADD-SP/ngx_waf/tree/current).
+refer to [ngx_http_modsecurity_module](https://github.com/HanadaLee/ngx_http_modsecurity_module).
 
-This patch makes some changes to this module, mainly adding more switches for fine-grained control of WAF behavior. In addition, it also changes the appearance of the default challenge or error page and the path where the configuration file is read.
+This module connects NGINX/OpenResty with libModSecurity v3. This bundle applies an additional patch that adds log variables for ModSecurity interventions and matched rule IDs, skips deleted request/response headers, and adds `modsecurity_bypass`.
 
-### waf_bypass
-
-* **Syntax:** *waf_bypass string ...;*
-
+### modsecurity_bypass
+* **Syntax:** *modsecurity_bypass string ...;*
 * **Default:** *-*
 
 * **Context:** *http, server, location*
 
-Defines conditions under which the request will be checked by waf. If at least one value of the string parameters is not empty and is not equal to “0” then the request will be checked by waf.
-
-### waf_cc_deny_bypass
-
-* **Syntax:** *waf_cc_deny_bypass string ...;*
-
-* **Default:** *-*
-
-* **Context:** *http, server, location*
-
-Defines conditions under which the request will be checked by waf cc deny function. If at least one value of the string parameters is not empty and is not equal to “0” then the request will be checked by waf cc deny function.
-
-### waf_under_attack_bypass
-
-* **Syntax:** *waf_under_attack_bypass string ...;*
-
-* **Default:** *-*
-
-* **Context:** *http, server, location*
-
-Defines conditions under which the request will be checked by waf under attack function. If at least one value of the string parameters is not empty and is not equal to “0” then the request will be checked by waf under attack function.
-
-### waf_captcha_bypass
-
-* **Syntax:** *waf_captcha_bypass string ...;*
-
-* **Default:** *-*
-
-* **Context:** *http, server, location*
-
-Defines conditions under which the request will be checked by waf captcha function. If at least one value of the string parameters is not empty and is not equal to “0” then the request will be checked by waf captcha function.
-
-### waf_modsecurity_bypass
-
-* **Syntax:** *waf_modsecurity_bypass string ...;*
-
-* **Default:** *-*
-
-* **Context:** *http, server, location*
-
-Defines conditions under which the request will be checked by waf modsecurity function. If at least one value of the string parameters is not empty and is not equal to “0” then the request will be checked by waf modsecurity function.
+Defines conditions under which the request will be checked by modsecurity. If at least one value of the string parameters is not empty and is not equal to “0” then the request will be checked by modsecurity.
 
 [Back to TOC](#table-of-contents)
 
