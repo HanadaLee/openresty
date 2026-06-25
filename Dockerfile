@@ -11,7 +11,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.31.1.1"
-ARG RESTY_RELEASE="328"
+ARG RESTY_RELEASE="329"
 # ARG RESTY_SRC_URL_BASE="https://openresty.org/download"
 ARG RESTY_SRC_URL_BASE="https://rmp.hanada.info/directlink/raw-repo/openresty/src"
 ARG RESTY_LUAROCKS_VERSION="3.13.0"
@@ -46,6 +46,7 @@ ARG RESTY_ZLIB_VERSION="1.3.2"
 ARG RESTY_ZSTD_VERSION="1.5.7"
 ARG RESTY_LIBATOMIC_VERSION="7.10.0"
 ARG RESTY_LIBVIPS_VERSION="8.18.2"
+ARG RESTY_MODSECURITY_VERSION="3.0.15"
 ARG RESTY_OWSAP_CRS_VERSION="4.26.0"
 ARG RESTY_PATH_OPTIONS="\
     --prefix=/usr/local/openresty \
@@ -167,6 +168,7 @@ LABEL resty_zlib_version="${RESTY_ZLIB_VERSION}"
 LABEL resty_zstd_version="${RESTY_ZSTD_VERSION}"
 LABEL resty_jemalloc_version="${RESTY_JEMALLOC_VERSION}"
 LABEL resty_libmaxminddb_version="${RESTY_LIBMAXMINDDB_VERSION}"
+LABEL resty_modsecurity_version="${RESTY_MODSECURITY_VERSION}"
 
 RUN groupmod -n nginx www-data \
     && usermod -l nginx www-data \
@@ -242,8 +244,6 @@ RUN groupmod -n nginx www-data \
         libwebp-dev \
         meson \
         flex \
-        libmodsecurity3 \
-        libmodsecurity-dev \
         libsodium23 \
         libsodium-dev \
         libunwind8 \
@@ -284,6 +284,7 @@ RUN groupmod -n nginx www-data \
     && curl -fSL https://${RESTY_GIT_MIRROR}/bdwgc/libatomic_ops/releases/download/v${RESTY_LIBATOMIC_VERSION}/libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz -o libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz \
     && tar xzf libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz \
     && git clone --depth=1 --recurse-submodules https://${RESTY_GIT_MIRROR}/ua-parser/uap-cpp.git uap-cpp \
+    && git clone --depth=1 --recurse-submodules --branch v${RESTY_MODSECURITY_VERSION} https://${RESTY_GIT_MIRROR}/owasp-modsecurity/ModSecurity.git modsecurity \
     && cd /build/modules \
     && git clone --depth=1 --recurse-submodules https://${RESTY_GIT_REPO}/hanada/ngx_http_brotli_module.git ngx_http_brotli_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_ssl_fingerprint_module.git ngx_ssl_fingerprint_module \
@@ -419,6 +420,11 @@ RUN groupmod -n nginx www-data \
     && make install \
     && mkdir /usr/include/uap-cpp \
     && cp /build/lib/uap-cpp/UaParser /usr/include/uap-cpp \
+    && cd /build/lib/modsecurity \
+    && ./build.sh \
+    && ./configure \
+    && make -j${RESTY_J} \
+    && make install \
     && cd /build/modules/ngx_http_brotli_module \
     && mkdir -p deps/brotli/out \
     && cd deps/brotli/out \
@@ -551,9 +557,7 @@ RUN groupmod -n nginx www-data \
     && mv coreruleset-${RESTY_OWSAP_CRS_VERSION} coreruleset \
     && cd coreruleset \
     && rm -rf docs \
-    && mv crs-setup.conf.example crs-setup.conf \
-    && mv rules/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf.example rules/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf \
-    && mv rules/RESPONSE-999-EXCLUSION-RULES-AFTER-CRS.conf.example rules/RESPONSE-999-EXCLUSION-RULES-AFTER-CRS.conf \
+    && cp crs-setup.conf.example crs-setup.conf \
     && rustup self uninstall -y \
     && apt-get purge -y \
         libgd-dev \
@@ -591,7 +595,6 @@ RUN groupmod -n nginx www-data \
         libwebp-dev \
         liblcms2-dev \
         flex \
-        libmodsecurity-dev \
         libsodium-dev \
         libcurl4-openssl-dev \
         libunwind-dev \
