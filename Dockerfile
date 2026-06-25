@@ -429,7 +429,7 @@ RUN groupmod -n nginx www-data \
     && cp /build/lib/uap-cpp/UaParser /usr/include/uap-cpp \
     && cd /build/lib/modsecurity \
     && ./build.sh \
-    && ./configure --disable-examples \
+    && ./configure --prefix=/usr/local --disable-examples \
     && make -j${RESTY_J} \
     && make install \
     && ldconfig \
@@ -570,6 +570,7 @@ RUN groupmod -n nginx www-data \
     && cd coreruleset \
     && rm -rf docs \
     && cp crs-setup.conf.example crs-setup.conf \
+    && find /usr/local/openresty/lib -type f -name '*.so*' -exec strip --strip-unneeded {} + \
     && rustup self uninstall -y \
     && apt-get purge -y \
         libgd-dev \
