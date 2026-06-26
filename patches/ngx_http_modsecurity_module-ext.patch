@@ -1,3 +1,26 @@
+diff --git a/config b/config
+index 15d0540..92b7f3c 100644
+--- a/config
++++ b/config
+@@ -70,4 +70,16 @@ else
+         . auto/feature
+-
++        if [ $ngx_found = no ]; then
++            ngx_feature="ModSecurity library in /usr/local"
++            ngx_feature_path="/usr/local/include"
++            if [ $NGX_SYSTEM = "Linux" ]; then
++                ngx_feature_libs="-L/usr/local/lib -Wl,-rpath-link,/usr/local/lib -lmodsecurity $YAJL_EXTRA"
++            else
++                ngx_feature_libs="-L/usr/local/lib -lmodsecurity $YAJL_EXTRA"
++            fi
++
++            . auto/feature
++
++        fi
++
+     fi
+ fi
+
 diff --git a/README.md b/README.md
 index a93e5df..edf81db 100644
 --- a/README.md

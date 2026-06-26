@@ -256,6 +256,8 @@ RUN groupmod -n nginx www-data \
         libclang-dev \
         libcjson1 \
         libcjson-dev \
+        libyajl2 \
+        libyajl-dev \
     && mkdir -p /build \
     && cd /build \
     && curl -fSL ${RESTY_SRC_URL_BASE}/openresty-${RESTY_VERSION}.tar.gz -o openresty-${RESTY_VERSION}.tar.gz \
@@ -620,6 +622,7 @@ RUN groupmod -n nginx www-data \
         libgtest-dev \
         libclang-dev \
         libcjson-dev \
+        libyajl-dev \
     && DEBIAN_FRONTEND=noninteractive apt-get autoremove -y \
     && DEBIAN_FRONTEND=noninteractive apt-get clean -y \
     && rm -rf /build \
