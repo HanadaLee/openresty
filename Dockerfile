@@ -503,8 +503,6 @@ RUN groupmod -n nginx www-data \
     && mkdir -p /usr/local/openresty/lib \
     && cd /usr/local/openresty/lib \
     && cp -r -d /usr/local/lib/*.so* . \
-    && mv /usr/local/modsecurity/lib/*.so* /usr/local/openresty/lib/ \
-    && rm -rf /usr/local/modsecurity \
     && echo "/usr/local/openresty/lib" | tee /etc/ld.so.conf.d/openresty.conf \
     && ldconfig \
     && cd /usr/local/openresty/lualib \
