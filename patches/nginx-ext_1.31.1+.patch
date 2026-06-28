@@ -4970,10 +4970,17 @@ index f6731e7..f1716df 100644
      return NGX_CONF_OK;
  }
 diff --git a/src/http/modules/ngx_http_rewrite_module.c b/src/http/modules/ngx_http_rewrite_module.c
-index ff3b687..422a398 100644
+index ff3b687..b7ef460 100644
 --- a/src/http/modules/ngx_http_rewrite_module.c
 +++ b/src/http/modules/ngx_http_rewrite_module.c
-@@ -20,6 +20,14 @@ typedef struct {
+@@ -1,5 +1,6 @@
+ 
+ /*
++ * Copyright (C) 2026 Web Server LLC
+  * Copyright (C) Igor Sysoev
+  * Copyright (C) Nginx, Inc.
+  */
+@@ -20,6 +21,14 @@ typedef struct {
  } ngx_http_rewrite_loc_conf_t;
  
  
@@ -4988,7 +4995,18 @@ index ff3b687..422a398 100644
  static void *ngx_http_rewrite_create_loc_conf(ngx_conf_t *cf);
  static char *ngx_http_rewrite_merge_loc_conf(ngx_conf_t *cf,
      void *parent, void *child);
-@@ -40,6 +48,16 @@ static char *ngx_http_rewrite_set(ngx_conf_t *cf, ngx_command_t *cmd,
+@@ -27,6 +36,10 @@ static ngx_int_t ngx_http_rewrite_init(ngx_conf_t *cf);
+ static char *ngx_http_rewrite(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
+ static char *ngx_http_rewrite_return(ngx_conf_t *cf, ngx_command_t *cmd,
+     void *conf);
++#if (NGX_RESTY_EXT)
++static char *ngx_http_rewrite_goto(ngx_conf_t *cf, ngx_command_t *cmd,
++    void *conf);
++#endif
+ static char *ngx_http_rewrite_break(ngx_conf_t *cf, ngx_command_t *cmd,
+     void *conf);
+ static char *ngx_http_rewrite_if(ngx_conf_t *cf, ngx_command_t *cmd,
+@@ -40,6 +53,16 @@ static char *ngx_http_rewrite_set(ngx_conf_t *cf, ngx_command_t *cmd,
  static char * ngx_http_rewrite_value(ngx_conf_t *cf,
      ngx_http_rewrite_loc_conf_t *lcf, ngx_str_t *value);
  
@@ -5005,7 +5023,24 @@ index ff3b687..422a398 100644
  
  static ngx_command_t  ngx_http_rewrite_commands[] = {
  
-@@ -74,6 +92,22 @@ static ngx_command_t  ngx_http_rewrite_commands[] = {
+@@ -59,6 +82,16 @@ static ngx_command_t  ngx_http_rewrite_commands[] = {
+       0,
+       NULL },
+ 
++#if (NGX_RESTY_EXT)
++    { ngx_string("goto"),
++      NGX_HTTP_SRV_CONF|NGX_HTTP_SIF_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF
++                       |NGX_CONF_TAKE1,
++      ngx_http_rewrite_goto,
++      NGX_HTTP_LOC_CONF_OFFSET,
++      0,
++      NULL },
++#endif
++
+     { ngx_string("break"),
+       NGX_HTTP_SRV_CONF|NGX_HTTP_SIF_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF
+                        |NGX_CONF_NOARGS,
+@@ -74,6 +107,22 @@ static ngx_command_t  ngx_http_rewrite_commands[] = {
        0,
        NULL },
  
@@ -5028,7 +5063,7 @@ index ff3b687..422a398 100644
      { ngx_string("set"),
        NGX_HTTP_SRV_CONF|NGX_HTTP_SIF_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF
                         |NGX_CONF_TAKE2,
-@@ -175,6 +209,10 @@ ngx_http_rewrite_handler(ngx_http_request_t *r)
+@@ -175,11 +224,22 @@ ngx_http_rewrite_handler(ngx_http_request_t *r)
      e->log = rlcf->log;
      e->status = NGX_DECLINED;
  
@@ -5039,7 +5074,59 @@ index ff3b687..422a398 100644
      while (*(uintptr_t *) e->ip) {
          code = *(ngx_http_script_code_pt *) e->ip;
          code(e);
-@@ -544,6 +582,12 @@ ngx_http_rewrite_if(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+     }
+ 
++#if (NGX_RESTY_EXT)
++    if (e->finalize) {
++        ngx_http_finalize_request(r, e->status);
++        return NGX_DONE;
++    }
++#endif
++
+     return e->status;
+ }
+ 
+@@ -510,6 +570,39 @@ ngx_http_rewrite_return(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+ }
+ 
+ 
++#if (NGX_RESTY_EXT)
++
++static char *
++ngx_http_rewrite_goto(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
++{
++    ngx_http_rewrite_loc_conf_t  *lcf = conf;
++
++    ngx_str_t                    *value;
++    ngx_http_script_goto_code_t  *code;
++
++    value = cf->args->elts;
++
++    if (value[1].len < 2 || value[1].data[0] != '@') {
++        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
++                           "invalid named location \"%V\"", &value[1]);
++        return NGX_CONF_ERROR;
++    }
++
++    code = ngx_http_script_start_code(cf->pool, &lcf->codes,
++                                      sizeof(ngx_http_script_goto_code_t));
++    if (code == NULL) {
++        return NGX_CONF_ERROR;
++    }
++
++    code->code = ngx_http_script_goto_code;
++    code->name = value[1];
++
++    return NGX_CONF_OK;
++}
++
++#endif
++
++
+ static char *
+ ngx_http_rewrite_break(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+ {
+@@ -544,6 +637,12 @@ ngx_http_rewrite_if(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
      ngx_http_script_if_code_t    *if_code;
      ngx_http_rewrite_loc_conf_t  *nlcf;
  
@@ -5052,7 +5139,7 @@ index ff3b687..422a398 100644
      ctx = ngx_pcalloc(cf->pool, sizeof(ngx_http_conf_ctx_t));
      if (ctx == NULL) {
          return NGX_CONF_ERROR;
-@@ -587,16 +631,42 @@ ngx_http_rewrite_if(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+@@ -587,16 +686,42 @@ ngx_http_rewrite_if(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
          return NGX_CONF_ERROR;
      }
  
@@ -5095,7 +5182,7 @@ index ff3b687..422a398 100644
  
      elts = lcf->codes->elts;
  
-@@ -644,6 +714,792 @@ ngx_http_rewrite_if(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+@@ -644,6 +769,792 @@ ngx_http_rewrite_if(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
  }
  
  
@@ -5888,7 +5975,7 @@ index ff3b687..422a398 100644
  static char *
  ngx_http_rewrite_if_condition(ngx_conf_t *cf, ngx_http_rewrite_loc_conf_t *lcf)
  {
-@@ -863,6 +1719,8 @@ ngx_http_rewrite_if_condition(ngx_conf_t *cf, ngx_http_rewrite_loc_conf_t *lcf)
+@@ -863,6 +1774,8 @@ ngx_http_rewrite_if_condition(ngx_conf_t *cf, ngx_http_rewrite_loc_conf_t *lcf)
      return NGX_CONF_ERROR;
  }
  
@@ -8179,10 +8266,17 @@ index 6d18cc3..ee08d30 100644
      ngx_uint_t                        err_status;
  
 diff --git a/src/http/ngx_http_script.c b/src/http/ngx_http_script.c
-index 8f7b548..6702e72 100644
+index 8f7b548..10a6ff7 100644
 --- a/src/http/ngx_http_script.c
 +++ b/src/http/ngx_http_script.c
-@@ -26,6 +26,13 @@ static ngx_int_t
+@@ -1,5 +1,6 @@
+ 
+ /*
++ * Copyright (C) 2026 Web Server LLC
+  * Copyright (C) Igor Sysoev
+  * Copyright (C) Nginx, Inc.
+  */
+@@ -26,6 +27,13 @@ static ngx_int_t
  static size_t ngx_http_script_full_name_len_code(ngx_http_script_engine_t *e);
  static void ngx_http_script_full_name_code(ngx_http_script_engine_t *e);
  
@@ -8196,7 +8290,7 @@ index 8f7b548..6702e72 100644
  
  #define ngx_http_script_exit  (u_char *) &ngx_http_script_exit_code
  
-@@ -135,6 +142,72 @@ ngx_http_complex_value_size(ngx_http_request_t *r,
+@@ -135,6 +143,72 @@ ngx_http_complex_value_size(ngx_http_request_t *r,
  }
  
  
@@ -8269,7 +8363,7 @@ index 8f7b548..6702e72 100644
  ngx_int_t
  ngx_http_compile_complex_value(ngx_http_compile_complex_value_t *ccv)
  {
-@@ -343,6 +416,70 @@ ngx_http_set_complex_value_size_slot(ngx_conf_t *cf, ngx_command_t *cmd,
+@@ -343,6 +417,70 @@ ngx_http_set_complex_value_size_slot(ngx_conf_t *cf, ngx_command_t *cmd,
  }
  
  
@@ -8340,7 +8434,35 @@ index 8f7b548..6702e72 100644
  ngx_int_t
  ngx_http_test_predicates(ngx_http_request_t *r, ngx_array_t *predicates)
  {
-@@ -1542,6 +1679,10 @@ ngx_http_script_if_code(ngx_http_script_engine_t *e)
+@@ -1514,6 +1652,27 @@ ngx_http_script_return_code(ngx_http_script_engine_t *e)
+ }
+ 
+ 
++#if (NGX_RESTY_EXT)
++
++void
++ngx_http_script_goto_code(ngx_http_script_engine_t *e)
++{
++    ngx_http_script_goto_code_t  *code;
++
++    code = (ngx_http_script_goto_code_t *) e->ip;
++
++    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
++                   "http script goto: \"%V\"", &code->name);
++
++    e->status = ngx_http_named_location(e->request, &code->name);
++    e->finalize = 1;
++
++    e->ip = ngx_http_script_exit;
++}
++
++#endif
++
++
+ void
+ ngx_http_script_break_code(ngx_http_script_engine_t *e)
+ {
+@@ -1542,6 +1701,10 @@ ngx_http_script_if_code(ngx_http_script_engine_t *e)
  
      e->sp--;
  
@@ -8351,7 +8473,7 @@ index 8f7b548..6702e72 100644
      if (e->sp->len && (e->sp->len != 1 || e->sp->data[0] != '0')) {
          if (code->loc_conf) {
              e->request->loc_conf = code->loc_conf;
-@@ -1549,6 +1690,9 @@ ngx_http_script_if_code(ngx_http_script_engine_t *e)
+@@ -1549,6 +1712,9 @@ ngx_http_script_if_code(ngx_http_script_engine_t *e)
          }
  
          e->ip += sizeof(ngx_http_script_if_code_t);
@@ -8361,7 +8483,7 @@ index 8f7b548..6702e72 100644
          return;
      }
  
-@@ -1559,6 +1703,70 @@ ngx_http_script_if_code(ngx_http_script_engine_t *e)
+@@ -1559,6 +1725,70 @@ ngx_http_script_if_code(ngx_http_script_engine_t *e)
  }
  
  
@@ -8432,7 +8554,7 @@ index 8f7b548..6702e72 100644
  void
  ngx_http_script_equal_code(ngx_http_script_engine_t *e)
  {
-@@ -1907,3 +2115,423 @@ ngx_http_script_nop_code(ngx_http_script_engine_t *e)
+@@ -1907,3 +2137,423 @@ ngx_http_script_nop_code(ngx_http_script_engine_t *e)
  {
      e->ip += sizeof(uintptr_t);
  }
@@ -8857,10 +8979,23 @@ index 8f7b548..6702e72 100644
 +
 +#endif
 diff --git a/src/http/ngx_http_script.h b/src/http/ngx_http_script.h
-index 4360038..fb3c2fd 100644
+index 4360038..beb0d08 100644
 --- a/src/http/ngx_http_script.h
 +++ b/src/http/ngx_http_script.h
-@@ -33,6 +33,10 @@ typedef struct {
+@@ -1,5 +1,6 @@
+ 
+ /*
++ * Copyright (C) 2026 Web Server LLC
+  * Copyright (C) Igor Sysoev
+  * Copyright (C) Nginx, Inc.
+  */
+@@ -30,9 +31,16 @@ typedef struct {
+     unsigned                    quote:1;
+     unsigned                    is_args:1;
+     unsigned                    log:1;
++#if (NGX_RESTY_EXT)
++    unsigned                    finalize:1;
++#endif
  
      ngx_int_t                   status;
      ngx_http_request_t         *request;
@@ -8871,7 +9006,7 @@ index 4360038..fb3c2fd 100644
  } ngx_http_script_engine_t;
  
  
-@@ -71,6 +75,10 @@ typedef struct {
+@@ -71,6 +79,10 @@ typedef struct {
  
      union {
          size_t                  size;
@@ -8882,7 +9017,22 @@ index 4360038..fb3c2fd 100644
      } u;
  } ngx_http_complex_value_t;
  
-@@ -186,6 +194,23 @@ typedef struct {
+@@ -168,6 +180,14 @@ typedef struct {
+ } ngx_http_script_return_code_t;
+ 
+ 
++#if (NGX_RESTY_EXT)
++typedef struct {
++    ngx_http_script_code_pt     code;
++    ngx_str_t                   name;
++} ngx_http_script_goto_code_t;
++#endif
++
++
+ typedef enum {
+     ngx_http_script_file_plain = 0,
+     ngx_http_script_file_not_plain,
+@@ -186,6 +206,23 @@ typedef struct {
  } ngx_http_script_file_code_t;
  
  
@@ -8906,7 +9056,7 @@ index 4360038..fb3c2fd 100644
  typedef struct {
      ngx_http_script_code_pt     code;
      uintptr_t                   next;
-@@ -207,12 +232,31 @@ typedef struct {
+@@ -207,12 +244,31 @@ typedef struct {
  } ngx_http_script_value_code_t;
  
  
@@ -8938,7 +9088,7 @@ index 4360038..fb3c2fd 100644
  ngx_int_t ngx_http_compile_complex_value(ngx_http_compile_complex_value_t *ccv);
  char *ngx_http_set_complex_value_slot(ngx_conf_t *cf, ngx_command_t *cmd,
      void *conf);
-@@ -221,6 +265,12 @@ char *ngx_http_set_complex_value_zero_slot(ngx_conf_t *cf, ngx_command_t *cmd,
+@@ -221,6 +277,12 @@ char *ngx_http_set_complex_value_zero_slot(ngx_conf_t *cf, ngx_command_t *cmd,
  char *ngx_http_set_complex_value_size_slot(ngx_conf_t *cf, ngx_command_t *cmd,
      void *conf);
  
@@ -8951,8 +9101,13 @@ index 4360038..fb3c2fd 100644
  
  ngx_int_t ngx_http_test_predicates(ngx_http_request_t *r,
      ngx_array_t *predicates);
-@@ -255,6 +305,10 @@ void ngx_http_script_regex_end_code(ngx_http_script_engine_t *e);
+@@ -253,8 +315,15 @@ void ngx_http_script_regex_start_code(ngx_http_script_engine_t *e);
+ void ngx_http_script_regex_end_code(ngx_http_script_engine_t *e);
+ #endif
  void ngx_http_script_return_code(ngx_http_script_engine_t *e);
++#if (NGX_RESTY_EXT)
++void ngx_http_script_goto_code(ngx_http_script_engine_t *e);
++#endif
  void ngx_http_script_break_code(ngx_http_script_engine_t *e);
  void ngx_http_script_if_code(ngx_http_script_engine_t *e);
 +#if (NGX_RESTY_EXT)
@@ -8962,7 +9117,7 @@ index 4360038..fb3c2fd 100644
  void ngx_http_script_equal_code(ngx_http_script_engine_t *e);
  void ngx_http_script_not_equal_code(ngx_http_script_engine_t *e);
  void ngx_http_script_file_code(ngx_http_script_engine_t *e);
-@@ -264,6 +318,16 @@ void ngx_http_script_set_var_code(ngx_http_script_engine_t *e);
+@@ -264,6 +333,16 @@ void ngx_http_script_set_var_code(ngx_http_script_engine_t *e);
  void ngx_http_script_var_set_handler_code(ngx_http_script_engine_t *e);
  void ngx_http_script_var_code(ngx_http_script_engine_t *e);
  void ngx_http_script_nop_code(ngx_http_script_engine_t *e);
@@ -9906,7 +10061,7 @@ index 440683e..e7ab0d0 100644
 +#endif
 \ No newline at end of file
 diff --git a/src/http/ngx_http_upstream.c b/src/http/ngx_http_upstream.c
-index fa90bd6..6d39625 100644
+index fa90bd6..a79037e 100644
 --- a/src/http/ngx_http_upstream.c
 +++ b/src/http/ngx_http_upstream.c
 @@ -21,6 +21,12 @@ static ngx_int_t ngx_http_upstream_cache_background_update(
