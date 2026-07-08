@@ -604,6 +604,14 @@ Prevents Set-Cookie headers from being passed when the response is served from c
 
 ### Enhancement of upstream cache control
 
+This bundle handles upstream Cache-Control directives closer to RFC-defined shared-cache semantics:
+
+* `no-cache`, `max-age=0`, and `s-maxage=0` responses can be stored as immediately stale cache entries instead of being treated as uncacheable.
+* `no-cache`, `s-maxage`, `must-revalidate`, and `proxy-revalidate` require revalidation before an expired cached response can be reused.
+* `no-store` and `private` responses remain uncacheable unless the corresponding Cache-Control field is ignored.
+
+Compared with official nginx, this means `no-cache`, `max-age=0`, and `s-maxage=0` responses can still create cache files, while responses requiring revalidation will not be served stale through `proxy_cache_use_stale`, `stale-while-revalidate`, `stale-if-error`, or configured stale defaults.
+
 Introduces some new cache-related directives to enhance control over upstream cache behavior.
 
 * **Syntax:** *proxy_ignore_cache_control field ...;*
@@ -621,6 +629,8 @@ Disables processing of certain fields of Cache-Control header in the response fr
 * s-maxage
 * stale-while-revalidate
 * stale-if-error
+* must-revalidate
+* proxy-revalidate
 
 > fastcgi_ignore_cache_control, scgi_ignore_cache_control and uwsgi_ignore_cache_control directives are also available.
 
