@@ -88,6 +88,7 @@ For details on OpenResty's bundled components and features, refer to [openresty.
 The following components are additionally bundled with OpenResty, some of which are developed and maintained by Hanada.
 
 * [ngx_backtrace_module](https://git.hanada.info/hanada/ngx_backtrace_module)
+* [ngx_condition_module](https://git.hanada.info/hanada/ngx_condition_module)
 * [ngx_geoip2_module](https://git.hanada.info/hanada/ngx_geoip2_module)
 * [ngx_http_access_control_module](https://git.hanada.info/hanada/ngx_http_access_control_module)
 * [ngx_http_auth_akamai_g2o_module](https://git.hanada.info/hanada/ngx_http_auth_akamai_g2o_module)
