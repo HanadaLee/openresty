@@ -30,7 +30,7 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [slice\_check\_etag](#slice_check_etag)
     - [slice\_check\_last\_modified](#slice_check_last_modified)
   - [ngx\_http\_sub\_filter\_module](#ngx_http_sub_filter_module)
-    - [Conditional response replacement bypass](#conditional-response-replacement-bypass)
+    - [Conditional sub\_filter with condition and when](#conditional-sub_filter-with-condition-and-when)
   - [ngx\_http\_proxy\_module and related modules](#ngx_http_proxy_module-and-related-modules)
     - [Proxy filter Framework](#proxy-filter-framework)
     - [Support for inheritance in "proxy\_set\_header" and its friends](#support-for-inheritance-in-proxy_set_header-and-its-friends)
@@ -474,22 +474,33 @@ Whether to check the consistency of the Last-Modified header in the slice. If it
 
 ## ngx_http_sub_filter_module
 
-### Conditional response replacement bypass
+### Conditional sub_filter with condition and when
 
-This patch introduces a directive sub_filter_bypass to bypass sub_filter based on the value of a set of variables.
-
-* **Syntax:** *sub_filter_bypass string ...;*
+* **Syntax:** *sub_filter string replacement;*
 
 * **Default:** *-*
 
-* **Context:** *http, server, location*
+* **Context:** *http, server, location, http when, server when, location when*
 
-Defines conditions under which the response will not be replaced. If at least one value of the string parameters is not empty and is not equal to “0” then the response will not be replaced.
+Refer to [sub_filter](https://nginx.org/en/docs/http/ngx_http_sub_module.html#sub_filter)
+for the original directive behavior. Define conditions with `ngx_condition_module`
+and place conditional replacement pairs in `when` blocks.
 
 ```nginx
-sub_filter_bypass $cookie_nocache $arg_nocache$arg_comment;
-sub_filter_bypass $http_pragma    $http_authorization;
+condition replace_origin str_eq $upstream_type origin;
+
+when replace_origin {
+    sub_filter http://origin.example https://www.example.com;
+    sub_filter origin.example www.example.com;
+}
+
+sub_filter_once off;
 ```
+
+All unconditional pairs and all pairs whose conditions match are applied
+together in configuration order. The native inheritance rule is unchanged:
+pairs are inherited from the previous configuration level only when the
+current level defines no `sub_filter` pair, including pairs inside `when`.
 
 [Back to TOC](#table-of-contents)
 
