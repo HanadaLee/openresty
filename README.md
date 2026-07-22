@@ -19,7 +19,7 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [Enhancement of unique request id](#enhancement-of-unique-request-id)
     - [Optimization of default error page](#optimization-of-default-error-page)
     - [Support for ignoring invalid Range header](#support-for-ignoring-invalid-range-header)
-    - [Support for error\_page directive with if parameter](#support-for-error_page-directive-with-if-parameter)
+    - [Conditional error\_page with condition and when](#conditional-error_page-with-condition-and-when)
     - [More directives for not modified checking](#more-directives-for-not-modified-checking)
   - [ngx\_http\_ssl\_module](#ngx_http_ssl_module)
     - [Optimizing TLS over TCP to reduce latency](#optimizing-tls-over-tcp-to-reduce-latency)
@@ -51,7 +51,7 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [gzip\_max\_length](#gzip_max_length)
     - [gzip\_bypass](#gzip_bypass)
   - [ngx\_http\_log\_module](#ngx_http_log_module)
-    - [Inverse condition support for access\_log directive](#inverse-condition-support-for-access_log-directive)
+    - [Conditional access\_log with condition and when](#conditional-access_log-with-condition-and-when)
   - [ngx\_http\_modsecurity\_module (3rd-party module)](#ngx_http_modsecurity_module-3rd-party-module)
     - [modsecurity\_bypass](#modsecurity_bypass)
   - [ngx\_stream\_ssl\_module](#ngx_stream_ssl_module)
@@ -287,17 +287,31 @@ Specify the value of the ip item to be displayed on the default 4xx/5xx error pa
 
 Specify whether to ignore an invalid range header. If enabled, invalid range headers are ignored, and the full content will be responded to the client. Otherwise, the client will receive a 416 status. The invalid range headers are not cleared, just ignored.
 
-### Support for error_page directive with if parameter
+### Conditional error_page
 
-* **Syntax:** *error_page code ... [=[response]] uri **[if=condition]**;*
+* **Syntax:** *error_page code ... [=[response]] uri;*
 
 * **Default:** *-*
 
-* **Context:** *http, server, location*
+* **Context:** *http, server, location, http when, server when, location when*
 
 For the original usage, please refer to [error_page](https://nginx.org/en/docs/http/ngx_http_core_module.html#error_page) of nginx documentation.
 
-The `if` parameter enables conditional error page. The condition is evaluated before the error page is processed. If the condition value is not empty or `0`, the error page will be processed. Otherwise, the error page will not be processed. You can also achieve the opposite effect by changing `if=` to `if!=`.
+Define conditions with `ngx_condition_module` and place each conditional error
+page in a `when` block. Multiple condition references in one `when` are ANDed;
+prefix a reference with `!` to negate it. Entries retain configuration order, so
+an earlier unconditional error page for the same status takes precedence over a
+later conditional entry.
+
+```nginx
+condition use_json_error str_eq $http_accept application/json;
+
+when use_json_error {
+    error_page 404 /404.json;
+}
+```
+
+These directives are inherited from the previous configuration level if and only if there are no error_page directives defined on the current level (including when subblocks).
 
 ### More directives for not modified checking
 
@@ -928,17 +942,29 @@ Defines conditions under which the response will gzipped. If at least one value 
 
 ## ngx_http_log_module
 
-### Inverse condition support for access_log directive
+### Conditional access_log
 
-* **Syntax:** *access_log path [format [buffer=size] [gzip[=level]] [flush=time] [if=condition]]*;  *access_log off*;
+* **Syntax:** *access_log path [format [buffer=size] [gzip[=level]] [flush=time]]*;  *access_log off*;
 
 * **Default:** *access_log logs/access.log combined;*
 
-* **Context:** *http, server, location, if in location, limit_except*
+* **Context:** *http, stream, server, location, http when, stream when, server when, location when*
 
 refer to [access_log](https://nginx.org/en/docs/http/ngx_http_log_module.html#access_log)
 
-Based on the original `if=` parameter, you can achieve the opposite effect by changing `if=` to `if!=`.
+Define conditions with `ngx_condition_module` and put conditional log entries
+in `when` blocks. Every matching `access_log` entry is written in configuration
+order. Use `when !condition_name` for the inverse case.
+
+```nginx
+condition loggable str_ne $status 204;
+
+when loggable {
+    access_log logs/access.log combined;
+}
+```
+
+The special value off cancels subsequent access_log directives on the current level.
 
 [Back to TOC](#table-of-contents)
 
