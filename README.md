@@ -19,18 +19,20 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [Enhancement of unique request id](#enhancement-of-unique-request-id)
     - [Optimization of default error page](#optimization-of-default-error-page)
     - [Support for ignoring invalid Range header](#support-for-ignoring-invalid-range-header)
-    - [Conditional error\_page with condition and when](#conditional-error_page-with-condition-and-when)
+    - [Conditional error\_page](#conditional-error_page)
     - [More directives for not modified checking](#more-directives-for-not-modified-checking)
   - [ngx\_http\_ssl\_module](#ngx_http_ssl_module)
     - [Optimizing TLS over TCP to reduce latency](#optimizing-tls-over-tcp-to-reduce-latency)
     - [Strict SNI validation](#strict-sni-validation)
     - [Variables about SSL handshake timestamps and time spent](#variables-about-ssl-handshake-timestamps-and-time-spent)
   - [ngx\_http\_slice\_filter\_module](#ngx_http_slice_filter_module)
-    - [slice\_allow\_methods](#slice_allow_methods)
-    - [slice\_check\_etag](#slice_check_etag)
-    - [slice\_check\_last\_modified](#slice_check_last_modified)
+    - [slice](#slice)
+    - [slice\_size](#slice_size)
+    - [slice\_bypass](#slice_bypass)
+    - [slice\_verify\_etag](#slice_verify_etag)
+    - [slice\_verify\_last\_modified](#slice_verify_last_modified)
   - [ngx\_http\_sub\_filter\_module](#ngx_http_sub_filter_module)
-    - [Conditional sub\_filter with condition and when](#conditional-sub_filter-with-condition-and-when)
+    - [Conditional sub\_filter](#conditional-sub_filter)
   - [ngx\_http\_proxy\_module and related modules](#ngx_http_proxy_module-and-related-modules)
     - [Proxy filter Framework](#proxy-filter-framework)
     - [Support for inheritance in "proxy\_set\_header" and its friends](#support-for-inheritance-in-proxy_set_header-and-its-friends)
@@ -51,7 +53,7 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [gzip\_max\_length](#gzip_max_length)
     - [gzip\_bypass](#gzip_bypass)
   - [ngx\_http\_log\_module](#ngx_http_log_module)
-    - [Conditional access\_log with condition and when](#conditional-access_log-with-condition-and-when)
+    - [Conditional access\_log](#conditional-access_log)
   - [ngx\_http\_modsecurity\_module (3rd-party module)](#ngx_http_modsecurity_module-3rd-party-module)
     - [modsecurity\_bypass](#modsecurity_bypass)
   - [ngx\_stream\_ssl\_module](#ngx_stream_ssl_module)
@@ -293,7 +295,7 @@ Specify whether to ignore an invalid range header. If enabled, invalid range hea
 
 * **Default:** *-*
 
-* **Context:** *http, server, location, http when, server when, location when*
+* **Context:** *http, server, location, when*
 
 For the original usage, please refer to [error_page](https://nginx.org/en/docs/http/ngx_http_core_module.html#error_page) of nginx documentation.
 
@@ -440,47 +442,75 @@ New variables are introduced to get the start timestamp, end timestamp, and time
 
 ## ngx_http_slice_filter_module
 
-### slice_allow_methods
+### slice
 
-* **Syntax:** *slice_allow_methods GET | HEAD ...;*
+* **Syntax:** *slice on | off;*
 
-* **Default:** *slice_allow_methods GET HEAD;*
+* **Default:** *slice off;*
 
-* **Context:** *http, server, location*
+* **Context:** *http, server, location, when*
 
-Allow splitting responses into slices if the client request method is listed in this directive. Note that if the slice directive is unset or has the zero value, splitting the response into slices will still be disabled.
+Enables or disables response slicing. When `ngx_condition_module` is compiled,
+this directive can be placed in a `when` block. Slicing is performed only when
+this directive is enabled, `slice_size` is nonzero, and no `slice_bypass`
+expression evaluates to a nonempty value other than `0`.
 
-### slice_check_etag
+### slice_size
 
-* **Syntax:** *slice_check_etag on | off;*
+* **Syntax:** *slice_size size;*
 
-* **Default:** *slice_check_etag on;*
-
-* **Context:** *http, server, location*
-
-Whether to check the consistency of the Etag header in the slice. If it is enabled, the request will be terminated and an error will be reported when Etag mismatch in slice response occurs.
-
-### slice_check_last_modified
-
-* **Syntax:** *slice_check_last_modified on | off;*
-
-* **Default:** *slice_check_last_modified off;*
+* **Default:** *slice_size 0;*
 
 * **Context:** *http, server, location*
 
-Whether to check the consistency of the Last-Modified header in the slice. If it is enabled, the request will be terminated and an error will be reported when Last-Modified mismatch in slice response occurs.
+Sets the size of each slice. It retains the behavior and size syntax of the
+original `slice` directive. A value of `0` disables slicing regardless of the
+selected `slice` value.
+
+### slice_bypass
+
+* **Syntax:** *slice_bypass $variable;*
+
+* **Default:** *-*
+
+* **Context:** *http, server, location*
+
+Disables slicing for the current request when the configured complex value,
+usually a variable, evaluates to a nonempty value other than `0`.
+
+### slice_verify_etag
+
+* **Syntax:** *slice_verify_etag on | off;*
+
+* **Default:** *slice_verify_etag on;*
+
+* **Context:** *http, server, location*
+
+Controls ETag consistency verification between slice responses. A mismatch
+terminates the request and records an error.
+
+### slice_verify_last_modified
+
+* **Syntax:** *slice_verify_last_modified on | off;*
+
+* **Default:** *slice_verify_last_modified off;*
+
+* **Context:** *http, server, location*
+
+Controls Last-Modified consistency verification between slice responses. A
+mismatch terminates the request and records an error.
 
 [Back to TOC](#table-of-contents)
 
 ## ngx_http_sub_filter_module
 
-### Conditional sub_filter with condition and when
+### Conditional sub_filter
 
 * **Syntax:** *sub_filter string replacement;*
 
 * **Default:** *-*
 
-* **Context:** *http, server, location, http when, server when, location when*
+* **Context:** *http, server, location, when*
 
 Refer to [sub_filter](https://nginx.org/en/docs/http/ngx_http_sub_module.html#sub_filter)
 for the original directive behavior. Define conditions with `ngx_condition_module`
