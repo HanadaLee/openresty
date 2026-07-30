@@ -1491,27 +1491,67 @@ index 4a47b74..7f849bc 100644
  
      h = default_headers;
 diff --git a/src/http/modules/ngx_http_gunzip_filter_module.c b/src/http/modules/ngx_http_gunzip_filter_module.c
-index 22e75e3..720ca46 100644
+index 22e75e3..ea8b35f 100644
 --- a/src/http/modules/ngx_http_gunzip_filter_module.c
 +++ b/src/http/modules/ngx_http_gunzip_filter_module.c
-@@ -15,6 +15,9 @@
+@@ -12,9 +12,24 @@
+ 
+ #include <zlib.h>
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++#include <ngx_http_condition_module.h>
++#endif
++
  
  typedef struct {
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    ngx_array_t         *enable;
++#else
      ngx_flag_t           enable;
++#endif
 +#if (NGX_RESTY_EXT)
++#if (NGX_CONDITION)
 +    ngx_array_t         *force;
++#else
++    ngx_flag_t           force;
++#endif
 +#endif
      ngx_bufs_t           bufs;
  } ngx_http_gunzip_conf_t;
  
-@@ -71,6 +74,15 @@ static ngx_command_t  ngx_http_gunzip_filter_commands[] = {
+@@ -65,12 +80,39 @@ static char *ngx_http_gunzip_merge_conf(ngx_conf_t *cf,
+ static ngx_command_t  ngx_http_gunzip_filter_commands[] = {
+ 
+     { ngx_string("gunzip"),
+-      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_FLAG,
++      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++                        |NGX_HTTP_MAIN_WHEN_CONF|NGX_HTTP_SRV_WHEN_CONF
++                        |NGX_HTTP_LOC_WHEN_CONF
++#endif
++                        |NGX_CONF_FLAG,
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++      ngx_conf_set_conditional_flag_slot,
++#else
+       ngx_conf_set_flag_slot,
++#endif
+       NGX_HTTP_LOC_CONF_OFFSET,
        offsetof(ngx_http_gunzip_conf_t, enable),
        NULL },
  
 +#if (NGX_RESTY_EXT)
 +    { ngx_string("gunzip_force"),
-+      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_1MORE,
-+      ngx_http_set_predicate_slot,
++      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF
++#if (NGX_CONDITION)
++                        |NGX_HTTP_MAIN_WHEN_CONF|NGX_HTTP_SRV_WHEN_CONF
++                        |NGX_HTTP_LOC_WHEN_CONF
++#endif
++                        |NGX_CONF_FLAG,
++#if (NGX_CONDITION)
++      ngx_conf_set_conditional_flag_slot,
++#else
++      ngx_conf_set_flag_slot,
++#endif
 +      NGX_HTTP_LOC_CONF_OFFSET,
 +      offsetof(ngx_http_gunzip_conf_t, force),
 +      NULL },
@@ -1520,65 +1560,92 @@ index 22e75e3..720ca46 100644
      { ngx_string("gunzip_buffers"),
        NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE2,
        ngx_conf_set_bufs_slot,
-@@ -138,6 +150,28 @@ ngx_http_gunzip_header_filter(ngx_http_request_t *r)
+@@ -129,7 +171,11 @@ ngx_http_gunzip_header_filter(ngx_http_request_t *r)
+     /* TODO always gunzip - due to configuration or module request */
+     /* TODO ignore content encoding? */
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    if (!ngx_http_get_conditional_flag_value(r, conf->enable)
++#else
+     if (!conf->enable
++#endif
+         || r->headers_out.content_encoding == NULL
+         || r->headers_out.content_encoding->value.len != 4
+         || ngx_strncasecmp(r->headers_out.content_encoding->value.data,
+@@ -138,6 +184,14 @@ ngx_http_gunzip_header_filter(ngx_http_request_t *r)
          return ngx_http_next_header_filter(r);
      }
  
 +#if (NGX_RESTY_EXT)
-+    switch (ngx_http_test_predicates(r, conf->force)) {
-+
-+    case NGX_ERROR:
-+        return NGX_ERROR;
-+
-+    case NGX_OK:
-+        r->gzip_vary = 1;
-+
-+        if (!r->gzip_tested) {
-+            if (ngx_http_gzip_ok(r) == NGX_OK) {
-+                return ngx_http_next_header_filter(r);
-+            }
-+
-+        } else if (r->gzip_ok) {
-+            return ngx_http_next_header_filter(r);
-+        }
-+        break;
-+
-+    default: /* NGX_DECLINED */
-+        break;
++#if (NGX_CONDITION)
++    if (!ngx_http_get_conditional_flag_value(r, conf->force)) {
 +#else
++    if (!conf->force) {
++#endif
++#endif
++
      r->gzip_vary = 1;
  
      if (!r->gzip_tested) {
-@@ -147,6 +181,7 @@ ngx_http_gunzip_header_filter(ngx_http_request_t *r)
- 
-     } else if (r->gzip_ok) {
+@@ -149,6 +203,10 @@ ngx_http_gunzip_header_filter(ngx_http_request_t *r)
          return ngx_http_next_header_filter(r);
-+#endif
      }
  
-     ctx = ngx_pcalloc(r->pool, sizeof(ngx_http_gunzip_ctx_t));
-@@ -665,6 +700,10 @@ ngx_http_gunzip_create_conf(ngx_conf_t *cf)
- 
-     conf->enable = NGX_CONF_UNSET;
- 
 +#if (NGX_RESTY_EXT)
-+    conf->force  = NGX_CONF_UNSET_PTR;
++    }
 +#endif
 +
+     ctx = ngx_pcalloc(r->pool, sizeof(ngx_http_gunzip_ctx_t));
+     if (ctx == NULL) {
+         return NGX_ERROR;
+@@ -663,7 +721,19 @@ ngx_http_gunzip_create_conf(ngx_conf_t *cf)
+      *     conf->bufs.num = 0;
+      */
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    conf->enable = NGX_CONF_UNSET_PTR;
++#else
+     conf->enable = NGX_CONF_UNSET;
++#endif
++
++#if (NGX_RESTY_EXT)
++#if (NGX_CONDITION)
++    conf->force = NGX_CONF_UNSET_PTR;
++#else
++    conf->force = NGX_CONF_UNSET;
++#endif
++#endif
+ 
      return conf;
  }
+@@ -675,7 +745,27 @@ ngx_http_gunzip_merge_conf(ngx_conf_t *cf, void *parent, void *child)
+     ngx_http_gunzip_conf_t *prev = parent;
+     ngx_http_gunzip_conf_t *conf = child;
  
-@@ -677,6 +716,10 @@ ngx_http_gunzip_merge_conf(ngx_conf_t *cf, void *parent, void *child)
- 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    if (ngx_conf_merge_conditional_flag_value(cf, &conf->enable,
++            prev->enable, 0) != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++#else
      ngx_conf_merge_value(conf->enable, prev->enable, 0);
- 
-+#if (NGX_RESTY_EXT)
-+    ngx_conf_merge_ptr_value(conf->force, prev->force, NULL);
 +#endif
 +
++#if (NGX_RESTY_EXT)
++#if (NGX_CONDITION)
++    if (ngx_conf_merge_conditional_flag_value(cf, &conf->force,
++            prev->force, 0) != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++#else
++    ngx_conf_merge_value(conf->force, prev->force, 0);
++#endif
++#endif
+ 
      ngx_conf_merge_bufs_value(conf->bufs, prev->bufs,
                                (128 * 1024) / ngx_pagesize, ngx_pagesize);
- 
 diff --git a/src/http/modules/ngx_http_gzip_filter_module.c b/src/http/modules/ngx_http_gzip_filter_module.c
 index dac21bb..846ba1b 100644
 --- a/src/http/modules/ngx_http_gzip_filter_module.c
@@ -7484,7 +7551,7 @@ index bb936c5..65d024d 100644
  char *ngx_http_file_cache_set_slot(ngx_conf_t *cf, ngx_command_t *cmd,
      void *conf);
 diff --git a/src/http/ngx_http_core_module.c b/src/http/ngx_http_core_module.c
-index 4be3c99..17d0cb1 100644
+index 4be3c99..0474aa0 100644
 --- a/src/http/ngx_http_core_module.c
 +++ b/src/http/ngx_http_core_module.c
 @@ -9,6 +9,10 @@
@@ -7498,7 +7565,23 @@ index 4be3c99..17d0cb1 100644
  
  typedef struct {
      u_char    *name;
-@@ -76,6 +80,10 @@ static char *ngx_http_core_internal(ngx_conf_t *cf, ngx_command_t *cmd,
+@@ -21,6 +25,15 @@ typedef struct {
+ #define NGX_HTTP_REQUEST_BODY_FILE_CLEAN  2
+ 
+ 
++#if (NGX_RESTY_EXT)
++
++#define NGX_HTTP_AUTO_REDIRECT_OFF      0
++#define NGX_HTTP_AUTO_REDIRECT_ON       1
++#define NGX_HTTP_AUTO_REDIRECT_DEFAULT  2
++
++#endif
++
++
+ static ngx_int_t ngx_http_core_auth_delay(ngx_http_request_t *r);
+ static void ngx_http_core_auth_delay_handler(ngx_http_request_t *r);
+ 
+@@ -76,6 +89,10 @@ static char *ngx_http_core_internal(ngx_conf_t *cf, ngx_command_t *cmd,
      void *conf);
  static char *ngx_http_core_resolver(ngx_conf_t *cf, ngx_command_t *cmd,
      void *conf);
@@ -7509,7 +7592,7 @@ index 4be3c99..17d0cb1 100644
  #if (NGX_HTTP_GZIP)
  static ngx_int_t ngx_http_gzip_accept_encoding(ngx_str_t *ae);
  static ngx_uint_t ngx_http_gzip_quantity(u_char *p, u_char *last);
-@@ -147,6 +155,26 @@ static ngx_conf_bitmask_t  ngx_http_core_keepalive_disable[] = {
+@@ -147,6 +164,34 @@ static ngx_conf_bitmask_t  ngx_http_core_keepalive_disable[] = {
  };
  
  
@@ -7530,13 +7613,21 @@ index 4be3c99..17d0cb1 100644
 +    { ngx_null_string, 0 }
 +};
 +
++
++static ngx_conf_enum_t  ngx_http_core_auto_redirect[] = {
++    { ngx_string("off"), NGX_HTTP_AUTO_REDIRECT_OFF },
++    { ngx_string("on"), NGX_HTTP_AUTO_REDIRECT_ON },
++    { ngx_string("default"), NGX_HTTP_AUTO_REDIRECT_DEFAULT },
++    { ngx_null_string, 0 }
++};
++
 +#endif
 +
 +
  static ngx_path_init_t  ngx_http_client_temp_path = {
      ngx_string(NGX_HTTP_CLIENT_TEMP_PATH), { 0, 0, 0 }
  };
-@@ -182,6 +210,11 @@ static ngx_str_t  ngx_http_gzip_private = ngx_string("private");
+@@ -182,6 +227,11 @@ static ngx_str_t  ngx_http_gzip_private = ngx_string("private");
  #endif
  
  
@@ -7548,7 +7639,7 @@ index 4be3c99..17d0cb1 100644
  static ngx_command_t  ngx_http_core_commands[] = {
  
      { ngx_string("variables_hash_max_size"),
-@@ -665,6 +698,15 @@ static ngx_command_t  ngx_http_core_commands[] = {
+@@ -665,6 +715,15 @@ static ngx_command_t  ngx_http_core_commands[] = {
        offsetof(ngx_http_core_loc_conf_t, max_ranges),
        NULL },
  
@@ -7564,7 +7655,23 @@ index 4be3c99..17d0cb1 100644
      { ngx_string("chunked_transfer_encoding"),
        NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_FLAG,
        ngx_conf_set_flag_slot,
-@@ -688,6 +730,10 @@ static ngx_command_t  ngx_http_core_commands[] = {
+@@ -679,6 +738,15 @@ static ngx_command_t  ngx_http_core_commands[] = {
+       offsetof(ngx_http_core_loc_conf_t, etag),
+       NULL },
+ 
++#if (NGX_RESTY_EXT)
++    { ngx_string("auto_redirect"),
++      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
++      ngx_conf_set_enum_slot,
++      NGX_HTTP_LOC_CONF_OFFSET,
++      offsetof(ngx_http_core_loc_conf_t, set_auto_redirect),
++      &ngx_http_core_auto_redirect },
++#endif
++
+     { ngx_string("early_hints"),
+       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_1MORE,
+       ngx_http_set_predicate_slot,
+@@ -688,6 +756,10 @@ static ngx_command_t  ngx_http_core_commands[] = {
  
      { ngx_string("error_page"),
        NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF
@@ -7575,7 +7682,7 @@ index 4be3c99..17d0cb1 100644
                          |NGX_CONF_2MORE,
        ngx_http_core_error_page,
        NGX_HTTP_LOC_CONF_OFFSET,
-@@ -766,6 +812,59 @@ static ngx_command_t  ngx_http_core_commands[] = {
+@@ -766,6 +838,59 @@ static ngx_command_t  ngx_http_core_commands[] = {
        offsetof(ngx_http_core_loc_conf_t, resolver_timeout),
        NULL },
  
@@ -7635,7 +7742,7 @@ index 4be3c99..17d0cb1 100644
  #if (NGX_HTTP_GZIP)
  
      { ngx_string("gzip_vary"),
-@@ -2396,6 +2495,119 @@ ngx_http_gzip_quantity(u_char *p, u_char *last)
+@@ -2396,6 +2521,119 @@ ngx_http_gzip_quantity(u_char *p, u_char *last)
  #endif
  
  
@@ -7755,7 +7862,7 @@ index 4be3c99..17d0cb1 100644
  ngx_int_t
  ngx_http_subrequest(ngx_http_request_t *r,
      ngx_str_t *uri, ngx_str_t *args, ngx_http_request_t **psr,
-@@ -3659,6 +3871,7 @@ ngx_http_core_create_loc_conf(ngx_conf_t *cf)
+@@ -3659,6 +3897,7 @@ ngx_http_core_create_loc_conf(ngx_conf_t *cf)
       *     clcf->post_action = { 0, NULL };
       *     clcf->types = NULL;
       *     clcf->default_type = { 0, NULL };
@@ -7763,7 +7870,7 @@ index 4be3c99..17d0cb1 100644
       *     clcf->error_log = NULL;
       *     clcf->client_body_path = NULL;
       *     clcf->regex = NULL;
-@@ -3677,6 +3890,9 @@ ngx_http_core_create_loc_conf(ngx_conf_t *cf)
+@@ -3677,6 +3916,9 @@ ngx_http_core_create_loc_conf(ngx_conf_t *cf)
      clcf->auth_delay = NGX_CONF_UNSET_MSEC;
      clcf->if_modified_since = NGX_CONF_UNSET_UINT;
      clcf->max_ranges = NGX_CONF_UNSET_UINT;
@@ -7773,7 +7880,17 @@ index 4be3c99..17d0cb1 100644
      clcf->client_body_in_file_only = NGX_CONF_UNSET_UINT;
      clcf->client_body_in_single_buffer = NGX_CONF_UNSET;
      clcf->internal = NGX_CONF_UNSET;
-@@ -3730,6 +3946,17 @@ ngx_http_core_create_loc_conf(ngx_conf_t *cf)
+@@ -3719,6 +3961,9 @@ ngx_http_core_create_loc_conf(ngx_conf_t *cf)
+     clcf->recursive_error_pages = NGX_CONF_UNSET;
+     clcf->chunked_transfer_encoding = NGX_CONF_UNSET;
+     clcf->etag = NGX_CONF_UNSET;
++#if (NGX_RESTY_EXT)
++    clcf->set_auto_redirect = NGX_CONF_UNSET_UINT;
++#endif
+     clcf->server_tokens = NGX_CONF_UNSET_UINT;
+     clcf->early_hints = NGX_CONF_UNSET_PTR;
+     clcf->types_hash_max_size = NGX_CONF_UNSET_UINT;
+@@ -3730,6 +3975,17 @@ ngx_http_core_create_loc_conf(ngx_conf_t *cf)
      clcf->open_file_cache_errors = NGX_CONF_UNSET;
      clcf->open_file_cache_events = NGX_CONF_UNSET;
  
@@ -7791,7 +7908,7 @@ index 4be3c99..17d0cb1 100644
  #if (NGX_HTTP_GZIP)
      clcf->gzip_vary = NGX_CONF_UNSET;
      clcf->gzip_http_version = NGX_CONF_UNSET_UINT;
-@@ -3898,6 +4125,10 @@ ngx_http_core_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -3898,6 +4154,10 @@ ngx_http_core_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
                                NGX_HTTP_IMS_EXACT);
      ngx_conf_merge_uint_value(conf->max_ranges, prev->max_ranges,
                                NGX_MAX_INT32_VALUE);
@@ -7802,7 +7919,25 @@ index 4be3c99..17d0cb1 100644
      ngx_conf_merge_uint_value(conf->client_body_in_file_only,
                                prev->client_body_in_file_only,
                                NGX_HTTP_REQUEST_BODY_FILE_OFF);
-@@ -4015,6 +4246,41 @@ ngx_http_core_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -3996,6 +4256,17 @@ ngx_http_core_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+                               prev->chunked_transfer_encoding, 1);
+     ngx_conf_merge_value(conf->etag, prev->etag, 1);
+ 
++#if (NGX_RESTY_EXT)
++    ngx_conf_merge_uint_value(conf->set_auto_redirect,
++                              prev->set_auto_redirect,
++                              NGX_HTTP_AUTO_REDIRECT_DEFAULT);
++
++    if (conf->set_auto_redirect != NGX_HTTP_AUTO_REDIRECT_DEFAULT) {
++        /* overriding value set by some directives */
++        conf->auto_redirect = conf->set_auto_redirect;
++    }
++#endif
++
+     ngx_conf_merge_uint_value(conf->server_tokens, prev->server_tokens,
+                               NGX_HTTP_SERVER_TOKENS_ON);
+ 
+@@ -4015,6 +4286,41 @@ ngx_http_core_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
  
      ngx_conf_merge_sec_value(conf->open_file_cache_events,
                                prev->open_file_cache_events, 0);
@@ -7844,7 +7979,7 @@ index 4be3c99..17d0cb1 100644
  #if (NGX_HTTP_GZIP)
  
      ngx_conf_merge_value(conf->gzip_vary, prev->gzip_vary, 0);
-@@ -4417,6 +4683,20 @@ ngx_http_core_listen(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+@@ -4417,6 +4723,20 @@ ngx_http_core_listen(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
              continue;
          }
  
@@ -7865,7 +8000,7 @@ index 4be3c99..17d0cb1 100644
          ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
                             "invalid parameter \"%V\"", &value[n]);
          return NGX_CONF_ERROR;
-@@ -5063,6 +5343,9 @@ ngx_http_core_error_page(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+@@ -5063,6 +5383,9 @@ ngx_http_core_error_page(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
  
          err->value = cv;
          err->args = args;
@@ -7875,7 +8010,7 @@ index 4be3c99..17d0cb1 100644
      }
  
      return NGX_CONF_OK;
-@@ -5245,6 +5528,39 @@ ngx_http_core_resolver(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+@@ -5245,6 +5568,39 @@ ngx_http_core_resolver(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
  }
  
  
@@ -7916,7 +8051,7 @@ index 4be3c99..17d0cb1 100644
  
  static char *
 diff --git a/src/http/ngx_http_core_module.h b/src/http/ngx_http_core_module.h
-index a13d7ad..711d12d 100644
+index a13d7ad..ca22369 100644
 --- a/src/http/ngx_http_core_module.h
 +++ b/src/http/ngx_http_core_module.h
 @@ -60,6 +60,18 @@ typedef struct ngx_thread_pool_s  ngx_thread_pool_t;
@@ -7980,7 +8115,17 @@ index a13d7ad..711d12d 100644
      ngx_uint_t    client_body_in_file_only; /* client_body_in_file_only */
  
      ngx_flag_t    client_body_in_single_buffer;
-@@ -453,6 +479,18 @@ struct ngx_http_core_loc_conf_s {
+@@ -412,6 +438,9 @@ struct ngx_http_core_loc_conf_s {
+     ngx_uint_t    server_tokens;           /* server_tokens */
+     ngx_flag_t    chunked_transfer_encoding; /* chunked_transfer_encoding */
+     ngx_flag_t    etag;                    /* etag */
++#if (NGX_RESTY_EXT)
++    ngx_uint_t    set_auto_redirect;        /* auto_redirect */
++#endif
+ 
+ #if (NGX_HTTP_GZIP)
+     ngx_flag_t    gzip_vary;               /* gzip_vary */
+@@ -453,6 +482,18 @@ struct ngx_http_core_loc_conf_s {
  
      ngx_queue_t  *locations;
  
@@ -7999,7 +8144,7 @@ index a13d7ad..711d12d 100644
  #if 0
      ngx_http_core_loc_conf_t  *prev_location;
  #endif
-@@ -514,6 +552,9 @@ ngx_int_t ngx_http_auth_basic_user(ngx_http_request_t *r);
+@@ -514,6 +555,9 @@ ngx_int_t ngx_http_auth_basic_user(ngx_http_request_t *r);
  #if (NGX_HTTP_GZIP)
  ngx_int_t ngx_http_gzip_ok(ngx_http_request_t *r);
  #endif

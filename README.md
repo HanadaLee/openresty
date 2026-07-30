@@ -15,6 +15,7 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
   - [ngx\_http](#ngx_http)
     - [Variables for timestamps and time spent on related operations](#variables-for-timestamps-and-time-spent-on-related-operations)
   - [ngx\_http\_core\_module](#ngx_http_core_module)
+    - [auto\_redirect](#auto_redirect)
     - [Support for https\_allow\_http in listen directive](#support-for-https_allow_http-in-listen-directive)
     - [Enhancement of unique request id](#enhancement-of-unique-request-id)
     - [Optimization of default error page](#optimization-of-default-error-page)
@@ -48,6 +49,7 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [Support for "elif" and "else" directives](#support-for-elif-and-else-directives)
     - [Support for "goto" directive](#support-for-goto-directive)
   - [ngx\_http\_gunzip\_module](#ngx_http_gunzip_module)
+    - [Conditional gunzip](#conditional-gunzip)
     - [Support for forced gzip decompression](#support-for-forced-gzip-decompression)
   - [ngx\_http\_gzip\_filter\_module](#ngx_http_gzip_filter_module)
     - [gzip\_max\_length](#gzip_max_length)
@@ -225,6 +227,18 @@ The module [ngx_http_extra_variables_module](https://git.hanada.info/hanada/ngx_
 [Back to TOC](#table-of-contents)
 
 ## ngx_http_core_module
+
+### auto_redirect
+
+* **Syntax:** *auto_redirect on | off | default;*
+
+* **Default:** *auto_redirect default;*
+
+* **Context:** *http, server, location*
+
+Controls the automatic permanent redirect for a prefix location whose name ends with `/` when the request URI matches the location name without the trailing slash. `on` enables the redirect, `off` disables it, and `default` preserves the behavior selected by directives such as `proxy_pass`.
+This directive is ported from
+[Angie](https://github.com/webserver-llc/angie/commit/bdaded513096c1df359f8ab540f57139a858cdbe).
 
 ### Support for https_allow_http in listen directive
 
@@ -935,8 +949,6 @@ location @two {
 
 ## ngx_http_gunzip_module
 
-### Support for forced gzip decompression
-
 This is a simple patch modifying the NGINX gunzip filter module to force inflate compressed responses. This is desirable in the context of an upstream source that sends responses gzipped. Please understand this will decompress all content, so you want to specify its use as specific as possible to avoid decompressing content that you otherwise would want left untouched.
 
 * It maintains transfering gzipped content between upstream server(s) and nginx, thus reducing network bandwidth.
@@ -947,13 +959,25 @@ The original patch is from [A patch to force the gunzip filter module work](http
 
 The gunzip module is not built by default, you must specify --with-http_gunzip_module when compiling nginx.
 
-* **Syntax:** *gunzip_force string ...;*
+### Conditional gunzip
 
-* **Default:** *-*
+* **Syntax:** *gunzip on | off;*
 
-* **Context:** *http, server, location*
+* **Default:** *gunzip off;*
 
-Defines the conditions for forced brotli decompression. If at least one value in the string parameter is not empty and not equal to `0`, forced gzip decompression is performed. But it will not try to decompress responses that do not contain the response header Content-Encoding: gzip.
+* **Context:** *http, server, location, when*
+
+Enables or disables decompression of gzip responses for clients that do not support gzip.
+
+### Support for forced gzip decompression
+
+* **Syntax:** *gunzip_force on | off;*
+
+* **Default:** *gunzip_force off;*
+
+* **Context:** *http, server, location, when*
+
+When enabled, decompresses gzip responses without checking whether the client accepts gzip. Responses without `Content-Encoding: gzip` are not affected.
 
 [Back to TOC](#table-of-contents)
 
