@@ -237,8 +237,7 @@ The module [ngx_http_extra_variables_module](https://git.hanada.info/hanada/ngx_
 * **Context:** *http, server, location*
 
 Controls the automatic permanent redirect for a prefix location whose name ends with `/` when the request URI matches the location name without the trailing slash. `on` enables the redirect, `off` disables it, and `default` preserves the behavior selected by directives such as `proxy_pass`.
-This directive is ported from
-[Angie](https://github.com/webserver-llc/angie/commit/bdaded513096c1df359f8ab540f57139a858cdbe).
+This directive is ported from [Angie](https://github.com/webserver-llc/angie/commit/bdaded513096c1df359f8ab540f57139a858cdbe).
 
 ### Support for https_allow_http in listen directive
 
@@ -290,8 +289,7 @@ Show up the following information in a default 4xx/5xx error page: The date, req
 
 * **Context:** *http, server, location*
 
-Specify the value of the ip item to be displayed on the default 4xx/5xx error page. Parameter value can contain variables. The value will be displayed on the default 
-4xx/5xx error page only when the error_page_server_info directive is enabled.
+Specify the value of the ip item to be displayed on the default 4xx/5xx error page. Parameter value can contain variables. The value will be displayed on the default 4xx/5xx error page only when the error_page_server_info directive is enabled.
 
 ### Support for ignoring invalid Range header
 
@@ -313,11 +311,7 @@ Specify whether to ignore an invalid range header. If enabled, invalid range hea
 
 For the original usage, please refer to [error_page](https://nginx.org/en/docs/http/ngx_http_core_module.html#error_page) of nginx documentation.
 
-Define conditions with `ngx_condition_module` and place each conditional error
-page in a `when` block. Multiple condition references in one `when` are ANDed;
-prefix a reference with `!` to negate it. Entries retain configuration order, so
-an earlier unconditional error page for the same status takes precedence over a
-later conditional entry.
+Define conditions with `ngx_condition_module` and place each conditional error page in a `when` block. Multiple condition references in one `when` are ANDed; prefix a reference with `!` to negate it. Entries retain configuration order, so an earlier unconditional error page for the same status takes precedence over a later conditional entry.
 
 ```nginx
 condition use_json_error str_eq $http_accept application/json;
@@ -464,10 +458,7 @@ New variables are introduced to get the start timestamp, end timestamp, and time
 
 * **Context:** *http, server, location, when*
 
-Enables or disables response slicing. When `ngx_condition_module` is compiled,
-this directive can be placed in a `when` block. Slicing is performed only when
-this directive is enabled, `slice_size` is nonzero, and no `slice_bypass`
-expression evaluates to a nonempty value other than `0`.
+Enables or disables response slicing. When `ngx_condition_module` is compiled, this directive can be placed in a `when` block. Slicing is performed only when this directive is enabled, `slice_size` is nonzero, and no `slice_bypass` expression evaluates to a nonempty value other than `0`.
 
 ### slice_size
 
@@ -477,9 +468,7 @@ expression evaluates to a nonempty value other than `0`.
 
 * **Context:** *http, server, location*
 
-Sets the size of each slice. It retains the behavior and size syntax of the
-original `slice` directive. A value of `0` disables slicing regardless of the
-selected `slice` value.
+Sets the size of each slice. It retains the behavior and size syntax of the original `slice` directive. A value of `0` disables slicing regardless of the selected `slice` value.
 
 ### slice_bypass
 
@@ -489,8 +478,7 @@ selected `slice` value.
 
 * **Context:** *http, server, location*
 
-Disables slicing for the current request when the configured complex value,
-usually a variable, evaluates to a nonempty value other than `0`.
+Disables slicing for the current request when the configured complex value, usually a variable, evaluates to a nonempty value other than `0`.
 
 ### slice_verify_etag
 
@@ -500,8 +488,7 @@ usually a variable, evaluates to a nonempty value other than `0`.
 
 * **Context:** *http, server, location*
 
-Controls ETag consistency verification between slice responses. A mismatch
-terminates the request and records an error.
+Controls ETag consistency verification between slice responses. A mismatch terminates the request and records an error.
 
 ### slice_verify_last_modified
 
@@ -511,8 +498,7 @@ terminates the request and records an error.
 
 * **Context:** *http, server, location*
 
-Controls Last-Modified consistency verification between slice responses. A
-mismatch terminates the request and records an error.
+Controls Last-Modified consistency verification between slice responses. A mismatch terminates the request and records an error.
 
 [Back to TOC](#table-of-contents)
 
@@ -526,9 +512,7 @@ mismatch terminates the request and records an error.
 
 * **Context:** *http, server, location, when*
 
-Refer to [sub_filter](https://nginx.org/en/docs/http/ngx_http_sub_module.html#sub_filter)
-for the original directive behavior. Define conditions with `ngx_condition_module`
-and place conditional replacement pairs in `when` blocks.
+Refer to [sub_filter](https://nginx.org/en/docs/http/ngx_http_sub_module.html#sub_filter) for the original directive behavior. Define conditions with `ngx_condition_module` and place conditional replacement pairs in `when` blocks.
 
 ```nginx
 condition replace_origin str_eq $upstream_type origin;
@@ -541,10 +525,7 @@ when replace_origin {
 sub_filter_once off;
 ```
 
-All unconditional pairs and all pairs whose conditions match are applied
-together in configuration order. The native inheritance rule is unchanged:
-pairs are inherited from the previous configuration level only when the
-current level defines no `sub_filter` pair, including pairs inside `when`.
+All unconditional pairs and all pairs whose conditions match are applied together in configuration order. The native inheritance rule is unchanged: pairs are inherited from the previous configuration level only when the current level defines no `sub_filter` pair, including pairs inside `when`.
 
 [Back to TOC](#table-of-contents)
 
@@ -983,17 +964,47 @@ When enabled, decompresses gzip responses without checking whether the client ac
 
 ## ngx_http_gzip_filter_module
 
+### Conditional gzip
+
+* **Syntax:** *gzip on | off;*
+
+* **Default:** *gzip off;*
+
+* **Context:** *http, server, location, when*
+
+Refer to [gzip](https://nginx.org/en/docs/http/ngx_http_gzip_module.html#gzip) for the original directive behavior. Supports conditional configuration.
+
+### Conditional gzip_comp_level
+
+* **Syntax:** *gzip_comp_level level;*
+
+* **Default:** *gzip_comp_level 1;*
+
+* **Context:** *http, server, location, when*
+
+Refer to [gzip_comp_level](https://nginx.org/en/docs/http/ngx_http_gzip_module.html#gzip_comp_level) for the original directive behavior. Supports conditional configuration.
+
+### Conditional gzip_min_length
+
+* **Syntax:** *gzip_min_length length;*
+
+* **Default:** *gzip_min_length 20;*
+
+* **Context:** *http, server, location, when*
+
+Refer to [gzip_min_length](https://nginx.org/en/docs/http/ngx_http_gzip_module.html#gzip_min_length) for the original directive behavior. Supports conditional configuration.
+
 ### gzip_max_length
 
 * **Syntax:** *gzip_max_length length;*
 
-* **Default:** *gzip_max_length 0*;
+* **Default:** *gzip_max_length 0;*
 
-* **Context:** *http, server, location*
+* **Context:** *http, server, location, when*
 
-Sets the maximum length of a response that will be gzipped. The length is determined only from the “Content-Length” response header field. A value of 0 means no upper limit.
+Sets the maximum length of a response that will be gzipped. The length is determined only from the “Content-Length” response header field. A value of 0 means no upper limit. Supports conditional configuration.
 
-###	gzip_bypass
+### gzip_bypass
 
 * **Syntax:** *gzip_bypass string ...;*
 
@@ -1001,7 +1012,7 @@ Sets the maximum length of a response that will be gzipped. The length is determ
 
 * **Context:** *http, server, location*
 
-Defines conditions under which the response will gzipped. If at least one value of the string parameters is not empty and is not equal to “0” then the response will not be gzipped.
+Defines conditions under which the response will not be gzipped. If at least one value of the string parameters is not empty and is not equal to “0” then the response will not be gzipped.
 
 [Back to TOC](#table-of-contents)
 
