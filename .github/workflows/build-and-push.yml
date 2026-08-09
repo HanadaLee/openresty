@@ -129,8 +129,8 @@ jobs:
         run: |
           for image in "$HARBOR_IMAGE" "$DOCKERHUB_IMAGE" "$GHCR_IMAGE"; do
             docker buildx imagetools create \
-              --tag "${image}:${IMAGE_VERSION}" \
+              --tag "${image}:${RESTY_VERSION}.${RESTY_RELEASE}" \
               --tag "${image}:latest" \
-              "${image}:${IMAGE_VERSION}-amd64" \
-              "${image}:${IMAGE_VERSION}-arm64"
+              "${image}:${RESTY_VERSION}.${RESTY_RELEASE}-amd64" \
+              "${image}:${RESTY_VERSION}.${RESTY_RELEASE}-arm64"
           done
