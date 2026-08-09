@@ -10,8 +10,8 @@ ARG RESTY_IMAGE_TAG="bookworm-slim"
 ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
-ARG RESTY_VERSION="1.31.1.1"
-ARG RESTY_RELEASE="340"
+ARG RESTY_VERSION="1.31.3.1"
+ARG RESTY_RELEASE="341"
 # ARG RESTY_SRC_URL_BASE="https://openresty.org/download"
 ARG RESTY_SRC_URL_BASE="https://rmp.hanada.info/directlink/raw-repo/openresty/src"
 ARG RESTY_LUAROCKS_VERSION="3.13.0"
@@ -482,7 +482,7 @@ RUN groupmod -n nginx www-data \
     && patch -p1 < /build/patches/openresty/patches/ngx_http_lua_module-fix_context_truncation.patch \
     && cd /build/openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) \
     && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) ext" \
-    && patch -p1 < /build/patches/openresty/patches/nginx-ext_1.31.1+.patch \
+    && patch -p1 < /build/patches/openresty/patches/nginx-ext_1.31.3+.patch \
     && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) for ngx_http_upstream_log_module" \
     && patch -p1 < /build/modules/ngx_http_upstream_log_module/ngx_http_upstream_log_1.25.3+.patch \
     && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) for ngx_ssl_fingerprint_module" \
