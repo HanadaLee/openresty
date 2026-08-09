@@ -64,7 +64,7 @@ ARG RESTY_PATH_OPTIONS="\
     --http-scgi-temp-path=/usr/local/openresty/var/lib/tmp/scgi \
 "
 ARG RESTY_USER_OPTIONS="--user=nginx --group=nginx"
-ARG RESTY_J="8"
+ARG RESTY_J="4"
 ARG RESTY_CONFIG_OPTIONS="\
     --with-file-aio \
     --with-threads \
