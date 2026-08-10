@@ -16,7 +16,7 @@ concurrency:
 
 env:
   RESTY_VERSION: 1.31.3.1
-  RESTY_RELEASE: 341
+  RESTY_RELEASE: 342
   HARBOR_IMAGE: registry.hanada.info/openresty/openresty
 
 jobs:

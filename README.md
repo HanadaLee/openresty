@@ -36,6 +36,8 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [Conditional sub\_filter](#conditional-sub_filter)
   - [ngx\_http\_proxy\_module and related modules](#ngx_http_proxy_module-and-related-modules)
     - [Proxy filter Framework](#proxy-filter-framework)
+    - [gRPC upstream URI](#grpc-upstream-uri)
+    - [gRPC upstream method](#grpc-upstream-method)
     - [Support for inheritance in "proxy\_set\_header" and its friends](#support-for-inheritance-in-proxy_set_header-and-its-friends)
     - [Enhancement of upstream cookie handler](#enhancement-of-upstream-cookie-handler)
     - [Enhancement of upstream cache control](#enhancement-of-upstream-cache-control)
@@ -542,6 +544,40 @@ Modules currently integrated with this framework:
 * [ngx_http_proxy_auth_basic_module](https://git.hanada.info/hanada/ngx_http_proxy_auth_basic_module)
 * [ngx_http_proxy_headers_control_module](https://git.hanada.info/hanada/ngx_http_proxy_headers_control_module)
 * [ngx_http_proxy_var_set_module](https://git.hanada.info/hanada/ngx_http_proxy_var_set_module)
+
+### gRPC upstream URI
+
+* **Syntax:** *grpc_pass grpc://address[uri] | grpcs://address[uri];*
+
+* **Default:** *-*
+
+* **Context:** *location, if in location*
+
+Allows `grpc_pass` to specify an upstream URI. For a static address, the part of the normalized request URI matching the current location is replaced by the configured URI, using the same replacement semantics as `proxy_pass`. A `grpc_pass` value containing variables uses its evaluated URI directly.
+
+The generated URI is used for both the gRPC `:path` pseudo-header and the upstream request URI exposed to proxy filters. `grpc_set_header` cannot override `:path`.
+
+```nginx
+location /api/ {
+    grpc_pass grpc://grpc_backend/package.Service/;
+}
+```
+
+A request for `/api/Method?debug=1` is sent upstream with `:path` set to `/package.Service/Method?debug=1`.
+
+### gRPC upstream method
+
+* **Syntax:** *grpc_method string;*
+
+* **Default:** *the client request method*
+
+* **Context:** *http, server, location*
+
+Specifies the method used for the gRPC upstream request. The value can contain variables. The evaluated value is used for both the gRPC `:method` pseudo-header and the upstream request method exposed to proxy filters. `grpc_set_header` cannot override `:method`.
+
+```nginx
+grpc_method POST;
+```
 
 ### Support for inheritance in "proxy_set_header" and its friends
 
