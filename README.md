@@ -36,8 +36,10 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [Conditional sub\_filter](#conditional-sub_filter)
   - [ngx\_http\_proxy\_module and related modules](#ngx_http_proxy_module-and-related-modules)
     - [Proxy filter Framework](#proxy-filter-framework)
+    - [Proxy upstream Host](#proxy-upstream-host)
     - [gRPC upstream URI](#grpc-upstream-uri)
     - [gRPC upstream method](#grpc-upstream-method)
+    - [gRPC upstream authority](#grpc-upstream-authority)
     - [Support for inheritance in "proxy\_set\_header" and its friends](#support-for-inheritance-in-proxy_set_header-and-its-friends)
     - [Enhancement of upstream cookie handler](#enhancement-of-upstream-cookie-handler)
     - [Enhancement of upstream cache control](#enhancement-of-upstream-cache-control)
@@ -54,6 +56,9 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [Conditional gunzip](#conditional-gunzip)
     - [Support for forced gzip decompression](#support-for-forced-gzip-decompression)
   - [ngx\_http\_gzip\_filter\_module](#ngx_http_gzip_filter_module)
+    - [Conditional gzip](#conditional-gzip)
+    - [Conditional gzip\_comp\_level](#conditional-gzip_comp_level)
+    - [Conditional gzip\_min\_length](#conditional-gzip_min_length)
     - [gzip\_max\_length](#gzip_max_length)
     - [gzip\_bypass](#gzip_bypass)
   - [ngx\_http\_log\_module](#ngx_http_log_module)
@@ -545,6 +550,24 @@ Modules currently integrated with this framework:
 * [ngx_http_proxy_headers_control_module](https://git.hanada.info/hanada/ngx_http_proxy_headers_control_module)
 * [ngx_http_proxy_var_set_module](https://git.hanada.info/hanada/ngx_http_proxy_var_set_module)
 
+> The Host and `:authority` handling described below is scheduled for inclusion in nginx 1.31.4. This bundle only backports the upstream implementation to its current nginx base.
+
+### Proxy upstream Host
+
+* **Syntax:** *proxy_set_header Host value;*
+
+* **Default:** *the host and optional port derived from proxy_pass*
+
+* **Context:** *http, server, location*
+
+Specifies the `Host` value sent to the proxy upstream. The value can contain variables. For an HTTP/1.x upstream, it is sent as the regular `Host` header. For an HTTP/2 upstream, it is used as the `:authority` pseudo-header and is not also sent as a regular header.
+
+If `proxy_set_header Host` is not configured, nginx uses the host and optional port derived from `proxy_pass`. An explicitly configured empty value has the same fallback behavior for HTTP/1.1 and HTTP/2; for HTTP/1.0, the `Host` header is omitted.
+
+```nginx
+proxy_set_header Host $proxy_host;
+```
+
 ### gRPC upstream URI
 
 * **Syntax:** *grpc_pass grpc://address[uri] | grpcs://address[uri];*
@@ -577,6 +600,22 @@ Specifies the method used for the gRPC upstream request. The value can contain v
 
 ```nginx
 grpc_method POST;
+```
+
+### gRPC upstream authority
+
+* **Syntax:** *grpc_set_header Host value;*
+
+* **Default:** *the host and optional port derived from grpc_pass*
+
+* **Context:** *http, server, location*
+
+Specifies the gRPC `:authority` pseudo-header. The value can contain variables. `Host` is used only to construct `:authority` and is not sent as a regular gRPC header.
+
+If `grpc_set_header Host` is not configured, or if its evaluated value is empty, nginx uses the host and optional port derived from `grpc_pass`. Configure the authority through `Host`.
+
+```nginx
+grpc_set_header Host api.example.com;
 ```
 
 ### Support for inheritance in "proxy_set_header" and its friends
