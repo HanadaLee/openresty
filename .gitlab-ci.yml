@@ -1,76 +1,95 @@
 variables:
-  RESTY_VERSION: 1.31.3.1
-  RESTY_RELEASE: 344
-  IMAGE_NAME: registry.hanada.info/openresty/openresty
+  HARBOR_IMAGE: registry.hanada.info/openresty/openresty
+  DOCKERHUB_IMAGE: docker.io/hanadalee/openresty
+  GHCR_IMAGE: ghcr.io/hanadalee/openresty
 
 stages:
   - build
   - manifest
 
+.docker-job:
+  only:
+    refs:
+      - main
+  before_script:
+    - |
+      set -eu
+
+      RESTY_VERSION="$(sed -n 's/^ARG RESTY_VERSION="\([^"]*\)"[[:space:]]*$/\1/p' Dockerfile | head -n 1)"
+      RESTY_RELEASE="$(sed -n 's/^ARG RESTY_RELEASE="\([^"]*\)"[[:space:]]*$/\1/p' Dockerfile | head -n 1)"
+
+      if [ -z "$RESTY_VERSION" ] || [ -z "$RESTY_RELEASE" ]; then
+        echo "Failed to read RESTY_VERSION or RESTY_RELEASE from Dockerfile" >&2
+        exit 1
+      fi
+
+      VERSION="${RESTY_VERSION}.${RESTY_RELEASE}"
+      export RESTY_VERSION RESTY_RELEASE VERSION
+      echo "Building OpenResty ${VERSION}"
+    - |
+      printf '%s' "$HARBOR_PASSWORD" | docker login registry.hanada.info --username "$HARBOR_USERNAME" --password-stdin
+      printf '%s' "$DOCKERHUB_PASSWORD" | docker login docker.io --username "$DOCKERHUB_USERNAME" --password-stdin
+      printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GHCR_USERNAME" --password-stdin
+
 build-amd64:
+  extends: .docker-job
   stage: build
   tags:
     - debian-x86_64
-  only:
-    refs:
-      - main
   script:
-    - >
+    - |
       docker build \
         --build-arg RESTY_VERSION="${RESTY_VERSION}" \
         --build-arg RESTY_RELEASE="${RESTY_RELEASE}" \
-        -t "${IMAGE_NAME}:${RESTY_VERSION}.${RESTY_RELEASE}-amd64" \
+        --tag "${HARBOR_IMAGE}:${VERSION}-amd64" \
+        --tag "${DOCKERHUB_IMAGE}:${VERSION}-amd64" \
+        --tag "${GHCR_IMAGE}:${VERSION}-amd64" \
         .
-    - >
-      docker login -u "${HARBOR_USERNAME}" -p "${HARBOR_PASSWORD}" registry.hanada.info
-    - >
-      docker push "${IMAGE_NAME}:${RESTY_VERSION}.${RESTY_RELEASE}-amd64"
+
+      for image in "$HARBOR_IMAGE" "$DOCKERHUB_IMAGE" "$GHCR_IMAGE"; do
+        docker push "${image}:${VERSION}-amd64"
+      done
 
 build-arm64:
+  extends: .docker-job
   stage: build
   tags:
     - debian-aarch64
-  only:
-    refs:
-      - main
   script:
-    - >
+    - |
       docker build \
         --build-arg RESTY_VERSION="${RESTY_VERSION}" \
         --build-arg RESTY_RELEASE="${RESTY_RELEASE}" \
-        -t "${IMAGE_NAME}:${RESTY_VERSION}.${RESTY_RELEASE}-arm64" \
+        --tag "${HARBOR_IMAGE}:${VERSION}-arm64" \
+        --tag "${DOCKERHUB_IMAGE}:${VERSION}-arm64" \
+        --tag "${GHCR_IMAGE}:${VERSION}-arm64" \
         .
-    - >
-      docker login -u "${HARBOR_USERNAME}" -p "${HARBOR_PASSWORD}" registry.hanada.info
-    - >
-      docker push "${IMAGE_NAME}:${RESTY_VERSION}.${RESTY_RELEASE}-arm64"
+
+      for image in "$HARBOR_IMAGE" "$DOCKERHUB_IMAGE" "$GHCR_IMAGE"; do
+        docker push "${image}:${VERSION}-arm64"
+      done
 
 create-manifest:
+  extends: .docker-job
   stage: manifest
   tags:
     - debian-x86_64
   needs:
     - build-amd64
     - build-arm64
-  only:
-    refs:
-      - main
   script:
-    - >
-      docker login -u "${HARBOR_USERNAME}" -p "${HARBOR_PASSWORD}" registry.hanada.info
-    - >
-      docker manifest inspect "${IMAGE_NAME}:${RESTY_VERSION}.${RESTY_RELEASE}-amd64" || exit 1
-    - >
-      docker manifest inspect "${IMAGE_NAME}:${RESTY_VERSION}.${RESTY_RELEASE}-arm64" || exit 1
-    - >
-      docker manifest create --amend "${IMAGE_NAME}:${RESTY_VERSION}.${RESTY_RELEASE}" \
-        --amend "${IMAGE_NAME}:${RESTY_VERSION}.${RESTY_RELEASE}-amd64" \
-        --amend "${IMAGE_NAME}:${RESTY_VERSION}.${RESTY_RELEASE}-arm64"
-    - >
-      docker manifest push --purge "${IMAGE_NAME}:${RESTY_VERSION}.${RESTY_RELEASE}"
-    - >
-      docker manifest create --amend "${IMAGE_NAME}" \
-        --amend "${IMAGE_NAME}:${RESTY_VERSION}.${RESTY_RELEASE}-amd64" \
-        --amend "${IMAGE_NAME}:${RESTY_VERSION}.${RESTY_RELEASE}-arm64"
-    - >
-      docker manifest push --purge "${IMAGE_NAME}"
+    - |
+      for image in "$HARBOR_IMAGE" "$DOCKERHUB_IMAGE" "$GHCR_IMAGE"; do
+        docker manifest inspect "${image}:${VERSION}-amd64"
+        docker manifest inspect "${image}:${VERSION}-arm64"
+
+        docker manifest create --amend "${image}:${VERSION}" \
+          --amend "${image}:${VERSION}-amd64" \
+          --amend "${image}:${VERSION}-arm64"
+        docker manifest push --purge "${image}:${VERSION}"
+
+        docker manifest create --amend "${image}:latest" \
+          --amend "${image}:${VERSION}-amd64" \
+          --amend "${image}:${VERSION}-arm64"
+        docker manifest push --purge "${image}:latest"
+      done

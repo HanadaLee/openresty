@@ -1,2 +1,9 @@
+.git
+.github
 .gitlab-ci.yml
+.gitattributes
+.gitignore
 
+LICENSE
+README.md
+patches
