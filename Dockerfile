@@ -121,7 +121,7 @@ ARG RESTY_CONFIG_OPTIONS="\
     --add-module=/build/modules/ngx_http_qrcode_module \
     --add-module=/build/modules/ngx_http_replace_filter_module \
     --add-module=/build/modules/ngx_http_rewrite_status_filter_module \
-    --add-module=/build/modules/ngx_http_security_headers_module \
+    --add-module=/build/modules/ngx_http_security_headers_filter_module \
     --add-module=/build/modules/ngx_http_server_redirect_module \
     --add-module=/build/modules/ngx_http_sorted_args_module \
     --add-module=/build/modules/ngx_http_sysguard_module \
@@ -330,7 +330,7 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_compression_vary_filter_module.git ngx_http_compression_vary_filter_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_rewrite_status_filter_module.git ngx_http_rewrite_status_filter_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_var_module.git ngx_http_var_module \
-    && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_security_headers_module.git ngx_http_security_headers_module \
+    && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_security_headers_filter_module.git ngx_http_security_headers_filter_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_cors_module.git ngx_http_cors_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_log_var_set_module.git ngx_http_log_var_set_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_loop_detect_module.git ngx_http_loop_detect_module \
