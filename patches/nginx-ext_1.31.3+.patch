@@ -12232,6 +12232,62 @@ index 6b487289a..b3862e797 100644
          if (ngx_http_v3_check_flood(c) != NGX_OK) {
              ngx_http_close_request(r, NGX_HTTP_CLOSE);
              break;
+diff --git a/src/stream/ngx_stream.h b/src/stream/ngx_stream.h
+index 40db2a67c..86bf525ba 100644
+--- a/src/stream/ngx_stream.h
++++ b/src/stream/ngx_stream.h
+@@ -259,6 +259,29 @@ typedef struct {
+ } ngx_stream_conf_addr_t;
+
+
++#if (NGX_RESTY_EXT)
++
++typedef enum {
++    NGX_STREAM_SESSION_ERR_NONE = 0,
++    NGX_STREAM_SESSION_ERR_CONNECTION_CLOSED,
++    NGX_STREAM_SESSION_ERR_CLIENT_RESET,
++    NGX_STREAM_SESSION_ERR_CLIENT_READ_FAILED,
++    NGX_STREAM_SESSION_ERR_CLIENT_WRITE_FAILED,
++    NGX_STREAM_SESSION_ERR_UPSTREAM_RESET,
++    NGX_STREAM_SESSION_ERR_UPSTREAM_READ_FAILED,
++    NGX_STREAM_SESSION_ERR_UPSTREAM_WRITE_FAILED,
++    NGX_STREAM_SESSION_ERR_UPSTREAM_CONNECT_TIMEOUT,
++    NGX_STREAM_SESSION_ERR_READ_TIMEOUT,
++    NGX_STREAM_SESSION_ERR_WRITE_TIMEOUT,
++    NGX_STREAM_SESSION_ERR_UPSTREAM_TIMEOUT,
++    NGX_STREAM_SESSION_ERR_WORKER_SHUTDOWN,
++    NGX_STREAM_SESSION_ERR_UPSTREAM_CONNECT_FAILED,
++    NGX_STREAM_SESSION_ERR_MAX
++} ngx_stream_session_error_code_e;
++
++#endif
++
++
+ struct ngx_stream_session_s {
+     uint32_t                       signature;         /* "STRM" */
+
+@@ -290,6 +313,10 @@ struct ngx_stream_session_s {
+     ngx_int_t                      phase_handler;
+     ngx_uint_t                     status;
+
++#if (NGX_RESTY_EXT)
++    ngx_uint_t                     session_error_code;
++#endif
++
+     unsigned                       ssl:1;
+
+     unsigned                       stat_processing:1;
+@@ -297,6 +324,10 @@ struct ngx_stream_session_s {
+     unsigned                       health_check:1;
+
+     unsigned                       limit_conn_status:2;
++
++#if (NGX_RESTY_EXT)
++    unsigned                       session_connect_timeout:1;
++#endif
+ };
+
+
 diff --git a/src/stream/ngx_stream_log_module.c b/src/stream/ngx_stream_log_module.c
 index 774bc7e93..4c5dff46b 100644
 --- a/src/stream/ngx_stream_log_module.c
@@ -12356,10 +12412,26 @@ index 774bc7e93..4c5dff46b 100644
          ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
                             "invalid parameter \"%V\"", &value[i]);
 diff --git a/src/stream/ngx_stream_proxy_module.c b/src/stream/ngx_stream_proxy_module.c
-index b8e16adff..22dcce2e0 100644
+index b8e16adff..1a6ea78bc 100644
 --- a/src/stream/ngx_stream_proxy_module.c
 +++ b/src/stream/ngx_stream_proxy_module.c
-@@ -799,6 +799,10 @@ ngx_stream_proxy_connect(ngx_stream_session_t *s)
+@@ -84,6 +84,15 @@ static ngx_int_t ngx_stream_proxy_test_finalize(ngx_stream_session_t *s,
+     ngx_uint_t from_upstream);
+ static void ngx_stream_proxy_next_upstream(ngx_stream_session_t *s);
+ static void ngx_stream_proxy_finalize(ngx_stream_session_t *s, ngx_uint_t rc);
++#if (NGX_RESTY_EXT)
++static void ngx_stream_proxy_set_session_error_code(ngx_stream_session_t *s,
++    ngx_uint_t error_code);
++static void ngx_stream_proxy_set_read_error_code(ngx_stream_session_t *s,
++    ngx_uint_t from_upstream, ngx_err_t err);
++static void ngx_stream_proxy_set_timeout_error_code(ngx_stream_session_t *s);
++static void ngx_stream_proxy_finalize_session_error_code(
++    ngx_stream_session_t *s, ngx_uint_t rc);
++#endif
+ static u_char *ngx_stream_proxy_log_error(ngx_log_t *log, u_char *buf,
+     size_t len);
+
+@@ -799,6 +808,10 @@ ngx_stream_proxy_connect(ngx_stream_session_t *s)
  
      u->start_time = ngx_current_msec;
  
@@ -12370,7 +12442,86 @@ index b8e16adff..22dcce2e0 100644
      u->state->connect_time = (ngx_msec_t) -1;
      u->state->first_byte_time = (ngx_msec_t) -1;
      u->state->response_time = (ngx_msec_t) -1;
-@@ -2273,6 +2277,10 @@ ngx_stream_proxy_next_upstream(ngx_stream_session_t *s)
+@@ -1758,6 +1771,10 @@ ngx_stream_proxy_process_connection(ngx_event_t *ev, ngx_uint_t from_upstream)
+
+     if (c->close) {
+         ngx_log_error(NGX_LOG_INFO, c->log, 0, "shutdown timeout");
++#if (NGX_RESTY_EXT)
++        ngx_stream_proxy_set_session_error_code(s,
++                                NGX_STREAM_SESSION_ERR_WORKER_SHUTDOWN);
++#endif
+         ngx_stream_proxy_finalize(s, NGX_STREAM_OK);
+         return;
+     }
+@@ -1823,6 +1840,11 @@ ngx_stream_proxy_process_connection(ngx_event_t *ev, ngx_uint_t from_upstream)
+
+                 pc->read->error = 1;
+
++#if (NGX_RESTY_EXT)
++                ngx_stream_proxy_set_session_error_code(s,
++                                NGX_STREAM_SESSION_ERR_UPSTREAM_TIMEOUT);
++#endif
++
+                 ngx_stream_proxy_finalize(s, NGX_STREAM_BAD_GATEWAY);
+
+                 return;
+@@ -1830,6 +1852,10 @@ ngx_stream_proxy_process_connection(ngx_event_t *ev, ngx_uint_t from_upstream)
+
+             ngx_connection_error(c, NGX_ETIMEDOUT, "connection timed out");
+
++#if (NGX_RESTY_EXT)
++            ngx_stream_proxy_set_timeout_error_code(s);
++#endif
++
+             ngx_stream_proxy_finalize(s, NGX_STREAM_OK);
+
+             return;
+@@ -1866,6 +1892,9 @@ ngx_stream_proxy_connect_handler(ngx_event_t *ev)
+
+     if (ev->timedout) {
+         ngx_log_error(NGX_LOG_ERR, c->log, NGX_ETIMEDOUT, "upstream timed out");
++#if (NGX_RESTY_EXT)
++        s->session_connect_timeout = 1;
++#endif
+         ngx_stream_proxy_next_upstream(s);
+         return;
+     }
+@@ -1965,6 +1994,11 @@ ngx_stream_proxy_process(ngx_stream_session_t *s, ngx_uint_t from_upstream,
+
+         c->log->handler = handler;
+
++#if (NGX_RESTY_EXT)
++        ngx_stream_proxy_set_session_error_code(s,
++                                NGX_STREAM_SESSION_ERR_WORKER_SHUTDOWN);
++#endif
++
+         ngx_stream_proxy_finalize(s, NGX_STREAM_OK);
+         return;
+     }
+@@ -2042,6 +2076,11 @@ ngx_stream_proxy_process(ngx_stream_session_t *s, ngx_uint_t from_upstream,
+
+             c->log->action = recv_action;
+
++#if (NGX_RESTY_EXT)
++            /* prevent a stale socket error from being reported as a reset */
++            ngx_set_socket_errno(0);
++#endif
++
+             n = src->recv(src, b->last, size);
+
+             if (n == NGX_AGAIN) {
+@@ -2049,6 +2088,10 @@ ngx_stream_proxy_process(ngx_stream_session_t *s, ngx_uint_t from_upstream,
+             }
+
+             if (n == NGX_ERROR) {
++#if (NGX_RESTY_EXT)
++                ngx_stream_proxy_set_read_error_code(s, from_upstream,
++                                                     ngx_socket_errno);
++#endif
+                 src->read->eof = 1;
+                 n = 0;
+             }
+@@ -2273,6 +2316,10 @@ ngx_stream_proxy_next_upstream(ngx_stream_session_t *s)
  
      pscf = ngx_stream_get_module_srv_conf(s, ngx_stream_proxy_module);
  
@@ -12381,7 +12532,139 @@ index b8e16adff..22dcce2e0 100644
      timeout = pscf->next_upstream_timeout;
  
      if (u->peer.tries == 0
-@@ -2335,6 +2343,12 @@ ngx_stream_proxy_finalize(ngx_stream_session_t *s, ngx_uint_t rc)
+@@ -2307,6 +2354,120 @@ ngx_stream_proxy_next_upstream(ngx_stream_session_t *s)
+ }
+
+
++#if (NGX_RESTY_EXT)
++
++static void
++ngx_stream_proxy_set_session_error_code(ngx_stream_session_t *s,
++    ngx_uint_t error_code)
++{
++    if (error_code == NGX_STREAM_SESSION_ERR_NONE
++        || error_code >= NGX_STREAM_SESSION_ERR_MAX)
++    {
++        return;
++    }
++
++    /* the first terminating event wins */
++    if (s->session_error_code == NGX_STREAM_SESSION_ERR_NONE) {
++        s->session_error_code = error_code;
++    }
++}
++
++
++static void
++ngx_stream_proxy_set_read_error_code(ngx_stream_session_t *s,
++    ngx_uint_t from_upstream, ngx_err_t err)
++{
++    ngx_uint_t  error_code;
++
++    if (from_upstream) {
++        error_code = (err == NGX_ECONNRESET)
++                     ? NGX_STREAM_SESSION_ERR_UPSTREAM_RESET
++                     : NGX_STREAM_SESSION_ERR_UPSTREAM_READ_FAILED;
++
++    } else {
++        error_code = (err == NGX_ECONNRESET)
++                     ? NGX_STREAM_SESSION_ERR_CLIENT_RESET
++                     : NGX_STREAM_SESSION_ERR_CLIENT_READ_FAILED;
++    }
++
++    ngx_stream_proxy_set_session_error_code(s, error_code);
++}
++
++
++static void
++ngx_stream_proxy_set_timeout_error_code(ngx_stream_session_t *s)
++{
++    ngx_uint_t              error_code;
++    ngx_connection_t       *pc;
++    ngx_stream_upstream_t  *u;
++
++    u = s->upstream;
++    pc = (u && u->peer.connection) ? u->peer.connection : NULL;
++
++    if (s->connection->buffered || (pc && pc->buffered)) {
++        error_code = NGX_STREAM_SESSION_ERR_WRITE_TIMEOUT;
++
++    } else {
++        error_code = NGX_STREAM_SESSION_ERR_READ_TIMEOUT;
++    }
++
++    ngx_stream_proxy_set_session_error_code(s, error_code);
++}
++
++
++static void
++ngx_stream_proxy_finalize_session_error_code(ngx_stream_session_t *s,
++    ngx_uint_t rc)
++{
++    ngx_uint_t              error_code;
++    ngx_connection_t       *c, *pc;
++    ngx_stream_upstream_t  *u;
++
++    if (s->session_error_code != NGX_STREAM_SESSION_ERR_NONE) {
++        return;
++    }
++
++    if (s->session_connect_timeout && rc == NGX_STREAM_BAD_GATEWAY) {
++        ngx_stream_proxy_set_session_error_code(s,
++                         NGX_STREAM_SESSION_ERR_UPSTREAM_CONNECT_TIMEOUT);
++        return;
++    }
++
++    c = s->connection;
++    u = s->upstream;
++    pc = (u && u->peer.connection) ? u->peer.connection : NULL;
++
++    if (c->read->error) {
++        error_code = NGX_STREAM_SESSION_ERR_CLIENT_READ_FAILED;
++
++    } else if (pc && pc->read->error) {
++        error_code = NGX_STREAM_SESSION_ERR_UPSTREAM_READ_FAILED;
++
++    } else if (c->error) {
++        error_code = NGX_STREAM_SESSION_ERR_CLIENT_WRITE_FAILED;
++
++    } else if (pc && pc->error) {
++        error_code = NGX_STREAM_SESSION_ERR_UPSTREAM_WRITE_FAILED;
++
++    } else if (c->read->eof || (pc && pc->read->eof)) {
++        error_code = NGX_STREAM_SESSION_ERR_CONNECTION_CLOSED;
++
++    } else if (rc == NGX_STREAM_OK && c->type == SOCK_DGRAM) {
++        error_code = NGX_STREAM_SESSION_ERR_CONNECTION_CLOSED;
++
++    } else if (rc == NGX_STREAM_BAD_GATEWAY) {
++        error_code = NGX_STREAM_SESSION_ERR_UPSTREAM_CONNECT_FAILED;
++
++    } else {
++        error_code = NGX_STREAM_SESSION_ERR_NONE;
++    }
++
++    ngx_stream_proxy_set_session_error_code(s, error_code);
++}
++
++#endif
++
++
+ static void
+ ngx_stream_proxy_finalize(ngx_stream_session_t *s, ngx_uint_t rc)
+ {
+@@ -2317,6 +2478,10 @@ ngx_stream_proxy_finalize(ngx_stream_session_t *s, ngx_uint_t rc)
+     ngx_log_debug1(NGX_LOG_DEBUG_STREAM, s->connection->log, 0,
+                    "finalize stream proxy: %i", rc);
+
++#if (NGX_RESTY_EXT)
++    ngx_stream_proxy_finalize_session_error_code(s, rc);
++#endif
++
+     u = s->upstream;
+
+     if (u == NULL) {
+@@ -2335,6 +2500,12 @@ ngx_stream_proxy_finalize(ngx_stream_session_t *s, ngx_uint_t rc)
              u->state->response_time = ngx_current_msec - u->start_time;
          }
  
@@ -12556,3 +12839,105 @@ index bb045e422..20e9f7cb1 100644
      ngx_str_t                         *peer;
  } ngx_stream_upstream_state_t;
  
+diff --git a/src/stream/ngx_stream_variables.c b/src/stream/ngx_stream_variables.c
+index 4658104e1..f72e5c02b 100644
+--- a/src/stream/ngx_stream_variables.c
++++ b/src/stream/ngx_stream_variables.c
+@@ -37,6 +37,10 @@ static ngx_int_t ngx_stream_variable_session_time(ngx_stream_session_t *s,
+     ngx_stream_variable_value_t *v, uintptr_t data);
+ static ngx_int_t ngx_stream_variable_status(ngx_stream_session_t *s,
+     ngx_stream_variable_value_t *v, uintptr_t data);
++#if (NGX_RESTY_EXT)
++static ngx_int_t ngx_stream_variable_session_error_code(
++    ngx_stream_session_t *s, ngx_stream_variable_value_t *v, uintptr_t data);
++#endif
+ static ngx_int_t ngx_stream_variable_connection(ngx_stream_session_t *s,
+     ngx_stream_variable_value_t *v, uintptr_t data);
+
+@@ -56,6 +60,28 @@ static ngx_int_t ngx_stream_variable_protocol(ngx_stream_session_t *s,
+     ngx_stream_variable_value_t *v, uintptr_t data);
+
+
++#if (NGX_RESTY_EXT)
++
++static ngx_str_t  ngx_stream_session_error_codes[] = {
++    ngx_string("ERR_NONE"),
++    ngx_string("ERR_CONNECTION_CLOSED"),
++    ngx_string("ERR_CLIENT_RESET"),
++    ngx_string("ERR_CLIENT_READ_FAILED"),
++    ngx_string("ERR_CLIENT_WRITE_FAILED"),
++    ngx_string("ERR_UPSTREAM_RESET"),
++    ngx_string("ERR_UPSTREAM_READ_FAILED"),
++    ngx_string("ERR_UPSTREAM_WRITE_FAILED"),
++    ngx_string("ERR_UPSTREAM_CONNECT_TIMEOUT"),
++    ngx_string("ERR_READ_TIMEOUT"),
++    ngx_string("ERR_WRITE_TIMEOUT"),
++    ngx_string("ERR_UPSTREAM_TIMEOUT"),
++    ngx_string("ERR_WORKER_SHUTDOWN"),
++    ngx_string("ERR_UPSTREAM_CONNECT_FAILED")
++};
++
++#endif
++
++
+ static ngx_stream_variable_t  ngx_stream_core_variables[] = {
+
+     { ngx_string("binary_remote_addr"), NULL,
+@@ -108,6 +134,12 @@ static ngx_stream_variable_t  ngx_stream_core_variables[] = {
+     { ngx_string("status"), NULL, ngx_stream_variable_status,
+       0, NGX_STREAM_VAR_NOCACHEABLE, 0 },
+
++#if (NGX_RESTY_EXT)
++    { ngx_string("session_error_code"), NULL,
++      ngx_stream_variable_session_error_code,
++      0, NGX_STREAM_VAR_NOCACHEABLE, 0 },
++#endif
++
+     { ngx_string("connection"), NULL,
+       ngx_stream_variable_connection, 0, 0, 0 },
+
+@@ -818,6 +850,44 @@ ngx_stream_variable_status(ngx_stream_session_t *s,
+ }
+
+
++#if (NGX_RESTY_EXT)
++
++static ngx_int_t
++ngx_stream_variable_session_error_code(ngx_stream_session_t *s,
++    ngx_stream_variable_value_t *v, uintptr_t data)
++{
++    ngx_str_t   *value;
++    ngx_uint_t   error_code;
++
++    error_code = s->session_error_code;
++
++    if (error_code == NGX_STREAM_SESSION_ERR_NONE) {
++        if (s->connection->read->error) {
++            error_code = NGX_STREAM_SESSION_ERR_CLIENT_READ_FAILED;
++
++        } else if (s->connection->error) {
++            error_code = NGX_STREAM_SESSION_ERR_CLIENT_WRITE_FAILED;
++        }
++    }
++
++    if (error_code >= NGX_STREAM_SESSION_ERR_MAX) {
++        error_code = NGX_STREAM_SESSION_ERR_NONE;
++    }
++
++    value = &ngx_stream_session_error_codes[error_code];
++
++    v->len = value->len;
++    v->valid = 1;
++    v->no_cacheable = 1;
++    v->not_found = 0;
++    v->data = value->data;
++
++    return NGX_OK;
++}
++
++#endif
++
++
+ static ngx_int_t
+ ngx_stream_variable_connection(ngx_stream_session_t *s,
+     ngx_stream_variable_value_t *v, uintptr_t data)

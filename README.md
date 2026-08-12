@@ -65,6 +65,8 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [Conditional access\_log](#conditional-access_log)
   - [ngx\_http\_modsecurity\_module (3rd-party module)](#ngx_http_modsecurity_module-3rd-party-module)
     - [modsecurity\_bypass](#modsecurity_bypass)
+  - [ngx\_stream](#ngx_stream)
+    - [Session error code](#session-error-code)
   - [ngx\_stream\_ssl\_module](#ngx_stream_ssl_module)
     - [Variables about SSL handshake timestamps and time spent](#variables-about-ssl-handshake-timestamps-and-time-spent-1)
   - [ngx\_stream\_upstream\_module](#ngx_stream_upstream_module)
@@ -1132,6 +1134,33 @@ This module connects NGINX/OpenResty with libModSecurity v3. This bundle applies
 * **Context:** *http, server, location*
 
 Defines conditions under which the request will be checked by modsecurity. If at least one value of the string parameters is not empty and is not equal to “0” then the request will be checked by modsecurity.
+
+[Back to TOC](#table-of-contents)
+
+## ngx_stream
+
+### Session error code
+
+The `$session_error_code` variable reports why a stream session ended. It can
+distinguish failures that occur after an upstream connection is established,
+when the standard `$status` variable may still be `200`.
+
+| Value | Description |
+| --- | --- |
+| **ERR_NONE** | No session error applies, for example when a session is rejected before proxying. |
+| **ERR_CONNECTION_CLOSED** | The session ended normally because one side closed the connection, or a UDP session completed successfully. |
+| **ERR_CLIENT_RESET** | The client reset the connection. |
+| **ERR_CLIENT_READ_FAILED** | Reading from the client failed for a reason other than a connection reset. |
+| **ERR_CLIENT_WRITE_FAILED** | Writing to the client failed. |
+| **ERR_UPSTREAM_RESET** | The upstream reset the connection. |
+| **ERR_UPSTREAM_READ_FAILED** | Reading from the upstream failed for a reason other than a connection reset. |
+| **ERR_UPSTREAM_WRITE_FAILED** | Writing to the upstream failed. |
+| **ERR_UPSTREAM_CONNECT_TIMEOUT** | Connecting to upstream servers timed out and no peer was left. |
+| **ERR_READ_TIMEOUT** | `proxy_timeout` expired while waiting for data. |
+| **ERR_WRITE_TIMEOUT** | `proxy_timeout` expired while data was still buffered toward a peer. |
+| **ERR_UPSTREAM_TIMEOUT** | A UDP upstream did not return the expected response. |
+| **ERR_WORKER_SHUTDOWN** | The session ended because the worker was shutting down. |
+| **ERR_UPSTREAM_CONNECT_FAILED** | No upstream server could be reached. |
 
 [Back to TOC](#table-of-contents)
 
