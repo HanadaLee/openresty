@@ -45,6 +45,7 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [Enhancement of upstream cache control](#enhancement-of-upstream-cache-control)
   - [ngx\_http\_upstream\_module](#ngx_http_upstream_module)
     - [Extra variables for upstream information](#extra-variables-for-upstream-information)
+    - [Upstream errors](#upstream-errors)
   - [ngx\_http\_realip\_module](#ngx_http_realip_module)
     - [Configuring real client IP with multiple request headers](#configuring-real-client-ip-with-multiple-request-headers)
   - [ngx\_http\_rewrite\_module](#ngx_http_rewrite_module)
@@ -65,8 +66,6 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [Conditional access\_log](#conditional-access_log)
   - [ngx\_http\_modsecurity\_module (3rd-party module)](#ngx_http_modsecurity_module-3rd-party-module)
     - [modsecurity\_bypass](#modsecurity_bypass)
-  - [ngx\_stream](#ngx_stream)
-    - [Session error code](#session-error-code)
   - [ngx\_stream\_ssl\_module](#ngx_stream_ssl_module)
     - [Variables about SSL handshake timestamps and time spent](#variables-about-ssl-handshake-timestamps-and-time-spent-1)
   - [ngx\_stream\_upstream\_module](#ngx_stream_upstream_module)
@@ -887,6 +886,50 @@ The module [ngx_http_extra_variables_module](https://git.hanada.info/hanada/ngx_
 | **$upstream_read_time**                   | Keeps time spent on reading response from the upstream server; the time is kept in seconds with millisecond resolution. Note that this timing starts only after receiving the upstream request header. Times of several responses are separated by commas and colons like addresses in the $upstream_addr variable. |
 | **$upstream_last_read_time**              | Keeps time spent on reading response from the latest upstream server; the time is kept in seconds with millisecond resolution. Note that this timing starts only after receiving the upstream request header. |
 
+### Upstream errors
+
+The `$upstream_error` variable reports the result of every upstream attempt.
+Its sequence is aligned with `$upstream_status`: commas separate attempts and
+colons separate upstream groups. A successful attempt is represented by
+`ERR_NONE`, so a failed retry followed by success can be reported as:
+
+```text
+$upstream_status: 502, 200
+$upstream_error: ERR_CONNECT_FAILED, ERR_NONE
+$upstream_last_error: ERR_NONE
+```
+
+The `$upstream_last_error` variable reports the last value in that sequence;
+it does not maintain a separate error state. Failures that occur before an
+upstream state is created are retained and included in the same sequence.
+
+| Value | Description |
+| --- | --- |
+| **ERR_NONE** | No upstream error was recorded. The attempt completed successfully. |
+| **ERR_UNDEFINED** | Missing upstream configuration. |
+| **ERR_INVALID_URL** | The upstream URL, port, scheme, or request URI is invalid. |
+| **ERR_NO_RESOLVER** | A hostname must be resolved at runtime, but no resolver is configured. |
+| **ERR_SSL_CERT_LOAD_FAILED** | Loading the client SSL certificate or private key for the upstream connection failed. |
+| **ERR_INVALID_PROTOCOL_PARAMETER** | A protocol parameter, method, URI, header, SSL name, or similar request value is invalid or too large. |
+| **ERR_RESOLVE_TIMEOUT** | Resolving the upstream hostname timed out. |
+| **ERR_RESOLVE_FAILED** | Resolving the upstream hostname failed for a reason other than a timeout. |
+| **ERR_NO_LIVE_PEER** | No live peer is available in the selected upstream group. |
+| **ERR_CONNECT_TIMEOUT** | Establishing a connection to the upstream server timed out. |
+| **ERR_CONNECT_FAILED** | Establishing a connection to the upstream server failed. |
+| **ERR_SSL_HANDSHAKE_TIMEOUT** | The SSL handshake with the upstream server timed out. |
+| **ERR_SSL_HANDSHAKE_FAILED** | The SSL handshake with the upstream server failed for a reason other than a timeout or certificate validation error. |
+| **ERR_SSL_INVALID_CERT** | The upstream SSL certificate failed verification or did not match the configured SSL name. |
+| **ERR_WRITE_TIMEOUT** | Writing the request to the upstream server timed out. |
+| **ERR_WRITE_FAILED** | Writing the request to the upstream server failed for a reason other than a timeout. |
+| **ERR_READ_TIMEOUT** | Reading the response from the upstream server timed out. |
+| **ERR_READ_FAILED** | Reading the response from the upstream server failed for a reason other than a timeout or connection reset. |
+| **ERR_CONNECTION_RESET** | The upstream server reset or aborted the connection. |
+| **ERR_PREMATURELY_CLOSED** | The upstream server closed the connection before sending a complete response. |
+| **ERR_HEADER_TOO_LARGE** | The upstream response header exceeded the available header buffer size. |
+| **ERR_INVALID_HEADER** | The upstream server returned a malformed or otherwise invalid response header. |
+| **ERR_INVALID_RESPONSE** | The upstream server returned a malformed or incompatible protocol response. |
+| **ERR_INTERNAL_ERROR** | An internal error occurred while creating or processing the upstream request. |
+
 [Back to TOC](#table-of-contents)
 
 ## ngx_http_realip_module
@@ -1134,33 +1177,6 @@ This module connects NGINX/OpenResty with libModSecurity v3. This bundle applies
 * **Context:** *http, server, location*
 
 Defines conditions under which the request will be checked by modsecurity. If at least one value of the string parameters is not empty and is not equal to “0” then the request will be checked by modsecurity.
-
-[Back to TOC](#table-of-contents)
-
-## ngx_stream
-
-### Session error code
-
-The `$session_error_code` variable reports why a stream session ended. It can
-distinguish failures that occur after an upstream connection is established,
-when the standard `$status` variable may still be `200`.
-
-| Value | Description |
-| --- | --- |
-| **ERR_NONE** | No session error applies, for example when a session is rejected before proxying. |
-| **ERR_CONNECTION_CLOSED** | The session ended normally because one side closed the connection, or a UDP session completed successfully. |
-| **ERR_CLIENT_RESET** | The client reset the connection. |
-| **ERR_CLIENT_READ_FAILED** | Reading from the client failed for a reason other than a connection reset. |
-| **ERR_CLIENT_WRITE_FAILED** | Writing to the client failed. |
-| **ERR_UPSTREAM_RESET** | The upstream reset the connection. |
-| **ERR_UPSTREAM_READ_FAILED** | Reading from the upstream failed for a reason other than a connection reset. |
-| **ERR_UPSTREAM_WRITE_FAILED** | Writing to the upstream failed. |
-| **ERR_UPSTREAM_CONNECT_TIMEOUT** | Connecting to upstream servers timed out and no peer was left. |
-| **ERR_READ_TIMEOUT** | `proxy_timeout` expired while waiting for data. |
-| **ERR_WRITE_TIMEOUT** | `proxy_timeout` expired while data was still buffered toward a peer. |
-| **ERR_UPSTREAM_TIMEOUT** | A UDP upstream did not return the expected response. |
-| **ERR_WORKER_SHUTDOWN** | The session ended because the worker was shutting down. |
-| **ERR_UPSTREAM_CONNECT_FAILED** | No upstream server could be reached. |
 
 [Back to TOC](#table-of-contents)
 
