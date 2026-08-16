@@ -120,7 +120,7 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_http_internal_redirect_module](https://git.hanada.info/hanada/ngx_http_internal_redirect_module)
 * [ngx_http_label_module](https://git.hanada.info/hanada/ngx_http_label_module)
 * [ngx_http_limit_traffic_rate_filter_module](https://github.com/nginx-modules/ngx_http_limit_traffic_ratefilter_module)
-* [ngx_http_log_var_set_module](https://git.hanada.info/hanada/ngx_http_log_var_set_module)
+* [ngx_http_log_set_module](https://git.hanada.info/hanada/ngx_http_log_set_module)
 * [ngx_http_loop_detect_module](https://git.hanada.info/hanada/ngx_http_loop_detect_module)
 * [ngx_http_lua_config_module](https://git.hanada.info/hanada/ngx_http_lua_config_module)
 * [ngx_http_proxy_filter_module](https://git.hanada.info/hanada/ngx_http_proxy_filter_module)
@@ -131,7 +131,7 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_http_proxy_auth_netstorage_module](https://git.hanada.info/hanada/ngx_http_proxy_auth_netstorage_module)
 * [ngx_http_proxy_auth_basic_module](https://git.hanada.info/hanada/ngx_http_proxy_auth_basic_module)
 * [ngx_http_proxy_auth_internal_module](https://git.hanada.info/hanada/ngx_http_proxy_auth_internal_module)
-* [ngx_http_proxy_var_set_module](https://git.hanada.info/hanada/ngx_http_proxy_var_set_module)
+* [ngx_http_proxy_set_module](https://git.hanada.info/hanada/ngx_http_proxy_set_module)
 * [ngx_http_qrcode_module](https://git.hanada.info/hanada/ngx_http_qrcode_module)
 * [ngx_http_replace_filter_module](https://github.com/OpenResty/replace-filter-nginx-module)
 * [ngx_http_proxy_request_cookies_control_module](https://git.hanada.info/hanada/ngx_http_proxy_request_cookies_control_module)
@@ -160,7 +160,7 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_stream_lua_upstream_module](https://git.hanada.info/hanada/ngx_stream_lua_upstream_module)
 * [ngx_stream_access_control_module](https://git.hanada.info/hanada/ngx_stream_access_control_module)
 * [ngx_stream_error_log_write_module](https://git.hanada.info/hanada/ngx_stream_error_log_write_module)
-* [ngx_stream_log_var_set_module](https://git.hanada.info/hanada/ngx_stream_log_var_set_module)
+* [ngx_stream_log_set_module](https://git.hanada.info/hanada/ngx_stream_log_set_module)
 * [ngx_stream_label_module](https://git.hanada.info/hanada/ngx_stream_label_module)
 * [ngx_stream_var_module](https://git.hanada.info/hanada/ngx_stream_var_module)
 * [ngx_stream_extra_variables_module](https://git.hanada.info/hanada/ngx_stream_extra_variables_module)
@@ -549,7 +549,7 @@ Modules currently integrated with this framework:
 * [ngx_http_proxy_auth_netstorage_module](https://git.hanada.info/hanada/ngx_http_proxy_auth_netstorage_module)
 * [ngx_http_proxy_auth_basic_module](https://git.hanada.info/hanada/ngx_http_proxy_auth_basic_module)
 * [ngx_http_proxy_headers_control_module](https://git.hanada.info/hanada/ngx_http_proxy_headers_control_module)
-* [ngx_http_proxy_var_set_module](https://git.hanada.info/hanada/ngx_http_proxy_var_set_module)
+* [ngx_http_proxy_set_module](https://git.hanada.info/hanada/ngx_http_proxy_set_module)
 
 > The Host and `:authority` handling described below is scheduled for inclusion in nginx 1.31.4. This bundle only backports the upstream implementation to its current nginx base.
 
