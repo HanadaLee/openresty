@@ -32,6 +32,7 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [slice\_bypass](#slice_bypass)
     - [slice\_verify\_etag](#slice_verify_etag)
     - [slice\_verify\_last\_modified](#slice_verify_last_modified)
+    - [$slice\_error](#slice_error)
   - [ngx\_http\_sub\_filter\_module](#ngx_http_sub_filter_module)
     - [Conditional sub\_filter](#conditional-sub_filter)
   - [ngx\_http\_proxy\_module and related modules](#ngx_http_proxy_module-and-related-modules)
@@ -507,6 +508,26 @@ Controls ETag consistency verification between slice responses. A mismatch termi
 * **Context:** *http, server, location*
 
 Controls Last-Modified consistency verification between slice responses. A mismatch terminates the request and records an error.
+
+### $slice_error
+
+The `$slice_error` variable reports the first error recorded by the slice
+filter. The main request and its slice subrequests share this state, so the
+value remains available in the main request's access log after a subrequest
+fails. It returns `ERR_NONE` when no slice filter error was recorded and is
+not found when slice processing was not entered.
+
+| Value | Description |
+| --- | --- |
+| **ERR_NONE** | No slice filter error was recorded. |
+| **ERR_UNEXPECTED_STATUS** | A slice subrequest returned a status other than `206`. |
+| **ERR_ETAG_MISMATCH** | The ETag changed between slice responses. |
+| **ERR_LAST_MODIFIED_MISMATCH** | The Last-Modified value changed between slice responses. |
+| **ERR_INVALID_RANGE** | The slice response contained an invalid `Content-Range` header. |
+| **ERR_NO_COMPLETE_LENGTH** | The `Content-Range` header did not include a complete response length. |
+| **ERR_UNEXPECTED_RANGE** | The returned range did not match the requested slice. |
+| **ERR_MISSING_RESPONSE** | The slice body completed without an active slice response. |
+| **ERR_SUBREQUEST_FAILED** | Creating the next slice subrequest failed. |
 
 [Back to TOC](#table-of-contents)
 
