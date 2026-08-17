@@ -947,7 +947,7 @@ upstream state is created are retained and included in the same sequence.
 | **ERR_CONNECTION_RESET** | The upstream server reset or aborted the connection. |
 | **ERR_PREMATURELY_CLOSED** | The upstream server closed the connection before sending a complete response. |
 | **ERR_HEADER_TOO_LARGE** | The upstream response header exceeded the available header buffer size. |
-| **ERR_INVALID_HEADER** | The upstream server returned a malformed or otherwise invalid response header. |
+| **ERR_INVALID_HEADER** | The upstream server returned a malformed or otherwise invalid response header, or a cached upstream response contains an invalid header. |
 | **ERR_INVALID_RESPONSE** | The upstream server returned a malformed or incompatible protocol response. |
 | **ERR_INTERNAL_ERROR** | An internal error occurred while creating or processing the upstream request. |
 
