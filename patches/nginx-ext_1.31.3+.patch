@@ -12790,7 +12790,7 @@ index 440683ea3..14d10e97c 100644
 +}
 +#endif
 diff --git a/src/http/ngx_http_upstream.c b/src/http/ngx_http_upstream.c
-index 3f18abb92..39e20092a 100644
+index 3f18abb92..2f572e037 100644
 --- a/src/http/ngx_http_upstream.c
 +++ b/src/http/ngx_http_upstream.c
 @@ -9,6 +9,10 @@
@@ -13683,13 +13683,16 @@ index 3f18abb92..39e20092a 100644
              && ((u->conf->cache_use_stale & ft_type) || r->cache->stale_error))
          {
              ngx_int_t  rc;
-@@ -4791,6 +5211,17 @@ ngx_http_upstream_finalize_request(ngx_http_request_t *r,
+@@ -4791,6 +5211,20 @@ ngx_http_upstream_finalize_request(ngx_http_request_t *r,
      ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
                     "finalize http upstream request: %i", rc);
  
 +#if (NGX_RESTY_EXT)
 +    if ((rc == NGX_HTTP_INTERNAL_SERVER_ERROR
-+         || (rc == NGX_ERROR && !r->filter_finalize))
++         || (rc == NGX_ERROR
++             && !r->filter_finalize
++             && !r->connection->error
++             && !r->connection->timedout))
 +        && u->pending_error == NGX_HTTP_UPSTREAM_ERR_NONE
 +        && (u->state == NULL
 +            || u->state->error == NGX_HTTP_UPSTREAM_ERR_NONE))
@@ -13701,7 +13704,7 @@ index 3f18abb92..39e20092a 100644
      if (u->cleanup == NULL) {
          /* the request was already finalized */
          ngx_http_finalize_request(r, NGX_DONE);
-@@ -4894,7 +5325,11 @@ ngx_http_upstream_finalize_request(ngx_http_request_t *r,
+@@ -4894,7 +5328,11 @@ ngx_http_upstream_finalize_request(ngx_http_request_t *r,
              if (rc == NGX_HTTP_BAD_GATEWAY || rc == NGX_HTTP_GATEWAY_TIME_OUT) {
                  time_t  valid;
  
@@ -13713,7 +13716,7 @@ index 3f18abb92..39e20092a 100644
  
                  if (valid) {
                      r->cache->valid_sec = ngx_time() + valid;
-@@ -5042,6 +5477,15 @@ ngx_http_upstream_process_content_length(ngx_http_request_t *r,
+@@ -5042,6 +5480,15 @@ ngx_http_upstream_process_content_length(ngx_http_request_t *r,
          return NGX_HTTP_UPSTREAM_INVALID_HEADER;
      }
  
@@ -13729,7 +13732,7 @@ index 3f18abb92..39e20092a 100644
      return NGX_OK;
  }
  
-@@ -5118,6 +5562,10 @@ ngx_http_upstream_process_cache_control(ngx_http_request_t *r,
+@@ -5118,6 +5565,10 @@ ngx_http_upstream_process_cache_control(ngx_http_request_t *r,
      {
      u_char     *p, *start, *last;
      ngx_int_t   n;
@@ -13740,7 +13743,7 @@ index 3f18abb92..39e20092a 100644
  
      if (u->conf->ignore_headers & NGX_HTTP_UPSTREAM_IGN_CACHE_CONTROL) {
          return NGX_OK;
-@@ -5130,10 +5578,50 @@ ngx_http_upstream_process_cache_control(ngx_http_request_t *r,
+@@ -5130,10 +5581,50 @@ ngx_http_upstream_process_cache_control(ngx_http_request_t *r,
      start = h->value.data;
      last = start + h->value.len;
  
@@ -13791,7 +13794,7 @@ index 3f18abb92..39e20092a 100644
      if (ngx_strlcasestrn(start, last, (u_char *) "no-cache", 8 - 1) != NULL
          || ngx_strlcasestrn(start, last, (u_char *) "no-store", 8 - 1) != NULL
          || ngx_strlcasestrn(start, last, (u_char *) "private", 7 - 1) != NULL)
-@@ -5141,14 +5629,33 @@ ngx_http_upstream_process_cache_control(ngx_http_request_t *r,
+@@ -5141,14 +5632,33 @@ ngx_http_upstream_process_cache_control(ngx_http_request_t *r,
          u->headers_in.no_cache = 1;
          return NGX_OK;
      }
@@ -13825,7 +13828,7 @@ index 3f18abb92..39e20092a 100644
  
      if (p) {
          n = ngx_http_upstream_process_delta_seconds(p + offset, last);
-@@ -5159,20 +5666,76 @@ ngx_http_upstream_process_cache_control(ngx_http_request_t *r,
+@@ -5159,20 +5669,76 @@ ngx_http_upstream_process_cache_control(ngx_http_request_t *r,
          }
  
          if (n == 0) {
@@ -13902,7 +13905,7 @@ index 3f18abb92..39e20092a 100644
      if (p) {
          n = ngx_http_upstream_process_delta_seconds(p + 23, last);
  
-@@ -5184,9 +5747,32 @@ extensions:
+@@ -5184,9 +5750,32 @@ extensions:
          r->cache->updating_sec = n;
          r->cache->error_sec = n;
      }
@@ -13935,7 +13938,7 @@ index 3f18abb92..39e20092a 100644
      if (p) {
          n = ngx_http_upstream_process_delta_seconds(p + 15, last);
  
-@@ -5197,6 +5783,7 @@ extensions:
+@@ -5197,6 +5786,7 @@ extensions:
  
          r->cache->error_sec = n;
      }
@@ -13943,7 +13946,7 @@ index 3f18abb92..39e20092a 100644
      }
  #endif
  
-@@ -5292,6 +5879,58 @@ ngx_http_upstream_process_expires(ngx_http_request_t *r, ngx_table_elt_t *h,
+@@ -5292,6 +5882,58 @@ ngx_http_upstream_process_expires(ngx_http_request_t *r, ngx_table_elt_t *h,
  }
  
  
@@ -14002,7 +14005,7 @@ index 3f18abb92..39e20092a 100644
  static ngx_int_t
  ngx_http_upstream_process_accel_expires(ngx_http_request_t *r,
      ngx_table_elt_t *h, ngx_uint_t offset)
-@@ -5826,9 +6465,55 @@ static ngx_int_t
+@@ -5826,9 +6468,55 @@ static ngx_int_t
  ngx_http_upstream_rewrite_set_cookie(ngx_http_request_t *r, ngx_table_elt_t *h,
      ngx_uint_t offset)
  {
@@ -14058,7 +14061,7 @@ index 3f18abb92..39e20092a 100644
      ho = ngx_list_push(&r->headers_out.headers);
      if (ho == NULL) {
          return NGX_ERROR;
-@@ -6073,6 +6758,207 @@ ngx_http_upstream_status_variable(ngx_http_request_t *r,
+@@ -6073,6 +6761,207 @@ ngx_http_upstream_status_variable(ngx_http_request_t *r,
  }
  
  
@@ -14266,7 +14269,7 @@ index 3f18abb92..39e20092a 100644
  static ngx_int_t
  ngx_http_upstream_response_time_variable(ngx_http_request_t *r,
      ngx_http_variable_value_t *v, uintptr_t data)
-@@ -6364,6 +7250,33 @@ ngx_http_upstream_cache_etag(ngx_http_request_t *r,
+@@ -6364,6 +7253,33 @@ ngx_http_upstream_cache_etag(ngx_http_request_t *r,
  #endif
  
  
