@@ -18,7 +18,7 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [auto\_redirect](#auto_redirect)
     - [Support for https\_allow\_http in listen directive](#support-for-https_allow_http-in-listen-directive)
     - [Enhancement of unique request id](#enhancement-of-unique-request-id)
-    - [Optimization of default error page](#optimization-of-default-error-page)
+    - [Configurable default error pages](#configurable-default-error-pages)
     - [Support for ignoring invalid Range header](#support-for-ignoring-invalid-range-header)
     - [Conditional error\_page](#conditional-error_page)
     - [More directives for not modified checking](#more-directives-for-not-modified-checking)
@@ -280,25 +280,37 @@ Specify the format of the request ID.
 
 Specify the header name to be inherited by the request ID. If no header is specified, the request id will always be regenerated.
 
-### Optimization of default error page
+### Configurable default error pages
 
-Optimize the information displayed on the default error page to facilitate the collection of error feedback from clients.
+Configure the representation and diagnostic fields of nginx's built-in error responses.
 
-* **Syntax:** *error_page_server_info on | off;*
+* **Syntax:** *error_page_format default | json | xml;*
 
-* **Default:** *error_page_server_info on;*
-
-* **Context:** *http, server, location*
-
-Show up the following information in a default 4xx/5xx error page: The date, request client ip, the request id, and the hostname serving the request are included.
-
-* **Syntax:** *error_page_client_ip $variable;*
-
-* **Default:** *error_page_client_ip $remote_addr;*
+* **Default:** *error_page_format default;*
 
 * **Context:** *http, server, location*
 
-Specify the value of the ip item to be displayed on the default 4xx/5xx error page. Parameter value can contain variables. The value will be displayed on the default 4xx/5xx error page only when the error_page_server_info directive is enabled.
+Select the output format for built-in error pages. `default` uses the HTML response, while `json` and `xml` use structured responses with the `application/json` and `application/xml` content types. Structured responses always contain the status code, error reason, and error message.
+
+* **Syntax:** *error_page_field name $variable;*
+
+* **Default:** *-*
+
+* **Context:** *http, server, location*
+
+Add a field backed by an nginx variable to built-in 4xx/5xx error responses. HTML responses display configured fields in a table; JSON and XML responses add them to the structured body. Field values are resolved once per response and escaped for the selected format. A missing or empty variable is rendered as `-`.
+
+Multiple `error_page_field` directives preserve declaration order. The complete field list is inherited from the previous configuration level only when the current level defines no fields. Field names must start with a letter or underscore; subsequent characters may also contain digits, hyphens, and periods.
+
+Configure the required diagnostic fields explicitly:
+
+```nginx
+error_page_format json;
+error_page_field date $time_iso8601;
+error_page_field ip $remote_addr;
+error_page_field server $hostname;
+error_page_field id $request_id;
+```
 
 ### Support for ignoring invalid Range header
 
