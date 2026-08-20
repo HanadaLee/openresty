@@ -302,6 +302,8 @@ Add a field backed by an nginx variable to built-in 4xx/5xx error responses. HTM
 
 Multiple `error_page_field` directives preserve declaration order. The complete field list is inherited from the previous configuration level only when the current level defines no fields. Field names must start with a letter or underscore; subsequent characters may also contain digits, hyphens, and periods.
 
+`status`, `error` and `message` are always included and cannot be overridden by `error_page_field`.
+
 Configure the required diagnostic fields explicitly:
 
 ```nginx
