@@ -11959,7 +11959,7 @@ index 4f2fbd16e..826a26bc0 100644
  
  #endif /* _NGX_HTTP_SCRIPT_H_INCLUDED_ */
 diff --git a/src/http/ngx_http_special_response.c b/src/http/ngx_http_special_response.c
-index 440683ea3..933d907fa 100644
+index 440683ea3..1169adb79 100644
 --- a/src/http/ngx_http_special_response.c
 +++ b/src/http/ngx_http_special_response.c
 @@ -10,6 +10,137 @@
@@ -12700,7 +12700,7 @@ index 440683ea3..933d907fa 100644
  ;
  
  
-@@ -420,6 +831,275 @@ static ngx_str_t ngx_http_error_pages[] = {
+@@ -420,6 +831,274 @@ static ngx_str_t ngx_http_error_pages[] = {
  };
  
  
@@ -12835,20 +12835,20 @@ index 440683ea3..933d907fa 100644
 +    }
 +
 +    if (clcf->error_page_format == NGX_HTTP_ERROR_PAGE_FORMAT_JSON) {
-+        size = sizeof("{\"status\": ") - 1
++        size = sizeof("{\"status\":") - 1
 +               + status_len
-+               + sizeof(", \"error\": \"") - 1
++               + sizeof(",\"error\":\"") - 1
 +               + error.len + ngx_escape_json(NULL, error.data, error.len)
-+               + sizeof("\", \"message\": \"") - 1
++               + sizeof("\",\"message\":\"") - 1
 +               + message.len + ngx_escape_json(NULL, message.data, message.len)
 +               + sizeof("\"") - 1;
 +
 +        for (i = 0; i < nfields; i++) {
-+            size += sizeof(", \"") - 1
++            size += sizeof(",\"") - 1
 +                    + fields[i].name.len
 +                    + ngx_escape_json(NULL, fields[i].name.data,
 +                                      fields[i].name.len)
-+                    + sizeof("\": \"") - 1
++                    + sizeof("\":\"") - 1
 +                    + values[i].len
 +                    + ngx_escape_json(NULL, values[i].data, values[i].len)
 +                    + sizeof("\"") - 1;
@@ -12858,16 +12858,16 @@ index 440683ea3..933d907fa 100644
 +
 +    } else {
 +        size = sizeof("<?xml version=\"1.0\" encoding=\"UTF-8\"?>" CRLF
-+                      "<error>" CRLF "  <status>") - 1
++                      "<Error><Status>") - 1
 +               + status_len
-+               + sizeof("</status>" CRLF "  <error>") - 1
++               + sizeof("</Status><Error>") - 1
 +               + error.len + ngx_escape_html(NULL, error.data, error.len)
-+               + sizeof("</error>" CRLF "  <message>") - 1
++               + sizeof("</Error><Message>") - 1
 +               + message.len + ngx_escape_html(NULL, message.data, message.len)
-+               + sizeof("</message>") - 1;
++               + sizeof("</Message>") - 1;
 +
 +        for (i = 0; i < nfields; i++) {
-+            size += sizeof(CRLF "  <") - 1
++            size += sizeof("<") - 1
 +                    + fields[i].name.len
 +                    + sizeof(">") - 1
 +                    + values[i].len
@@ -12877,7 +12877,7 @@ index 440683ea3..933d907fa 100644
 +                    + sizeof(">") - 1;
 +        }
 +
-+        size += sizeof(CRLF "</error>" CRLF) - 1;
++        size += sizeof("</Error>") - 1;
 +    }
 +
 +    b = ngx_create_temp_buf(r->pool, size);
@@ -12886,21 +12886,21 @@ index 440683ea3..933d907fa 100644
 +    }
 +
 +    if (clcf->error_page_format == NGX_HTTP_ERROR_PAGE_FORMAT_JSON) {
-+        p = ngx_cpymem(b->last, "{\"status\": ",
-+                       sizeof("{\"status\": ") - 1);
++        p = ngx_cpymem(b->last, "{\"status\":",
++                       sizeof("{\"status\":") - 1);
 +        p = ngx_cpymem(p, status, status_len);
-+        p = ngx_cpymem(p, ", \"error\": \"", sizeof(", \"error\": \"") - 1);
++        p = ngx_cpymem(p, ",\"error\":\"", sizeof(",\"error\":\"") - 1);
 +        p = (u_char *) ngx_escape_json(p, error.data, error.len);
-+        p = ngx_cpymem(p, "\", \"message\": \"",
-+                       sizeof("\", \"message\": \"") - 1);
++        p = ngx_cpymem(p, "\",\"message\":\"",
++                       sizeof("\",\"message\":\"") - 1);
 +        p = (u_char *) ngx_escape_json(p, message.data, message.len);
 +        *p++ = '"';
 +
 +        for (i = 0; i < nfields; i++) {
-+            p = ngx_cpymem(p, ", \"", sizeof(", \"") - 1);
++            p = ngx_cpymem(p, ",\"", sizeof(",\"") - 1);
 +            p = (u_char *) ngx_escape_json(p, fields[i].name.data,
 +                                           fields[i].name.len);
-+            p = ngx_cpymem(p, "\": \"", sizeof("\": \"") - 1);
++            p = ngx_cpymem(p, "\":\"", sizeof("\":\"") - 1);
 +            p = (u_char *) ngx_escape_json(p, values[i].data, values[i].len);
 +            *p++ = '"';
 +        }
@@ -12913,20 +12913,20 @@ index 440683ea3..933d907fa 100644
 +    } else {
 +        p = ngx_cpymem(b->last,
 +                       "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" CRLF
-+                       "<error>" CRLF "  <status>",
++                       "<Error><Status>",
 +                       sizeof("<?xml version=\"1.0\" encoding=\"UTF-8\"?>" CRLF
-+                              "<error>" CRLF "  <status>") - 1);
++                              "<Error><Status>") - 1);
 +        p = ngx_cpymem(p, status, status_len);
-+        p = ngx_cpymem(p, "</status>" CRLF "  <error>",
-+                       sizeof("</status>" CRLF "  <error>") - 1);
++        p = ngx_cpymem(p, "</Status><Error>",
++                       sizeof("</Status><Error>") - 1);
 +        p = (u_char *) ngx_escape_html(p, error.data, error.len);
-+        p = ngx_cpymem(p, "</error>" CRLF "  <message>",
-+                       sizeof("</error>" CRLF "  <message>") - 1);
++        p = ngx_cpymem(p, "</Error><Message>",
++                       sizeof("</Error><Message>") - 1);
 +        p = (u_char *) ngx_escape_html(p, message.data, message.len);
-+        p = ngx_cpymem(p, "</message>", sizeof("</message>") - 1);
++        p = ngx_cpymem(p, "</Message>", sizeof("</Message>") - 1);
 +
 +        for (i = 0; i < nfields; i++) {
-+            p = ngx_cpymem(p, CRLF "  <", sizeof(CRLF "  <") - 1);
++            *p++ = '<';
 +            p = ngx_cpymem(p, fields[i].name.data, fields[i].name.len);
 +            *p++ = '>';
 +            p = (u_char *) ngx_escape_html(p, values[i].data, values[i].len);
@@ -12935,8 +12935,7 @@ index 440683ea3..933d907fa 100644
 +            *p++ = '>';
 +        }
 +
-+        p = ngx_cpymem(p, CRLF "</error>" CRLF,
-+                       sizeof(CRLF "</error>" CRLF) - 1);
++        p = ngx_cpymem(p, "</Error>", sizeof("</Error>") - 1);
 +
 +        r->headers_out.content_type_len = sizeof("application/xml") - 1;
 +        ngx_str_set(&r->headers_out.content_type, "application/xml");
@@ -12976,7 +12975,7 @@ index 440683ea3..933d907fa 100644
  ngx_int_t
  ngx_http_special_response_handler(ngx_http_request_t *r, ngx_int_t error)
  {
-@@ -471,6 +1151,15 @@ ngx_http_special_response_handler(ngx_http_request_t *r, ngx_int_t error)
+@@ -471,6 +1150,15 @@ ngx_http_special_response_handler(ngx_http_request_t *r, ngx_int_t error)
  
          for (i = 0; i < clcf->error_pages->nelts; i++) {
              if (err_page[i].status == error) {
@@ -12992,7 +12991,7 @@ index 440683ea3..933d907fa 100644
                  return ngx_http_send_error_page(r, &err_page[i]);
              }
          }
-@@ -686,7 +1375,23 @@ ngx_http_send_special_response(ngx_http_request_t *r,
+@@ -686,7 +1374,23 @@ ngx_http_send_special_response(ngx_http_request_t *r,
      ngx_int_t     rc;
      ngx_buf_t    *b;
      ngx_uint_t    msie_padding;
@@ -13016,7 +13015,7 @@ index 440683ea3..933d907fa 100644
  
      if (clcf->server_tokens == NGX_HTTP_SERVER_TOKENS_ON) {
          len = sizeof(ngx_http_error_full_tail) - 1;
-@@ -701,10 +1406,37 @@ ngx_http_send_special_response(ngx_http_request_t *r,
+@@ -701,10 +1405,37 @@ ngx_http_send_special_response(ngx_http_request_t *r,
          tail = ngx_http_error_tail;
      }
  
@@ -13054,7 +13053,7 @@ index 440683ea3..933d907fa 100644
          if (clcf->msie_padding
              && (r->headers_in.msie || r->headers_in.chrome)
              && r->http_version >= NGX_HTTP_VERSION_10
-@@ -742,6 +1474,37 @@ ngx_http_send_special_response(ngx_http_request_t *r,
+@@ -742,6 +1473,37 @@ ngx_http_send_special_response(ngx_http_request_t *r,
          return ngx_http_send_special(r, NGX_HTTP_LAST);
      }
  
@@ -13092,7 +13091,7 @@ index 440683ea3..933d907fa 100644
      b = ngx_calloc_buf(r->pool);
      if (b == NULL) {
          return NGX_ERROR;
-@@ -751,8 +1514,20 @@ ngx_http_send_special_response(ngx_http_request_t *r,
+@@ -751,8 +1513,20 @@ ngx_http_send_special_response(ngx_http_request_t *r,
      b->pos = ngx_http_error_pages[err].data;
      b->last = ngx_http_error_pages[err].data + ngx_http_error_pages[err].len;
  
@@ -13113,7 +13112,7 @@ index 440683ea3..933d907fa 100644
  
      b = ngx_calloc_buf(r->pool);
      if (b == NULL) {
-@@ -764,8 +1539,13 @@ ngx_http_send_special_response(ngx_http_request_t *r,
+@@ -764,8 +1538,13 @@ ngx_http_send_special_response(ngx_http_request_t *r,
      b->pos = tail;
      b->last = tail + len;
  
@@ -13127,7 +13126,7 @@ index 440683ea3..933d907fa 100644
  
      if (msie_padding) {
          b = ngx_calloc_buf(r->pool);
-@@ -777,9 +1557,16 @@ ngx_http_send_special_response(ngx_http_request_t *r,
+@@ -777,9 +1556,16 @@ ngx_http_send_special_response(ngx_http_request_t *r,
          b->pos = ngx_http_msie_padding;
          b->last = ngx_http_msie_padding + sizeof(ngx_http_msie_padding) - 1;
  
@@ -13144,7 +13143,7 @@ index 440683ea3..933d907fa 100644
      }
  
      if (r == r->main) {
-@@ -863,3 +1650,100 @@ ngx_http_send_refresh(ngx_http_request_t *r)
+@@ -863,3 +1649,100 @@ ngx_http_send_refresh(ngx_http_request_t *r)
  
      return ngx_http_output_filter(r, &out);
  }
