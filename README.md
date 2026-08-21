@@ -117,7 +117,6 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_http_delay_module](https://git.hanada.info/hanada/ngx_http_delay_module)
 * [ngx_http_error_log_write_module](https://git.hanada.info/hanada/ngx_http_error_log_write_module)
 * [ngx_http_extra_variables_module](https://git.hanada.info/hanada/ngx_http_extra_variables_module)
-* [ngx_http_flv_live_module](https://github.com/winshining/nginx-http-flv-module)
 * [ngx_http_internal_redirect_module](https://git.hanada.info/hanada/ngx_http_internal_redirect_module)
 * [ngx_http_label_module](https://git.hanada.info/hanada/ngx_http_label_module)
 * [ngx_http_limit_traffic_rate_filter_module](https://github.com/nginx-modules/ngx_http_limit_traffic_ratefilter_module)

@@ -11,7 +11,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.31.3.1"
-ARG RESTY_RELEASE="359"
+ARG RESTY_RELEASE="360"
 # ARG RESTY_SRC_URL_BASE="https://openresty.org/download"
 ARG RESTY_SRC_URL_BASE="https://rmp.hanada.info/directlink/raw-repo/openresty/src"
 ARG RESTY_LUAROCKS_VERSION="3.13.0"
@@ -101,7 +101,6 @@ ARG RESTY_CONFIG_OPTIONS="\
     --add-module=/build/modules/ngx_http_delay_module \
     --add-module=/build/modules/ngx_http_error_log_write_module \
     --add-module=/build/modules/ngx_http_extra_variables_module \
-    --add-module=/build/modules/ngx_http_flv_live_module \
     --add-module=/build/modules/ngx_http_internal_redirect_module \
     --add-module=/build/modules/ngx_http_label_module \
     --add-module=/build/modules/ngx_http_limit_traffic_rate_filter_module \
@@ -292,7 +291,6 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=1 --recurse-submodules https://${RESTY_GIT_REPO}/hanada/ngx_http_brotli_module.git ngx_http_brotli_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_ssl_fingerprint_module.git ngx_ssl_fingerprint_module \
     && git clone --depth=1 --recurse-submodules https://${RESTY_GIT_MIRROR}/weserv/images.git ngx_http_weserv_module \
-    && git clone --depth=1 https://${RESTY_GIT_MIRROR}/winshining/nginx-http-flv-module.git ngx_http_flv_live_module \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_cache_purge.git ngx_http_cache_purge_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_limit_traffic_rate_filter_module.git ngx_http_limit_traffic_rate_filter_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_access_control_module.git ngx_http_access_control_module \
@@ -452,9 +450,6 @@ RUN groupmod -n nginx www-data \
     && cd /build/modules/ngx_http_modsecurity_module \
     && echo 'patching ngx_http_modsecurity_module' \
     && patch -p1 < /build/patches/openresty/patches/ngx_http_modsecurity_module-ext.patch \
-    && cd /build/modules/ngx_http_flv_live_module \
-    && echo 'patching ngx_http_flv_live_module' \
-    && patch -p1 < /build/patches/openresty/patches/ngx_http_flv_live_module-server_metadata.patch \
     && cd /build/modules/ngx_http_loop_detect_module \
     && echo 'patching ngx_http_loop_detect_module' \
     && patch -p1 < /build/patches/openresty/patches/ngx_http_loop_detect_module-cdn_id.patch \
