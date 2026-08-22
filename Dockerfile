@@ -11,7 +11,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.31.3.1"
-ARG RESTY_RELEASE="360"
+ARG RESTY_RELEASE="361"
 # ARG RESTY_SRC_URL_BASE="https://openresty.org/download"
 ARG RESTY_SRC_URL_BASE="https://repo.hanada.info/openresty/src"
 ARG RESTY_LUAROCKS_VERSION="3.13.0"
@@ -130,7 +130,6 @@ ARG RESTY_CONFIG_OPTIONS="\
     --add-module=/build/modules/ngx_http_undeflate_filter_module \
     --add-module=/build/modules/ngx_http_unzstd_filter_module \
     --add-module=/build/modules/ngx_http_upstream_log_module \
-    --add-module=/build/modules/ngx_http_var_module \
     --add-module=/build/modules/ngx_http_modsecurity_module \
     --add-module=/build/modules/ngx_http_weserv_module \
     --add-module=/build/modules/ngx_http_zstd_module \
@@ -146,7 +145,7 @@ ARG RESTY_CONFIG_OPTIONS="\
     --add-module=/build/modules/ngx_stream_log_set_module \
     --add-module=/build/modules/ngx_stream_lua_config_module \
     --add-module=/build/modules/ngx_stream_lua_upstream_module \
-    --add-module=/build/modules/ngx_stream_var_module \
+    --add-module=/build/modules/ngx_var_module \
 "
 ARG RESTY_LUAJIT_OPTIONS="--with-luajit-xcflags='-DLUAJIT_NUMMODE=2 -DLUAJIT_ENABLE_LUA52COMPAT'"
 ARG RESTY_CONFIG_DEPS="--with-pcre --with-pcre-jit --with-libatomic \
@@ -326,7 +325,7 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_compression_normalize_module.git ngx_http_compression_normalize_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_compression_vary_filter_module.git ngx_http_compression_vary_filter_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_rewrite_status_filter_module.git ngx_http_rewrite_status_filter_module \
-    && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_var_module.git ngx_http_var_module \
+    && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_var_module.git ngx_var_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_security_headers_filter_module.git ngx_http_security_headers_filter_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_cors_module.git ngx_http_cors_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_log_set_module.git ngx_http_log_set_module \
@@ -343,7 +342,6 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_stream_error_log_write_module.git ngx_stream_error_log_write_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_stream_log_set_module.git ngx_stream_log_set_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_stream_label_module.git ngx_stream_label_module \
-    && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_stream_var_module.git ngx_stream_var_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_stream_extra_variables_module.git ngx_stream_extra_variables_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_lua_upstream_state_module.git ngx_lua_upstream_state_module \
     && git clone --depth=1 --recurse-submodules https://${RESTY_GIT_MIRROR}/Kong/lua-resty-lmdb.git ngx_lua_resty_lmdb_module \
