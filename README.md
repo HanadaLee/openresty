@@ -41,6 +41,7 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [gRPC upstream URI](#grpc-upstream-uri)
     - [gRPC upstream method](#grpc-upstream-method)
     - [gRPC upstream authority](#grpc-upstream-authority)
+    - [Conditional upstream directives](#conditional-upstream-directives)
     - [Support for inheritance in "proxy\_set\_header" and its friends](#support-for-inheritance-in-proxy_set_header-and-its-friends)
     - [Enhancement of upstream cookie handler](#enhancement-of-upstream-cookie-handler)
     - [Enhancement of upstream cache control](#enhancement-of-upstream-cache-control)
@@ -629,7 +630,7 @@ A request for `/api/Method?debug=1` is sent upstream with `:path` set to `/packa
 
 * **Default:** *the client request method*
 
-* **Context:** *http, server, location*
+* **Context:** *http, server, location, when*
 
 Specifies the method used for the gRPC upstream request. The value can contain variables. The evaluated value is used for both the gRPC `:method` pseudo-header and the upstream request method exposed to proxy filters. `grpc_set_header` cannot override `:method`.
 
@@ -652,6 +653,60 @@ If `grpc_set_header Host` is not configured, or if its evaluated value is empty,
 ```nginx
 grpc_set_header Host api.example.com;
 ```
+
+### Conditional upstream directives
+
+When `ngx_condition_module` is compiled, the built-in upstream directives listed below can also be declared in `when` blocks at the `http`, `server`, and `location` levels. Their native syntax, defaults, and inheritance behavior are unchanged.
+
+For directives that select one effective value, declarations are evaluated in configuration order: the first unconditional declaration or declaration with a matching condition wins. A conditional declaration does not take precedence merely because it has a condition, so put conditional cases before an unconditional fallback.
+
+```nginx
+condition long_read str_in $http_x_profile slow debug;
+
+when long_read {
+    proxy_read_timeout 120s;
+}
+
+proxy_read_timeout 30s;
+```
+
+The supported directives are listed explicitly below.
+
+| proxy | fastcgi | scgi | uwsgi | grpc | memcached | tunnel |
+| --- | --- | --- | --- | --- | --- | --- |
+| `proxy_buffering` | `fastcgi_buffering` | `scgi_buffering` | `uwsgi_buffering` | — | — | — |
+| `proxy_cache_background_update` | `fastcgi_cache_background_update` | `scgi_cache_background_update` | `uwsgi_cache_background_update` | — | — | — |
+| `proxy_cache_hide_cookies` | `fastcgi_cache_hide_cookies` | `scgi_cache_hide_cookies` | `uwsgi_cache_hide_cookies` | — | — | — |
+| `proxy_cache_lock` | `fastcgi_cache_lock` | `scgi_cache_lock` | `uwsgi_cache_lock` | — | — | — |
+| `proxy_cache_lock_age` | `fastcgi_cache_lock_age` | `scgi_cache_lock_age` | `uwsgi_cache_lock_age` | — | — | — |
+| `proxy_cache_lock_timeout` | `fastcgi_cache_lock_timeout` | `scgi_cache_lock_timeout` | `uwsgi_cache_lock_timeout` | — | — | — |
+| `proxy_cache_max_length` | `fastcgi_cache_max_length` | `scgi_cache_max_length` | `uwsgi_cache_max_length` | — | — | — |
+| `proxy_cache_max_range_offset` | `fastcgi_cache_max_range_offset` | `scgi_cache_max_range_offset` | `uwsgi_cache_max_range_offset` | — | — | — |
+| `proxy_cache_methods` | `fastcgi_cache_methods` | `scgi_cache_methods` | `uwsgi_cache_methods` | — | — | — |
+| `proxy_cache_min_length` | `fastcgi_cache_min_length` | `scgi_cache_min_length` | `uwsgi_cache_min_length` | — | — | — |
+| `proxy_cache_min_uses` | `fastcgi_cache_min_uses` | `scgi_cache_min_uses` | `uwsgi_cache_min_uses` | — | — | — |
+| `proxy_cache_use_stale` | `fastcgi_cache_use_stale` | `scgi_cache_use_stale` | `uwsgi_cache_use_stale` | — | — | — |
+| `proxy_cache_vary` | `fastcgi_cache_vary` | `scgi_cache_vary` | `uwsgi_cache_vary` | — | — | — |
+| `proxy_connect_timeout` | `fastcgi_connect_timeout` | `scgi_connect_timeout` | `uwsgi_connect_timeout` | `grpc_connect_timeout` | `memcached_connect_timeout` | `tunnel_connect_timeout` |
+| `proxy_force_ranges` | `fastcgi_force_ranges` | `scgi_force_ranges` | `uwsgi_force_ranges` | — | — | — |
+| `proxy_hide_cookie` | `fastcgi_hide_cookie` | `scgi_hide_cookie` | `uwsgi_hide_cookie` | — | — | — |
+| `proxy_ignore_cache_control` | `fastcgi_ignore_cache_control` | `scgi_ignore_cache_control` | `uwsgi_ignore_cache_control` | — | — | — |
+| `proxy_ignore_client_abort` | `fastcgi_ignore_client_abort` | `scgi_ignore_client_abort` | `uwsgi_ignore_client_abort` | — | — | — |
+| `proxy_ignore_headers` | `fastcgi_ignore_headers` | `scgi_ignore_headers` | `uwsgi_ignore_headers` | `grpc_ignore_headers` | — | — |
+| `proxy_limit_rate` | `fastcgi_limit_rate` | `scgi_limit_rate` | `uwsgi_limit_rate` | — | — | — |
+| `proxy_next_upstream` | `fastcgi_next_upstream` | `scgi_next_upstream` | `uwsgi_next_upstream` | `grpc_next_upstream` | `memcached_next_upstream` | `tunnel_next_upstream` |
+| `proxy_next_upstream_timeout` | `fastcgi_next_upstream_timeout` | `scgi_next_upstream_timeout` | `uwsgi_next_upstream_timeout` | `grpc_next_upstream_timeout` | `memcached_next_upstream_timeout` | `tunnel_next_upstream_timeout` |
+| `proxy_next_upstream_tries` | `fastcgi_next_upstream_tries` | `scgi_next_upstream_tries` | `uwsgi_next_upstream_tries` | `grpc_next_upstream_tries` | `memcached_next_upstream_tries` | `tunnel_next_upstream_tries` |
+| `proxy_pass_request_body` | `fastcgi_pass_request_body` | `scgi_pass_request_body` | `uwsgi_pass_request_body` | — | — | — |
+| `proxy_pass_request_headers` | `fastcgi_pass_request_headers` | `scgi_pass_request_headers` | `uwsgi_pass_request_headers` | — | — | — |
+| `proxy_read_timeout` | `fastcgi_read_timeout` | `scgi_read_timeout` | `uwsgi_read_timeout` | `grpc_read_timeout` | `memcached_read_timeout` | `tunnel_read_timeout` |
+| `proxy_request_buffering` | `fastcgi_request_buffering` | `scgi_request_buffering` | `uwsgi_request_buffering` | — | — | — |
+| `proxy_send_timeout` | `fastcgi_send_timeout` | `scgi_send_timeout` | `uwsgi_send_timeout` | `grpc_send_timeout` | `memcached_send_timeout` | `tunnel_send_timeout` |
+| `proxy_http_version` | — | — | — | — | — | — |
+| `proxy_method` | — | — | — | `grpc_method` | — | — |
+| `proxy_redirect` | — | — | — | — | — | — |
+| `proxy_ssl_name` | — | — | `uwsgi_ssl_name` | `grpc_ssl_name` | — | — |
+| `proxy_ssl_server_name` | — | — | `uwsgi_ssl_server_name` | `grpc_ssl_server_name` | — | — |
 
 ### Support for inheritance in "proxy_set_header" and its friends
 
@@ -681,71 +736,13 @@ Allows the merge inheritance of fastcgi_param in receiving contexts.
 
 ### Enhancement of upstream cookie handler
 
-In addition to the original three directives(`proxy_cookie_domain`, `proxy_cookie_flags` and `proxy_cookie_path`), more processing directives are added to more efficiently rewrite the the "Set-Cookie" header of the upstream response.
-
-* **Syntax:** *proxy_cookie_value off;*
-*proxy_cookie_value cookie cookie_value replacement;*
-
-* **Default:** *proxy_cookie_value off;*
-
-* **Context:** *http, server, location*
-
-Sets a text that should be changed in the cookie value of the "Set-Cookie" header fields of a proxied server response. Suppose a proxied server returned the "Set-Cookie" header field and cookie name "sessionid" with a value "1234567890". The directive
-```nginx
-proxy_cookie_value sessionid 1234567890 abcdefghij;
-```
-will rewrite cookie value to "abcdefghij".
-
-The `cookie`, `cookie_value` and `replacement` strings can contain variables.
-```nginx
-proxy_cookie_value $http_set_cookie_name $http_match_cookie $http_new_cookie;
-```
-
-The `cookie` can also be specified using regular expressions.
-```nginx
-proxy_cookie_value ~session_.* 1234567890 abcdefghij;
-```
-
-The `cookie_value` can also be specified using regular expressions. In this case, `cookie_value` should either start from the "\~" symbol for a case-sensitive matching, or from the "\~*" symbols for case-insensitive matching. The regular expression can contain named and positional captures, and `replacement` can reference them:
-```nginx
-proxy_cookie_value sessionid ~(\d+) abcdefghij$1;
-```
-Please note that The regular expression of `cookie` can contain named and positional captures, but `replacement` cannot reference them.
-
-Several `proxy_cookie_value` directives can be specified on the same level. If several directives can be applied to the cookie, the first matching directive will be chosen.
-
-The off parameter cancels the effect of the `proxy_cookie_value` directives inherited from the previous configuration level.
-
-
-* **Syntax:** *proxy_cookie_max_age off;*  *proxy_cookie_max_age cookie cookie time;*
-
-* **Default:** *proxy_cookie_max_age off;*
-
-* **Context:** *http, server, location*
-
-Sets the maximum age of the cookie in the "Set-Cookie" header fields of a proxied server response.
-
-This directive allows controlling the expiration time of specific cookies by modifying their "Max-Age" or "Expires" attribute. if the "Max-Age" or "Expires" attribute is not set, "Max-Age" will be added to the cookie.
-
-The `cookie` parameter specifies the name of the cookie to be modified, and the `time` parameter defines the maximum age to be set. The time value can be specified in seconds, or with time units like `1h`, `30m`, etc.
-```nginx
-proxy_cookie_max_age SESSION 1h;
-```
-
-The `cookie` can also be specified using regular expressions.
-```nginx
-proxy_cookie_max_age ~SESSION_.* 1h;
-```
-
-Several `proxy_cookie_max_age` directives can be specified on the same level. If several directives can be applied to the cookie, the first matching directive will be chosen.
-
-The off parameter cancels the effect of the `proxy_cookie_max_age` directives inherited from the previous configuration level.
+Adds controls for hiding upstream cookies by name and suppressing cached `Set-Cookie` fields.
 
 * **Syntax:** *proxy_hide_cookie cookie;*
 
 * **Default:** *-*
 
-* **Context:** *http, server, location*
+* **Context:** *http, server, location, when*
 
 Sets "Set-Cookie" fields that will not be passed by cookie name.
 
@@ -757,11 +754,11 @@ See also the [proxy_hide_header](https://nginx.org/en/docs/http/ngx_http_proxy_m
 
 * **Default:** *proxy_cache_hide_cookies off;*
 
-* **Context:** *http, server, location*
+* **Context:** *http, server, location, when*
 
 Prevents Set-Cookie headers from being passed when the response is served from cache.
 
-> fastcgi_hide_cookies, scgi_hide_cookies and uwsgi_hide_cookies directives are also available.
+> fastcgi_cache_hide_cookies, scgi_cache_hide_cookies and uwsgi_cache_hide_cookies directives are also available.
 
 ### Enhancement of upstream cache control
 
@@ -779,7 +776,7 @@ Introduces some new cache-related directives to enhance control over upstream ca
 
 * **Default:** *-*
 
-* **Context:** *http, server, location*
+* **Context:** *http, server, location, when*
 
 Disables processing of certain fields of Cache-Control header in the response from upstream. The following directives can be ignored:
 
@@ -848,7 +845,7 @@ This directive has been changed to support configuring the cache time as a varia
 
 * **Default:** *proxy_cache_vary on;*
 
-* **Context:** *http, server, location*
+* **Context:** *http, server, location, when*
 
 Enables or disables `Vary` header handling for upstream cache.
 
@@ -872,7 +869,7 @@ Note that this directive only affects upstream cache, not the response headers s
 
 * **Default:** *proxy_cache_min_length 0;*
 
-* **Context:** *http, server, location*
+* **Context:** *http, server, location, when*
 
 Specifies the minimum response length that can be cached. Only the size of Content-Length header is checked. This directive will be ignored for chunked responses or responses with neither Content-Length header nor Transfer-Encoding header.
 
@@ -882,7 +879,7 @@ Specifies the minimum response length that can be cached. Only the size of Conte
 
 * **Default:** *proxy_cache_max_length 0;*
 
-* **Context:** *http, server, location*
+* **Context:** *http, server, location, when*
 
 Specifies the maximun response length that can be cached. Only the size of Content-Length header is checked. This directive will be ignored for chunked responses or responses with neither Content-Length header nor Transfer-Encoding header. The zero value disables maximum cache size limiting.
 
