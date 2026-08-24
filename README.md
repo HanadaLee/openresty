@@ -999,11 +999,13 @@ Extends the `if` directive of the original rewrite module. It has the following 
 Except for the original `if` condition operators, also supports:
 * `<`
 * `>`
+* `==` (numeric equality)
 * `!<` or `>=`
 * `!>` or `<=`
-* `^~` (start with) or `!^~` (not start with)
+* `^~` (starts with) or `!^~` (does not start with)
+* `~$` (ends with) or `!~$` (does not end with)
 
-The comparison symbol supports decimals and negative numbers. Non-numeric input will always result in a negative result.
+The numeric comparison operators support decimals and negative numbers. Non-numeric input always evaluates to false.
 
 ### "if" with multiple conditions
 

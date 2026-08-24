@@ -9722,7 +9722,7 @@ index f6731e780..cd79e0478 100644
      return NGX_CONF_OK;
  }
 diff --git a/src/http/modules/ngx_http_rewrite_module.c b/src/http/modules/ngx_http_rewrite_module.c
-index eefe4c8c8..c8ab8bf95 100644
+index eefe4c8c8..05fff8f74 100644
 --- a/src/http/modules/ngx_http_rewrite_module.c
 +++ b/src/http/modules/ngx_http_rewrite_module.c
 @@ -1,5 +1,6 @@
@@ -9993,7 +9993,31 @@ index eefe4c8c8..c8ab8bf95 100644
  
      len = value[cur].len;
      p = value[cur].data;
-@@ -777,11 +881,122 @@ ngx_http_rewrite_if_condition(ngx_conf_t *cf, ngx_http_rewrite_loc_conf_t *lcf)
+@@ -730,6 +834,23 @@ ngx_http_rewrite_if_condition(ngx_conf_t *cf, ngx_http_rewrite_loc_conf_t *lcf)
+             return NGX_CONF_OK;
+         }
+ 
++        if (len == 2 && p[0] == '=' && p[1] == '=') {
++
++            if (ngx_http_rewrite_value(cf, lcf, &value[last]) != NGX_CONF_OK) {
++                return NGX_CONF_ERROR;
++            }
++
++            code = ngx_http_script_start_code(cf->pool, &lcf->codes,
++                                              sizeof(uintptr_t));
++            if (code == NULL) {
++                return NGX_CONF_ERROR;
++            }
++
++            *code = ngx_http_script_number_equal_code;
++
++            return NGX_CONF_OK;
++        }
++
+         if (len == 2 && p[0] == '!' && p[1] == '=') {
+ 
+             if (ngx_http_rewrite_value(cf, lcf, &value[last]) != NGX_CONF_OK) {
+@@ -777,11 +898,121 @@ ngx_http_rewrite_if_condition(ngx_conf_t *cf, ngx_http_rewrite_loc_conf_t *lcf)
              if (p[0] == '!') {
                  regex->negative_test = 1;
              }
@@ -10079,7 +10103,13 @@ index eefe4c8c8..c8ab8bf95 100644
 +            return NGX_CONF_OK;
 +        }
 +
-+        if (len == 2 && p[0] == '^' && p[1] == '~') {
++        if ((len == 2
++             && ((p[0] == '^' && p[1] == '~')
++                 || (p[0] == '~' && p[1] == '$')))
++            || (len == 3 && p[0] == '!'
++                && ((p[1] == '^' && p[2] == '~')
++                    || (p[1] == '~' && p[2] == '$'))))
++        {
 +
 +            if (ngx_http_rewrite_value(cf, lcf, &value[last]) != NGX_CONF_OK) {
 +                return NGX_CONF_ERROR;
@@ -10092,31 +10122,24 @@ index eefe4c8c8..c8ab8bf95 100644
 +                return NGX_CONF_ERROR;
 +            }
 +
-+            *code = ngx_http_script_start_with_code;
-+            return NGX_CONF_OK;
-+        }
++            if (p[len - 2] == '^') {
++                *code = (p[0] == '!')
++                        ? ngx_http_script_not_starts_with_code
++                        : ngx_http_script_starts_with_code;
 +
-+        if (len == 3 && p[0] == '!' && p[1] == '^' && p[2] == '~') {
-+
-+            if (ngx_http_rewrite_value(cf, lcf, &value[last]) != NGX_CONF_OK) {
-+                return NGX_CONF_ERROR;
++            } else {
++                *code = (p[0] == '!')
++                        ? ngx_http_script_not_ends_with_code
++                        : ngx_http_script_ends_with_code;
 +            }
 +
-+            code = ngx_http_script_start_code(cf->pool, &lcf->codes,
-+                                              sizeof(uintptr_t));
-+
-+            if (code == NULL) {
-+                return NGX_CONF_ERROR;
-+            }
-+
-+            *code = ngx_http_script_not_start_with_code;
 +            return NGX_CONF_OK;
 +        }
 +
          ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
                             "unexpected \"%V\" in condition", &value[cur]);
          return NGX_CONF_ERROR;
-@@ -803,7 +1018,7 @@ ngx_http_rewrite_if_condition(ngx_conf_t *cf, ngx_http_rewrite_loc_conf_t *lcf)
+@@ -803,7 +1034,7 @@ ngx_http_rewrite_if_condition(ngx_conf_t *cf, ngx_http_rewrite_loc_conf_t *lcf)
          }
  
          fop = ngx_http_script_start_code(cf->pool, &lcf->codes,
@@ -10125,7 +10148,7 @@ index eefe4c8c8..c8ab8bf95 100644
          if (fop == NULL) {
              return NGX_CONF_ERROR;
          }
-@@ -864,6 +1079,709 @@ ngx_http_rewrite_if_condition(ngx_conf_t *cf, ngx_http_rewrite_loc_conf_t *lcf)
+@@ -864,6 +1095,712 @@ ngx_http_rewrite_if_condition(ngx_conf_t *cf, ngx_http_rewrite_loc_conf_t *lcf)
  }
  
  
@@ -10205,6 +10228,8 @@ index eefe4c8c8..c8ab8bf95 100644
 +        }
 +
 +        return (p[0] == '~' && p[1] == '*')
++               || (p[0] == '~' && p[1] == '$')
++               || (p[0] == '=' && p[1] == '=')
 +               || (p[0] == '>' && p[1] == '=')
 +               || (p[0] == '<' && p[1] == '=')
 +               || (p[0] == '^' && p[1] == '~');
@@ -10212,6 +10237,7 @@ index eefe4c8c8..c8ab8bf95 100644
 +    case 3:
 +        return p[0] == '!'
 +               && ((p[1] == '~' && p[2] == '*')
++                   || (p[1] == '~' && p[2] == '$')
 +                   || (p[1] == '^' && p[2] == '~')
 +                   || (p[1] == '-'
 +                       && (p[2] == 'f' || p[2] == 'd'
@@ -15824,7 +15850,7 @@ index df57a021d..0f40f4af7 100644
      ngx_uint_t                        err_status;
  
 diff --git a/src/http/ngx_http_script.c b/src/http/ngx_http_script.c
-index 4d0a67084..f4161683e 100644
+index 4d0a67084..a479555c8 100644
 --- a/src/http/ngx_http_script.c
 +++ b/src/http/ngx_http_script.c
 @@ -1,5 +1,6 @@
@@ -16151,7 +16177,7 @@ index 4d0a67084..f4161683e 100644
  }
  
  
-@@ -1992,3 +2240,425 @@ ngx_http_script_nop_code(ngx_http_script_engine_t *e)
+@@ -1992,3 +2240,544 @@ ngx_http_script_nop_code(ngx_http_script_engine_t *e)
  {
      e->ip += sizeof(uintptr_t);
  }
@@ -16352,6 +16378,45 @@ index 4d0a67084..f4161683e 100644
 +
 +
 +void
++ngx_http_script_number_equal_code(ngx_http_script_engine_t *e)
++{
++    ngx_http_variable_value_t  *val, *res;
++    ngx_int_t                   cmp;
++
++    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
++                   "http script number equal");
++
++    e->sp--;
++    val = e->sp;
++    res = e->sp - 1;
++
++    e->ip += sizeof(uintptr_t);
++
++    if (ngx_http_script_compare_number(res->data, res->len, val->data,
++                                       val->len, &cmp) != NGX_OK)
++    {
++        ngx_log_debug0(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
++                       "http script number equal: error "
++                       "in number comparison");
++        *res = ngx_http_variable_null_value;
++        return;
++    }
++
++    if (cmp == 0) {
++        ngx_log_debug0(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
++                       "http script number equal: true");
++        *res = ngx_http_variable_true_value;
++        return;
++    }
++
++    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
++                   "http script number equal: false");
++
++    *res = ngx_http_variable_null_value;
++}
++
++
++void
 +ngx_http_script_greater_than_code(ngx_http_script_engine_t *e)
 +{
 +    ngx_http_variable_value_t  *val, *res;
@@ -16508,12 +16573,12 @@ index 4d0a67084..f4161683e 100644
 +
 +
 +void
-+ngx_http_script_start_with_code(ngx_http_script_engine_t *e)
++ngx_http_script_starts_with_code(ngx_http_script_engine_t *e)
 +{
 +    ngx_http_variable_value_t  *val, *res;
 +
 +    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
-+                   "http script start with");
++                   "http script starts with");
 +
 +    e->sp--;
 +    val = e->sp;
@@ -16523,32 +16588,34 @@ index 4d0a67084..f4161683e 100644
 +
 +    if (res->len < val->len) {
 +        ngx_log_debug0(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
-+                       "http script start with: false");
++                       "http script starts with: false");
 +        *res = ngx_http_variable_null_value;
 +        return;
 +    }
 +
-+    if (ngx_strncmp(res->data, val->data, val->len) == 0) {
++    if (val->len == 0
++        || ngx_strncmp(res->data, val->data, val->len) == 0)
++    {
 +        ngx_log_debug0(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
-+                       "http script start with: true");
++                       "http script starts with: true");
 +        *res = ngx_http_variable_true_value;
 +        return;
 +    }
 +
 +    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
-+                   "http script start with: false");
++                   "http script starts with: false");
 +
 +    *res = ngx_http_variable_null_value;
 +}
 +
 +
 +void
-+ngx_http_script_not_start_with_code(ngx_http_script_engine_t *e)
++ngx_http_script_not_starts_with_code(ngx_http_script_engine_t *e)
 +{
 +    ngx_http_variable_value_t  *val, *res;
 +
 +    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
-+                   "http not script start with");
++                   "http script does not start with");
 +
 +    e->sp--;
 +    val = e->sp;
@@ -16558,27 +16625,105 @@ index 4d0a67084..f4161683e 100644
 +
 +    if (res->len < val->len) {
 +        ngx_log_debug0(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
-+                       "http not script start with: true");
++                       "http script does not start with: true");
 +        *res = ngx_http_variable_true_value;
 +        return;
 +    }
 +
-+    if (ngx_strncmp(res->data, val->data, val->len) == 0) {
++    if (val->len == 0
++        || ngx_strncmp(res->data, val->data, val->len) == 0)
++    {
 +        ngx_log_debug0(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
-+                       "http script start with: false");
++                       "http script does not start with: false");
 +        *res = ngx_http_variable_null_value;
 +        return;
 +    }
 +
 +    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
-+                   "http script start with: true");
++                   "http script does not start with: true");
++
++    *res = ngx_http_variable_true_value;
++}
++
++
++void
++ngx_http_script_ends_with_code(ngx_http_script_engine_t *e)
++{
++    ngx_http_variable_value_t  *val, *res;
++
++    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
++                   "http script ends with");
++
++    e->sp--;
++    val = e->sp;
++    res = e->sp - 1;
++
++    e->ip += sizeof(uintptr_t);
++
++    if (res->len < val->len) {
++        ngx_log_debug0(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
++                       "http script ends with: false");
++        *res = ngx_http_variable_null_value;
++        return;
++    }
++
++    if (val->len == 0
++        || ngx_strncmp(res->data + res->len - val->len, val->data,
++                       val->len) == 0)
++    {
++        ngx_log_debug0(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
++                       "http script ends with: true");
++        *res = ngx_http_variable_true_value;
++        return;
++    }
++
++    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
++                   "http script ends with: false");
++
++    *res = ngx_http_variable_null_value;
++}
++
++
++void
++ngx_http_script_not_ends_with_code(ngx_http_script_engine_t *e)
++{
++    ngx_http_variable_value_t  *val, *res;
++
++    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
++                   "http script does not end with");
++
++    e->sp--;
++    val = e->sp;
++    res = e->sp - 1;
++
++    e->ip += sizeof(uintptr_t);
++
++    if (res->len < val->len) {
++        ngx_log_debug0(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
++                       "http script does not end with: true");
++        *res = ngx_http_variable_true_value;
++        return;
++    }
++
++    if (val->len == 0
++        || ngx_strncmp(res->data + res->len - val->len, val->data,
++                       val->len) == 0)
++    {
++        ngx_log_debug0(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
++                       "http script does not end with: false");
++        *res = ngx_http_variable_null_value;
++        return;
++    }
++
++    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
++                   "http script does not end with: true");
 +
 +    *res = ngx_http_variable_true_value;
 +}
 +
 +#endif
 diff --git a/src/http/ngx_http_script.h b/src/http/ngx_http_script.h
-index 4f2fbd16e..826a26bc0 100644
+index 4f2fbd16e..e62a0831d 100644
 --- a/src/http/ngx_http_script.h
 +++ b/src/http/ngx_http_script.h
 @@ -1,5 +1,6 @@
@@ -16716,7 +16861,7 @@ index 4f2fbd16e..826a26bc0 100644
  void ngx_http_script_equal_code(ngx_http_script_engine_t *e);
  void ngx_http_script_not_equal_code(ngx_http_script_engine_t *e);
  void ngx_http_script_file_code(ngx_http_script_engine_t *e);
-@@ -274,6 +343,16 @@ void ngx_http_script_set_var_code(ngx_http_script_engine_t *e);
+@@ -274,6 +343,19 @@ void ngx_http_script_set_var_code(ngx_http_script_engine_t *e);
  void ngx_http_script_var_set_handler_code(ngx_http_script_engine_t *e);
  void ngx_http_script_var_code(ngx_http_script_engine_t *e);
  void ngx_http_script_nop_code(ngx_http_script_engine_t *e);
@@ -16725,12 +16870,15 @@ index 4f2fbd16e..826a26bc0 100644
 +void ngx_http_script_if_op_code(ngx_http_script_engine_t *e);
 +ngx_int_t ngx_http_script_compare_number(u_char *data1, size_t len1,
 +    u_char *data2, size_t len2, ngx_int_t *cmp);
++void ngx_http_script_number_equal_code(ngx_http_script_engine_t *e);
 +void ngx_http_script_greater_than_code(ngx_http_script_engine_t *e);
 +void ngx_http_script_greater_equal_code(ngx_http_script_engine_t *e);
 +void ngx_http_script_less_than_code(ngx_http_script_engine_t *e);
 +void ngx_http_script_less_equal_code(ngx_http_script_engine_t *e);
-+void ngx_http_script_start_with_code(ngx_http_script_engine_t *e);
-+void ngx_http_script_not_start_with_code(ngx_http_script_engine_t *e);
++void ngx_http_script_starts_with_code(ngx_http_script_engine_t *e);
++void ngx_http_script_not_starts_with_code(ngx_http_script_engine_t *e);
++void ngx_http_script_ends_with_code(ngx_http_script_engine_t *e);
++void ngx_http_script_not_ends_with_code(ngx_http_script_engine_t *e);
 +#endif
  
  #endif /* _NGX_HTTP_SCRIPT_H_INCLUDED_ */
