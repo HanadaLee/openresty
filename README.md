@@ -688,6 +688,11 @@ The supported directives are listed explicitly below.
 | `proxy_cache_use_stale` | `fastcgi_cache_use_stale` | `scgi_cache_use_stale` | `uwsgi_cache_use_stale` | — | — | — |
 | `proxy_cache_vary` | `fastcgi_cache_vary` | `scgi_cache_vary` | `uwsgi_cache_vary` | — | — | — |
 | `proxy_connect_timeout` | `fastcgi_connect_timeout` | `scgi_connect_timeout` | `uwsgi_connect_timeout` | `grpc_connect_timeout` | `memcached_connect_timeout` | `tunnel_connect_timeout` |
+| `proxy_cookie_domain` | — | — | — | — | — | — |
+| `proxy_cookie_flags` | — | — | — | — | — | — |
+| `proxy_cookie_max_age` | — | — | — | — | — | — |
+| `proxy_cookie_path` | — | — | — | — | — | — |
+| `proxy_cookie_value` | — | — | — | — | — | — |
 | `proxy_force_ranges` | `fastcgi_force_ranges` | `scgi_force_ranges` | `uwsgi_force_ranges` | — | — | — |
 | `proxy_hide_cookie` | `fastcgi_hide_cookie` | `scgi_hide_cookie` | `uwsgi_hide_cookie` | — | — | — |
 | `proxy_ignore_cache_control` | `fastcgi_ignore_cache_control` | `scgi_ignore_cache_control` | `uwsgi_ignore_cache_control` | — | — | — |
@@ -736,7 +741,47 @@ Allows the merge inheritance of fastcgi_param in receiving contexts.
 
 ### Enhancement of upstream cookie handler
 
-Adds controls for hiding upstream cookies by name and suppressing cached `Set-Cookie` fields.
+In addition to the native `proxy_cookie_domain`, `proxy_cookie_flags`, and `proxy_cookie_path` directives, this bundle provides directives for rewriting cookie values and expiration times.
+
+* **Syntax:** *proxy_cookie_value off;*
+*proxy_cookie_value cookie value replacement;*
+
+* **Default:** *proxy_cookie_value off;*
+
+* **Context:** *http, server, location, when*
+
+Rewrites the value of a cookie in a proxied response. Plain cookie names are matched case-insensitively and can contain variables. A cookie name starting with `~` is treated as a case-insensitive regular expression.
+
+For a plain `value`, the matching prefix is replaced and the rest of the cookie value is preserved. A value starting with `~` uses a case-sensitive regular expression, while `~*` uses a case-insensitive regular expression. The `replacement` can contain variables and can reference captures from the value regular expression.
+
+```nginx
+proxy_cookie_value sessionid old- new-;
+proxy_cookie_value ~^session_ ~*^old-(.+)$ new-$1;
+```
+
+Several `proxy_cookie_value` directives can be configured at the same level. The first rule with a matching cookie name is selected. The `off` parameter cancels rules inherited from the previous configuration level.
+
+* **Syntax:** *proxy_cookie_max_age off;*
+*proxy_cookie_max_age cookie time;*
+
+* **Default:** *proxy_cookie_max_age off;*
+
+* **Context:** *http, server, location, when*
+
+Sets the expiration time of a cookie in a proxied response. Existing `Max-Age` and `Expires` attributes are rewritten; if neither attribute is present, a `Max-Age` attribute is added. The time supports nginx time units such as `30m` and `1h`.
+
+Plain cookie names are matched case-insensitively and can contain variables. A cookie name starting with `~` is treated as a case-insensitive regular expression.
+
+```nginx
+proxy_cookie_max_age sessionid 1h;
+proxy_cookie_max_age ~^session_ 30m;
+```
+
+Several `proxy_cookie_max_age` directives can be configured at the same level. The first rule with a matching cookie name is selected. The `off` parameter cancels rules inherited from the previous configuration level.
+
+The cookie directives above, as well as the native proxy cookie directives, support conditional configuration through `when` as listed in the conditional upstream directive table.
+
+This bundle also adds controls for hiding upstream cookies by name and suppressing cached `Set-Cookie` fields.
 
 * **Syntax:** *proxy_hide_cookie cookie;*
 
