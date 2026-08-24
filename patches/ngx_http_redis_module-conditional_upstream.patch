@@ -1,0 +1,307 @@
+diff --git a/ngx_http_redis_module.c b/ngx_http_redis_module.c
+index 609f212..e32c32a 100644
+--- a/ngx_http_redis_module.c
++++ b/ngx_http_redis_module.c
+@@ -17,6 +17,10 @@
+ #include <ngx_http.h>
+ #include <nginx.h>
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++#include <ngx_http_condition_module.h>
++#endif
++
+ 
+ typedef struct {
+     ngx_http_upstream_conf_t   upstream;
+@@ -88,17 +92,35 @@ static ngx_command_t  ngx_http_redis_commands[] = {
+       NULL },
+ 
+     { ngx_string("redis_connect_timeout"),
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF
++                        |NGX_HTTP_MAIN_WHEN_CONF|NGX_HTTP_SRV_WHEN_CONF
++                        |NGX_HTTP_LOC_WHEN_CONF|NGX_CONF_TAKE1,
++      ngx_conf_set_conditional_msec_slot,
++      NGX_HTTP_LOC_CONF_OFFSET,
++      offsetof(ngx_http_redis_loc_conf_t, upstream.connect_timeout_conf),
++#else
+       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
+       ngx_conf_set_msec_slot,
+       NGX_HTTP_LOC_CONF_OFFSET,
+       offsetof(ngx_http_redis_loc_conf_t, upstream.connect_timeout),
++#endif
+       NULL },
+ 
+     { ngx_string("redis_send_timeout"),
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF
++                        |NGX_HTTP_MAIN_WHEN_CONF|NGX_HTTP_SRV_WHEN_CONF
++                        |NGX_HTTP_LOC_WHEN_CONF|NGX_CONF_TAKE1,
++      ngx_conf_set_conditional_msec_slot,
++      NGX_HTTP_LOC_CONF_OFFSET,
++      offsetof(ngx_http_redis_loc_conf_t, upstream.send_timeout_conf),
++#else
+       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
+       ngx_conf_set_msec_slot,
+       NGX_HTTP_LOC_CONF_OFFSET,
+       offsetof(ngx_http_redis_loc_conf_t, upstream.send_timeout),
++#endif
+       NULL },
+ 
+     { ngx_string("redis_buffer_size"),
+@@ -109,31 +131,69 @@ static ngx_command_t  ngx_http_redis_commands[] = {
+       NULL },
+ 
+     { ngx_string("redis_read_timeout"),
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF
++                        |NGX_HTTP_MAIN_WHEN_CONF|NGX_HTTP_SRV_WHEN_CONF
++                        |NGX_HTTP_LOC_WHEN_CONF|NGX_CONF_TAKE1,
++      ngx_conf_set_conditional_msec_slot,
++      NGX_HTTP_LOC_CONF_OFFSET,
++      offsetof(ngx_http_redis_loc_conf_t, upstream.read_timeout_conf),
++#else
+       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
+       ngx_conf_set_msec_slot,
+       NGX_HTTP_LOC_CONF_OFFSET,
+       offsetof(ngx_http_redis_loc_conf_t, upstream.read_timeout),
++#endif
+       NULL },
+ 
+     { ngx_string("redis_next_upstream"),
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF
++                        |NGX_HTTP_MAIN_WHEN_CONF|NGX_HTTP_SRV_WHEN_CONF
++                        |NGX_HTTP_LOC_WHEN_CONF|NGX_CONF_1MORE,
++      ngx_conf_set_conditional_bitmask_slot,
++      NGX_HTTP_LOC_CONF_OFFSET,
++      offsetof(ngx_http_redis_loc_conf_t, upstream.next_upstream_conf),
++#else
+       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_1MORE,
+       ngx_conf_set_bitmask_slot,
+       NGX_HTTP_LOC_CONF_OFFSET,
+       offsetof(ngx_http_redis_loc_conf_t, upstream.next_upstream),
++#endif
+       &ngx_http_redis_next_upstream_masks },
+ 
+     { ngx_string("redis_next_upstream_tries"),
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF
++                        |NGX_HTTP_MAIN_WHEN_CONF|NGX_HTTP_SRV_WHEN_CONF
++                        |NGX_HTTP_LOC_WHEN_CONF|NGX_CONF_TAKE1,
++      ngx_conf_set_conditional_num_slot,
++      NGX_HTTP_LOC_CONF_OFFSET,
++      offsetof(ngx_http_redis_loc_conf_t,
++               upstream.next_upstream_tries_conf),
++#else
+       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
+       ngx_conf_set_num_slot,
+       NGX_HTTP_LOC_CONF_OFFSET,
+       offsetof(ngx_http_redis_loc_conf_t, upstream.next_upstream_tries),
++#endif
+       NULL },
+ 
+     { ngx_string("redis_next_upstream_timeout"),
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF
++                        |NGX_HTTP_MAIN_WHEN_CONF|NGX_HTTP_SRV_WHEN_CONF
++                        |NGX_HTTP_LOC_WHEN_CONF|NGX_CONF_TAKE1,
++      ngx_conf_set_conditional_msec_slot,
++      NGX_HTTP_LOC_CONF_OFFSET,
++      offsetof(ngx_http_redis_loc_conf_t,
++               upstream.next_upstream_timeout_conf),
++#else
+       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
+       ngx_conf_set_msec_slot,
+       NGX_HTTP_LOC_CONF_OFFSET,
+       offsetof(ngx_http_redis_loc_conf_t, upstream.next_upstream_timeout),
++#endif
+       NULL },
+ 
+     { ngx_string("redis_gzip_flag"),
+@@ -788,18 +848,24 @@ ngx_http_redis_create_loc_conf(ngx_conf_t *cf)
+ 
+     conf->upstream.local = NGX_CONF_UNSET_PTR;
+     conf->upstream.socket_keepalive = NGX_CONF_UNSET;
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    conf->upstream.next_upstream_tries_conf = NGX_CONF_UNSET_PTR;
++    conf->upstream.connect_timeout_conf = NGX_CONF_UNSET_PTR;
++    conf->upstream.send_timeout_conf = NGX_CONF_UNSET_PTR;
++    conf->upstream.read_timeout_conf = NGX_CONF_UNSET_PTR;
++    conf->upstream.next_upstream_timeout_conf = NGX_CONF_UNSET_PTR;
++#else
+     conf->upstream.next_upstream_tries = NGX_CONF_UNSET_UINT;
+     conf->upstream.connect_timeout = NGX_CONF_UNSET_MSEC;
+     conf->upstream.send_timeout = NGX_CONF_UNSET_MSEC;
+     conf->upstream.read_timeout = NGX_CONF_UNSET_MSEC;
+     conf->upstream.next_upstream_timeout = NGX_CONF_UNSET_MSEC;
++#endif
+ 
+     conf->upstream.buffer_size = NGX_CONF_UNSET_SIZE;
+ 
+     /* the hardcoded values */
+     conf->upstream.cyclic_temp_file = 0;
+-    conf->upstream.buffering = 0;
+-    conf->upstream.ignore_client_abort = 0;
+     conf->upstream.send_lowat = 0;
+     conf->upstream.bufs.num = 0;
+     conf->upstream.busy_buffers_size = 0;
+@@ -807,9 +873,19 @@ ngx_http_redis_create_loc_conf(ngx_conf_t *cf)
+     conf->upstream.temp_file_write_size = 0;
+     conf->upstream.intercept_errors = 1;
+     conf->upstream.intercept_404 = 1;
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    conf->upstream.buffering_conf = NGX_CONF_UNSET_PTR;
++    conf->upstream.ignore_client_abort_conf = NGX_CONF_UNSET_PTR;
++    conf->upstream.pass_request_headers_conf = NGX_CONF_UNSET_PTR;
++    conf->upstream.pass_request_body_conf = NGX_CONF_UNSET_PTR;
++    conf->upstream.force_ranges_conf = NGX_CONF_UNSET_PTR;
++#else
++    conf->upstream.buffering = 0;
++    conf->upstream.ignore_client_abort = 0;
+     conf->upstream.pass_request_headers = 0;
+     conf->upstream.pass_request_body = 0;
+     conf->upstream.force_ranges = 1;
++#endif
+ 
+     conf->index = NGX_CONF_UNSET;
+     conf->db = NGX_CONF_UNSET;
+@@ -831,6 +907,82 @@ ngx_http_redis_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+     ngx_conf_merge_value(conf->upstream.socket_keepalive,
+                               prev->upstream.socket_keepalive, 0);
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    if (ngx_conf_init_conditional_flag_value(cf,
++            &conf->upstream.buffering_conf, 0)
++        != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++
++    if (ngx_conf_init_conditional_flag_value(cf,
++            &conf->upstream.ignore_client_abort_conf, 0)
++        != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++
++    if (ngx_conf_init_conditional_flag_value(cf,
++            &conf->upstream.pass_request_headers_conf, 0)
++        != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++
++    if (ngx_conf_init_conditional_flag_value(cf,
++            &conf->upstream.pass_request_body_conf, 0)
++        != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++
++    if (ngx_conf_init_conditional_flag_value(cf,
++            &conf->upstream.force_ranges_conf, 1)
++        != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++
++    if (ngx_conf_merge_conditional_num_value(cf,
++            &conf->upstream.next_upstream_tries_conf,
++            prev->upstream.next_upstream_tries_conf, 0)
++        != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++
++    if (ngx_conf_merge_conditional_msec_value(cf,
++            &conf->upstream.connect_timeout_conf,
++            prev->upstream.connect_timeout_conf, 60000)
++        != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++
++    if (ngx_conf_merge_conditional_msec_value(cf,
++            &conf->upstream.send_timeout_conf,
++            prev->upstream.send_timeout_conf, 60000)
++        != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++
++    if (ngx_conf_merge_conditional_msec_value(cf,
++            &conf->upstream.read_timeout_conf,
++            prev->upstream.read_timeout_conf, 60000)
++        != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++
++    if (ngx_conf_merge_conditional_msec_value(cf,
++            &conf->upstream.next_upstream_timeout_conf,
++            prev->upstream.next_upstream_timeout_conf, 0)
++        != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++#else
+     ngx_conf_merge_uint_value(conf->upstream.next_upstream_tries,
+                               prev->upstream.next_upstream_tries,
+ 0);
+@@ -846,11 +998,36 @@ ngx_http_redis_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+ 
+     ngx_conf_merge_msec_value(conf->upstream.next_upstream_timeout,
+                               prev->upstream.next_upstream_timeout, 0);
++#endif
+ 
+     ngx_conf_merge_size_value(conf->upstream.buffer_size,
+                               prev->upstream.buffer_size,
+                               (size_t) ngx_pagesize);
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    if (ngx_conf_merge_conditional_bitmask_value(cf,
++            &conf->upstream.next_upstream_conf,
++            prev->upstream.next_upstream_conf,
++            (NGX_CONF_BITMASK_SET
++             |NGX_HTTP_UPSTREAM_FT_ERROR
++             |NGX_HTTP_UPSTREAM_FT_TIMEOUT))
++        != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++
++    {
++        ngx_uint_t                         i;
++        ngx_conf_condition_bitmask_ctx_t  *bm;
++
++        bm = conf->upstream.next_upstream_conf->elts;
++        for (i = 0; i < conf->upstream.next_upstream_conf->nelts; i++) {
++            if (bm[i].value & NGX_HTTP_UPSTREAM_FT_OFF) {
++                bm[i].value = NGX_CONF_BITMASK_SET|NGX_HTTP_UPSTREAM_FT_OFF;
++            }
++        }
++    }
++#else
+     ngx_conf_merge_bitmask_value(conf->upstream.next_upstream,
+                               prev->upstream.next_upstream,
+                               (NGX_CONF_BITMASK_SET
+@@ -861,6 +1038,7 @@ ngx_http_redis_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+         conf->upstream.next_upstream = NGX_CONF_BITMASK_SET
+                                        |NGX_HTTP_UPSTREAM_FT_OFF;
+     }
++#endif
+ 
+     if (conf->upstream.upstream == NULL) {
+         conf->upstream.upstream = prev->upstream.upstream;
+@@ -876,6 +1054,10 @@ ngx_http_redis_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+ 
+     ngx_conf_merge_uint_value(conf->gzip_flag, prev->gzip_flag, 0);
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    ngx_http_upstream_init_conditional_conf(&conf->upstream);
++#endif
++
+     return NGX_CONF_OK;
+ }
+ 

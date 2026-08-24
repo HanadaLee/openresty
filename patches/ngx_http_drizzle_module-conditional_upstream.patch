@@ -1,0 +1,304 @@
+diff --git a/src/ngx_http_drizzle_handler.c b/src/ngx_http_drizzle_handler.c
+index b2f1e3c..0e78f4b 100644
+--- a/src/ngx_http_drizzle_handler.c
++++ b/src/ngx_http_drizzle_handler.c
+@@ -176,7 +176,11 @@ ngx_http_drizzle_handler(ngx_http_request_t *r)
+     r->main->count++;
+ #endif
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    dd("XXX connect timeout: %d", (int) u->connect_timeout);
++#else
+     dd("XXX connect timeout: %d", (int) dlcf->upstream.connect_timeout);
++#endif
+ 
+     ngx_http_upstream_dbd_init(r);
+ 
+diff --git a/src/ngx_http_drizzle_module.c b/src/ngx_http_drizzle_module.c
+index 84c3946..ea066bf 100644
+--- a/src/ngx_http_drizzle_module.c
++++ b/src/ngx_http_drizzle_module.c
+@@ -16,6 +16,10 @@
+ #include "ngx_http_drizzle_upstream.h"
+ #include "ngx_http_drizzle_keepalive.h"
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++#include <ngx_http_condition_module.h>
++#endif
++
+ 
+ static ngx_str_t  ngx_http_drizzle_tid_var_name =
+         ngx_string("drizzle_thread_id");
+@@ -90,18 +94,34 @@ static ngx_command_t ngx_http_drizzle_cmds[] = {
+ 
+     { ngx_string("drizzle_connect_timeout"),
+       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++          |NGX_HTTP_LIF_CONF|NGX_HTTP_MAIN_WHEN_CONF
++          |NGX_HTTP_SRV_WHEN_CONF|NGX_HTTP_LOC_WHEN_CONF|NGX_CONF_TAKE1,
++      ngx_conf_set_conditional_msec_slot,
++      NGX_HTTP_LOC_CONF_OFFSET,
++      offsetof(ngx_http_drizzle_loc_conf_t, upstream.connect_timeout_conf),
++#else
+           |NGX_HTTP_LIF_CONF|NGX_CONF_TAKE1,
+       ngx_conf_set_msec_slot,
+       NGX_HTTP_LOC_CONF_OFFSET,
+       offsetof(ngx_http_drizzle_loc_conf_t, upstream.connect_timeout),
++#endif
+       NULL },
+ 
+     { ngx_string("drizzle_send_query_timeout"),
+       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++          |NGX_HTTP_LIF_CONF|NGX_HTTP_MAIN_WHEN_CONF
++          |NGX_HTTP_SRV_WHEN_CONF|NGX_HTTP_LOC_WHEN_CONF|NGX_CONF_TAKE1,
++      ngx_conf_set_conditional_msec_slot,
++      NGX_HTTP_LOC_CONF_OFFSET,
++      offsetof(ngx_http_drizzle_loc_conf_t, upstream.send_timeout_conf),
++#else
+           |NGX_HTTP_LIF_CONF|NGX_CONF_TAKE1,
+       ngx_conf_set_msec_slot,
+       NGX_HTTP_LOC_CONF_OFFSET,
+       offsetof(ngx_http_drizzle_loc_conf_t, upstream.send_timeout),
++#endif
+       NULL },
+ 
+     { ngx_string("drizzle_recv_cols_timeout"),
+@@ -211,8 +231,13 @@ ngx_http_drizzle_create_loc_conf(ngx_conf_t *cf)
+         return NULL;
+     }
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    conf->upstream.connect_timeout_conf = NGX_CONF_UNSET_PTR;
++    conf->upstream.send_timeout_conf = NGX_CONF_UNSET_PTR;
++#else
+     conf->upstream.connect_timeout = NGX_CONF_UNSET_MSEC;
+     conf->upstream.send_timeout = NGX_CONF_UNSET_MSEC;
++#endif
+ 
+     conf->recv_cols_timeout = NGX_CONF_UNSET_MSEC;
+     conf->recv_rows_timeout = NGX_CONF_UNSET_MSEC;
+@@ -221,8 +246,6 @@ ngx_http_drizzle_create_loc_conf(ngx_conf_t *cf)
+ 
+     /* the hardcoded values */
+     conf->upstream.cyclic_temp_file = 0;
+-    conf->upstream.buffering = 0;
+-    conf->upstream.ignore_client_abort = 0;
+     conf->upstream.send_lowat = 0;
+     conf->upstream.bufs.num = 0;
+     conf->upstream.busy_buffers_size = 0;
+@@ -230,8 +253,17 @@ ngx_http_drizzle_create_loc_conf(ngx_conf_t *cf)
+     conf->upstream.temp_file_write_size = 0;
+     conf->upstream.intercept_errors = 1;
+     conf->upstream.intercept_404 = 1;
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    conf->upstream.buffering_conf = NGX_CONF_UNSET_PTR;
++    conf->upstream.ignore_client_abort_conf = NGX_CONF_UNSET_PTR;
++    conf->upstream.pass_request_headers_conf = NGX_CONF_UNSET_PTR;
++    conf->upstream.pass_request_body_conf = NGX_CONF_UNSET_PTR;
++#else
++    conf->upstream.buffering = 0;
++    conf->upstream.ignore_client_abort = 0;
+     conf->upstream.pass_request_headers = 0;
+     conf->upstream.pass_request_body = 0;
++#endif
+ 
+     /* set by ngx_pcalloc:
+      *      conf->dbname = NULL
+@@ -256,11 +288,57 @@ ngx_http_drizzle_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+     ngx_conf_merge_value(conf->enable_module_header,
+                          prev->enable_module_header, 1);
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    if (ngx_conf_init_conditional_flag_value(cf,
++            &conf->upstream.buffering_conf, 0)
++        != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++
++    if (ngx_conf_init_conditional_flag_value(cf,
++            &conf->upstream.ignore_client_abort_conf, 0)
++        != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++
++    if (ngx_conf_init_conditional_flag_value(cf,
++            &conf->upstream.pass_request_headers_conf, 0)
++        != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++
++    if (ngx_conf_init_conditional_flag_value(cf,
++            &conf->upstream.pass_request_body_conf, 0)
++        != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++
++    if (ngx_conf_merge_conditional_msec_value(cf,
++            &conf->upstream.connect_timeout_conf,
++            prev->upstream.connect_timeout_conf, 60000)
++        != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++
++    if (ngx_conf_merge_conditional_msec_value(cf,
++            &conf->upstream.send_timeout_conf,
++            prev->upstream.send_timeout_conf, 60000)
++        != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++#else
+     ngx_conf_merge_msec_value(conf->upstream.connect_timeout,
+                               prev->upstream.connect_timeout, 60000);
+ 
+     ngx_conf_merge_msec_value(conf->upstream.send_timeout,
+                               prev->upstream.send_timeout, 60000);
++#endif
+ 
+     ngx_conf_merge_msec_value(conf->recv_cols_timeout,
+                               prev->recv_cols_timeout, 60000);
+@@ -285,6 +363,10 @@ ngx_http_drizzle_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+         conf->tid_var_index = prev->tid_var_index;
+     }
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    ngx_http_upstream_init_conditional_conf(&conf->upstream);
++#endif
++
+     return NGX_CONF_OK;
+ }
+ 
+diff --git a/src/ngx_http_drizzle_processor.c b/src/ngx_http_drizzle_processor.c
+index b987417..800b317 100644
+--- a/src/ngx_http_drizzle_processor.c
++++ b/src/ngx_http_drizzle_processor.c
+@@ -217,7 +217,11 @@ ngx_http_upstream_drizzle_send_query(ngx_http_request_t *r,
+                 ngx_del_timer(c->write);
+             }
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++            ngx_add_timer(c->write, u->send_timeout);
++#else
+             ngx_add_timer(c->write, u->conf->send_timeout);
++#endif
+         }
+ 
+         return NGX_AGAIN;
+diff --git a/src/ngx_http_drizzle_util.c b/src/ngx_http_drizzle_util.c
+index 370999d..f0da1a6 100644
+--- a/src/ngx_http_drizzle_util.c
++++ b/src/ngx_http_drizzle_util.c
+@@ -19,6 +19,10 @@
+ #include <ngx_core.h>
+ #include <ngx_http.h>
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++#include <ngx_http_condition_module.h>
++#endif
++
+ 
+ static ngx_int_t ngx_http_upstream_dbd_reinit(ngx_http_request_t *r,
+     ngx_http_upstream_t *u);
+@@ -227,6 +231,9 @@ ngx_http_upstream_drizzle_next(ngx_http_request_t *r,
+     ngx_http_upstream_t *u, ngx_int_t ft_type)
+ {
+     ngx_uint_t  status, state;
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    ngx_uint_t  next_upstream;
++#endif
+ 
+     ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                    "http next upstream, %xi", ft_type);
+@@ -287,7 +294,19 @@ ngx_http_upstream_drizzle_next(ngx_http_request_t *r,
+     if (status) {
+         u->state->status = status;
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++        next_upstream = u->conf->next_upstream;
++        if (u->conf->next_upstream_conf != NULL
++            && u->conf->next_upstream_conf != NGX_CONF_UNSET_PTR)
++        {
++            next_upstream = ngx_http_get_conditional_bitmask_value(
++                r, u->conf->next_upstream_conf);
++        }
++
++        if (u->peer.tries == 0 || !(next_upstream & ft_type)) {
++#else
+         if (u->peer.tries == 0 || !(u->conf->next_upstream & ft_type)) {
++#endif
+             ngx_http_upstream_drizzle_finalize_request(r, u, status);
+             return;
+         }
+@@ -414,6 +433,9 @@ ngx_http_upstream_dbd_init_request(ngx_http_request_t *r)
+     ngx_http_core_loc_conf_t       *clcf;
+     ngx_http_upstream_srv_conf_t   *uscf, **uscfp;
+     ngx_http_upstream_main_conf_t  *umcf;
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    ngx_flag_t                      ignore_client_abort;
++#endif
+ 
+ #if defined(nginx_version) && nginx_version >= 8011
+     if (r->aio) {
+@@ -423,6 +445,24 @@ ngx_http_upstream_dbd_init_request(ngx_http_request_t *r)
+ 
+     u = r->upstream;
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    u->connect_timeout = u->conf->connect_timeout;
++    if (u->conf->connect_timeout_conf != NULL
++        && u->conf->connect_timeout_conf != NGX_CONF_UNSET_PTR)
++    {
++        u->connect_timeout = ngx_http_get_conditional_msec_value(
++            r, u->conf->connect_timeout_conf);
++    }
++
++    u->send_timeout = u->conf->send_timeout;
++    if (u->conf->send_timeout_conf != NULL
++        && u->conf->send_timeout_conf != NGX_CONF_UNSET_PTR)
++    {
++        u->send_timeout = ngx_http_get_conditional_msec_value(
++            r, u->conf->send_timeout_conf);
++    }
++#endif
++
+ #if 0 && (NGX_HTTP_CACHE)
+ 
+     if (u->conf->cache) {
+@@ -451,7 +491,19 @@ ngx_http_upstream_dbd_init_request(ngx_http_request_t *r)
+ 
+     u->store = (u->conf->store || u->conf->store_lengths);
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    ignore_client_abort = u->conf->ignore_client_abort;
++    if (u->conf->ignore_client_abort_conf != NULL
++        && u->conf->ignore_client_abort_conf != NGX_CONF_UNSET_PTR)
++    {
++        ignore_client_abort = ngx_http_get_conditional_flag_value(r,
++                                        u->conf->ignore_client_abort_conf);
++    }
++
++    if (!u->store && !r->post_action && !ignore_client_abort) {
++#else
+     if (!u->store && !r->post_action && !u->conf->ignore_client_abort) {
++#endif
+         r->read_event_handler =
+                              ngx_http_upstream_dbd_rd_check_broken_connection;
+         r->write_event_handler =
+@@ -747,7 +799,11 @@ ngx_http_upstream_dbd_connect(ngx_http_request_t *r, ngx_http_upstream_t *u)
+     u->request_sent = 0;
+ 
+     if (rc == NGX_AGAIN) {
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++        ngx_add_timer(c->write, u->connect_timeout);
++#else
+         ngx_add_timer(c->write, u->conf->connect_timeout);
++#endif
+         return;
+     }
+ 

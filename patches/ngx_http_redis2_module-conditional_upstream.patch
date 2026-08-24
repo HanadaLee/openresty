@@ -1,0 +1,249 @@
+diff --git a/src/ngx_http_redis2_module.c b/src/ngx_http_redis2_module.c
+index c8306d4..6c3472f 100644
+--- a/src/ngx_http_redis2_module.c
++++ b/src/ngx_http_redis2_module.c
+@@ -7,6 +7,10 @@
+ #include "ngx_http_redis2_handler.h"
+ #include "ngx_http_redis2_util.h"
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++#include <ngx_http_condition_module.h>
++#endif
++
+ 
+ static void *ngx_http_redis2_create_loc_conf(ngx_conf_t *cf);
+ static char *ngx_http_redis2_merge_loc_conf(ngx_conf_t *cf,
+@@ -75,17 +79,35 @@ static ngx_command_t  ngx_http_redis2_commands[] = {
+       NULL },
+ 
+     { ngx_string("redis2_connect_timeout"),
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF
++                        |NGX_HTTP_MAIN_WHEN_CONF|NGX_HTTP_SRV_WHEN_CONF
++                        |NGX_HTTP_LOC_WHEN_CONF|NGX_CONF_TAKE1,
++      ngx_conf_set_conditional_msec_slot,
++      NGX_HTTP_LOC_CONF_OFFSET,
++      offsetof(ngx_http_redis2_loc_conf_t, upstream.connect_timeout_conf),
++#else
+       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
+       ngx_conf_set_msec_slot,
+       NGX_HTTP_LOC_CONF_OFFSET,
+       offsetof(ngx_http_redis2_loc_conf_t, upstream.connect_timeout),
++#endif
+       NULL },
+ 
+     { ngx_string("redis2_send_timeout"),
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF
++                        |NGX_HTTP_MAIN_WHEN_CONF|NGX_HTTP_SRV_WHEN_CONF
++                        |NGX_HTTP_LOC_WHEN_CONF|NGX_CONF_TAKE1,
++      ngx_conf_set_conditional_msec_slot,
++      NGX_HTTP_LOC_CONF_OFFSET,
++      offsetof(ngx_http_redis2_loc_conf_t, upstream.send_timeout_conf),
++#else
+       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
+       ngx_conf_set_msec_slot,
+       NGX_HTTP_LOC_CONF_OFFSET,
+       offsetof(ngx_http_redis2_loc_conf_t, upstream.send_timeout),
++#endif
+       NULL },
+ 
+     { ngx_string("redis2_buffer_size"),
+@@ -96,17 +118,35 @@ static ngx_command_t  ngx_http_redis2_commands[] = {
+       NULL },
+ 
+     { ngx_string("redis2_read_timeout"),
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF
++                        |NGX_HTTP_MAIN_WHEN_CONF|NGX_HTTP_SRV_WHEN_CONF
++                        |NGX_HTTP_LOC_WHEN_CONF|NGX_CONF_TAKE1,
++      ngx_conf_set_conditional_msec_slot,
++      NGX_HTTP_LOC_CONF_OFFSET,
++      offsetof(ngx_http_redis2_loc_conf_t, upstream.read_timeout_conf),
++#else
+       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
+       ngx_conf_set_msec_slot,
+       NGX_HTTP_LOC_CONF_OFFSET,
+       offsetof(ngx_http_redis2_loc_conf_t, upstream.read_timeout),
++#endif
+       NULL },
+ 
+     { ngx_string("redis2_next_upstream"),
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF
++                        |NGX_HTTP_MAIN_WHEN_CONF|NGX_HTTP_SRV_WHEN_CONF
++                        |NGX_HTTP_LOC_WHEN_CONF|NGX_CONF_1MORE,
++      ngx_conf_set_conditional_bitmask_slot,
++      NGX_HTTP_LOC_CONF_OFFSET,
++      offsetof(ngx_http_redis2_loc_conf_t, upstream.next_upstream_conf),
++#else
+       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_1MORE,
+       ngx_conf_set_bitmask_slot,
+       NGX_HTTP_LOC_CONF_OFFSET,
+       offsetof(ngx_http_redis2_loc_conf_t, upstream.next_upstream),
++#endif
+       &ngx_http_redis2_next_upstream_masks },
+ 
+       ngx_null_command
+@@ -167,16 +207,20 @@ ngx_http_redis2_create_loc_conf(ngx_conf_t *cf)
+      *     conf->queries = NULL;
+      */
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    conf->upstream.connect_timeout_conf = NGX_CONF_UNSET_PTR;
++    conf->upstream.send_timeout_conf = NGX_CONF_UNSET_PTR;
++    conf->upstream.read_timeout_conf = NGX_CONF_UNSET_PTR;
++#else
+     conf->upstream.connect_timeout = NGX_CONF_UNSET_MSEC;
+     conf->upstream.send_timeout = NGX_CONF_UNSET_MSEC;
+     conf->upstream.read_timeout = NGX_CONF_UNSET_MSEC;
++#endif
+ 
+     conf->upstream.buffer_size = NGX_CONF_UNSET_SIZE;
+ 
+     /* the hardcoded values */
+     conf->upstream.cyclic_temp_file = 0;
+-    conf->upstream.buffering = 0;
+-    conf->upstream.ignore_client_abort = 1;
+     conf->upstream.send_lowat = 0;
+     conf->upstream.bufs.num = 0;
+     conf->upstream.busy_buffers_size = 0;
+@@ -184,8 +228,17 @@ ngx_http_redis2_create_loc_conf(ngx_conf_t *cf)
+     conf->upstream.temp_file_write_size = 0;
+     conf->upstream.intercept_errors = 1;
+     conf->upstream.intercept_404 = 1;
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    conf->upstream.buffering_conf = NGX_CONF_UNSET_PTR;
++    conf->upstream.ignore_client_abort_conf = NGX_CONF_UNSET_PTR;
++    conf->upstream.pass_request_headers_conf = NGX_CONF_UNSET_PTR;
++    conf->upstream.pass_request_body_conf = NGX_CONF_UNSET_PTR;
++#else
++    conf->upstream.buffering = 0;
++    conf->upstream.ignore_client_abort = 1;
+     conf->upstream.pass_request_headers = 0;
+     conf->upstream.pass_request_body = 0;
++#endif
+ 
+     return conf;
+ }
+@@ -197,6 +250,59 @@ ngx_http_redis2_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+     ngx_http_redis2_loc_conf_t *prev = parent;
+     ngx_http_redis2_loc_conf_t *conf = child;
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    if (ngx_conf_init_conditional_flag_value(cf,
++            &conf->upstream.buffering_conf, 0)
++        != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++
++    if (ngx_conf_init_conditional_flag_value(cf,
++            &conf->upstream.ignore_client_abort_conf, 1)
++        != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++
++    if (ngx_conf_init_conditional_flag_value(cf,
++            &conf->upstream.pass_request_headers_conf, 0)
++        != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++
++    if (ngx_conf_init_conditional_flag_value(cf,
++            &conf->upstream.pass_request_body_conf, 0)
++        != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++
++    if (ngx_conf_merge_conditional_msec_value(cf,
++            &conf->upstream.connect_timeout_conf,
++            prev->upstream.connect_timeout_conf, 60000)
++        != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++
++    if (ngx_conf_merge_conditional_msec_value(cf,
++            &conf->upstream.send_timeout_conf,
++            prev->upstream.send_timeout_conf, 60000)
++        != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++
++    if (ngx_conf_merge_conditional_msec_value(cf,
++            &conf->upstream.read_timeout_conf,
++            prev->upstream.read_timeout_conf, 60000)
++        != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++#else
+     ngx_conf_merge_msec_value(conf->upstream.connect_timeout,
+                               prev->upstream.connect_timeout, 60000);
+ 
+@@ -205,11 +311,36 @@ ngx_http_redis2_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+ 
+     ngx_conf_merge_msec_value(conf->upstream.read_timeout,
+                               prev->upstream.read_timeout, 60000);
++#endif
+ 
+     ngx_conf_merge_size_value(conf->upstream.buffer_size,
+                               prev->upstream.buffer_size,
+                               (size_t) ngx_pagesize);
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    if (ngx_conf_merge_conditional_bitmask_value(cf,
++            &conf->upstream.next_upstream_conf,
++            prev->upstream.next_upstream_conf,
++            (NGX_CONF_BITMASK_SET
++             |NGX_HTTP_UPSTREAM_FT_ERROR
++             |NGX_HTTP_UPSTREAM_FT_TIMEOUT))
++        != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++
++    {
++        ngx_uint_t                         i;
++        ngx_conf_condition_bitmask_ctx_t  *bm;
++
++        bm = conf->upstream.next_upstream_conf->elts;
++        for (i = 0; i < conf->upstream.next_upstream_conf->nelts; i++) {
++            if (bm[i].value & NGX_HTTP_UPSTREAM_FT_OFF) {
++                bm[i].value = NGX_CONF_BITMASK_SET|NGX_HTTP_UPSTREAM_FT_OFF;
++            }
++        }
++    }
++#else
+     ngx_conf_merge_bitmask_value(conf->upstream.next_upstream,
+                                  prev->upstream.next_upstream,
+                                  (NGX_CONF_BITMASK_SET
+@@ -220,6 +351,7 @@ ngx_http_redis2_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+         conf->upstream.next_upstream = NGX_CONF_BITMASK_SET
+                                        |NGX_HTTP_UPSTREAM_FT_OFF;
+     }
++#endif
+ 
+     if (conf->upstream.upstream == NULL) {
+         conf->upstream.upstream = prev->upstream.upstream;
+@@ -242,6 +374,10 @@ ngx_http_redis2_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+         conf->literal_query.len = prev->literal_query.len;
+     }
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    ngx_http_upstream_init_conditional_conf(&conf->upstream);
++#endif
++
+     return NGX_CONF_OK;
+ }
+ 
+@@ -430,4 +566,3 @@ ngx_http_redis2_raw_queries(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+ 
+     return NGX_CONF_OK;
+ }
+-

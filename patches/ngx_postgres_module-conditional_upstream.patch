@@ -1,0 +1,222 @@
+diff --git a/src/ngx_postgres_module.c b/src/ngx_postgres_module.c
+index 5c04b35..fc5d48e 100644
+--- a/src/ngx_postgres_module.c
++++ b/src/ngx_postgres_module.c
+@@ -41,6 +41,10 @@
+ #include "ngx_postgres_variable.h"
+ #include "ngx_postgres_rewrite.h"
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++#include <ngx_http_condition_module.h>
++#endif
++
+ 
+ #define NGX_CONF_TAKE34  (NGX_CONF_TAKE3|NGX_CONF_TAKE4)
+ 
+@@ -107,17 +111,35 @@ static ngx_command_t ngx_postgres_module_commands[] = {
+       NULL },
+ 
+     { ngx_string("postgres_connect_timeout"),
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF
++                        |NGX_HTTP_MAIN_WHEN_CONF|NGX_HTTP_SRV_WHEN_CONF
++                        |NGX_HTTP_LOC_WHEN_CONF|NGX_CONF_TAKE1,
++      ngx_conf_set_conditional_msec_slot,
++      NGX_HTTP_LOC_CONF_OFFSET,
++      offsetof(ngx_postgres_loc_conf_t, upstream.connect_timeout_conf),
++#else
+       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
+       ngx_conf_set_msec_slot,
+       NGX_HTTP_LOC_CONF_OFFSET,
+       offsetof(ngx_postgres_loc_conf_t, upstream.connect_timeout),
++#endif
+       NULL },
+ 
+     { ngx_string("postgres_result_timeout"),
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF
++                        |NGX_HTTP_MAIN_WHEN_CONF|NGX_HTTP_SRV_WHEN_CONF
++                        |NGX_HTTP_LOC_WHEN_CONF|NGX_CONF_TAKE1,
++      ngx_conf_set_conditional_msec_slot,
++      NGX_HTTP_LOC_CONF_OFFSET,
++      offsetof(ngx_postgres_loc_conf_t, upstream.read_timeout_conf),
++#else
+       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
+       ngx_conf_set_msec_slot,
+       NGX_HTTP_LOC_CONF_OFFSET,
+       offsetof(ngx_postgres_loc_conf_t, upstream.read_timeout),
++#endif
+       NULL },
+ 
+       ngx_null_command
+@@ -315,8 +337,13 @@ ngx_postgres_create_loc_conf(ngx_conf_t *cf)
+      *     conf->output_binary = 0
+      */
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    conf->upstream.connect_timeout_conf = NGX_CONF_UNSET_PTR;
++    conf->upstream.read_timeout_conf = NGX_CONF_UNSET_PTR;
++#else
+     conf->upstream.connect_timeout = NGX_CONF_UNSET_MSEC;
+     conf->upstream.read_timeout = NGX_CONF_UNSET_MSEC;
++#endif
+ 
+     conf->rewrites = NGX_CONF_UNSET_PTR;
+     conf->output_handler = NGX_CONF_UNSET_PTR;
+@@ -324,8 +351,6 @@ ngx_postgres_create_loc_conf(ngx_conf_t *cf)
+ 
+     /* the hardcoded values */
+     conf->upstream.cyclic_temp_file = 0;
+-    conf->upstream.buffering = 1;
+-    conf->upstream.ignore_client_abort = 1;
+     conf->upstream.send_lowat = 0;
+     conf->upstream.bufs.num = 0;
+     conf->upstream.busy_buffers_size = 0;
+@@ -333,8 +358,17 @@ ngx_postgres_create_loc_conf(ngx_conf_t *cf)
+     conf->upstream.temp_file_write_size = 0;
+     conf->upstream.intercept_errors = 1;
+     conf->upstream.intercept_404 = 1;
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    conf->upstream.buffering_conf = NGX_CONF_UNSET_PTR;
++    conf->upstream.ignore_client_abort_conf = NGX_CONF_UNSET_PTR;
++    conf->upstream.pass_request_headers_conf = NGX_CONF_UNSET_PTR;
++    conf->upstream.pass_request_body_conf = NGX_CONF_UNSET_PTR;
++#else
++    conf->upstream.buffering = 1;
++    conf->upstream.ignore_client_abort = 1;
+     conf->upstream.pass_request_headers = 0;
+     conf->upstream.pass_request_body = 0;
++#endif
+ 
+     dd("returning");
+     return conf;
+@@ -348,11 +382,57 @@ ngx_postgres_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+ 
+     dd("entering");
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    if (ngx_conf_init_conditional_flag_value(cf,
++            &conf->upstream.buffering_conf, 1)
++        != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++
++    if (ngx_conf_init_conditional_flag_value(cf,
++            &conf->upstream.ignore_client_abort_conf, 1)
++        != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++
++    if (ngx_conf_init_conditional_flag_value(cf,
++            &conf->upstream.pass_request_headers_conf, 0)
++        != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++
++    if (ngx_conf_init_conditional_flag_value(cf,
++            &conf->upstream.pass_request_body_conf, 0)
++        != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++
++    if (ngx_conf_merge_conditional_msec_value(cf,
++            &conf->upstream.connect_timeout_conf,
++            prev->upstream.connect_timeout_conf, 10000)
++        != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++
++    if (ngx_conf_merge_conditional_msec_value(cf,
++            &conf->upstream.read_timeout_conf,
++            prev->upstream.read_timeout_conf, 30000)
++        != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++#else
+     ngx_conf_merge_msec_value(conf->upstream.connect_timeout,
+                               prev->upstream.connect_timeout, 10000);
+ 
+     ngx_conf_merge_msec_value(conf->upstream.read_timeout,
+                               prev->upstream.read_timeout, 30000);
++#endif
+ 
+     if ((conf->upstream.upstream == NULL) && (conf->upstream_cv == NULL)) {
+         conf->upstream.upstream = prev->upstream.upstream;
+@@ -381,6 +461,10 @@ ngx_postgres_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+ 
+     ngx_conf_merge_ptr_value(conf->variables, prev->variables, NULL);
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    ngx_http_upstream_init_conditional_conf(&conf->upstream);
++#endif
++
+     dd("returning NGX_CONF_OK");
+     return NGX_CONF_OK;
+ }
+diff --git a/src/ngx_postgres_processor.c b/src/ngx_postgres_processor.c
+index 31dc213..cbab933 100644
+--- a/src/ngx_postgres_processor.c
++++ b/src/ngx_postgres_processor.c
+@@ -271,7 +271,11 @@ ngx_postgres_upstream_send_query(ngx_http_request_t *r, ngx_connection_t *pgxc,
+     }
+ 
+     /* set result timeout */
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    ngx_add_timer(pgxc->read, r->upstream->read_timeout);
++#else
+     ngx_add_timer(pgxc->read, r->upstream->conf->read_timeout);
++#endif
+ 
+     dd("query sent successfully");
+     ngx_log_debug0(NGX_LOG_DEBUG_HTTP, pgxc->log, 0,
+diff --git a/src/ngx_postgres_util.c b/src/ngx_postgres_util.c
+index f13c90a..d65bb01 100644
+--- a/src/ngx_postgres_util.c
++++ b/src/ngx_postgres_util.c
+@@ -35,6 +35,10 @@
+ #include "ngx_postgres_module.h"
+ #include "ngx_postgres_util.h"
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++#include <ngx_http_condition_module.h>
++#endif
++
+ 
+ void *
+ ngx_postgres_get_peer_data(ngx_http_request_t *r)
+@@ -173,6 +177,9 @@ ngx_postgres_upstream_next(ngx_http_request_t *r,
+     ngx_http_upstream_t *u, ngx_int_t ft_type)
+ {
+     ngx_uint_t  status, state;
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    ngx_uint_t  next_upstream;
++#endif
+ 
+     dd("entering");
+ 
+@@ -237,7 +244,19 @@ ngx_postgres_upstream_next(ngx_http_request_t *r,
+     if (status) {
+         u->state->status = status;
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++        next_upstream = u->conf->next_upstream;
++        if (u->conf->next_upstream_conf != NULL
++            && u->conf->next_upstream_conf != NGX_CONF_UNSET_PTR)
++        {
++            next_upstream = ngx_http_get_conditional_bitmask_value(
++                r, u->conf->next_upstream_conf);
++        }
++
++        if (u->peer.tries == 0 || !(next_upstream & ft_type)) {
++#else
+         if (u->peer.tries == 0 || !(u->conf->next_upstream & ft_type)) {
++#endif
+             ngx_postgres_upstream_finalize_request(r, u, status);
+ 
+             dd("returning");

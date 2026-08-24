@@ -11,7 +11,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.31.3.1"
-ARG RESTY_RELEASE="364"
+ARG RESTY_RELEASE="365"
 # ARG RESTY_SRC_URL_BASE="https://openresty.org/download"
 ARG RESTY_SRC_URL_BASE="https://repo.hanada.info/openresty/src"
 ARG RESTY_LUAROCKS_VERSION="3.13.0"
@@ -473,6 +473,22 @@ RUN groupmod -n nginx www-data \
     && cd /build/openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) \
     && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) ext" \
     && patch -p1 < /build/patches/openresty/patches/nginx-ext_1.31.3+.patch \
+    && cd /build/openresty-${RESTY_VERSION}/bundle/redis-nginx-module-* \
+    && echo "patching ngx_http_redis_module" \
+    && patch -p1 < /build/patches/openresty/patches/ngx_http_redis_module-conditional_upstream.patch \
+    && cd /build/openresty-${RESTY_VERSION}/bundle/redis2-nginx-module-* \
+    && echo "patching ngx_http_redis2_module" \
+    && patch -p1 < /build/patches/openresty/patches/ngx_http_redis2_module-conditional_upstream.patch \
+    && cd /build/openresty-${RESTY_VERSION}/bundle/drizzle-nginx-module-* \
+    && echo "patching ngx_http_drizzle_module" \
+    && patch -p1 < /build/patches/openresty/patches/ngx_http_drizzle_module-conditional_upstream.patch \
+    && cd /build/openresty-${RESTY_VERSION}/bundle/ngx_postgres-* \
+    && echo "patching ngx_postgres_module" \
+    && patch -p1 < /build/patches/openresty/patches/ngx_postgres_module-conditional_upstream.patch \
+    && cd /build/openresty-${RESTY_VERSION}/bundle/ngx_lua-* \
+    && echo "patching ngx_http_lua_module for conditional upstream settings" \
+    && patch -p1 < /build/patches/openresty/patches/ngx_http_lua_module-conditional_upstream.patch \
+    && cd /build/openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) \
     && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) for ngx_http_upstream_log_module" \
     && patch -p1 < /build/modules/ngx_http_upstream_log_module/ngx_http_upstream_log_1.25.3+.patch \
     && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) for ngx_ssl_fingerprint_module" \
