@@ -258,30 +258,30 @@ RUN groupmod -n nginx www-data \
         libyajl-dev \
     && mkdir -p /build \
     && cd /build \
-    && curl -fSL ${RESTY_SRC_URL_BASE}/openresty-${RESTY_VERSION}.tar.gz -o openresty-${RESTY_VERSION}.tar.gz \
+    && curl -fSLv ${RESTY_SRC_URL_BASE}/openresty-${RESTY_VERSION}.tar.gz -o openresty-${RESTY_VERSION}.tar.gz \
     && tar xzf openresty-${RESTY_VERSION}.tar.gz \
-    && curl -fSL https://luarocks.github.io/luarocks/releases/luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz -o luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz \
+    && curl -fSLv https://luarocks.github.io/luarocks/releases/luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz -o luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz \
     && tar xzf luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz \
     && mkdir -p /build/patches /build/lib /build/modules /build/lualib \
     && cd /build/patches \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/openresty.git openresty \
     && cd /build/lib \
-    && curl -fSL https://${RESTY_GIT_MIRROR}/jemalloc/jemalloc/releases/download/${RESTY_JEMALLOC_VERSION}/jemalloc-${RESTY_JEMALLOC_VERSION}.tar.bz2 -o jemalloc-${RESTY_JEMALLOC_VERSION}.tar.bz2 \
+    && curl -fSLv https://${RESTY_GIT_MIRROR}/jemalloc/jemalloc/releases/download/${RESTY_JEMALLOC_VERSION}/jemalloc-${RESTY_JEMALLOC_VERSION}.tar.bz2 -o jemalloc-${RESTY_JEMALLOC_VERSION}.tar.bz2 \
     && tar xjf jemalloc-${RESTY_JEMALLOC_VERSION}.tar.bz2 \
-    && curl -fSL https://${RESTY_GIT_MIRROR}/libvips/libvips/releases/download/v${RESTY_LIBVIPS_VERSION}/vips-${RESTY_LIBVIPS_VERSION}.tar.xz -o vips-${RESTY_LIBVIPS_VERSION}.tar.xz \
+    && curl -fSLv https://${RESTY_GIT_MIRROR}/libvips/libvips/releases/download/v${RESTY_LIBVIPS_VERSION}/vips-${RESTY_LIBVIPS_VERSION}.tar.xz -o vips-${RESTY_LIBVIPS_VERSION}.tar.xz \
     && tar xf vips-${RESTY_LIBVIPS_VERSION}.tar.xz \
-    && curl -fSL https://${RESTY_GIT_MIRROR}/maxmind/libmaxminddb/releases/download/${RESTY_LIBMAXMINDDB_VERSION}/libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION}.tar.gz -o libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION}.tar.gz \
+    && curl -fSLv https://${RESTY_GIT_MIRROR}/maxmind/libmaxminddb/releases/download/${RESTY_LIBMAXMINDDB_VERSION}/libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION}.tar.gz -o libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION}.tar.gz \
     && tar xzf libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION}.tar.gz \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/openresty/sregex.git sregex \
-    && curl -fSL https://${RESTY_GIT_MIRROR}/madler/zlib/releases/download/v${RESTY_ZLIB_VERSION}/zlib-${RESTY_ZLIB_VERSION}.tar.gz -o zlib-${RESTY_ZLIB_VERSION}.tar.gz \
+    && curl -fSLv https://${RESTY_GIT_MIRROR}/madler/zlib/releases/download/v${RESTY_ZLIB_VERSION}/zlib-${RESTY_ZLIB_VERSION}.tar.gz -o zlib-${RESTY_ZLIB_VERSION}.tar.gz \
     && tar xzf zlib-${RESTY_ZLIB_VERSION}.tar.gz \
-    && curl -fSL https://${RESTY_GIT_MIRROR}/openssl/openssl/releases/download/openssl-${RESTY_OPENSSL_VERSION}/openssl-${RESTY_OPENSSL_VERSION}.tar.gz -o openssl-${RESTY_OPENSSL_VERSION}.tar.gz \
+    && curl -fSLv https://${RESTY_GIT_MIRROR}/openssl/openssl/releases/download/openssl-${RESTY_OPENSSL_VERSION}/openssl-${RESTY_OPENSSL_VERSION}.tar.gz -o openssl-${RESTY_OPENSSL_VERSION}.tar.gz \
     && tar xzf openssl-${RESTY_OPENSSL_VERSION}.tar.gz \
-    && curl -fSL https://${RESTY_GIT_MIRROR}/PCRE2Project/pcre2/releases/download/pcre2-${RESTY_PCRE_VERSION}/pcre2-${RESTY_PCRE_VERSION}.tar.gz -o pcre2-${RESTY_PCRE_VERSION}.tar.gz \
+    && curl -fSLv https://${RESTY_GIT_MIRROR}/PCRE2Project/pcre2/releases/download/pcre2-${RESTY_PCRE_VERSION}/pcre2-${RESTY_PCRE_VERSION}.tar.gz -o pcre2-${RESTY_PCRE_VERSION}.tar.gz \
     && tar xzf pcre2-${RESTY_PCRE_VERSION}.tar.gz \
-    && curl -fSL https://${RESTY_GIT_MIRROR}/facebook/zstd/releases/download/v${RESTY_ZSTD_VERSION}/zstd-${RESTY_ZSTD_VERSION}.tar.gz -o zstd-${RESTY_ZSTD_VERSION}.tar.gz \
+    && curl -fSLv https://${RESTY_GIT_MIRROR}/facebook/zstd/releases/download/v${RESTY_ZSTD_VERSION}/zstd-${RESTY_ZSTD_VERSION}.tar.gz -o zstd-${RESTY_ZSTD_VERSION}.tar.gz \
     && tar xzf zstd-${RESTY_ZSTD_VERSION}.tar.gz \
-    && curl -fSL https://${RESTY_GIT_MIRROR}/bdwgc/libatomic_ops/releases/download/v${RESTY_LIBATOMIC_VERSION}/libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz -o libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz \
+    && curl -fSLv https://${RESTY_GIT_MIRROR}/bdwgc/libatomic_ops/releases/download/v${RESTY_LIBATOMIC_VERSION}/libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz -o libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz \
     && tar xzf libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz \
     && git clone --depth=1 --recurse-submodules https://${RESTY_GIT_MIRROR}/ua-parser/uap-cpp.git uap-cpp \
     && git clone --depth=1 --recurse-submodules --branch v${RESTY_MODSECURITY_VERSION} https://${RESTY_GIT_MIRROR}/owasp-modsecurity/ModSecurity.git modsecurity \
@@ -358,7 +358,7 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/lua-resty-mlcache.git lua-resty-mlcache \
     && git clone --depth=1 --recurse-submodules https://${RESTY_GIT_MIRROR}/HanadaLee/lua-lolhtml.git \
     && cd /build \
-    && curl -sSf https://sh.rustup.rs | sh -s -- -y \
+    && curl -fSLv https://sh.rustup.rs | sh -s -- -y \
     && . $HOME/.cargo/env \
     && cd /build/lib/jemalloc-${RESTY_JEMALLOC_VERSION} \
     && ./configure \
@@ -384,7 +384,7 @@ RUN groupmod -n nginx www-data \
     && ldconfig \
     && cd /build/lib/openssl-${RESTY_OPENSSL_VERSION} \
     && echo 'patching OpenSSL 3.x for OpenResty' \
-    && curl -s https://${RESTY_GIT_RAW_MIRROR}/openresty/openresty/refs/heads/master/patches/openssl-${RESTY_OPENSSL_PATCH_VERSION}-sess_set_get_cb_yield.patch | patch -p1 \
+    && curl -fSLv https://${RESTY_GIT_RAW_MIRROR}/openresty/openresty/refs/heads/master/patches/openssl-${RESTY_OPENSSL_PATCH_VERSION}-sess_set_get_cb_yield.patch | patch -p1 \
     && echo 'patching OpenSSL 3.x for ngx_ssl_figerprint_module' \
     && patch -p1 < /build/modules/ngx_ssl_fingerprint_module/patches/openssl-3.5.5+.patch \
     && ./config \
@@ -571,7 +571,7 @@ RUN groupmod -n nginx www-data \
     && mkdir -p /usr/local/openresty/share/uap-core \
     && cp /build/lib/uap-cpp/uap-core/regexes.yaml /usr/local/openresty/share/uap-core \
     && cd /usr/local/openresty/share \
-    && curl -fSL https://${RESTY_GIT_MIRROR}/coreruleset/coreruleset/releases/download/v${RESTY_OWSAP_CRS_VERSION}/coreruleset-${RESTY_OWSAP_CRS_VERSION}-minimal.tar.gz -o coreruleset-${RESTY_OWSAP_CRS_VERSION}-minimal.tar.gz \
+    && curl -fSLv https://${RESTY_GIT_MIRROR}/coreruleset/coreruleset/releases/download/v${RESTY_OWSAP_CRS_VERSION}/coreruleset-${RESTY_OWSAP_CRS_VERSION}-minimal.tar.gz -o coreruleset-${RESTY_OWSAP_CRS_VERSION}-minimal.tar.gz \
     && tar xzf coreruleset-${RESTY_OWSAP_CRS_VERSION}-minimal.tar.gz \
     && rm -f coreruleset-${RESTY_OWSAP_CRS_VERSION}-minimal.tar.gz \
     && mv coreruleset-${RESTY_OWSAP_CRS_VERSION} coreruleset \
