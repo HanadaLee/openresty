@@ -654,7 +654,7 @@ grpc_set_header Host api.example.com;
 
 ### Conditional upstream directives
 
-When `ngx_condition_module` is compiled, the built-in upstream directives listed below can also be declared in `when` blocks at the `http`, `server`, and `location` levels. Their native syntax, defaults, and inheritance behavior are unchanged.
+When `ngx_condition_module` is compiled, the built-in upstream directives listed below can also be declared in applicable `when` blocks. HTTP directives support the `http`, `server`, and `location` levels, while stream proxy directives support the `stream` and `server` levels. Their native syntax, defaults, and inheritance behavior are unchanged.
 
 For directives that select one effective value, declarations are evaluated in configuration order: the first unconditional declaration or declaration with a matching condition wins. A conditional declaration does not take precedence merely because it has a condition, so put conditional cases before an unconditional fallback.
 
@@ -670,46 +670,47 @@ proxy_read_timeout 30s;
 
 The supported directives are listed explicitly below.
 
-| proxy | fastcgi | scgi | uwsgi | grpc | memcached | tunnel |
-| --- | --- | --- | --- | --- | --- | --- |
-| `proxy_buffering` | `fastcgi_buffering` | `scgi_buffering` | `uwsgi_buffering` | — | — | — |
-| `proxy_cache_background_update` | `fastcgi_cache_background_update` | `scgi_cache_background_update` | `uwsgi_cache_background_update` | — | — | — |
-| `proxy_cache_hide_cookies` | `fastcgi_cache_hide_cookies` | `scgi_cache_hide_cookies` | `uwsgi_cache_hide_cookies` | — | — | — |
-| `proxy_cache_lock` | `fastcgi_cache_lock` | `scgi_cache_lock` | `uwsgi_cache_lock` | — | — | — |
-| `proxy_cache_lock_age` | `fastcgi_cache_lock_age` | `scgi_cache_lock_age` | `uwsgi_cache_lock_age` | — | — | — |
-| `proxy_cache_lock_timeout` | `fastcgi_cache_lock_timeout` | `scgi_cache_lock_timeout` | `uwsgi_cache_lock_timeout` | — | — | — |
-| `proxy_cache_max_length` | `fastcgi_cache_max_length` | `scgi_cache_max_length` | `uwsgi_cache_max_length` | — | — | — |
-| `proxy_cache_max_range_offset` | `fastcgi_cache_max_range_offset` | `scgi_cache_max_range_offset` | `uwsgi_cache_max_range_offset` | — | — | — |
-| `proxy_cache_methods` | `fastcgi_cache_methods` | `scgi_cache_methods` | `uwsgi_cache_methods` | — | — | — |
-| `proxy_cache_min_length` | `fastcgi_cache_min_length` | `scgi_cache_min_length` | `uwsgi_cache_min_length` | — | — | — |
-| `proxy_cache_min_uses` | `fastcgi_cache_min_uses` | `scgi_cache_min_uses` | `uwsgi_cache_min_uses` | — | — | — |
-| `proxy_cache_use_stale` | `fastcgi_cache_use_stale` | `scgi_cache_use_stale` | `uwsgi_cache_use_stale` | — | — | — |
-| `proxy_cache_vary` | `fastcgi_cache_vary` | `scgi_cache_vary` | `uwsgi_cache_vary` | — | — | — |
-| `proxy_connect_timeout` | `fastcgi_connect_timeout` | `scgi_connect_timeout` | `uwsgi_connect_timeout` | `grpc_connect_timeout` | `memcached_connect_timeout` | `tunnel_connect_timeout` |
-| `proxy_cookie_domain` | — | — | — | — | — | — |
-| `proxy_cookie_flags` | — | — | — | — | — | — |
-| `proxy_cookie_max_age` | — | — | — | — | — | — |
-| `proxy_cookie_path` | — | — | — | — | — | — |
-| `proxy_cookie_value` | — | — | — | — | — | — |
-| `proxy_force_ranges` | `fastcgi_force_ranges` | `scgi_force_ranges` | `uwsgi_force_ranges` | — | — | — |
-| `proxy_hide_cookie` | `fastcgi_hide_cookie` | `scgi_hide_cookie` | `uwsgi_hide_cookie` | — | — | — |
-| `proxy_ignore_cache_control` | `fastcgi_ignore_cache_control` | `scgi_ignore_cache_control` | `uwsgi_ignore_cache_control` | — | — | — |
-| `proxy_ignore_client_abort` | `fastcgi_ignore_client_abort` | `scgi_ignore_client_abort` | `uwsgi_ignore_client_abort` | — | — | — |
-| `proxy_ignore_headers` | `fastcgi_ignore_headers` | `scgi_ignore_headers` | `uwsgi_ignore_headers` | `grpc_ignore_headers` | — | — |
-| `proxy_limit_rate` | `fastcgi_limit_rate` | `scgi_limit_rate` | `uwsgi_limit_rate` | — | — | — |
-| `proxy_next_upstream` | `fastcgi_next_upstream` | `scgi_next_upstream` | `uwsgi_next_upstream` | `grpc_next_upstream` | `memcached_next_upstream` | `tunnel_next_upstream` |
-| `proxy_next_upstream_timeout` | `fastcgi_next_upstream_timeout` | `scgi_next_upstream_timeout` | `uwsgi_next_upstream_timeout` | `grpc_next_upstream_timeout` | `memcached_next_upstream_timeout` | `tunnel_next_upstream_timeout` |
-| `proxy_next_upstream_tries` | `fastcgi_next_upstream_tries` | `scgi_next_upstream_tries` | `uwsgi_next_upstream_tries` | `grpc_next_upstream_tries` | `memcached_next_upstream_tries` | `tunnel_next_upstream_tries` |
-| `proxy_pass_request_body` | `fastcgi_pass_request_body` | `scgi_pass_request_body` | `uwsgi_pass_request_body` | — | — | — |
-| `proxy_pass_request_headers` | `fastcgi_pass_request_headers` | `scgi_pass_request_headers` | `uwsgi_pass_request_headers` | — | — | — |
-| `proxy_read_timeout` | `fastcgi_read_timeout` | `scgi_read_timeout` | `uwsgi_read_timeout` | `grpc_read_timeout` | `memcached_read_timeout` | `tunnel_read_timeout` |
-| `proxy_request_buffering` | `fastcgi_request_buffering` | `scgi_request_buffering` | `uwsgi_request_buffering` | — | — | — |
-| `proxy_send_timeout` | `fastcgi_send_timeout` | `scgi_send_timeout` | `uwsgi_send_timeout` | `grpc_send_timeout` | `memcached_send_timeout` | `tunnel_send_timeout` |
-| `proxy_http_version` | — | — | — | — | — | — |
-| `proxy_method` | — | — | — | `grpc_method` | — | — |
-| `proxy_redirect` | — | — | — | — | — | — |
-| `proxy_ssl_name` | — | — | `uwsgi_ssl_name` | `grpc_ssl_name` | — | — |
-| `proxy_ssl_server_name` | — | — | `uwsgi_ssl_server_name` | `grpc_ssl_server_name` | — | — |
+| HTTP proxy | Stream proxy | fastcgi | scgi | uwsgi | grpc | memcached | tunnel |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `proxy_buffering` | — | `fastcgi_buffering` | `scgi_buffering` | `uwsgi_buffering` | — | — | — |
+| `proxy_cache_background_update` | — | `fastcgi_cache_background_update` | `scgi_cache_background_update` | `uwsgi_cache_background_update` | — | — | — |
+| `proxy_cache_hide_cookies` | — | `fastcgi_cache_hide_cookies` | `scgi_cache_hide_cookies` | `uwsgi_cache_hide_cookies` | — | — | — |
+| `proxy_cache_lock` | — | `fastcgi_cache_lock` | `scgi_cache_lock` | `uwsgi_cache_lock` | — | — | — |
+| `proxy_cache_lock_age` | — | `fastcgi_cache_lock_age` | `scgi_cache_lock_age` | `uwsgi_cache_lock_age` | — | — | — |
+| `proxy_cache_lock_timeout` | — | `fastcgi_cache_lock_timeout` | `scgi_cache_lock_timeout` | `uwsgi_cache_lock_timeout` | — | — | — |
+| `proxy_cache_max_length` | — | `fastcgi_cache_max_length` | `scgi_cache_max_length` | `uwsgi_cache_max_length` | — | — | — |
+| `proxy_cache_max_range_offset` | — | `fastcgi_cache_max_range_offset` | `scgi_cache_max_range_offset` | `uwsgi_cache_max_range_offset` | — | — | — |
+| `proxy_cache_methods` | — | `fastcgi_cache_methods` | `scgi_cache_methods` | `uwsgi_cache_methods` | — | — | — |
+| `proxy_cache_min_length` | — | `fastcgi_cache_min_length` | `scgi_cache_min_length` | `uwsgi_cache_min_length` | — | — | — |
+| `proxy_cache_min_uses` | — | `fastcgi_cache_min_uses` | `scgi_cache_min_uses` | `uwsgi_cache_min_uses` | — | — | — |
+| `proxy_cache_use_stale` | — | `fastcgi_cache_use_stale` | `scgi_cache_use_stale` | `uwsgi_cache_use_stale` | — | — | — |
+| `proxy_cache_vary` | — | `fastcgi_cache_vary` | `scgi_cache_vary` | `uwsgi_cache_vary` | — | — | — |
+| `proxy_connect_timeout` | `proxy_connect_timeout` | `fastcgi_connect_timeout` | `scgi_connect_timeout` | `uwsgi_connect_timeout` | `grpc_connect_timeout` | `memcached_connect_timeout` | `tunnel_connect_timeout` |
+| — | `proxy_timeout` | — | — | — | — | — | — |
+| `proxy_cookie_domain` | — | — | — | — | — | — | — |
+| `proxy_cookie_flags` | — | — | — | — | — | — | — |
+| `proxy_cookie_max_age` | — | — | — | — | — | — | — |
+| `proxy_cookie_path` | — | — | — | — | — | — | — |
+| `proxy_cookie_value` | — | — | — | — | — | — | — |
+| `proxy_force_ranges` | — | `fastcgi_force_ranges` | `scgi_force_ranges` | `uwsgi_force_ranges` | — | — | — |
+| `proxy_hide_cookie` | — | `fastcgi_hide_cookie` | `scgi_hide_cookie` | `uwsgi_hide_cookie` | — | — | — |
+| `proxy_ignore_cache_control` | — | `fastcgi_ignore_cache_control` | `scgi_ignore_cache_control` | `uwsgi_ignore_cache_control` | — | — | — |
+| `proxy_ignore_client_abort` | — | `fastcgi_ignore_client_abort` | `scgi_ignore_client_abort` | `uwsgi_ignore_client_abort` | — | — | — |
+| `proxy_ignore_headers` | — | `fastcgi_ignore_headers` | `scgi_ignore_headers` | `uwsgi_ignore_headers` | `grpc_ignore_headers` | — | — |
+| `proxy_limit_rate` | — | `fastcgi_limit_rate` | `scgi_limit_rate` | `uwsgi_limit_rate` | — | — | — |
+| `proxy_next_upstream` | `proxy_next_upstream` | `fastcgi_next_upstream` | `scgi_next_upstream` | `uwsgi_next_upstream` | `grpc_next_upstream` | `memcached_next_upstream` | `tunnel_next_upstream` |
+| `proxy_next_upstream_timeout` | `proxy_next_upstream_timeout` | `fastcgi_next_upstream_timeout` | `scgi_next_upstream_timeout` | `uwsgi_next_upstream_timeout` | `grpc_next_upstream_timeout` | `memcached_next_upstream_timeout` | `tunnel_next_upstream_timeout` |
+| `proxy_next_upstream_tries` | `proxy_next_upstream_tries` | `fastcgi_next_upstream_tries` | `scgi_next_upstream_tries` | `uwsgi_next_upstream_tries` | `grpc_next_upstream_tries` | `memcached_next_upstream_tries` | `tunnel_next_upstream_tries` |
+| `proxy_pass_request_body` | — | `fastcgi_pass_request_body` | `scgi_pass_request_body` | `uwsgi_pass_request_body` | — | — | — |
+| `proxy_pass_request_headers` | — | `fastcgi_pass_request_headers` | `scgi_pass_request_headers` | `uwsgi_pass_request_headers` | — | — | — |
+| `proxy_read_timeout` | — | `fastcgi_read_timeout` | `scgi_read_timeout` | `uwsgi_read_timeout` | `grpc_read_timeout` | `memcached_read_timeout` | `tunnel_read_timeout` |
+| `proxy_request_buffering` | — | `fastcgi_request_buffering` | `scgi_request_buffering` | `uwsgi_request_buffering` | — | — | — |
+| `proxy_send_timeout` | — | `fastcgi_send_timeout` | `scgi_send_timeout` | `uwsgi_send_timeout` | `grpc_send_timeout` | `memcached_send_timeout` | `tunnel_send_timeout` |
+| `proxy_http_version` | — | — | — | — | — | — | — |
+| `proxy_method` | — | — | — | — | `grpc_method` | — | — |
+| `proxy_redirect` | — | — | — | — | — | — | — |
+| `proxy_ssl_name` | `proxy_ssl_name` | — | — | `uwsgi_ssl_name` | `grpc_ssl_name` | — | — |
+| `proxy_ssl_server_name` | `proxy_ssl_server_name` | — | — | `uwsgi_ssl_server_name` | `grpc_ssl_server_name` | — | — |
 
 ### Support for inheritance in "proxy_set_header" and its friends
 

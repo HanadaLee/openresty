@@ -22598,10 +22598,221 @@ index 774bc7e93..4c5dff46b 100644
          ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
                             "invalid parameter \"%V\"", &value[i]);
 diff --git a/src/stream/ngx_stream_proxy_module.c b/src/stream/ngx_stream_proxy_module.c
-index b8e16adff..22dcce2e0 100644
+index b8e16adff..4af2f8805 100644
 --- a/src/stream/ngx_stream_proxy_module.c
 +++ b/src/stream/ngx_stream_proxy_module.c
-@@ -799,6 +799,10 @@ ngx_stream_proxy_connect(ngx_stream_session_t *s)
+@@ -9,6 +9,10 @@
+ #include <ngx_core.h>
+ #include <ngx_stream.h>
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++#include <ngx_stream_condition_module.h>
++#endif
++
+ 
+ typedef struct {
+     ngx_addr_t                      *addr;
+@@ -20,16 +24,27 @@ typedef struct {
+ 
+ 
+ typedef struct {
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    ngx_array_t                     *connect_timeout;
++    ngx_array_t                     *timeout;
++    ngx_array_t                     *next_upstream_timeout;
++#else
+     ngx_msec_t                       connect_timeout;
+     ngx_msec_t                       timeout;
+     ngx_msec_t                       next_upstream_timeout;
++#endif
+     size_t                           buffer_size;
+     ngx_stream_complex_value_t      *upload_rate;
+     ngx_stream_complex_value_t      *download_rate;
+     ngx_uint_t                       requests;
+     ngx_uint_t                       responses;
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    ngx_array_t                     *next_upstream_tries;
++    ngx_array_t                     *next_upstream;
++#else
+     ngx_uint_t                       next_upstream_tries;
+     ngx_flag_t                       next_upstream;
++#endif
+     ngx_uint_t                       proxy_protocol;
+     ngx_flag_t                       half_close;
+     ngx_stream_upstream_local_t     *local;
+@@ -42,8 +57,13 @@ typedef struct {
+     ngx_flag_t                       ssl_session_reuse;
+     ngx_uint_t                       ssl_protocols;
+     ngx_str_t                        ssl_ciphers;
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    ngx_array_t                     *ssl_name;
++    ngx_array_t                     *ssl_server_name;
++#else
+     ngx_stream_complex_value_t      *ssl_name;
+     ngx_flag_t                       ssl_server_name;
++#endif
+     ngx_array_t                     *ssl_alpn;
+ 
+     ngx_flag_t                       ssl_verify;
+@@ -191,15 +211,31 @@ static ngx_command_t  ngx_stream_proxy_commands[] = {
+       NULL },
+ 
+     { ngx_string("proxy_connect_timeout"),
+-      NGX_STREAM_MAIN_CONF|NGX_STREAM_SRV_CONF|NGX_CONF_TAKE1,
++      NGX_STREAM_MAIN_CONF|NGX_STREAM_SRV_CONF
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++                         |NGX_STREAM_MAIN_WHEN_CONF|NGX_STREAM_SRV_WHEN_CONF
++#endif
++                         |NGX_CONF_TAKE1,
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++      ngx_conf_set_conditional_msec_slot,
++#else
+       ngx_conf_set_msec_slot,
++#endif
+       NGX_STREAM_SRV_CONF_OFFSET,
+       offsetof(ngx_stream_proxy_srv_conf_t, connect_timeout),
+       NULL },
+ 
+     { ngx_string("proxy_timeout"),
+-      NGX_STREAM_MAIN_CONF|NGX_STREAM_SRV_CONF|NGX_CONF_TAKE1,
++      NGX_STREAM_MAIN_CONF|NGX_STREAM_SRV_CONF
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++                         |NGX_STREAM_MAIN_WHEN_CONF|NGX_STREAM_SRV_WHEN_CONF
++#endif
++                         |NGX_CONF_TAKE1,
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++      ngx_conf_set_conditional_msec_slot,
++#else
+       ngx_conf_set_msec_slot,
++#endif
+       NGX_STREAM_SRV_CONF_OFFSET,
+       offsetof(ngx_stream_proxy_srv_conf_t, timeout),
+       NULL },
+@@ -254,22 +290,46 @@ static ngx_command_t  ngx_stream_proxy_commands[] = {
+       NULL },
+ 
+     { ngx_string("proxy_next_upstream"),
+-      NGX_STREAM_MAIN_CONF|NGX_STREAM_SRV_CONF|NGX_CONF_FLAG,
++      NGX_STREAM_MAIN_CONF|NGX_STREAM_SRV_CONF
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++                         |NGX_STREAM_MAIN_WHEN_CONF|NGX_STREAM_SRV_WHEN_CONF
++#endif
++                         |NGX_CONF_FLAG,
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++      ngx_conf_set_conditional_flag_slot,
++#else
+       ngx_conf_set_flag_slot,
++#endif
+       NGX_STREAM_SRV_CONF_OFFSET,
+       offsetof(ngx_stream_proxy_srv_conf_t, next_upstream),
+       NULL },
+ 
+     { ngx_string("proxy_next_upstream_tries"),
+-      NGX_STREAM_MAIN_CONF|NGX_STREAM_SRV_CONF|NGX_CONF_TAKE1,
++      NGX_STREAM_MAIN_CONF|NGX_STREAM_SRV_CONF
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++                         |NGX_STREAM_MAIN_WHEN_CONF|NGX_STREAM_SRV_WHEN_CONF
++#endif
++                         |NGX_CONF_TAKE1,
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++      ngx_conf_set_conditional_num_slot,
++#else
+       ngx_conf_set_num_slot,
++#endif
+       NGX_STREAM_SRV_CONF_OFFSET,
+       offsetof(ngx_stream_proxy_srv_conf_t, next_upstream_tries),
+       NULL },
+ 
+     { ngx_string("proxy_next_upstream_timeout"),
+-      NGX_STREAM_MAIN_CONF|NGX_STREAM_SRV_CONF|NGX_CONF_TAKE1,
++      NGX_STREAM_MAIN_CONF|NGX_STREAM_SRV_CONF
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++                         |NGX_STREAM_MAIN_WHEN_CONF|NGX_STREAM_SRV_WHEN_CONF
++#endif
++                         |NGX_CONF_TAKE1,
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++      ngx_conf_set_conditional_msec_slot,
++#else
+       ngx_conf_set_msec_slot,
++#endif
+       NGX_STREAM_SRV_CONF_OFFSET,
+       offsetof(ngx_stream_proxy_srv_conf_t, next_upstream_timeout),
+       NULL },
+@@ -319,15 +379,31 @@ static ngx_command_t  ngx_stream_proxy_commands[] = {
+       NULL },
+ 
+     { ngx_string("proxy_ssl_name"),
+-      NGX_STREAM_MAIN_CONF|NGX_STREAM_SRV_CONF|NGX_CONF_TAKE1,
++      NGX_STREAM_MAIN_CONF|NGX_STREAM_SRV_CONF
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++                         |NGX_STREAM_MAIN_WHEN_CONF|NGX_STREAM_SRV_WHEN_CONF
++#endif
++                         |NGX_CONF_TAKE1,
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++      ngx_stream_set_conditional_complex_value_slot,
++#else
+       ngx_stream_set_complex_value_slot,
++#endif
+       NGX_STREAM_SRV_CONF_OFFSET,
+       offsetof(ngx_stream_proxy_srv_conf_t, ssl_name),
+       NULL },
+ 
+     { ngx_string("proxy_ssl_server_name"),
+-      NGX_STREAM_MAIN_CONF|NGX_STREAM_SRV_CONF|NGX_CONF_FLAG,
++      NGX_STREAM_MAIN_CONF|NGX_STREAM_SRV_CONF
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++                         |NGX_STREAM_MAIN_WHEN_CONF|NGX_STREAM_SRV_WHEN_CONF
++#endif
++                         |NGX_CONF_FLAG,
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++      ngx_conf_set_conditional_flag_slot,
++#else
+       ngx_conf_set_flag_slot,
++#endif
+       NGX_STREAM_SRV_CONF_OFFSET,
+       offsetof(ngx_stream_proxy_srv_conf_t, ssl_server_name),
+       NULL },
+@@ -464,8 +540,15 @@ ngx_stream_proxy_handler(ngx_stream_session_t *s)
+         return;
+     }
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    pctx->connect_timeout = ngx_stream_get_conditional_msec_value(
++                                s, pscf->connect_timeout);
++    pctx->timeout = ngx_stream_get_conditional_msec_value(s,
++                                                          pscf->timeout);
++#else
+     pctx->connect_timeout = pscf->connect_timeout;
+     pctx->timeout = pscf->timeout;
++#endif
+ 
+     ngx_stream_set_ctx(s, pctx, ngx_stream_proxy_module);
+ 
+@@ -649,11 +732,23 @@ found:
+ 
+     u->peer.start_time = ngx_current_msec;
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    {
++        ngx_uint_t  tries;
++
++        tries = ngx_stream_get_conditional_num_value(
++                    s, pscf->next_upstream_tries);
++        if (tries && u->peer.tries > tries) {
++            u->peer.tries = tries;
++        }
++    }
++#else
+     if (pscf->next_upstream_tries
+         && u->peer.tries > pscf->next_upstream_tries)
+     {
+         u->peer.tries = pscf->next_upstream_tries;
+     }
++#endif
+ 
+     ngx_stream_proxy_connect(s);
+ }
+@@ -799,6 +894,10 @@ ngx_stream_proxy_connect(ngx_stream_session_t *s)
  
      u->start_time = ngx_current_msec;
  
@@ -22612,7 +22823,106 @@ index b8e16adff..22dcce2e0 100644
      u->state->connect_time = (ngx_msec_t) -1;
      u->state->first_byte_time = (ngx_msec_t) -1;
      u->state->response_time = (ngx_msec_t) -1;
-@@ -2273,6 +2277,10 @@ ngx_stream_proxy_next_upstream(ngx_stream_session_t *s)
+@@ -1314,7 +1413,13 @@ ngx_stream_proxy_ssl_init_connection(ngx_stream_session_t *s)
+         return;
+     }
+ 
+-    if (pscf->ssl_server_name || pscf->ssl_verify) {
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    if (ngx_stream_get_conditional_flag_value(s, pscf->ssl_server_name)
++        || pscf->ssl_verify)
++#else
++    if (pscf->ssl_server_name || pscf->ssl_verify)
++#endif
++    {
+         if (ngx_stream_proxy_ssl_name(s) != NGX_OK) {
+             ngx_stream_proxy_finalize(s, NGX_STREAM_INTERNAL_SERVER_ERROR);
+             return;
+@@ -1432,6 +1537,9 @@ static ngx_int_t
+ ngx_stream_proxy_ssl_name(ngx_stream_session_t *s)
+ {
+     u_char                       *p, *last;
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    ngx_int_t                     rc;
++#endif
+     ngx_str_t                     name;
+     ngx_stream_upstream_t        *u;
+     ngx_stream_proxy_srv_conf_t  *pscf;
+@@ -1440,6 +1548,17 @@ ngx_stream_proxy_ssl_name(ngx_stream_session_t *s)
+ 
+     u = s->upstream;
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    rc = ngx_stream_get_conditional_complex_value(s, pscf->ssl_name,
++                                                   &name);
++    if (rc == NGX_ERROR) {
++        return NGX_ERROR;
++    }
++
++    if (rc == NGX_DECLINED) {
++        name = u->ssl_name;
++    }
++#else
+     if (pscf->ssl_name) {
+         if (ngx_stream_complex_value(s, pscf->ssl_name, &name) != NGX_OK) {
+             return NGX_ERROR;
+@@ -1448,6 +1567,7 @@ ngx_stream_proxy_ssl_name(ngx_stream_session_t *s)
+     } else {
+         name = u->ssl_name;
+     }
++#endif
+ 
+     if (name.len == 0) {
+         goto done;
+@@ -1475,7 +1595,12 @@ ngx_stream_proxy_ssl_name(ngx_stream_session_t *s)
+         name.len = p - name.data;
+     }
+ 
+-    if (!pscf->ssl_server_name) {
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    if (!ngx_stream_get_conditional_flag_value(s, pscf->ssl_server_name))
++#else
++    if (!pscf->ssl_server_name)
++#endif
++    {
+         goto done;
+     }
+ 
+@@ -1725,11 +1850,23 @@ ngx_stream_proxy_resolve_handler(ngx_resolver_ctx_t *ctx)
+ 
+     pscf = ngx_stream_get_module_srv_conf(s, ngx_stream_proxy_module);
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    {
++        ngx_uint_t  tries;
++
++        tries = ngx_stream_get_conditional_num_value(
++                    s, pscf->next_upstream_tries);
++        if (tries && u->peer.tries > tries) {
++            u->peer.tries = tries;
++        }
++    }
++#else
+     if (pscf->next_upstream_tries
+         && u->peer.tries > pscf->next_upstream_tries)
+     {
+         u->peer.tries = pscf->next_upstream_tries;
+     }
++#endif
+ 
+     ngx_stream_proxy_connect(s);
+ }
+@@ -2245,6 +2382,9 @@ static void
+ ngx_stream_proxy_next_upstream(ngx_stream_session_t *s)
+ {
+     ngx_msec_t                    timeout;
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    ngx_flag_t                    next;
++#endif
+     ngx_connection_t             *pc;
+     ngx_stream_upstream_t        *u;
+     ngx_stream_proxy_srv_conf_t  *pscf;
+@@ -2273,10 +2413,25 @@ ngx_stream_proxy_next_upstream(ngx_stream_session_t *s)
  
      pscf = ngx_stream_get_module_srv_conf(s, ngx_stream_proxy_module);
  
@@ -22620,10 +22930,25 @@ index b8e16adff..22dcce2e0 100644
 +    u->state->status = NGX_STREAM_BAD_GATEWAY;
 +#endif
 +
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    timeout = ngx_stream_get_conditional_msec_value(
++                  s, pscf->next_upstream_timeout);
++    next = ngx_stream_get_conditional_flag_value(s,
++                                                  pscf->next_upstream);
++#else
      timeout = pscf->next_upstream_timeout;
++#endif
  
      if (u->peer.tries == 0
-@@ -2335,6 +2343,12 @@ ngx_stream_proxy_finalize(ngx_stream_session_t *s, ngx_uint_t rc)
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++        || !next
++#else
+         || !pscf->next_upstream
++#endif
+         || (timeout && ngx_current_msec - u->peer.start_time >= timeout))
+     {
+         ngx_stream_proxy_finalize(s, NGX_STREAM_BAD_GATEWAY);
+@@ -2335,6 +2490,12 @@ ngx_stream_proxy_finalize(ngx_stream_session_t *s, ngx_uint_t rc)
              u->state->response_time = ngx_current_msec - u->start_time;
          }
  
@@ -22636,6 +22961,149 @@ index b8e16adff..22dcce2e0 100644
          if (pc) {
              u->state->bytes_received = u->received;
              u->state->bytes_sent = pc->sent;
+@@ -2429,16 +2590,27 @@ ngx_stream_proxy_create_srv_conf(ngx_conf_t *cf)
+      *     conf->upstream_value = NULL;
+      */
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    conf->connect_timeout = NGX_CONF_UNSET_PTR;
++    conf->timeout = NGX_CONF_UNSET_PTR;
++    conf->next_upstream_timeout = NGX_CONF_UNSET_PTR;
++#else
+     conf->connect_timeout = NGX_CONF_UNSET_MSEC;
+     conf->timeout = NGX_CONF_UNSET_MSEC;
+     conf->next_upstream_timeout = NGX_CONF_UNSET_MSEC;
++#endif
+     conf->buffer_size = NGX_CONF_UNSET_SIZE;
+     conf->upload_rate = NGX_CONF_UNSET_PTR;
+     conf->download_rate = NGX_CONF_UNSET_PTR;
+     conf->requests = NGX_CONF_UNSET_UINT;
+     conf->responses = NGX_CONF_UNSET_UINT;
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    conf->next_upstream_tries = NGX_CONF_UNSET_PTR;
++    conf->next_upstream = NGX_CONF_UNSET_PTR;
++#else
+     conf->next_upstream_tries = NGX_CONF_UNSET_UINT;
+     conf->next_upstream = NGX_CONF_UNSET;
++#endif
+     conf->proxy_protocol = NGX_CONF_UNSET_UINT;
+     conf->local = NGX_CONF_UNSET_PTR;
+     conf->socket_keepalive = NGX_CONF_UNSET;
+@@ -2450,7 +2622,11 @@ ngx_stream_proxy_create_srv_conf(ngx_conf_t *cf)
+     conf->ssl_enable = NGX_CONF_UNSET;
+     conf->ssl_session_reuse = NGX_CONF_UNSET;
+     conf->ssl_name = NGX_CONF_UNSET_PTR;
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    conf->ssl_server_name = NGX_CONF_UNSET_PTR;
++#else
+     conf->ssl_server_name = NGX_CONF_UNSET;
++#endif
+     conf->ssl_alpn = NGX_CONF_UNSET_PTR;
+     conf->ssl_verify = NGX_CONF_UNSET;
+     conf->ssl_verify_depth = NGX_CONF_UNSET_UINT;
+@@ -2471,6 +2647,29 @@ ngx_stream_proxy_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
+     ngx_stream_proxy_srv_conf_t *prev = parent;
+     ngx_stream_proxy_srv_conf_t *conf = child;
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    if (ngx_conf_merge_conditional_msec_value(cf,
++            &conf->connect_timeout, prev->connect_timeout, 60000)
++        != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++
++    if (ngx_conf_merge_conditional_msec_value(cf, &conf->timeout,
++            prev->timeout, 10 * 60000)
++        != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++
++    if (ngx_conf_merge_conditional_msec_value(cf,
++            &conf->next_upstream_timeout,
++            prev->next_upstream_timeout, 0)
++        != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++#else
+     ngx_conf_merge_msec_value(conf->connect_timeout,
+                               prev->connect_timeout, 60000);
+ 
+@@ -2479,6 +2678,7 @@ ngx_stream_proxy_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
+ 
+     ngx_conf_merge_msec_value(conf->next_upstream_timeout,
+                               prev->next_upstream_timeout, 0);
++#endif
+ 
+     ngx_conf_merge_size_value(conf->buffer_size,
+                               prev->buffer_size, 16384);
+@@ -2493,10 +2693,27 @@ ngx_stream_proxy_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
+     ngx_conf_merge_uint_value(conf->responses,
+                               prev->responses, NGX_MAX_INT32_VALUE);
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    if (ngx_conf_merge_conditional_num_value(cf,
++            &conf->next_upstream_tries,
++            prev->next_upstream_tries, 0)
++        != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++
++    if (ngx_conf_merge_conditional_flag_value(cf,
++            &conf->next_upstream, prev->next_upstream, 1)
++        != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++#else
+     ngx_conf_merge_uint_value(conf->next_upstream_tries,
+                               prev->next_upstream_tries, 0);
+ 
+     ngx_conf_merge_value(conf->next_upstream, prev->next_upstream, 1);
++#endif
+ 
+     ngx_conf_merge_uint_value(conf->proxy_protocol, prev->proxy_protocol, 0);
+ 
+@@ -2527,9 +2744,25 @@ ngx_stream_proxy_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
+ 
+     ngx_conf_merge_str_value(conf->ssl_ciphers, prev->ssl_ciphers, "DEFAULT");
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    if (ngx_conf_merge_conditional_ptr_value(cf, &conf->ssl_name,
++            prev->ssl_name, NULL)
++        != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++
++    if (ngx_conf_merge_conditional_flag_value(cf, &conf->ssl_server_name,
++            prev->ssl_server_name, 0)
++        != NGX_OK)
++    {
++        return NGX_CONF_ERROR;
++    }
++#else
+     ngx_conf_merge_ptr_value(conf->ssl_name, prev->ssl_name, NULL);
+ 
+     ngx_conf_merge_value(conf->ssl_server_name, prev->ssl_server_name, 0);
++#endif
+ 
+     ngx_conf_merge_ptr_value(conf->ssl_alpn, prev->ssl_alpn, NULL);
+ 
+@@ -2923,5 +3156,10 @@ ngx_stream_proxy_get_next_upstream_tries(ngx_stream_session_t *s)
+ 
+     pscf = ngx_stream_get_module_srv_conf(s, ngx_stream_proxy_module);
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    return ngx_stream_get_conditional_num_value(s,
++                                                pscf->next_upstream_tries);
++#else
+     return pscf->next_upstream_tries;
++#endif
+ }
 diff --git a/src/stream/ngx_stream_ssl_module.c b/src/stream/ngx_stream_ssl_module.c
 index c68333a1c..64f6377cd 100644
 --- a/src/stream/ngx_stream_ssl_module.c
