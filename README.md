@@ -37,6 +37,7 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [Conditional sub\_filter](#conditional-sub_filter)
   - [ngx\_http\_proxy\_module and related modules](#ngx_http_proxy_module-and-related-modules)
     - [Proxy filter Framework](#proxy-filter-framework)
+    - [gRPC filter Framework](#grpc-filter-framework)
     - [gRPC upstream URI](#grpc-upstream-uri)
     - [gRPC upstream method](#grpc-upstream-method)
     - [Conditional upstream directives](#conditional-upstream-directives)
@@ -115,6 +116,9 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_http_delay_module](https://git.hanada.info/hanada/ngx_http_delay_module)
 * [ngx_http_error_log_write_module](https://git.hanada.info/hanada/ngx_http_error_log_write_module)
 * [ngx_http_extra_variables_module](https://git.hanada.info/hanada/ngx_http_extra_variables_module)
+* [ngx_http_grpc_filter_module](https://git.hanada.info/hanada/ngx_http_grpc_filter_module)
+* [ngx_http_grpc_headers_control_module](https://git.hanada.info/hanada/ngx_http_grpc_headers_control_module)
+* [ngx_http_grpc_set_module](https://git.hanada.info/hanada/ngx_http_grpc_set_module)
 * [ngx_http_internal_redirect_module](https://git.hanada.info/hanada/ngx_http_internal_redirect_module)
 * [ngx_http_label_module](https://git.hanada.info/hanada/ngx_http_label_module)
 * [ngx_http_limit_traffic_rate_filter_module](https://github.com/nginx-modules/ngx_http_limit_traffic_ratefilter_module)
@@ -581,6 +585,10 @@ Modules currently integrated with this framework:
 * [ngx_http_proxy_auth_basic_module](https://git.hanada.info/hanada/ngx_http_proxy_auth_basic_module)
 * [ngx_http_proxy_headers_control_module](https://git.hanada.info/hanada/ngx_http_proxy_headers_control_module)
 * [ngx_http_proxy_set_module](https://git.hanada.info/hanada/ngx_http_proxy_set_module)
+
+### gRPC filter Framework
+
+Provides the corresponding hook-based framework for gRPC upstream requests. The [ngx_http_grpc_headers_control_module](https://git.hanada.info/hanada/ngx_http_grpc_headers_control_module) and [ngx_http_grpc_set_module](https://git.hanada.info/hanada/ngx_http_grpc_set_module) use it to modify gRPC request and response headers and to set variables during response header processing.
 
 ### gRPC upstream URI
 
