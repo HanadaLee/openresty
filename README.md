@@ -38,6 +38,7 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
   - [ngx\_http\_proxy\_module and related modules](#ngx_http_proxy_module-and-related-modules)
     - [Proxy filter Framework](#proxy-filter-framework)
     - [gRPC filter Framework](#grpc-filter-framework)
+    - [gRPC upstream request header variables](#grpc-upstream-request-header-variables)
     - [gRPC upstream URI](#grpc-upstream-uri)
     - [gRPC upstream method](#grpc-upstream-method)
     - [Conditional upstream directives](#conditional-upstream-directives)
@@ -589,6 +590,10 @@ Modules currently integrated with this framework:
 ### gRPC filter Framework
 
 Provides the corresponding hook-based framework for gRPC upstream requests. The [ngx_http_grpc_headers_control_module](https://git.hanada.info/hanada/ngx_http_grpc_headers_control_module) and [ngx_http_grpc_set_module](https://git.hanada.info/hanada/ngx_http_grpc_set_module) use it to modify gRPC request and response headers and to set variables during response header processing.
+
+### gRPC upstream request header variables
+
+The `$grpc_http_<name>` variables expose the final request headers sent to a gRPC upstream after applying `grpc_set_header`, passed client headers, and gRPC request filters. Header names are converted to lowercase with dashes represented by underscores. Multiple values are joined with a comma and space. `$grpc_http_host` exposes the final `:authority` value.
 
 ### gRPC upstream URI
 
