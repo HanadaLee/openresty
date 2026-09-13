@@ -22889,7 +22889,7 @@ index 6b487289a..b3862e797 100644
              ngx_http_close_request(r, NGX_HTTP_CLOSE);
              break;
 diff --git a/src/stream/ngx_stream_log_module.c b/src/stream/ngx_stream_log_module.c
-index 774bc7e93..4c5dff46b 100644
+index 774bc7e93..6d4ad9a7c 100644
 --- a/src/stream/ngx_stream_log_module.c
 +++ b/src/stream/ngx_stream_log_module.c
 @@ -9,6 +9,10 @@
@@ -22903,11 +22903,12 @@ index 774bc7e93..4c5dff46b 100644
  #if (NGX_ZLIB)
  #include <zlib.h>
  #endif
-@@ -67,7 +71,11 @@ typedef struct {
+@@ -67,7 +71,12 @@ typedef struct {
      time_t                       error_log_time;
      ngx_syslog_peer_t           *syslog_peer;
      ngx_stream_log_fmt_t        *format;
 +#if (NGX_RESTY_EXT && NGX_CONDITION)
++    ngx_flag_t                   off;
 +    ngx_condition_expr_id_t      expr_id;
 +#else
      ngx_stream_complex_value_t  *filter;
@@ -22915,7 +22916,17 @@ index 774bc7e93..4c5dff46b 100644
  } ngx_stream_log_t;
  
  
-@@ -155,7 +163,11 @@ static ngx_command_t  ngx_stream_log_commands[] = {
+@@ -78,7 +87,9 @@ typedef struct {
+     time_t                       open_file_cache_valid;
+     ngx_uint_t                   open_file_cache_min_uses;
+ 
++#if !(NGX_RESTY_EXT && NGX_CONDITION)
+     ngx_uint_t                   off;        /* unsigned  off:1 */
++#endif
+ } ngx_stream_log_srv_conf_t;
+ 
+ 
+@@ -155,7 +166,11 @@ static ngx_command_t  ngx_stream_log_commands[] = {
        NULL },
  
      { ngx_string("access_log"),
@@ -22928,7 +22939,7 @@ index 774bc7e93..4c5dff46b 100644
        ngx_stream_log_set_log,
        NGX_STREAM_SRV_CONF_OFFSET,
        0,
-@@ -206,7 +218,9 @@ ngx_stream_log_handler(ngx_stream_session_t *s)
+@@ -206,7 +221,9 @@ ngx_stream_log_handler(ngx_stream_session_t *s)
      u_char                     *line, *p, *end;
      size_t                      len, size;
      ssize_t                     n;
@@ -22938,7 +22949,18 @@ index 774bc7e93..4c5dff46b 100644
      ngx_uint_t                  i, l;
      ngx_stream_log_t           *log;
      ngx_stream_log_op_t        *op;
-@@ -225,6 +239,13 @@ ngx_stream_log_handler(ngx_stream_session_t *s)
+@@ -218,13 +235,28 @@ ngx_stream_log_handler(ngx_stream_session_t *s)
+ 
+     lscf = ngx_stream_get_module_srv_conf(s, ngx_stream_log_module);
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    if (lscf->logs == NULL) {
++#else
+     if (lscf->off || lscf->logs == NULL) {
++#endif
+         return NGX_OK;
+     }
+ 
      log = lscf->logs->elts;
      for (l = 0; l < lscf->logs->nelts; l++) {
  
@@ -22948,11 +22970,15 @@ index 774bc7e93..4c5dff46b 100644
 +        {
 +            continue;
 +        }
++
++        if (log[l].off) {
++            return NGX_OK;
++        }
 +#else
          if (log[l].filter) {
              if (ngx_stream_complex_value(s, log[l].filter, &val) != NGX_OK) {
                  return NGX_ERROR;
-@@ -234,6 +255,7 @@ ngx_stream_log_handler(ngx_stream_session_t *s)
+@@ -234,6 +266,7 @@ ngx_stream_log_handler(ngx_stream_session_t *s)
                  continue;
              }
          }
@@ -22960,7 +22986,28 @@ index 774bc7e93..4c5dff46b 100644
  
          if (ngx_time() == log[l].disk_full_time) {
  
-@@ -1051,11 +1073,24 @@ ngx_stream_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+@@ -1024,12 +1057,20 @@ ngx_stream_log_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
+         }
+     }
+ 
++#if (NGX_RESTY_EXT && NGX_CONDITION)
++    if (conf->logs) {
++        return NGX_CONF_OK;
++    }
++
++    conf->logs = prev->logs;
++#else
+     if (conf->logs || conf->off) {
+         return NGX_CONF_OK;
+     }
+ 
+     conf->logs = prev->logs;
+     conf->off = prev->off;
++#endif
+ 
+     return NGX_CONF_OK;
+ }
+@@ -1051,11 +1092,39 @@ ngx_stream_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
      ngx_stream_log_fmt_t                *fmt;
      ngx_stream_script_compile_t          sc;
      ngx_stream_log_main_conf_t          *lmcf;
@@ -22972,20 +23019,43 @@ index 774bc7e93..4c5dff46b 100644
  
      if (ngx_strcmp(value[1].data, "off") == 0) {
 +#if (NGX_RESTY_EXT && NGX_CONDITION)
-+        if (ngx_condition_get_associated_expr_id(cf)
-+            != NGX_CONDITION_NO_EXPR_ID)
-+        {
++        if (cf->args->nelts != 2) {
 +            ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-+                               "\"access_log off\" is not allowed "
-+                               "inside \"when\"");
++                               "invalid parameter \"%V\"", &value[2]);
 +            return NGX_CONF_ERROR;
 +        }
-+#endif
 +
++        if (lscf->logs == NULL) {
++            lscf->logs = ngx_array_create(cf->pool, 2,
++                                          sizeof(ngx_stream_log_t));
++            if (lscf->logs == NULL) {
++                return NGX_CONF_ERROR;
++            }
++        }
++
++        log = ngx_array_push(lscf->logs);
++        if (log == NULL) {
++            return NGX_CONF_ERROR;
++        }
++
++        ngx_memzero(log, sizeof(ngx_stream_log_t));
++        log->off = 1;
++        log->expr_id = ngx_condition_get_associated_expr_id(cf);
++
++        return NGX_CONF_OK;
++#else
          lscf->off = 1;
          if (cf->args->nelts == 2) {
              return NGX_CONF_OK;
-@@ -1081,6 +1116,9 @@ ngx_stream_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+@@ -1064,6 +1133,7 @@ ngx_stream_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+         ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                            "invalid parameter \"%V\"", &value[2]);
+         return NGX_CONF_ERROR;
++#endif
+     }
+ 
+     if (lscf->logs == NULL) {
+@@ -1081,6 +1151,9 @@ ngx_stream_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
      }
  
      ngx_memzero(log, sizeof(ngx_stream_log_t));
@@ -22995,7 +23065,7 @@ index 774bc7e93..4c5dff46b 100644
  
  
      if (ngx_strncmp(value[1].data, "syslog:", 7) == 0) {
-@@ -1228,6 +1266,7 @@ process_formats:
+@@ -1228,6 +1301,7 @@ process_formats:
  #endif
          }
  
@@ -23003,7 +23073,7 @@ index 774bc7e93..4c5dff46b 100644
          if (ngx_strncmp(value[i].data, "if=", 3) == 0) {
              s.len = value[i].len - 3;
              s.data = value[i].data + 3;
-@@ -1250,6 +1289,7 @@ process_formats:
+@@ -1250,6 +1324,7 @@ process_formats:
  
              continue;
          }
