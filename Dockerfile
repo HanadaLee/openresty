@@ -11,7 +11,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.31.4.1"
-ARG RESTY_RELEASE="372"
+ARG RESTY_RELEASE="373"
 # ARG RESTY_SRC_URL_BASE="https://openresty.org/download"
 ARG RESTY_SRC_URL_BASE="https://repo.hanada.info/openresty/src"
 ARG RESTY_LUAROCKS_VERSION="3.13.0"
@@ -86,6 +86,7 @@ ARG RESTY_CONFIG_OPTIONS="\
     --with-stream_realip_module \
     --add-module=/build/modules/ngx_backtrace_module \
     --add-module=/build/modules/ngx_condition_module \
+    --add-module=/build/modules/ngx_stat_module \
     --add-module=/build/modules/ngx_geoip2_module \
     --add-module=/build/modules/ngx_http_access_control_module \
     --add-module=/build/modules/ngx_http_auth_akamai_g2o_module \
@@ -290,6 +291,7 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=1 --recurse-submodules --branch v${RESTY_MODSECURITY_VERSION} https://${RESTY_GIT_MIRROR}/owasp-modsecurity/ModSecurity.git modsecurity \
     && cd /build/modules \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_condition_module.git ngx_condition_module \
+    && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_stat_module.git ngx_stat_module \
     && git clone --depth=1 --recurse-submodules https://${RESTY_GIT_REPO}/hanada/ngx_http_brotli_module.git ngx_http_brotli_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_ssl_fingerprint_module.git ngx_ssl_fingerprint_module \
     && git clone --depth=1 --recurse-submodules https://${RESTY_GIT_MIRROR}/weserv/images.git ngx_http_weserv_module \
