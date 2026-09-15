@@ -107,7 +107,6 @@ ARG RESTY_CONFIG_OPTIONS="\
     --add-module=/build/modules/ngx_http_limit_traffic_rate_filter_module \
     --add-module=/build/modules/ngx_http_log_set_module \
     --add-module=/build/modules/ngx_http_loop_detect_module \
-    --add-module=/build/modules/ngx_http_lua_config_module \
     --add-module=/build/modules/ngx_http_grpc_filter_module \
     --add-module=/build/modules/ngx_http_grpc_headers_control_module \
     --add-module=/build/modules/ngx_http_grpc_set_module \
@@ -137,6 +136,7 @@ ARG RESTY_CONFIG_OPTIONS="\
     --add-module=/build/modules/ngx_http_modsecurity_module \
     --add-module=/build/modules/ngx_http_weserv_module \
     --add-module=/build/modules/ngx_http_zstd_module \
+    --add-module=/build/modules/ngx_lua_config_module \
     --add-module=/build/modules/ngx_lua_events_module \
     --add-module=/build/modules/ngx_lua_load_var_index_module \
     --add-module=/build/modules/ngx_lua_resty_lmdb_module \
@@ -147,7 +147,6 @@ ARG RESTY_CONFIG_OPTIONS="\
     --add-module=/build/modules/ngx_stream_extra_variables_module \
     --add-module=/build/modules/ngx_stream_label_module \
     --add-module=/build/modules/ngx_stream_log_set_module \
-    --add-module=/build/modules/ngx_stream_lua_config_module \
     --add-module=/build/modules/ngx_stream_lua_upstream_module \
     --add-module=/build/modules/ngx_var_module \
 "
@@ -319,7 +318,7 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/openresty/replace-filter-nginx-module.git ngx_http_replace_filter_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_error_log_write_module.git ngx_http_error_log_write_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_extra_variables_module.git ngx_http_extra_variables_module \
-    && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_lua_config_module.git ngx_http_lua_config_module \
+    && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_lua_config_module.git ngx_lua_config_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_lua_load_var_index_module.git ngx_lua_load_var_index_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_zstd_module.git ngx_http_zstd_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_cache_dechunk_filter_module.git ngx_http_cache_dechunk_filter_module \
@@ -345,7 +344,6 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/vozlt/nginx-module-sysguard.git ngx_http_sysguard_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_qrcode_module.git ngx_http_qrcode_module \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/Kong/lua-resty-events.git ngx_lua_events_module \
-    && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_stream_lua_config_module.git ngx_stream_lua_config_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_stream_access_control_module.git ngx_stream_access_control_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_stream_error_log_write_module.git ngx_stream_error_log_write_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_stream_log_set_module.git ngx_stream_log_set_module \
@@ -534,6 +532,7 @@ RUN groupmod -n nginx www-data \
     && cp -r ngx_lua_load_var_index_module/lualib/* /usr/local/openresty/lualib/ \
     && cp -r ngx_lua_events_module/lualib/* /usr/local/openresty/lualib/ \
     && cp -r ngx_lua_upstream_state_module/lualib/* /usr/local/openresty/lualib/ \
+    && cp -r ngx_lua_config_module/lualib/* /usr/local/openresty/lualib/ \
     && cp -r ngx_lua_resty_lmdb_module/lib/* /usr/local/openresty/lualib/ \
     && cd /build/lualib \
     && cp -r lua-resty-multipart-parser/lib/* /usr/local/openresty/lualib/ \
