@@ -1,0 +1,12 @@
+diff --git a/src/resty/dns/client.lua b/src/resty/dns/client.lua
+index 0583764..a066e61 100644
+--- a/src/resty/dns/client.lua
++++ b/src/resty/dns/client.lua
+@@ -903,6 +903,7 @@ local function syncQuery(qname, r_opts, try_list, count)
+   local supported_semaphore_wait_phases = {
+     rewrite = true,
+     server_rewrite = true,
++    preaccess = true,
+     access = true,
+     precontent = true,
+     content = true,

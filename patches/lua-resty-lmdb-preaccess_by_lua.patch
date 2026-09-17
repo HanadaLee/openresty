@@ -1,0 +1,12 @@
+diff --git a/lib/resty/lmdb.lua b/lib/resty/lmdb.lua
+index d1a605e..48c1b74 100644
+--- a/lib/resty/lmdb.lua
++++ b/lib/resty/lmdb.lua
+@@ -16,6 +16,7 @@ local CACHED_TXN = transaction.begin(1)
+ local CAN_YIELD_PHASES = {
+     rewrite = true,
+     server_rewrite = true,
++    preaccess = true,
+     access = true,
+     precontent = true,
+     content = true,

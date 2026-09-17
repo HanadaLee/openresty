@@ -11,7 +11,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.31.4.1"
-ARG RESTY_RELEASE="374"
+ARG RESTY_RELEASE="375"
 # ARG RESTY_SRC_URL_BASE="https://openresty.org/download"
 ARG RESTY_SRC_URL_BASE="https://repo.hanada.info/openresty/src"
 ARG RESTY_LUAROCKS_VERSION="3.13.0"
@@ -350,7 +350,7 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_stream_label_module.git ngx_stream_label_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_stream_extra_variables_module.git ngx_stream_extra_variables_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_lua_upstream_state_module.git ngx_lua_upstream_state_module \
-    && git clone --depth=1 --recurse-submodules --branch more_can_yield_phases https://${RESTY_GIT_MIRROR}/HanadaLee/lua-resty-lmdb.git ngx_lua_resty_lmdb_module \
+    && git clone --depth=1 --recurse-submodules https://${RESTY_GIT_MIRROR}/Kong/lua-resty-lmdb.git ngx_lua_resty_lmdb_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_stream_lua_upstream_module.git ngx_stream_lua_upstream_module \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/alibaba/tengine.git tengine \
     && mv tengine/modules/ngx_http_trim_filter_module ngx_http_trim_filter_module \
@@ -360,7 +360,7 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/agentzh/lua-resty-multipart-parser.git lua-resty-multipart-parser \
     && git clone --depth=1 --branch v0.05 https://${RESTY_GIT_MIRROR}/openresty/lua-resty-balancer.git lua-resty-balancer \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/api7/jsonschema.git jsonschema \
-    && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/lua-resty-dns-client.git lua-resty-dns-client \
+    && git clone --depth=1 --branch supported_semaphore_wait_phases https://${RESTY_GIT_MIRROR}/HanadaLee/lua-resty-dns-client.git lua-resty-dns-client \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/lua-resty-mlcache.git lua-resty-mlcache \
     && git clone --depth=1 --recurse-submodules https://${RESTY_GIT_MIRROR}/HanadaLee/lua-lolhtml.git \
     && cd /build \
@@ -457,6 +457,12 @@ RUN groupmod -n nginx www-data \
     && cd /build/modules/ngx_http_loop_detect_module \
     && echo 'patching ngx_http_loop_detect_module' \
     && patch -p1 < /build/patches/openresty/patches/ngx_http_loop_detect_module-cdn_id.patch \
+    && cd /build/modules/ngx_lua_resty_lmdb_module \
+    && echo 'patching lua-resty-lmdb for preaccess_by_lua' \
+    && patch -p1 < /build/patches/openresty/patches/lua-resty-lmdb-preaccess_by_lua.patch \
+    && cd /build/lualib/lua-resty-dns-client \
+    && echo 'patching lua-resty-dns-client for preaccess_by_lua' \
+    && patch -p1 < /build/patches/openresty/patches/lua-resty-dns-client-preaccess_by_lua.patch \
     && cd /build/lualib/lua-resty-balancer \
     && make -j${RESTY_J} \
     && make install \
