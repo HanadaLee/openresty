@@ -11,13 +11,13 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.31.4.1"
-ARG RESTY_RELEASE="375"
+ARG RESTY_RELEASE="376"
 # ARG RESTY_SRC_URL_BASE="https://openresty.org/download"
 ARG RESTY_SRC_URL_BASE="https://repo.hanada.info/openresty/src"
 ARG RESTY_LUAROCKS_VERSION="3.13.0"
-ARG RESTY_JEMALLOC_VERSION="5.3.1"
-ARG RESTY_LIBMAXMINDDB_VERSION="1.13.3"
-ARG RESTY_OPENSSL_VERSION="3.5.6"
+ARG RESTY_JEMALLOC_VERSION="5.4.0"
+ARG RESTY_LIBMAXMINDDB_VERSION="1.14.1"
+ARG RESTY_OPENSSL_VERSION="3.5.8"
 ARG RESTY_OPENSSL_PATCH_VERSION="3.5.5"
 ARG RESTY_OPENSSL_BUILD_OPTIONS="\
     enable-camellia \
@@ -33,7 +33,7 @@ ARG RESTY_OPENSSL_BUILD_OPTIONS="\
     enable-ktls \
     enable-fips \
 "
-ARG RESTY_PCRE_VERSION="10.47"
+ARG RESTY_PCRE_VERSION="10.48"
 ARG RESTY_PCRE_BUILD_OPTIONS="\
     --enable-jit --enable-pcre2grep-jit --disable-bsr-anycrlf --disable-coverage --disable-ebcdic --disable-fuzz-support \
     --disable-jit-sealloc --disable-never-backslash-C --enable-newline-is-lf --enable-pcre2-8 --enable-pcre2-16 --enable-pcre2-32 \
@@ -44,9 +44,9 @@ ARG RESTY_PCRE_BUILD_OPTIONS="\
 ARG RESTY_ZLIB_VERSION="1.3.2"
 ARG RESTY_ZSTD_VERSION="1.5.7"
 ARG RESTY_LIBATOMIC_VERSION="7.10.0"
-ARG RESTY_LIBVIPS_VERSION="8.18.2"
-ARG RESTY_MODSECURITY_VERSION="3.0.15"
-ARG RESTY_OWSAP_CRS_VERSION="4.26.0"
+ARG RESTY_LIBVIPS_VERSION="8.18.6"
+ARG RESTY_MODSECURITY_VERSION="3.0.16"
+ARG RESTY_OWSAP_CRS_VERSION="4.29.0"
 ARG RESTY_PATH_OPTIONS="\
     --prefix=/usr/local/openresty \
     --sbin-path=/usr/local/openresty/sbin/nginx \
