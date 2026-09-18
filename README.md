@@ -7,13 +7,20 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
 - [Name](#name)
 - [Table of Contents](#table-of-contents)
 - [Description](#description)
+- [Building](#building)
+- [Testing](#testing)
+- [Continuous Integration and Releases](#continuous-integration-and-releases)
 - [Components](#components)
   - [Components of official OpenResty bundle](#components-of-official-openresty-bundle)
   - [Components of this OpenResty bundle](#components-of-this-openresty-bundle)
-  - [Components from lualocks](#components-from-lualocks)
+  - [Components from LuaRocks](#components-from-luarocks)
 - [Additional Features](#additional-features)
   - [ngx\_http](#ngx_http)
     - [Variables for timestamps and time spent on related operations](#variables-for-timestamps-and-time-spent-on-related-operations)
+  - [ngx\_http\_lua\_module](#ngx_http_lua_module)
+    - [preaccess\_by\_lua\_block](#preaccess_by_lua_block)
+    - [preaccess\_by\_lua\_file](#preaccess_by_lua_file)
+    - [preaccess\_by\_lua\_no\_postpone](#preaccess_by_lua_no_postpone)
   - [ngx\_http\_core\_module](#ngx_http_core_module)
     - [auto\_redirect](#auto_redirect)
     - [Support for https\_allow\_http in listen directive](#support-for-https_allow_http-in-listen-directive)
@@ -68,11 +75,15 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [Conditional access\_log](#conditional-access_log)
   - [ngx\_http\_modsecurity\_module (3rd-party module)](#ngx_http_modsecurity_module-3rd-party-module)
     - [modsecurity\_bypass](#modsecurity_bypass)
+  - [ngx\_stream\_lua\_module](#ngx_stream_lua_module)
+    - [access\_by\_lua\_block](#access_by_lua_block)
+    - [access\_by\_lua\_file](#access_by_lua_file)
+    - [access\_by\_lua\_no\_postpone](#access_by_lua_no_postpone)
   - [ngx\_stream\_ssl\_module](#ngx_stream_ssl_module)
     - [Variables about SSL handshake timestamps and time spent](#variables-about-ssl-handshake-timestamps-and-time-spent-1)
   - [ngx\_stream\_upstream\_module](#ngx_stream_upstream_module)
     - [Extra variables for upstream information](#extra-variables-for-upstream-information-1)
-- [Luarocks](#luarocks)
+- [LuaRocks](#luarocks)
 - [Copyright \& License](#copyright--license)
 
 # Description
@@ -86,6 +97,119 @@ Based on the official OpenResty, this bundle includes LuaRocks, additional patch
 This bundle is maintained by Hanada (im@hanada.info).
 
 The bundled software components are copyrighted by the respective copyright holders.
+
+[Back to TOC](#table-of-contents)
+
+# Building
+
+Docker is the supported build environment. The default OpenResty version and
+bundle release are defined by `RESTY_VERSION` and `RESTY_RELEASE` in the
+Dockerfile, so a local image can be built directly from the repository root:
+
+```shell
+docker build --tag openresty:local .
+```
+
+Both values can be overridden when validating a compatible source release:
+
+```shell
+docker build \
+    --build-arg RESTY_VERSION=1.31.4.1 \
+    --build-arg RESTY_RELEASE=376 \
+    --tag openresty:1.31.4.1.376 \
+    .
+```
+
+The patches in this repository target the dependency versions selected by the
+Dockerfile. When overriding a version, verify that every corresponding patch
+still applies before using the resulting image.
+
+[Back to TOC](#table-of-contents)
+
+# Testing
+
+The patch regression suite is not embedded in the runtime image and is not run
+by the Dockerfile. CI builds the candidate image, checks out fresh copies of
+OpenResty's `test-nginx` and nginx's `nginx-tests`, and runs the repository's
+tests in a disposable container. Architecture images are pushed only after this
+suite succeeds.
+
+The same suite can be run locally with Docker, Git, and a POSIX-compatible
+shell:
+
+```shell
+docker build --tag openresty:test .
+
+harness_root="$(mktemp -d)"
+trap 'rm -rf "$harness_root"' EXIT
+
+git clone --depth=1 \
+    https://github.com/openresty/test-nginx.git \
+    "$harness_root/test-nginx"
+git clone --depth=1 \
+    https://github.com/nginx/nginx-tests.git \
+    "$harness_root/nginx-tests"
+
+docker run --rm \
+    --volume "$PWD/t:/input/tests:ro" \
+    --volume "$harness_root/test-nginx:/input/test-nginx:ro" \
+    --volume "$harness_root/nginx-tests:/input/nginx-tests:ro" \
+    openresty:test \
+    bash -c '
+        set -euo pipefail
+
+        apt-get update
+        DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            --no-install-recommends \
+            perl \
+            libtest-base-perl \
+            libtext-diff-perl \
+            libtest-longstring-perl \
+            libwww-perl \
+            libipc-run-perl \
+            liburi-perl \
+            liblist-moreutils-perl
+
+        mkdir -p /test-work/tests /test-work/harnesses
+        cp -a /input/tests/. /test-work/tests/
+        cp -a /input/test-nginx /test-work/harnesses/test-nginx
+        cp -a /input/nginx-tests /test-work/harnesses/nginx-tests
+
+        TEST_NGINX_BINARY=/usr/local/openresty/sbin/nginx \
+            TEST_NGINX_ROOT=/test-work/harnesses/test-nginx \
+            NGINX_TESTS_ROOT=/test-work/harnesses/nginx-tests \
+            bash /test-work/tests/run.sh
+    '
+```
+
+When testing an existing local installation instead, point the runner at the
+patched nginx binary and the two test harness checkouts:
+
+```shell
+TEST_NGINX_BINARY=/path/to/nginx \
+TEST_NGINX_ROOT=/path/to/test-nginx \
+NGINX_TESTS_ROOT=/path/to/nginx-tests \
+bash t/run.sh
+```
+
+[Back to TOC](#table-of-contents)
+
+# Continuous Integration and Releases
+
+GitHub Actions and GitLab CI build and test both `linux/amd64` and
+`linux/arm64` images. The release version is
+`RESTY_VERSION.RESTY_RELEASE`, using the two values defined in the Dockerfile.
+
+Every push to the main branch runs the build and patch regression suite. If the
+version is unchanged, CI stops after testing and does not push images. When the
+version changes, CI also publishes the architecture images and the `version`
+and `latest` multi-platform manifests to Harbor, Docker Hub, and GitHub
+Container Registry, then creates a matching Git tag and release. Release notes
+summarize commits since the previous version tag.
+
+The GitHub workflow can also be started manually. An already tagged version is
+always treated as test-only, preventing an existing release from being
+published again.
 
 [Back to TOC](#table-of-contents)
 
@@ -136,10 +260,9 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_http_proxy_set_module](https://git.hanada.info/hanada/ngx_http_proxy_set_module)
 * [ngx_http_qrcode_module](https://git.hanada.info/hanada/ngx_http_qrcode_module)
 * [ngx_http_replace_filter_module](https://github.com/OpenResty/replace-filter-nginx-module)
-* [ngx_http_proxy_request_cookies_control_module](https://git.hanada.info/hanada/ngx_http_proxy_request_cookies_control_module)
 * [ngx_http_headers_control_module](https://git.hanada.info/hanada/ngx_http_headers_control_module)
 * [ngx_http_rewrite_status_filter_module](https://git.hanada.info/hanada/ngx_http_rewrite_status_filter_module)
-* [ngx_http_security_headers_module](https://git.hanada.info/hanada/ngx_http_security_headers_module)
+* [ngx_http_security_headers_filter_module](https://git.hanada.info/hanada/ngx_http_security_headers_filter_module)
 * [ngx_http_server_redirect_module](https://git.hanada.info/hanada/ngx_http_server_redirect_module)
 * [ngx_http_sorted_args_module](https://git.hanada.info/hanada/ngx_http_sorted_args_module)
 * [ngx_http_sysguard_module](https://github.com/vozlt/nginx-module-sysguard)
@@ -157,6 +280,7 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_lua_events_module](https://github.com/Kong/lua-resty-events)
 * [ngx_lua_load_var_index_module](https://git.hanada.info/hanada/ngx_lua_load_var_index_module)
 * [ngx_lua_resty_lmdb_module](https://github.com/Kong/lua-resty-lmdb)
+* [ngx_lua_upstream_state_module](https://git.hanada.info/hanada/ngx_lua_upstream_state_module)
 * [ngx_ssl_fingerprint_module](https://git.hanada.info/hanada/ngx_ssl_fingerprint_module)
 * [ngx_stat_module](https://git.hanada.info/hanada/ngx_stat_module)
 * [ngx_stream_lua_upstream_module](https://git.hanada.info/hanada/ngx_stream_lua_upstream_module)
@@ -176,7 +300,7 @@ The following components are additionally bundled with OpenResty, some of which 
 * [lua-resty-mlcache](https://git.hanada.info/hanada/lua-resty-mlcache)
 * [lua-lolhtml](https://github.com/HanadaLee/lua-lolhtml)
 
-## Components from lualocks
+## Components from LuaRocks
 * binaryheap
 * luafilesystem
 * penlight
@@ -233,6 +357,85 @@ The module [ngx_http_extra_variables_module](https://git.hanada.info/hanada/ngx_
 | **$response_body_time**                | Keeps time spent on sending the response body to the client. |
 | **$request_header_lenth**              | Request header length. |
 | **$request_body_lenth**                | Request body length. |
+
+[Back to TOC](#table-of-contents)
+
+## ngx_http_lua_module
+
+### preaccess_by_lua_block
+
+* **Syntax:** *preaccess_by_lua_block { lua-script }*
+
+* **Default:** *-*
+
+* **Context:** *http, server, location, location if*
+
+* **Phase:** *preaccess*
+
+Runs the inline Lua code for each request during nginx's preaccess phase, after
+rewrite processing and before the access phase. This is useful for early
+request filtering, authentication, request-body inspection, internal redirects,
+and work that must happen before access handlers.
+
+The preaccess Lua context is yieldable. APIs such as `ngx.sleep`, cosockets,
+subrequests, and request-body APIs can therefore be used subject to their normal
+OpenResty restrictions. `ngx.exit` and `ngx.exec` can terminate or redirect the
+request before later phases run.
+
+By default, the handler is postponed to the end of the preaccess phase. Use
+`preaccess_by_lua_no_postpone` when it must run at its natural position among
+other preaccess handlers.
+
+```nginx
+location /protected {
+    preaccess_by_lua_block {
+        if not ngx.req.get_headers()["authorization"] then
+            return ngx.exit(ngx.HTTP_UNAUTHORIZED)
+        end
+    }
+
+    proxy_pass http://backend;
+}
+```
+
+### preaccess_by_lua_file
+
+* **Syntax:** *preaccess_by_lua_file path;*
+
+* **Default:** *-*
+
+* **Context:** *http, server, location, location if*
+
+* **Phase:** *preaccess*
+
+Equivalent to `preaccess_by_lua_block`, except that the Lua source or LuaJIT
+bytecode is loaded from `path`. Nginx variables may be used in the path. A
+relative path is resolved against nginx's server prefix.
+
+With `lua_code_cache on`, the file is loaded on the first request and cached;
+reload nginx after changing it. `lua_code_cache off` can be used temporarily
+during development.
+
+```nginx
+location /protected {
+    preaccess_by_lua_file conf/lua/preaccess.lua;
+    proxy_pass http://backend;
+}
+```
+
+### preaccess_by_lua_no_postpone
+
+* **Syntax:** *preaccess_by_lua_no_postpone on | off;*
+
+* **Default:** *preaccess_by_lua_no_postpone off;*
+
+* **Context:** *http*
+
+Controls whether `preaccess_by_lua_block` and `preaccess_by_lua_file` are
+postponed to the end of the preaccess phase. The default `off` runs Lua after
+the other preaccess handlers. When set to `on`, the Lua handler runs at its
+natural registered position among handlers such as `limit_req` and
+`limit_conn`; normal completion continues through the remaining handlers.
 
 [Back to TOC](#table-of-contents)
 
@@ -1234,6 +1437,84 @@ Defines conditions under which the request will be checked by modsecurity. If at
 
 [Back to TOC](#table-of-contents)
 
+## ngx_stream_lua_module
+
+### access_by_lua_block
+
+* **Syntax:** *access_by_lua_block { lua-script }*
+
+* **Default:** *-*
+
+* **Context:** *stream, server*
+
+* **Phase:** *access*
+
+Runs the inline Lua code for each TCP or UDP session during the Stream access
+phase. It can inspect Stream variables, accept or reject a session with
+`ngx.exit`, produce output with `ngx.print` or `ngx.say`, and use yieldable APIs
+such as `ngx.sleep`, cosockets, and user threads.
+
+By default, the handler is postponed to the end of the access phase, so access
+handlers such as `allow` and `deny` run first. Use
+`access_by_lua_no_postpone` when Lua must run at its natural registered position.
+
+```nginx
+stream {
+    server {
+        listen 12345;
+
+        access_by_lua_block {
+            if ngx.var.remote_addr == "192.0.2.10" then
+                return ngx.exit(403)
+            end
+        }
+
+        proxy_pass backend;
+    }
+}
+```
+
+### access_by_lua_file
+
+* **Syntax:** *access_by_lua_file path;*
+
+* **Default:** *-*
+
+* **Context:** *stream, server*
+
+* **Phase:** *access*
+
+Equivalent to `access_by_lua_block`, except that the Lua source or LuaJIT
+bytecode is loaded from `path`. Nginx variables may be used in the path. A
+relative path is resolved against nginx's server prefix, and the normal
+`lua_code_cache` behavior applies.
+
+```nginx
+stream {
+    server {
+        listen 12345;
+        access_by_lua_file conf/lua/stream-access.lua;
+        proxy_pass backend;
+    }
+}
+```
+
+### access_by_lua_no_postpone
+
+* **Syntax:** *access_by_lua_no_postpone on | off;*
+
+* **Default:** *access_by_lua_no_postpone off;*
+
+* **Context:** *stream*
+
+Controls whether `access_by_lua_block` and `access_by_lua_file` are postponed
+to the end of the Stream access phase. The default `off` runs Lua after the
+other access handlers. When set to `on`, the Lua handler runs at its natural
+registered position; normal completion continues through the remaining access
+handlers.
+
+[Back to TOC](#table-of-contents)
+
 ## ngx_stream_ssl_module
 
 ### Variables about SSL handshake timestamps and time spent
@@ -1258,7 +1539,7 @@ In the stream subsystem, new variables are introduced to get the start timestamp
 
 [Back to TOC](#table-of-contents)
 
-# Luarocks
+# LuaRocks
 
 LuaRocks is the package manager for Lua modules.
 

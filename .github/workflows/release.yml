@@ -1,0 +1,103 @@
+name: Publish release
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+
+env:
+  HARBOR_IMAGE: registry.hanada.info/openresty/openresty
+  DOCKERHUB_IMAGE: docker.io/hanadalee/openresty
+  GHCR_IMAGE: ghcr.io/hanadalee/openresty
+
+jobs:
+  manifest:
+    name: Publish multi-platform manifests
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to Harbor
+        uses: docker/login-action@v4
+        with:
+          registry: registry.hanada.info
+          username: ${{ secrets.HARBOR_USERNAME }}
+          password: ${{ secrets.HARBOR_PASSWORD }}
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          registry: docker.io
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and push multi-platform manifests
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+
+          for image in "$HARBOR_IMAGE" "$DOCKERHUB_IMAGE" "$GHCR_IMAGE"; do
+            docker buildx imagetools create \
+              --tag "${image}:${VERSION}" \
+              --tag "${image}:latest" \
+              "${image}:${VERSION}-amd64" \
+              "${image}:${VERSION}-arm64"
+          done
+
+  release:
+    name: Publish tag and release
+    needs:
+      - manifest
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Create release notes and publish release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+
+          previous_tag="$(git tag --merged "$GITHUB_SHA" --sort=-version:refname |
+            grep -Fvx "$VERSION" | head -n 1 || true)"
+
+          if [[ -n "$previous_tag" ]]; then
+            {
+              echo "Changes since \`${previous_tag}\`:"
+              echo
+              git log --no-merges --pretty=format:'- %s (`%h`)' \
+                "${previous_tag}..${GITHUB_SHA}"
+              echo
+            } > release-notes.md
+          else
+            {
+              echo "Changes through \`${GITHUB_SHA}\`:"
+              echo
+              git log --no-merges --pretty=format:'- %s (`%h`)' "$GITHUB_SHA"
+              echo
+            } > release-notes.md
+          fi
+
+          gh release create "$VERSION" \
+            --target "$GITHUB_SHA" \
+            --title "$VERSION" \
+            --notes-file release-notes.md

@@ -171,7 +171,9 @@ LABEL resty_jemalloc_version="${RESTY_JEMALLOC_VERSION}"
 LABEL resty_libmaxminddb_version="${RESTY_LIBMAXMINDDB_VERSION}"
 LABEL resty_modsecurity_version="${RESTY_MODSECURITY_VERSION}"
 
-RUN groupmod -n nginx www-data \
+RUN test -n "${RESTY_VERSION}" \
+    && test -n "${RESTY_RELEASE}" \
+    && groupmod -n nginx www-data \
     && usermod -l nginx www-data \
     && echo "deb http://deb.debian.org/debian bookworm-backports main" > /etc/apt/sources.list.d/backports.list \
     && DEBIAN_FRONTEND=noninteractive apt-get update \
@@ -672,10 +674,7 @@ ENV LUA_CPATH="/usr/local/openresty/lualib/?.so;./?.so;/usr/local/openresty/luaj
 COPY nginx.conf /usr/local/openresty/etc/nginx.conf
 COPY nginx.vh.default.conf /usr/local/openresty/etc/conf.d/default.conf
 COPY modsecurity.conf /usr/local/openresty/etc/modsecurity/modsecurity.conf
-COPY docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
 
-ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["/usr/local/openresty/sbin/nginx", "-g", "daemon off;"]
 
 # Use SIGQUIT instead of default SIGTERM to cleanly drain requests

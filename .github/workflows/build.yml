@@ -1,0 +1,145 @@
+name: Build and test images
+
+on:
+  workflow_call:
+    inputs:
+      resty_version:
+        required: true
+        type: string
+      resty_release:
+        required: true
+        type: string
+      version:
+        required: true
+        type: string
+      publish_arch_images:
+        required: true
+        type: boolean
+
+env:
+  HARBOR_IMAGE: registry.hanada.info/openresty/openresty
+  DOCKERHUB_IMAGE: docker.io/hanadalee/openresty
+  GHCR_IMAGE: ghcr.io/hanadalee/openresty
+
+jobs:
+  build:
+    name: Test ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-24.04
+            suffix: amd64
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            suffix: arm64
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build architecture image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          load: true
+          push: false
+          provenance: false
+          build-args: |
+            RESTY_VERSION=${{ inputs.resty_version }}
+            RESTY_RELEASE=${{ inputs.resty_release }}
+          tags: |
+            ${{ env.HARBOR_IMAGE }}:${{ inputs.version }}-${{ matrix.suffix }}
+            ${{ env.DOCKERHUB_IMAGE }}:${{ inputs.version }}-${{ matrix.suffix }}
+            ${{ env.GHCR_IMAGE }}:${{ inputs.version }}-${{ matrix.suffix }}
+
+      - name: Assemble and run patch tests
+        shell: bash
+        env:
+          TEST_IMAGE: ${{ env.GHCR_IMAGE }}:${{ inputs.version }}-${{ matrix.suffix }}
+        run: |
+          set -euo pipefail
+
+          harness_root="$(mktemp -d)"
+          trap 'rm -rf "$harness_root"' EXIT
+
+          git clone --depth=1 \
+            https://github.com/openresty/test-nginx.git \
+            "$harness_root/test-nginx"
+          git clone --depth=1 \
+            https://github.com/nginx/nginx-tests.git \
+            "$harness_root/nginx-tests"
+
+          docker run --rm \
+            --volume "$GITHUB_WORKSPACE/t:/input/tests:ro" \
+            --volume "$harness_root/test-nginx:/input/test-nginx:ro" \
+            --volume "$harness_root/nginx-tests:/input/nginx-tests:ro" \
+            "$TEST_IMAGE" \
+            bash -c '
+              set -euo pipefail
+
+              apt-get update
+              DEBIAN_FRONTEND=noninteractive apt-get install -y \
+                --no-install-recommends \
+                perl \
+                libtest-base-perl \
+                libtext-diff-perl \
+                libtest-longstring-perl \
+                libwww-perl \
+                libipc-run-perl \
+                liburi-perl \
+                liblist-moreutils-perl
+
+              mkdir -p /test-work/tests /test-work/harnesses
+              cp -a /input/tests/. /test-work/tests/
+              cp -a /input/test-nginx /test-work/harnesses/test-nginx
+              cp -a /input/nginx-tests /test-work/harnesses/nginx-tests
+
+              TEST_NGINX_BINARY=/usr/local/openresty/sbin/nginx \
+                TEST_NGINX_ROOT=/test-work/harnesses/test-nginx \
+                NGINX_TESTS_ROOT=/test-work/harnesses/nginx-tests \
+                bash /test-work/tests/run.sh
+            '
+
+      - name: Log in to Harbor
+        if: inputs.publish_arch_images
+        uses: docker/login-action@v4
+        with:
+          registry: registry.hanada.info
+          username: ${{ secrets.HARBOR_USERNAME }}
+          password: ${{ secrets.HARBOR_PASSWORD }}
+
+      - name: Log in to Docker Hub
+        if: inputs.publish_arch_images
+        uses: docker/login-action@v4
+        with:
+          registry: docker.io
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Log in to GitHub Container Registry
+        if: inputs.publish_arch_images
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push architecture image
+        if: inputs.publish_arch_images
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+          ARCH_SUFFIX: ${{ matrix.suffix }}
+        run: |
+          set -euo pipefail
+
+          for image in "$HARBOR_IMAGE" "$DOCKERHUB_IMAGE" "$GHCR_IMAGE"; do
+            docker push "${image}:${VERSION}-${ARCH_SUFFIX}"
+          done

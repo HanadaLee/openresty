@@ -1,0 +1,128 @@
+name: CI and release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: docker-publish-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  prepare:
+    name: Read version and determine release
+    runs-on: ubuntu-24.04
+    outputs:
+      resty_version: ${{ steps.version.outputs.resty_version }}
+      resty_release: ${{ steps.version.outputs.resty_release }}
+      version: ${{ steps.version.outputs.version }}
+      release_needed: ${{ steps.version.outputs.release_needed }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Read version
+        id: version
+        shell: bash
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+
+          resty_version="$(
+            sed -n 's/^ARG RESTY_VERSION="\([^"]*\)"[[:space:]]*$/\1/p' \
+              Dockerfile | head -n 1
+          )"
+          resty_release="$(
+            sed -n 's/^ARG RESTY_RELEASE="\([^"]*\)"[[:space:]]*$/\1/p' \
+              Dockerfile | head -n 1
+          )"
+          version="${resty_version}.${resty_release}"
+
+          if [[ -z "$resty_version" || -z "$resty_release" ]]; then
+            echo "Failed to read RESTY_VERSION or RESTY_RELEASE from Dockerfile" >&2
+            exit 1
+          fi
+
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid version from Dockerfile: $version" >&2
+            exit 1
+          fi
+
+          release_needed=false
+
+          read_version_at() {
+            local ref="$1"
+            local resty release
+
+            resty="$(git show "${ref}:Dockerfile" |
+              sed -n 's/^ARG RESTY_VERSION="\([^"]*\)"[[:space:]]*$/\1/p' |
+              head -n 1)"
+            release="$(git show "${ref}:Dockerfile" |
+              sed -n 's/^ARG RESTY_RELEASE="\([^"]*\)"[[:space:]]*$/\1/p' |
+              head -n 1)"
+
+            if [[ -z "$resty" || -z "$release" ]]; then
+              echo "Failed to read version from ${ref}:Dockerfile" >&2
+              return 1
+            fi
+
+            printf '%s.%s\n' "$resty" "$release"
+          }
+
+          if git rev-parse -q --verify "refs/tags/${version}" >/dev/null; then
+            echo "Version ${version} is already tagged; running tests only."
+          elif [[ "$EVENT_NAME" == "push" &&
+                  -n "$BEFORE_SHA" &&
+                  "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]]; then
+            if ! git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null; then
+              git fetch --no-tags origin "$BEFORE_SHA"
+            fi
+
+            previous_version="$(read_version_at "$BEFORE_SHA")"
+            if [[ "$version" != "$previous_version" ]]; then
+              release_needed=true
+            else
+              echo "Version remains ${version}; running tests only."
+            fi
+          else
+            release_needed=true
+          fi
+
+          echo "resty_version=$resty_version" >> "$GITHUB_OUTPUT"
+          echo "resty_release=$resty_release" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "release_needed=$release_needed" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build and test
+    needs:
+      - prepare
+    uses: ./.github/workflows/build.yml
+    with:
+      resty_version: ${{ needs.prepare.outputs.resty_version }}
+      resty_release: ${{ needs.prepare.outputs.resty_release }}
+      version: ${{ needs.prepare.outputs.version }}
+      publish_arch_images: ${{ needs.prepare.outputs.release_needed == 'true' }}
+    secrets: inherit
+
+  publish:
+    name: Publish manifests and release
+    if: needs.prepare.outputs.release_needed == 'true'
+    needs:
+      - prepare
+      - build
+    uses: ./.github/workflows/release.yml
+    with:
+      version: ${{ needs.prepare.outputs.version }}
+    secrets: inherit
