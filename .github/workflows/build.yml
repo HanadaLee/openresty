@@ -43,7 +43,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Build architecture image
+      - name: Build debug test image
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -54,15 +54,23 @@ jobs:
           build-args: |
             RESTY_VERSION=${{ inputs.resty_version }}
             RESTY_RELEASE=${{ inputs.resty_release }}
-          tags: |
-            ${{ env.HARBOR_IMAGE }}:${{ inputs.version }}-${{ matrix.suffix }}
-            ${{ env.DOCKERHUB_IMAGE }}:${{ inputs.version }}-${{ matrix.suffix }}
-            ${{ env.GHCR_IMAGE }}:${{ inputs.version }}-${{ matrix.suffix }}
+            RESTY_DEBUG_OPTIONS=--with-debug
+          tags: openresty-patch-test:${{ inputs.version }}-${{ matrix.suffix }}
+
+      - name: Verify debug test image
+        shell: bash
+        env:
+          TEST_IMAGE: openresty-patch-test:${{ inputs.version }}-${{ matrix.suffix }}
+        run: |
+          set -euo pipefail
+          docker run --rm "$TEST_IMAGE" \
+            /usr/local/openresty/sbin/nginx -V 2>&1 | \
+            grep -F -- '--with-debug'
 
       - name: Assemble and run patch tests
         shell: bash
         env:
-          TEST_IMAGE: ${{ env.GHCR_IMAGE }}:${{ inputs.version }}-${{ matrix.suffix }}
+          TEST_IMAGE: openresty-patch-test:${{ inputs.version }}-${{ matrix.suffix }}
         run: |
           set -euo pipefail
 
@@ -106,6 +114,38 @@ jobs:
                 NGINX_TESTS_ROOT=/test-work/harnesses/nginx-tests \
                 bash /test-work/tests/run.sh
             '
+
+      - name: Build production architecture image
+        if: inputs.publish_arch_images
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          load: true
+          push: false
+          provenance: false
+          build-args: |
+            RESTY_VERSION=${{ inputs.resty_version }}
+            RESTY_RELEASE=${{ inputs.resty_release }}
+          tags: |
+            ${{ env.HARBOR_IMAGE }}:${{ inputs.version }}-${{ matrix.suffix }}
+            ${{ env.DOCKERHUB_IMAGE }}:${{ inputs.version }}-${{ matrix.suffix }}
+            ${{ env.GHCR_IMAGE }}:${{ inputs.version }}-${{ matrix.suffix }}
+
+      - name: Verify production image
+        if: inputs.publish_arch_images
+        shell: bash
+        env:
+          PRODUCTION_IMAGE: ${{ env.GHCR_IMAGE }}:${{ inputs.version }}-${{ matrix.suffix }}
+        run: |
+          set -euo pipefail
+
+          if docker run --rm "$PRODUCTION_IMAGE" \
+              /usr/local/openresty/sbin/nginx -V 2>&1 | \
+              grep -F -- '--with-debug'; then
+            echo "Production image unexpectedly contains --with-debug" >&2
+            exit 1
+          fi
 
       - name: Log in to Harbor
         if: inputs.publish_arch_images

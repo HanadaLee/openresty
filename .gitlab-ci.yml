@@ -63,6 +63,19 @@ stages:
         rm -rf "$test_harness_root"
       }
 
+      verify_debug_image() {
+        docker run --rm "$1" /usr/local/openresty/sbin/nginx -V 2>&1 |
+          grep -F -- '--with-debug'
+      }
+
+      verify_production_image() {
+        if docker run --rm "$1" /usr/local/openresty/sbin/nginx -V 2>&1 |
+             grep -F -- '--with-debug'; then
+          echo "Production image unexpectedly contains --with-debug" >&2
+          return 1
+        fi
+      }
+
       RESTY_VERSION="$(
         sed -n 's/^ARG RESTY_VERSION="\([^"]*\)"[[:space:]]*$/\1/p' \
           Dockerfile | head -n 1
@@ -143,17 +156,29 @@ build-amd64:
     - debian-x86_64
   script:
     - |
+      test_image="openresty-patch-test:${VERSION}-amd64"
+
       docker build \
         --build-arg RESTY_VERSION="${RESTY_VERSION}" \
         --build-arg RESTY_RELEASE="${RESTY_RELEASE}" \
-        --tag "${HARBOR_IMAGE}:${VERSION}-amd64" \
-        --tag "${DOCKERHUB_IMAGE}:${VERSION}-amd64" \
-        --tag "${GHCR_IMAGE}:${VERSION}-amd64" \
+        --build-arg RESTY_DEBUG_OPTIONS=--with-debug \
+        --tag "$test_image" \
         .
 
-      run_patch_tests "${HARBOR_IMAGE}:${VERSION}-amd64"
+      verify_debug_image "$test_image"
+      run_patch_tests "$test_image"
 
       if [ "$RELEASE_NEEDED" = true ]; then
+        docker build \
+          --build-arg RESTY_VERSION="${RESTY_VERSION}" \
+          --build-arg RESTY_RELEASE="${RESTY_RELEASE}" \
+          --tag "${HARBOR_IMAGE}:${VERSION}-amd64" \
+          --tag "${DOCKERHUB_IMAGE}:${VERSION}-amd64" \
+          --tag "${GHCR_IMAGE}:${VERSION}-amd64" \
+          .
+
+        verify_production_image "${HARBOR_IMAGE}:${VERSION}-amd64"
+
         for image in "$HARBOR_IMAGE" "$DOCKERHUB_IMAGE" "$GHCR_IMAGE"; do
           docker push "${image}:${VERSION}-amd64"
         done
@@ -166,17 +191,29 @@ build-arm64:
     - debian-aarch64
   script:
     - |
+      test_image="openresty-patch-test:${VERSION}-arm64"
+
       docker build \
         --build-arg RESTY_VERSION="${RESTY_VERSION}" \
         --build-arg RESTY_RELEASE="${RESTY_RELEASE}" \
-        --tag "${HARBOR_IMAGE}:${VERSION}-arm64" \
-        --tag "${DOCKERHUB_IMAGE}:${VERSION}-arm64" \
-        --tag "${GHCR_IMAGE}:${VERSION}-arm64" \
+        --build-arg RESTY_DEBUG_OPTIONS=--with-debug \
+        --tag "$test_image" \
         .
 
-      run_patch_tests "${HARBOR_IMAGE}:${VERSION}-arm64"
+      verify_debug_image "$test_image"
+      run_patch_tests "$test_image"
 
       if [ "$RELEASE_NEEDED" = true ]; then
+        docker build \
+          --build-arg RESTY_VERSION="${RESTY_VERSION}" \
+          --build-arg RESTY_RELEASE="${RESTY_RELEASE}" \
+          --tag "${HARBOR_IMAGE}:${VERSION}-arm64" \
+          --tag "${DOCKERHUB_IMAGE}:${VERSION}-arm64" \
+          --tag "${GHCR_IMAGE}:${VERSION}-arm64" \
+          .
+
+        verify_production_image "${HARBOR_IMAGE}:${VERSION}-arm64"
+
         for image in "$HARBOR_IMAGE" "$DOCKERHUB_IMAGE" "$GHCR_IMAGE"; do
           docker push "${image}:${VERSION}-arm64"
         done

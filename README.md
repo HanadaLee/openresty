@@ -129,16 +129,20 @@ still applies before using the resulting image.
 # Testing
 
 The patch regression suite is not embedded in the runtime image and is not run
-by the Dockerfile. CI builds the candidate image, checks out fresh copies of
-OpenResty's `test-nginx` and nginx's `nginx-tests`, and runs the repository's
-tests in a disposable container. Architecture images are pushed only after this
-suite succeeds.
+by the Dockerfile. CI builds a dedicated test image with `--with-debug`, checks
+out fresh copies of OpenResty's `test-nginx` and nginx's `nginx-tests`, and runs
+the repository's tests in a disposable container. This image is never
+published. When a release is needed, CI separately builds production images
+without `--with-debug` after the test suite succeeds.
 
 The same suite can be run locally with Docker, Git, and a POSIX-compatible
 shell:
 
 ```shell
-docker build --tag openresty:test .
+docker build \
+    --build-arg RESTY_DEBUG_OPTIONS=--with-debug \
+    --tag openresty:test \
+    .
 
 harness_root="$(mktemp -d)"
 trap 'rm -rf "$harness_root"' EXIT
@@ -200,12 +204,13 @@ GitHub Actions and GitLab CI build and test both `linux/amd64` and
 `linux/arm64` images. The release version is
 `RESTY_VERSION.RESTY_RELEASE`, using the two values defined in the Dockerfile.
 
-Every push to the main branch runs the build and patch regression suite. If the
-version is unchanged, CI stops after testing and does not push images. When the
-version changes, CI also publishes the architecture images and the `version`
-and `latest` multi-platform manifests to Harbor, Docker Hub, and GitHub
-Container Registry, then creates a matching Git tag and release. Release notes
-summarize commits since the previous version tag.
+Every push to the main branch builds the debug-only test image and runs the
+patch regression suite. If the version is unchanged, CI stops after testing and
+does not build or push production images. When the version changes, CI performs
+a separate non-debug production build and publishes the architecture images and
+the `version` and `latest` multi-platform manifests to Harbor, Docker Hub, and
+GitHub Container Registry, then creates a matching Git tag and release. Release
+notes summarize commits since the previous version tag.
 
 The GitHub workflow can also be started manually. An already tagged version is
 always treated as test-only, preventing an existing release from being

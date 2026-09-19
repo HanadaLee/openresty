@@ -64,6 +64,7 @@ ARG RESTY_PATH_OPTIONS="\
 "
 ARG RESTY_USER_OPTIONS="--user=nginx --group=nginx"
 ARG RESTY_J="4"
+ARG RESTY_DEBUG_OPTIONS=""
 ARG RESTY_CONFIG_OPTIONS="\
     --with-file-aio \
     --with-threads \
@@ -510,7 +511,7 @@ RUN test -n "${RESTY_VERSION}" \
     && echo "resetting openresty release version" \
     && sed -i "s/\(openresty\/.*\)\"/\1.${RESTY_RELEASE}\"/" src/core/nginx.h \
     && cd /build/openresty-${RESTY_VERSION} \
-    && eval ./configure -j${RESTY_J} ${RESTY_PATH_OPTIONS} ${RESTY_USER_OPTIONS} ${RESTY_CONFIG_OPTIONS} ${RESTY_CONFIG_DEPS} \
+    && eval ./configure -j${RESTY_J} ${RESTY_PATH_OPTIONS} ${RESTY_USER_OPTIONS} ${RESTY_DEBUG_OPTIONS} ${RESTY_CONFIG_OPTIONS} ${RESTY_CONFIG_DEPS} \
     && make -j${RESTY_J} \
     && make install \
     && cat /build/openresty-${RESTY_VERSION}/build/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6)/objs/ngx_modules.c \
