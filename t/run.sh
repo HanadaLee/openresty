@@ -24,6 +24,10 @@ export TEST_NGINX_RESTY_LUALIB="${TEST_NGINX_RESTY_LUALIB:-/usr/local/openresty/
 
 (
     cd "$root/test-nginx"
+
+    # Test::Nginx defaults its server root to t/servroot.
+    mkdir -p t
+
     PERL5LIB="$TEST_NGINX_ROOT/lib${PERL5LIB:+:$PERL5LIB}" \
         prove -v -r .
 )
