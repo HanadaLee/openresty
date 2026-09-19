@@ -348,6 +348,7 @@ preaccess output finalized
     location = /lua {
         preaccess_by_lua_block {
             ngx.status = 200
+            ngx.header.content_length = 16
             assert(ngx.send_headers())
             assert(ngx.flush(true))
 
@@ -399,6 +400,7 @@ preaccess raw body: hello
     }
 --- request
 GET /lua
+--- error_code: 302
 --- response_body_like: 302 Found
 --- response_headers_like
 Location: /redirect-target

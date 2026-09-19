@@ -68,7 +68,8 @@ API disabled in the context of preaccess_by_lua
             local transaction = require("resty.lmdb.transaction")
             local state = ngx.shared.preaccess_phase_state
 
-            assert(lmdb.db_drop(true))
+            assert(lmdb.set("preaccess:setup", "value"))
+            assert(lmdb.db_drop(false))
 
             local txn = transaction.begin(520)
             for i = 1, 520 do

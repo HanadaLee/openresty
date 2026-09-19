@@ -34,12 +34,12 @@ __DATA__
     location = /t {
         proxy_connect_timeout 100ms;
         proxy_next_upstream error;
-        proxy_next_upstream_tries 1;
 
         when enabled {
             proxy_next_upstream_tries 3;
         }
 
+        proxy_next_upstream_tries 1;
         proxy_pass http://conditional_balancer_backend;
     }
 --- request
@@ -77,12 +77,12 @@ conditional tries warning: reduced tries due to limit
     location = /t {
         proxy_connect_timeout 100ms;
         proxy_next_upstream error;
-        proxy_next_upstream_tries 1;
 
         when enabled {
             proxy_next_upstream_tries 3;
         }
 
+        proxy_next_upstream_tries 1;
         proxy_pass http://conditional_balancer_backend;
     }
 --- request
@@ -94,4 +94,3 @@ conditional tries warning: none
 --- no_error_log
 conditional tries warning: reduced tries due to limit
 [alert]
-
