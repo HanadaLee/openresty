@@ -229,7 +229,7 @@ redirected
         preaccess_by_lua_block {
             local res = ngx.location.capture("/sub")
             ngx.log(ngx.INFO, "subrequest status: ", res.status)
-            ngx.say("sub:" .. res.body)
+            ngx.print("sub:" .. res.body)
         }
         content_by_lua_block {
             ngx.say("should not reach")
