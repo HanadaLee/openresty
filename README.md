@@ -115,8 +115,8 @@ Both values can be overridden when validating a compatible source release:
 ```shell
 docker build \
     --build-arg RESTY_VERSION=1.31.4.1 \
-    --build-arg RESTY_RELEASE=376 \
-    --tag openresty:1.31.4.1.376 \
+    --build-arg RESTY_RELEASE=377 \
+    --tag openresty:1.31.4.1.377 \
     .
 ```
 
