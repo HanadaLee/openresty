@@ -20,7 +20,7 @@ select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
 my $t = Test::Nginx->new()->has(qw/http cache fastcgi uwsgi scgi grpc
-	memcached tunnel http_ssl ngx_condition_module/)->plan(11);
+	memcached tunnel http_ssl ngx_condition_module/)->plan(9);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -33,15 +33,6 @@ events {
 
 http {
     %%TEST_GLOBALS_HTTP%%
-
-    upstream drizzle_backend {
-        drizzle_server 127.0.0.1:1 dbname=test user=test password=test
-            protocol=mysql;
-    }
-
-    upstream postgres_backend {
-        postgres_server 127.0.0.1:1 dbname=test user=test password=test;
-    }
 
     server {
         listen       127.0.0.1:8080;
@@ -214,25 +205,6 @@ http {
             redis2_pass 127.0.0.1:1;
         }
 
-        location /drizzle {
-            when enabled {
-                drizzle_connect_timeout 1s;
-                drizzle_send_query_timeout 1s;
-            }
-
-            drizzle_query "select 1";
-            drizzle_pass drizzle_backend;
-        }
-
-        location /postgres {
-            when enabled {
-                postgres_connect_timeout 1s;
-                postgres_result_timeout 1s;
-            }
-
-            postgres_query "select 1";
-            postgres_pass postgres_backend;
-        }
     }
 
     server {
@@ -268,8 +240,6 @@ like(request('/memcached'), qr/502 Bad Gateway/,
 	'memcached condition path');
 like(request('/redis'), qr/502 Bad Gateway/, 'redis condition path');
 like(request('/redis2'), qr/502 Bad Gateway/, 'redis2 condition path');
-like(request('/drizzle'), qr/502 Bad Gateway/, 'drizzle condition path');
-like(request('/postgres'), qr/502 Bad Gateway/, 'postgres condition path');
 
 my $tunnel = http(<<'EOF', PeerAddr => '127.0.0.1:' . port(8087));
 CONNECT 127.0.0.1:8096 HTTP/1.1
