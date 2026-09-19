@@ -87,6 +87,7 @@ conditional tries warning: reduced tries due to limit
     }
 --- request
 GET /t
+--- more_headers
 X-Case: enabled
 --- error_code: 502
 --- error_log
