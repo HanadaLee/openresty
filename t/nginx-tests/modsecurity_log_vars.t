@@ -128,8 +128,11 @@ http {
         }
 
         location /cleared-response-header {
-            add_header X-Removed blocked;
-            more_clear_headers X-Removed;
+            content_by_lua_block {
+                ngx.header["X-Removed"] = "blocked"
+                ngx.header["X-Removed"] = nil
+                ngx.print("body")
+            }
             modsecurity on;
             modsecurity_rules '
                 SecRuleEngine On
@@ -143,7 +146,6 @@ EOF
 $t->write_file("/block-phase3", "body");
 $t->write_file("/bypass", "body");
 $t->write_file("/cleared-request-header", "body");
-$t->write_file("/cleared-response-header", "body");
 $t->run();
 $t->plan(29);
 
@@ -189,14 +191,14 @@ http_get('/block-phase3?arg=go');
 like(log_line($t, '/block-phase3'), qr/\|i=1\|/,  'phase3 block: intervention=1');
 like(log_line($t, '/block-phase3'), qr/\|r=600$/, 'phase3 block: rule id captured');
 
-# A false predicate bypasses ModSecurity; a true predicate evaluates it.
-like(http_get('/bypass?arg=go&check=0'), qr/^HTTP\/1\.1 200 /,
-    'bypass: false predicate skips ModSecurity');
+# A true predicate bypasses ModSecurity; a false predicate evaluates it.
+like(http_get('/bypass?arg=go&check=1'), qr/^HTTP\/1\.1 200 /,
+    'bypass: true predicate skips ModSecurity');
 like(log_line($t, '/bypass'), qr/\|i=0\|/, 'bypass: no intervention');
 like(log_line($t, '/bypass'), qr/\|r=-$/, 'bypass: no triggered rules');
 
-like(http_get('/bypass?arg=go&check=1'), qr/^HTTP\/1\.1 403 /,
-    'bypass: true predicate evaluates ModSecurity');
+like(http_get('/bypass?arg=go&check=0'), qr/^HTTP\/1\.1 403 /,
+    'bypass: false predicate evaluates ModSecurity');
 like(log_line($t, '/bypass'), qr/\|i=1\|/, 'checked: intervention=1');
 like(log_line($t, '/bypass'), qr/\|r=900$/, 'checked: rule id captured');
 

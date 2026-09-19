@@ -60,8 +60,8 @@ is(loop_value(cdn_get('openresty; loops=1')),
 	'1|openresty; loops=2',
 	'default identifier recognizes an existing OpenResty entry');
 is(loop_value(cdn_get('nginx; loops=99')),
-	'0|openresty; loops=1, nginx; loops=99',
-	'former default identifier is preserved as a foreign entry');
+	'0|openresty; loops=1',
+	'former default identifier is no longer recognized as the local entry');
 like(cdn_get('openresty; loops=3'), qr/508 /,
 	'default identifier participates in loop rejection');
 
