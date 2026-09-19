@@ -18,7 +18,7 @@ use Test::Nginx qw/ :DEFAULT http_content /;
 select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
-my $t = Test::Nginx->new()->has(qw/http http_v2 grpc/)->plan(12);
+my $t = Test::Nginx->new()->has(qw/http http_v2 grpc/)->plan(24);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -115,6 +115,19 @@ is(header_value($response, 'X-Grpc-Long'), $long,
 is(http_content($response),
 	"configured-dynamic|incoming|first, second|$long",
 	'variables match headers sent upstream');
+
+for my $size (16, 255, 256, 511, 1024, 4096) {
+	my $value = 'x' x $size;
+	my $boundary_response = response('/variables?value=boundary', <<EOF);
+X-Incoming: incoming
+X-Long: $value
+EOF
+
+	like($boundary_response, qr/^HTTP\/1\.1 200 /,
+		"request with a $size-byte forwarded header succeeds");
+	is(header_value($boundary_response, 'X-Grpc-Long'), $value,
+		"$size-byte forwarded header is exposed intact");
+}
 
 like(header_value(response('/default-host'), 'X-Grpc-Host'),
 	qr/^127\.0\.0\.1:\d+$/, 'default authority is exposed');

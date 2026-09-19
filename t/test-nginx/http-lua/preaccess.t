@@ -1,10 +1,8 @@
 # vim:set ft= ts=4 sw=4 et fdm=marker:
 
-use Test::Nginx::Socket::Lua;
+use Test::Nginx::Socket::Lua 'no_plan';
 
 repeat_each(2);
-
-plan tests => repeat_each() * (blocks() * 4 - 1);
 
 #log_level("info");
 #no_long_string();
@@ -246,5 +244,165 @@ GET /lua
 sub:subresponse
 --- error_log
 subrequest status: 200
+--- no_error_log
+[error]
+
+
+
+=== TEST 11: ngx.get_phase reports preaccess
+--- config
+    location /lua {
+        set $preaccess_phase "not-run";
+        preaccess_by_lua_block {
+            ngx.var.preaccess_phase = ngx.get_phase()
+            ngx.log(ngx.INFO, "phase observed: ", ngx.get_phase())
+        }
+        content_by_lua_block {
+            ngx.say("phase: ", ngx.var.preaccess_phase)
+        }
+    }
+--- request
+GET /lua
+--- response_body
+phase: preaccess
+--- error_log
+phase observed: preaccess
+--- no_error_log
+[error]
+
+
+
+=== TEST 12: TCP cosocket can yield in preaccess
+--- config
+    location = /lua {
+        preaccess_by_lua_block {
+            local sock = ngx.socket.tcp()
+            sock:settimeout(1000)
+
+            local ok, err = sock:connect("127.0.0.1", ngx.var.server_port)
+            assert(ok, err)
+
+            local bytes
+            bytes, err = sock:send(
+                "GET /socket-backend HTTP/1.0\r\n"
+                .. "Host: localhost\r\n\r\n")
+            assert(bytes, err)
+
+            local status
+            status, err = sock:receive("*l")
+            assert(status, err)
+            assert(sock:close())
+
+            ngx.ctx.backend_status = status
+            ngx.log(ngx.INFO, "preaccess cosocket status: ", status)
+        }
+        content_by_lua_block {
+            ngx.say(ngx.ctx.backend_status)
+        }
+    }
+
+    location = /socket-backend {
+        return 204;
+    }
+--- request
+GET /lua
+--- response_body
+HTTP/1.1 204 No Content
+--- error_log
+preaccess cosocket status: HTTP/1.1 204 No Content
+--- no_error_log
+[error]
+
+
+
+=== TEST 13: send headers flush and eof in preaccess
+--- config
+    location = /lua {
+        preaccess_by_lua_block {
+            ngx.header["X-Preaccess-Output"] = "sent"
+            assert(ngx.send_headers())
+            assert(ngx.print("preaccess output\n"))
+            assert(ngx.flush(true))
+            assert(ngx.eof())
+            ngx.log(ngx.INFO, "preaccess output finalized")
+        }
+        content_by_lua_block {
+            ngx.say("should not reach")
+        }
+    }
+--- request
+GET /lua
+--- response_body
+preaccess output
+--- response_headers
+X-Preaccess-Output: sent
+--- error_log
+preaccess output finalized
+--- no_error_log
+[error]
+
+
+
+=== TEST 14: raw request socket in preaccess
+--- config
+    location = /lua {
+        preaccess_by_lua_block {
+            ngx.status = 200
+            assert(ngx.send_headers())
+            assert(ngx.flush(true))
+
+            local sock, err = ngx.req.socket(true)
+            assert(sock, err)
+
+            local data
+            data, err = sock:receive(5)
+            assert(data, err)
+
+            local bytes
+            bytes, err = sock:send("raw body: " .. data .. "\n")
+            assert(bytes, err)
+            ngx.log(ngx.INFO, "preaccess raw body: ", data)
+        }
+        content_by_lua_block {
+            ngx.say("should not reach")
+        }
+    }
+--- raw_request eval
+"GET /lua HTTP/1.1\r
+Host: localhost\r
+Connection: close\r
+\r
+hello"
+--- response_body
+raw body: hello
+--- error_log
+preaccess raw body: hello
+--- no_error_log
+[error]
+
+
+
+=== TEST 15: ngx.redirect in preaccess
+--- config
+    location = /lua {
+        preaccess_by_lua_block {
+            ngx.log(ngx.INFO, "preaccess redirect")
+            return ngx.redirect("/redirect-target")
+        }
+        content_by_lua_block {
+            ngx.say("should not reach")
+        }
+    }
+
+    location = /redirect-target {
+        return 204;
+    }
+--- request
+GET /lua
+--- response_body_like: 302 Found
+--- response_headers_like
+Location: /redirect-target
+--- error_log
+preaccess redirect
 --- no_error_log
 [error]

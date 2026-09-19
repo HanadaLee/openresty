@@ -108,13 +108,44 @@ http {
                 SecRule ARGS "@streq go" "id:600,phase:3,log,deny,status:403"
             ';
         }
+
+        location /bypass {
+            modsecurity on;
+            modsecurity_bypass $arg_check;
+            modsecurity_rules '
+                SecRuleEngine On
+                SecRule ARGS:arg "@streq go" "id:900,phase:1,log,deny,status:403"
+            ';
+        }
+
+        location /cleared-request-header {
+            more_clear_input_headers X-Removed;
+            modsecurity on;
+            modsecurity_rules '
+                SecRuleEngine On
+                SecRule REQUEST_HEADERS:X-Removed "@streq blocked" "id:901,phase:1,log,deny,status:403"
+            ';
+        }
+
+        location /cleared-response-header {
+            add_header X-Removed blocked;
+            more_clear_headers X-Removed;
+            modsecurity on;
+            modsecurity_rules '
+                SecRuleEngine On
+                SecRule RESPONSE_HEADERS:X-Removed "@streq blocked" "id:902,phase:3,log,deny,status:403"
+            ';
+        }
     }
 }
 EOF
 
 $t->write_file("/block-phase3", "body");
+$t->write_file("/bypass", "body");
+$t->write_file("/cleared-request-header", "body");
+$t->write_file("/cleared-response-header", "body");
 $t->run();
-$t->plan(16);
+$t->plan(29);
 
 ###############################################################################
 
@@ -157,6 +188,44 @@ like(log_line($t, '/redirect'), qr/\|r=500$/, 'redirect: rule id captured');
 http_get('/block-phase3?arg=go');
 like(log_line($t, '/block-phase3'), qr/\|i=1\|/,  'phase3 block: intervention=1');
 like(log_line($t, '/block-phase3'), qr/\|r=600$/, 'phase3 block: rule id captured');
+
+# A false predicate bypasses ModSecurity; a true predicate evaluates it.
+like(http_get('/bypass?arg=go&check=0'), qr/^HTTP\/1\.1 200 /,
+    'bypass: false predicate skips ModSecurity');
+like(log_line($t, '/bypass'), qr/\|i=0\|/, 'bypass: no intervention');
+like(log_line($t, '/bypass'), qr/\|r=-$/, 'bypass: no triggered rules');
+
+like(http_get('/bypass?arg=go&check=1'), qr/^HTTP\/1\.1 403 /,
+    'bypass: true predicate evaluates ModSecurity');
+like(log_line($t, '/bypass'), qr/\|i=1\|/, 'checked: intervention=1');
+like(log_line($t, '/bypass'), qr/\|r=900$/, 'checked: rule id captured');
+
+# Header filters mark removed headers with hash=0.  They must not be copied
+# into the ModSecurity transaction on either side of the request.
+my $cleared_request = http(<<'EOF');
+GET /cleared-request-header HTTP/1.1
+Host: localhost
+X-Removed: blocked
+Connection: close
+
+EOF
+
+like($cleared_request, qr/^HTTP\/1\.1 200 /,
+    'cleared request header does not trigger ModSecurity');
+like(log_line($t, '/cleared-request-header'), qr/\|i=0\|/,
+    'cleared request header: no intervention');
+like(log_line($t, '/cleared-request-header'), qr/\|r=-$/,
+    'cleared request header: no triggered rules');
+
+my $cleared_response = http_get('/cleared-response-header');
+like($cleared_response, qr/^HTTP\/1\.1 200 /,
+    'cleared response header does not trigger ModSecurity');
+unlike($cleared_response, qr/^X-Removed:/mi,
+    'cleared response header is absent on the wire');
+like(log_line($t, '/cleared-response-header'), qr/\|i=0\|/,
+    'cleared response header: no intervention');
+like(log_line($t, '/cleared-response-header'), qr/\|r=-$/,
+    'cleared response header: no triggered rules');
 
 ###############################################################################
 

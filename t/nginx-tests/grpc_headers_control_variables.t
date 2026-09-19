@@ -16,7 +16,7 @@ select STDOUT; $| = 1;
 
 my $t = Test::Nginx->new()->has(qw/http grpc
 	ngx_http_grpc_filter_module ngx_http_grpc_headers_control_module/)
-	->plan(4);
+	->plan(6);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -86,6 +86,19 @@ is(header_value($response, 'X-Grpc-Append'), 'base, appended',
 	'grpc variable combines appended request headers');
 is(header_value($response, 'X-Grpc-Rewrite'), 'rewritten',
 	'grpc variable sees a rewritten request header');
+
+my $long = 'x' x 1024;
+my $long_response = http(<<EOF);
+GET /variables?value=$long HTTP/1.1
+Host: localhost
+Connection: close
+
+EOF
+
+like($long_response, qr/^HTTP\/1\.1 200 /,
+	'filter-created long request header succeeds');
+is(header_value($long_response, 'X-Grpc-Set'), $long,
+	'filter-created long request header is exposed intact');
 
 sub header_value {
 	my ($response, $name) = @_;
