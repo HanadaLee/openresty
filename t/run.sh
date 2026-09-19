@@ -13,6 +13,11 @@ export TEST_NGINX_RESTY_LUALIB="${TEST_NGINX_RESTY_LUALIB:-/usr/local/openresty/
 
 (
     cd "$root/nginx-tests"
+
+    if [ "$(id -u)" -eq 0 ]; then
+        export TEST_NGINX_GLOBALS="${TEST_NGINX_GLOBALS:-user root;}"
+    fi
+
     PERL5LIB="$NGINX_TESTS_ROOT/lib${PERL5LIB:+:$PERL5LIB}" \
         prove -v ./*.t
 )

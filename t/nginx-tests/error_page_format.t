@@ -158,8 +158,8 @@ my $json = http_get('/json');
 like($json, qr/Content-Type: application\/json\r?\n/i,
 	'json format content type');
 like(http_body($json),
-	qr/^\{"status":\x20403,\x20"error":\x20"Forbidden",\x20
-		"message":\x20"You\x20do\x20not\x20have\x20permission\x20to\x20
+	qr/^\{"status":403,"reason":"Forbidden","message":
+		"You\x20do\x20not\x20have\x20permission\x20to\x20
 		access\x20this\x20resource\."/x,
 	'json format status and message');
 unlike(http_body($json), qr/"date"|"client_ip"|"server"|"request_id"/,
@@ -171,10 +171,10 @@ my $xml = http_get('/xml');
 like($xml, qr/Content-Type: application\/xml\r?\n/i,
 	'xml format content type');
 like(http_body($xml),
-	qr/<status>403<\/status>\r?\n\s*<error>Forbidden<\/error>/,
-	'xml format status and error');
+	qr/<Error><Status>403<\/Status><Reason>Forbidden<\/Reason>/,
+	'xml format status and reason');
 like(http_body($xml),
-	qr/<message>You do not have permission to access this resource\.<\/message>/,
+	qr/<Message>You do not have permission to access this resource\.<\/Message>/,
 	'xml format message');
 unlike(http_body($xml), qr/<date>|<client_ip>|<server>|<request_id>/,
 	'xml format omits supplemental fields');
@@ -186,7 +186,7 @@ for my $case (@format_cases) {
 	my $body = http_body(http_get("/status/$code"));
 
 	like($body,
-		qr/^\{"status": $status, "error": "\Q$reason\E", "message": "\Q$message\E"/,
+		qr/^\{"status":$status,"reason":"\Q$reason\E","message":"\Q$message\E"/,
 		"json error information for $code");
 }
 

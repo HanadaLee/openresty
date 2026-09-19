@@ -93,7 +93,7 @@ $t->run();
 ###############################################################################
 
 my $inherited = http_get('/inherit');
-like(http_body($inherited), qr/"uri": "\/inherit", "missing": "-"\}$/,
+like(http_body($inherited), qr/"uri":"\/inherit","missing":"-"\}$/,
 	'location inherits fields and missing variable uses a dash');
 unlike(http_body($inherited),
 	qr/"date"|"client_ip"|"server"|"request_id"/,
@@ -102,7 +102,7 @@ is(response_length($inherited), length(http_body($inherited)),
 	'inherited fields content length');
 
 my $empty = http_get('/inherit?missing=');
-like(http_body($empty), qr/"uri": "\/inherit", "missing": "-"\}$/,
+like(http_body($empty), qr/"uri":"\/inherit","missing":"-"\}$/,
 	'json empty variable uses a dash');
 
 my $override = http(
@@ -112,7 +112,7 @@ my $override = http(
 	. "\r\n"
 );
 like(http_body($override),
-	qr/"method": "GET", "value": "test\\"value\\\\path&x"\}$/,
+	qr/"method":"GET","value":"test\\"value\\\\path&x"\}$/,
 	'location fields use and escape variables');
 unlike(http_body($override), qr/"uri"|"missing"/,
 	'location fields replace inherited fields');
@@ -160,14 +160,14 @@ like(http_body($html_empty), qr/<td>missing<\/td>\r?\n<td>-<\/td>/,
 	'html empty variable uses a dash');
 
 my $nested = http_get('/parent/child');
-like(http_body($nested), qr/"parent": "\/parent\/child"\}$/,
+like(http_body($nested), qr/"parent":"\/parent\/child"\}$/,
 	'nested location inherits parent location fields');
 unlike(http_body($nested), qr/"uri"|"missing"/,
 	'nested location does not inherit replaced http fields');
 
 my $server = http_get('/',
 	socket => IO::Socket::INET->new('127.0.0.1:' . port(8081)));
-like(http_body($server), qr/"server_name": "server\.example"\}$/,
+like(http_body($server), qr/"server_name":"server\.example"\}$/,
 	'server fields replace http fields');
 
 my $redirect = http_get('/redirect');
