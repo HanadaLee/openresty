@@ -1,8 +1,10 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -euo pipefail
 
-root=$(cd "$(dirname "$0")" && pwd)
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+repository_root="$(cd "$script_dir/.." && pwd)"
+test_root="${TEST_ROOT:-$repository_root/t}"
 
 : "${TEST_NGINX_BINARY:?TEST_NGINX_BINARY must point to the patched nginx binary}"
 : "${TEST_NGINX_ROOT:?TEST_NGINX_ROOT must point to the test-nginx checkout}"
@@ -12,7 +14,7 @@ export TEST_NGINX_BINARY
 export TEST_NGINX_RESTY_LUALIB="${TEST_NGINX_RESTY_LUALIB:-/usr/local/openresty/lualib}"
 
 (
-    cd "$root/nginx-tests"
+    cd "$test_root/nginx-tests"
 
     if [ "$(id -u)" -eq 0 ]; then
         export TEST_NGINX_GLOBALS="${TEST_NGINX_GLOBALS:-user root;}"
@@ -23,7 +25,7 @@ export TEST_NGINX_RESTY_LUALIB="${TEST_NGINX_RESTY_LUALIB:-/usr/local/openresty/
 )
 
 (
-    cd "$root/test-nginx"
+    cd "$test_root/test-nginx"
 
     # Test::Nginx defaults its server root to t/servroot.
     mkdir -p t

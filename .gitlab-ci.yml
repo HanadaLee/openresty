@@ -15,128 +15,12 @@ stages:
     - |
       set -eu
 
-      run_patch_tests() {
-        test_image="$1"
-        test_harness_root="$(mktemp -d)"
-
-        git clone --depth=1 \
-          https://github.com/openresty/test-nginx.git \
-          "$test_harness_root/test-nginx"
-        git clone --depth=1 \
-          https://github.com/nginx/nginx-tests.git \
-          "$test_harness_root/nginx-tests"
-
-        if ! docker run --rm \
-          --volume "$CI_PROJECT_DIR/t:/input/tests:ro" \
-          --volume "$test_harness_root/test-nginx:/input/test-nginx:ro" \
-          --volume "$test_harness_root/nginx-tests:/input/nginx-tests:ro" \
-          "$test_image" \
-          bash -c '
-            set -euo pipefail
-
-            apt-get update
-            DEBIAN_FRONTEND=noninteractive apt-get install -y \
-              --no-install-recommends \
-              perl \
-              libtest-base-perl \
-              libtext-diff-perl \
-              libtest-longstring-perl \
-              libwww-perl \
-              libipc-run-perl \
-              liburi-perl \
-              liblist-moreutils-perl
-
-            mkdir -p /test-work/tests /test-work/harnesses
-            cp -a /input/tests/. /test-work/tests/
-            cp -a /input/test-nginx /test-work/harnesses/test-nginx
-            cp -a /input/nginx-tests /test-work/harnesses/nginx-tests
-
-            TEST_NGINX_BINARY=/usr/local/openresty/sbin/nginx \
-              TEST_NGINX_ROOT=/test-work/harnesses/test-nginx \
-              NGINX_TESTS_ROOT=/test-work/harnesses/nginx-tests \
-              bash /test-work/tests/run.sh
-          '; then
-          rm -rf "$test_harness_root"
-          return 1
-        fi
-
-        rm -rf "$test_harness_root"
-      }
-
-      verify_debug_image() {
-        docker run --rm "$1" /usr/local/openresty/sbin/nginx -V 2>&1 |
-          grep -F -- '--with-debug'
-      }
-
-      verify_production_image() {
-        if docker run --rm "$1" /usr/local/openresty/sbin/nginx -V 2>&1 |
-             grep -F -- '--with-debug'; then
-          echo "Production image unexpectedly contains --with-debug" >&2
-          return 1
-        fi
-      }
-
-      RESTY_VERSION="$(
-        sed -n 's/^ARG RESTY_VERSION="\([^"]*\)"[[:space:]]*$/\1/p' \
-          Dockerfile | head -n 1
-      )"
-      RESTY_RELEASE="$(
-        sed -n 's/^ARG RESTY_RELEASE="\([^"]*\)"[[:space:]]*$/\1/p' \
-          Dockerfile | head -n 1
-      )"
-
-      if [ -z "$RESTY_VERSION" ] || [ -z "$RESTY_RELEASE" ]; then
-        echo "Failed to read RESTY_VERSION or RESTY_RELEASE from Dockerfile" >&2
-        exit 1
-      fi
-
-      VERSION="${RESTY_VERSION}.${RESTY_RELEASE}"
-      if ! printf '%s\n' "$VERSION" |
-           grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
-        echo "Invalid version from Dockerfile: $VERSION" >&2
-        exit 1
-      fi
-
-      RELEASE_NEEDED=false
-
-      read_version_at() {
-        ref="$1"
-
-        resty="$(git show "${ref}:Dockerfile" |
-          sed -n 's/^ARG RESTY_VERSION="\([^"]*\)"[[:space:]]*$/\1/p' |
-          head -n 1)"
-        release="$(git show "${ref}:Dockerfile" |
-          sed -n 's/^ARG RESTY_RELEASE="\([^"]*\)"[[:space:]]*$/\1/p' |
-          head -n 1)"
-
-        if [ -z "$resty" ] || [ -z "$release" ]; then
-          echo "Failed to read version from ${ref}:Dockerfile" >&2
-          return 1
-        fi
-
-        printf '%s.%s\n' "$resty" "$release"
-      }
-
-      git fetch --force --tags origin
-
-      if git rev-parse -q --verify "refs/tags/${VERSION}" >/dev/null; then
-        echo "Version ${VERSION} is already tagged; running tests only."
-      elif [ "${CI_PIPELINE_SOURCE:-}" = "push" ] &&
-           [ -n "${CI_COMMIT_BEFORE_SHA:-}" ] &&
-           [ "$CI_COMMIT_BEFORE_SHA" != "0000000000000000000000000000000000000000" ]; then
-        if ! git cat-file -e "${CI_COMMIT_BEFORE_SHA}^{commit}" 2>/dev/null; then
-          git fetch --no-tags origin "$CI_COMMIT_BEFORE_SHA"
-        fi
-
-        PREVIOUS_VERSION="$(read_version_at "$CI_COMMIT_BEFORE_SHA")"
-        if [ "$VERSION" != "$PREVIOUS_VERSION" ]; then
-          RELEASE_NEEDED=true
-        else
-          echo "Version remains ${VERSION}; running tests only."
-        fi
-      else
-        RELEASE_NEEDED=true
-      fi
+      version_env="$(mktemp)"
+      EVENT_NAME="${CI_PIPELINE_SOURCE:-}" \
+        BEFORE_SHA="${CI_COMMIT_BEFORE_SHA:-}" \
+        bash util/ci/resolve-version.sh Dockerfile > "$version_env"
+      . "$version_env"
+      rm -f "$version_env"
 
       export VERSION RESTY_VERSION RESTY_RELEASE RELEASE_NEEDED
 
@@ -165,8 +49,8 @@ build-amd64:
         --tag "$test_image" \
         .
 
-      verify_debug_image "$test_image"
-      run_patch_tests "$test_image"
+      bash util/ci/verify-image.sh debug "$test_image"
+      bash util/ci/run-patch-tests.sh "$test_image"
 
       if [ "$RELEASE_NEEDED" = true ]; then
         docker build \
@@ -177,11 +61,9 @@ build-amd64:
           --tag "${GHCR_IMAGE}:${VERSION}-amd64" \
           .
 
-        verify_production_image "${HARBOR_IMAGE}:${VERSION}-amd64"
-
-        for image in "$HARBOR_IMAGE" "$DOCKERHUB_IMAGE" "$GHCR_IMAGE"; do
-          docker push "${image}:${VERSION}-amd64"
-        done
+        bash util/ci/verify-image.sh production \
+          "${HARBOR_IMAGE}:${VERSION}-amd64"
+        bash util/ci/push-architecture-images.sh "$VERSION" amd64
       fi
 
 build-arm64:
@@ -200,8 +82,8 @@ build-arm64:
         --tag "$test_image" \
         .
 
-      verify_debug_image "$test_image"
-      run_patch_tests "$test_image"
+      bash util/ci/verify-image.sh debug "$test_image"
+      bash util/ci/run-patch-tests.sh "$test_image"
 
       if [ "$RELEASE_NEEDED" = true ]; then
         docker build \
@@ -212,11 +94,9 @@ build-arm64:
           --tag "${GHCR_IMAGE}:${VERSION}-arm64" \
           .
 
-        verify_production_image "${HARBOR_IMAGE}:${VERSION}-arm64"
-
-        for image in "$HARBOR_IMAGE" "$DOCKERHUB_IMAGE" "$GHCR_IMAGE"; do
-          docker push "${image}:${VERSION}-arm64"
-        done
+        bash util/ci/verify-image.sh production \
+          "${HARBOR_IMAGE}:${VERSION}-arm64"
+        bash util/ci/push-architecture-images.sh "$VERSION" arm64
       fi
 
 create-manifest:
@@ -263,25 +143,7 @@ publish-release:
         exit 0
       fi
 
-      previous_tag="$(git tag --merged "$CI_COMMIT_SHA" --sort=-version:refname |
-        grep -Fvx "$VERSION" | head -n 1 || true)"
-
-      if [ -n "$previous_tag" ]; then
-        {
-          echo "Changes since \`${previous_tag}\`:"
-          echo
-          git log --no-merges --pretty=format:'- %s (`%h`)' \
-            "${previous_tag}..${CI_COMMIT_SHA}"
-          echo
-        } > release-notes.md
-      else
-        {
-          echo "Changes through \`${CI_COMMIT_SHA}\`:"
-          echo
-          git log --no-merges --pretty=format:'- %s (`%h`)' "$CI_COMMIT_SHA"
-          echo
-        } > release-notes.md
-      fi
+      bash util/ci/release-notes.sh "$CI_COMMIT_SHA" "$VERSION"
 
       curl --fail --show-error --silent \
         --request POST \

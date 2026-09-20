@@ -102,27 +102,47 @@ The bundled software components are copyrighted by the respective copyright hold
 
 # Building
 
-Docker is the supported build environment. The default OpenResty version and
-bundle release are defined by `RESTY_VERSION` and `RESTY_RELEASE` in the
-Dockerfile, so a local image can be built directly from the repository root:
+Docker is the supported build environment. The Dockerfile pins a full commit
+from the upstream [OpenResty repository](https://github.com/openresty/openresty)
+instead of downloading a published bundle or following the moving `master`
+branch. A dedicated build stage runs the upstream `make` target to create the
+OpenResty bundle tarball, a second stage compiles and installs the patched
+runtime, and the final stage starts from the same slim Debian base, installs
+only the explicit runtime packages, and copies the cleaned
+`/usr/local/openresty` tree. The bundle archive, compiler toolchain, and other
+build-stage files are therefore not retained in the published image.
+
+`RESTY_VERSION` is read from `util/ver` at the pinned commit. `RESTY_RELEASE`
+remains a local, monotonically increasing bundle release. A local image can be
+built directly from the repository root:
 
 ```shell
 docker build --tag openresty:local .
 ```
 
-Both values can be overridden when validating a compatible source release:
+To build a versioned local image with the same version metadata as CI, resolve
+the pinned upstream version first:
 
 ```shell
+resty_version="$(bash util/openresty-version.sh)"
+resty_release="$(
+    sed -n 's/^ARG RESTY_RELEASE="\([^"]*\)"[[:space:]]*$/\1/p' Dockerfile |
+        head -n 1
+)"
+
 docker build \
-    --build-arg RESTY_VERSION=1.31.4.1 \
-    --build-arg RESTY_RELEASE=377 \
-    --tag openresty:1.31.4.1.377 \
+    --build-arg RESTY_VERSION="$resty_version" \
+    --build-arg RESTY_RELEASE="$resty_release" \
+    --tag "openresty:${resty_version}.${resty_release}" \
     .
 ```
 
-The patches in this repository target the dependency versions selected by the
-Dockerfile. When overriding a version, verify that every corresponding patch
-still applies before using the resulting image.
+To follow a newer upstream revision, update `RESTY_COMMIT` to a full
+commit hash and increment `RESTY_RELEASE`. Do not replace the pin with a branch
+name. The patches in this repository target the bundle produced by the pinned
+commit and must be regenerated or revalidated whenever that commit changes.
+The default `RESTY_REPOSITORY` is derived from `RESTY_GIT_MIRROR`, so overriding
+the mirror also applies to the pinned OpenResty source checkout.
 
 [Back to TOC](#table-of-contents)
 
@@ -144,46 +164,8 @@ docker build \
     --tag openresty:test \
     .
 
-harness_root="$(mktemp -d)"
-trap 'rm -rf "$harness_root"' EXIT
-
-git clone --depth=1 \
-    https://github.com/openresty/test-nginx.git \
-    "$harness_root/test-nginx"
-git clone --depth=1 \
-    https://github.com/nginx/nginx-tests.git \
-    "$harness_root/nginx-tests"
-
-docker run --rm \
-    --volume "$PWD/t:/input/tests:ro" \
-    --volume "$harness_root/test-nginx:/input/test-nginx:ro" \
-    --volume "$harness_root/nginx-tests:/input/nginx-tests:ro" \
-    openresty:test \
-    bash -c '
-        set -euo pipefail
-
-        apt-get update
-        DEBIAN_FRONTEND=noninteractive apt-get install -y \
-            --no-install-recommends \
-            perl \
-            libtest-base-perl \
-            libtext-diff-perl \
-            libtest-longstring-perl \
-            libwww-perl \
-            libipc-run-perl \
-            liburi-perl \
-            liblist-moreutils-perl
-
-        mkdir -p /test-work/tests /test-work/harnesses
-        cp -a /input/tests/. /test-work/tests/
-        cp -a /input/test-nginx /test-work/harnesses/test-nginx
-        cp -a /input/nginx-tests /test-work/harnesses/nginx-tests
-
-        TEST_NGINX_BINARY=/usr/local/openresty/sbin/nginx \
-            TEST_NGINX_ROOT=/test-work/harnesses/test-nginx \
-            NGINX_TESTS_ROOT=/test-work/harnesses/nginx-tests \
-            bash /test-work/tests/run.sh
-    '
+bash util/ci/verify-image.sh debug openresty:test
+bash util/ci/run-patch-tests.sh openresty:test
 ```
 
 When testing an existing local installation instead, point the runner at the
@@ -193,7 +175,7 @@ patched nginx binary and the two test harness checkouts:
 TEST_NGINX_BINARY=/path/to/nginx \
 TEST_NGINX_ROOT=/path/to/test-nginx \
 NGINX_TESTS_ROOT=/path/to/nginx-tests \
-bash t/run.sh
+bash util/run-tests.sh
 ```
 
 [Back to TOC](#table-of-contents)
@@ -202,7 +184,8 @@ bash t/run.sh
 
 GitHub Actions and GitLab CI build and test both `linux/amd64` and
 `linux/arm64` images. The release version is
-`RESTY_VERSION.RESTY_RELEASE`, using the two values defined in the Dockerfile.
+`RESTY_VERSION.RESTY_RELEASE`: CI reads `RESTY_VERSION` from the pinned
+upstream commit's `util/ver`, while `RESTY_RELEASE` comes from the Dockerfile.
 
 Every push to the main branch builds the debug-only test image and runs the
 patch regression suite. If the version is unchanged, CI stops after testing and

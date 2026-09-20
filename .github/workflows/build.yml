@@ -63,9 +63,7 @@ jobs:
           TEST_IMAGE: openresty-patch-test:${{ inputs.version }}-${{ matrix.suffix }}
         run: |
           set -euo pipefail
-          docker run --rm "$TEST_IMAGE" \
-            /usr/local/openresty/sbin/nginx -V 2>&1 | \
-            grep -F -- '--with-debug'
+          bash util/ci/verify-image.sh debug "$TEST_IMAGE"
 
       - name: Assemble and run patch tests
         shell: bash
@@ -73,47 +71,7 @@ jobs:
           TEST_IMAGE: openresty-patch-test:${{ inputs.version }}-${{ matrix.suffix }}
         run: |
           set -euo pipefail
-
-          harness_root="$(mktemp -d)"
-          trap 'rm -rf "$harness_root"' EXIT
-
-          git clone --depth=1 \
-            https://github.com/openresty/test-nginx.git \
-            "$harness_root/test-nginx"
-          git clone --depth=1 \
-            https://github.com/nginx/nginx-tests.git \
-            "$harness_root/nginx-tests"
-
-          docker run --rm \
-            --volume "$GITHUB_WORKSPACE/t:/input/tests:ro" \
-            --volume "$harness_root/test-nginx:/input/test-nginx:ro" \
-            --volume "$harness_root/nginx-tests:/input/nginx-tests:ro" \
-            "$TEST_IMAGE" \
-            bash -c '
-              set -euo pipefail
-
-              apt-get update
-              DEBIAN_FRONTEND=noninteractive apt-get install -y \
-                --no-install-recommends \
-                perl \
-                libtest-base-perl \
-                libtext-diff-perl \
-                libtest-longstring-perl \
-                libwww-perl \
-                libipc-run-perl \
-                liburi-perl \
-                liblist-moreutils-perl
-
-              mkdir -p /test-work/tests /test-work/harnesses
-              cp -a /input/tests/. /test-work/tests/
-              cp -a /input/test-nginx /test-work/harnesses/test-nginx
-              cp -a /input/nginx-tests /test-work/harnesses/nginx-tests
-
-              TEST_NGINX_BINARY=/usr/local/openresty/sbin/nginx \
-                TEST_NGINX_ROOT=/test-work/harnesses/test-nginx \
-                NGINX_TESTS_ROOT=/test-work/harnesses/nginx-tests \
-                bash /test-work/tests/run.sh
-            '
+          bash util/ci/run-patch-tests.sh "$TEST_IMAGE"
 
       - name: Build production architecture image
         if: inputs.publish_arch_images
@@ -139,13 +97,7 @@ jobs:
           PRODUCTION_IMAGE: ${{ env.GHCR_IMAGE }}:${{ inputs.version }}-${{ matrix.suffix }}
         run: |
           set -euo pipefail
-
-          if docker run --rm "$PRODUCTION_IMAGE" \
-              /usr/local/openresty/sbin/nginx -V 2>&1 | \
-              grep -F -- '--with-debug'; then
-            echo "Production image unexpectedly contains --with-debug" >&2
-            exit 1
-          fi
+          bash util/ci/verify-image.sh production "$PRODUCTION_IMAGE"
 
       - name: Log in to Harbor
         if: inputs.publish_arch_images
@@ -179,7 +131,4 @@ jobs:
           ARCH_SUFFIX: ${{ matrix.suffix }}
         run: |
           set -euo pipefail
-
-          for image in "$HARBOR_IMAGE" "$DOCKERHUB_IMAGE" "$GHCR_IMAGE"; do
-            docker push "${image}:${VERSION}-${ARCH_SUFFIX}"
-          done
+          bash util/ci/push-architecture-images.sh "$VERSION" "$ARCH_SUFFIX"
