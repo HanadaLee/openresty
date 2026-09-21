@@ -193,7 +193,9 @@ does not build or push production images. When the version changes, CI performs
 a separate non-debug production build and publishes the architecture images and
 the `version` and `latest` multi-platform manifests to Harbor, Docker Hub, and
 GitHub Container Registry, then creates a matching Git tag and release. Release
-notes summarize commits since the previous version tag.
+notes summarize commits since the previous version tag, link to the full GitHub
+comparison, and list the versioned Harbor, Docker Hub, and GitHub Container
+Registry image references.
 
 The release workflow publishes the same tag and release notes to GitLab and
 GitHub. Configure the GitHub Actions secrets `GITLAB_USERNAME` with the GitLab
