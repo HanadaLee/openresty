@@ -182,8 +182,8 @@ bash util/run-tests.sh
 
 # Continuous Integration and Releases
 
-GitHub Actions and GitLab CI build and test both `linux/amd64` and
-`linux/arm64` images. The release version is
+GitHub Actions builds and tests both `linux/amd64` and `linux/arm64` images.
+The release version is
 `RESTY_VERSION.RESTY_RELEASE`: CI reads `RESTY_VERSION` from the pinned
 upstream commit's `util/ver`, while `RESTY_RELEASE` comes from the Dockerfile.
 
@@ -194,6 +194,12 @@ a separate non-debug production build and publishes the architecture images and
 the `version` and `latest` multi-platform manifests to Harbor, Docker Hub, and
 GitHub Container Registry, then creates a matching Git tag and release. Release
 notes summarize commits since the previous version tag.
+
+Before publishing a GitHub release, the workflow pushes the same tag to the
+canonical GitLab repository. Configure the GitHub Actions secret
+`GITLAB_PUSH_TOKEN` with a GitLab project access token that has the
+`write_repository` scope. This prevents the GitHub mirror from pruning tags
+created only by GitHub Actions.
 
 The GitHub workflow can also be started manually. An already tagged version is
 always treated as test-only, preventing an existing release from being

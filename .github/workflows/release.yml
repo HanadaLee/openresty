@@ -6,11 +6,15 @@ on:
       version:
         required: true
         type: string
+    secrets:
+      GITLAB_PUSH_TOKEN:
+        required: true
 
 env:
   HARBOR_IMAGE: registry.hanada.info/openresty/openresty
   DOCKERHUB_IMAGE: docker.io/hanadalee/openresty
   GHCR_IMAGE: ghcr.io/hanadalee/openresty
+  GITLAB_REPOSITORY: https://git.hanada.info/hanada/openresty.git
 
 jobs:
   manifest:
@@ -69,13 +73,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Create release notes and publish release
+      - name: Synchronize tag and publish release
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLAB_PUSH_TOKEN: ${{ secrets.GITLAB_PUSH_TOKEN }}
           VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
+          bash util/ci/sync-release-tag.sh "$GITHUB_SHA" "$VERSION"
           bash util/ci/release-notes.sh "$GITHUB_SHA" "$VERSION"
           gh release create "$VERSION" \
             --target "$GITHUB_SHA" \
