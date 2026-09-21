@@ -1,7 +1,7 @@
 # Intentionally empty: the version is read from util/ver at RESTY_COMMIT so it
 # is not pinned separately from the upstream source revision.
 ARG RESTY_VERSION
-ARG RESTY_RELEASE="380"
+ARG RESTY_RELEASE="381"
 ARG RESTY_COMMIT="bc8bf89488f2d02572389158533b3f85ca0ded7f"
 ARG RESTY_J="4"
 ARG RESTY_IMAGE_BASE="debian"
@@ -648,6 +648,7 @@ RUN groupmod -n nginx www-data \
     && DEBIAN_FRONTEND=noninteractive apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         ca-certificates \
+        curl \
         libcgif0 \
         libcurl4t64 \
         libexif12 \
