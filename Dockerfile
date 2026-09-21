@@ -2,7 +2,7 @@
 # is not pinned separately from the upstream source revision.
 ARG RESTY_VERSION
 ARG RESTY_RELEASE="379"
-ARG RESTY_COMMIT="810a7ded155e929050d34649a5d54bccb786c644"
+ARG RESTY_COMMIT="bc8bf89488f2d02572389158533b3f85ca0ded7f"
 ARG RESTY_J="4"
 ARG RESTY_IMAGE_BASE="debian"
 ARG RESTY_IMAGE_TAG="trixie-slim"
@@ -67,6 +67,7 @@ ARG RESTY_GIT_REPO
 ARG RESTY_COMMIT
 ARG RESTY_VERSION
 ARG RESTY_RELEASE
+ARG RESTY_J
 ARG RESTY_LUAROCKS_VERSION
 ARG RESTY_LUA_RESTY_BALANCER_VERSION
 ARG RESTY_LIBMAXMINDDB_VERSION
@@ -115,7 +116,6 @@ ARG RESTY_PATH_OPTIONS="\
     --http-scgi-temp-path=/usr/local/openresty/var/lib/tmp/scgi \
 "
 ARG RESTY_USER_OPTIONS="--user=nginx --group=nginx"
-ARG RESTY_J
 ARG RESTY_DEBUG_OPTIONS=""
 ARG RESTY_CONFIG_OPTIONS="\
     --with-file-aio \
@@ -212,75 +212,72 @@ ARG RESTY_CONFIG_DEPS="--with-pcre --with-pcre-jit \
 
 COPY --from=openresty-bundle /openresty.tar.gz /build/openresty.tar.gz
 COPY --from=openresty-bundle /openresty-version /build/openresty-version
-COPY patches /build/patches
 
+# Prepare the build environment and validate the generated OpenResty bundle.
 RUN BUNDLE_RESTY_VERSION="$(cat /build/openresty-version)" \
     && test -n "${BUNDLE_RESTY_VERSION}" \
     && { test -z "${RESTY_VERSION}" \
          || test "${RESTY_VERSION}" = "${BUNDLE_RESTY_VERSION}"; } \
-    && RESTY_VERSION="${BUNDLE_RESTY_VERSION}" \
-    && export RESTY_VERSION \
     && test -n "${RESTY_RELEASE}" \
     && groupmod -n nginx www-data \
     && usermod -l nginx www-data \
     && DEBIAN_FRONTEND=noninteractive apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        libgd-dev \
-        libheif-dev \
-        libhwy-dev \
-        libyaml-dev \
-        libyaml-cpp-dev \
-        unzip \
-        git \
-        curl \
-        wget \
-        libcurl4-openssl-dev \
-        ca-certificates \
-        bison \
-        build-essential \
-        cargo \
-        perl \
         autoconf \
         automake \
-        libtool \
-        pkgconf \
+        bison \
+        build-essential \
+        ca-certificates \
+        cargo \
         cmake \
-        libglib2.0-dev \
-        libexif-dev \
+        curl \
+        flex \
+        git \
         libcgif-dev \
-        liblcms2-dev \
+        libcurl4-openssl-dev \
+        libexif-dev \
+        libexpat1-dev \
+        libgd-dev \
+        libglib2.0-dev \
+        libheif-dev \
+        libhwy-dev \
         libimagequant-dev \
+        libjxl-dev \
+        liblcms2-dev \
         libmagickcore-dev \
         libopenjp2-7-dev \
         libpango1.0-dev \
         libpoppler-glib-dev \
-        librsvg2-dev \
-        libjxl-dev \
-        libexpat1-dev \
-        libspng-dev \
-        libtiff-dev \
-        libwebp-dev \
-        meson \
-        flex \
-        libunwind-dev \
         libqrencode-dev \
         libre2-dev \
+        librsvg2-dev \
+        libspng-dev \
+        libtiff-dev \
+        libtool \
+        libunwind-dev \
+        libwebp-dev \
         libyajl-dev \
+        libyaml-cpp-dev \
+        libyaml-dev \
+        meson \
+        perl \
+        pkgconf \
         rustc \
+        unzip \
+        wget \
     && if [ "${RESTY_GIT_MIRROR}" != "github.com" ]; then \
          git config --global \
            url."https://${RESTY_GIT_MIRROR}/".insteadOf \
            "https://github.com/"; \
-       fi \
-    && mkdir -p /build \
+       fi
+
+# Fetch and unpack OpenResty, LuaRocks, and native library sources.
+RUN mkdir -p /build/lib \
     && cd /build \
     && tar xzf openresty.tar.gz \
     && curl -fSLv https://luarocks.github.io/luarocks/releases/luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz -o luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz \
     && tar xzf luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz \
-    && mkdir -p /build/lib /build/modules /build/lualib \
     && cd /build/lib \
-    && curl -fSLv https://${RESTY_GIT_MIRROR}/libvips/libvips/releases/download/v${RESTY_LIBVIPS_VERSION}/vips-${RESTY_LIBVIPS_VERSION}.tar.xz -o vips-${RESTY_LIBVIPS_VERSION}.tar.xz \
-    && tar xf vips-${RESTY_LIBVIPS_VERSION}.tar.xz \
     && curl -fSLv https://${RESTY_GIT_MIRROR}/maxmind/libmaxminddb/releases/download/${RESTY_LIBMAXMINDDB_VERSION}/libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION}.tar.gz -o libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION}.tar.gz \
     && tar xzf libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION}.tar.gz \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/openresty/sregex.git sregex \
@@ -292,8 +289,13 @@ RUN BUNDLE_RESTY_VERSION="$(cat /build/openresty-version)" \
     && tar xzf pcre2-${RESTY_PCRE_VERSION}.tar.gz \
     && curl -fSLv https://${RESTY_GIT_MIRROR}/facebook/zstd/releases/download/v${RESTY_ZSTD_VERSION}/zstd-${RESTY_ZSTD_VERSION}.tar.gz -o zstd-${RESTY_ZSTD_VERSION}.tar.gz \
     && tar xzf zstd-${RESTY_ZSTD_VERSION}.tar.gz \
+    && curl -fSLv https://${RESTY_GIT_MIRROR}/libvips/libvips/releases/download/v${RESTY_LIBVIPS_VERSION}/vips-${RESTY_LIBVIPS_VERSION}.tar.xz -o vips-${RESTY_LIBVIPS_VERSION}.tar.xz \
+    && tar xf vips-${RESTY_LIBVIPS_VERSION}.tar.xz \
     && git clone --depth=1 --recurse-submodules https://${RESTY_GIT_MIRROR}/ua-parser/uap-cpp.git uap-cpp \
-    && git clone --depth=1 --recurse-submodules --branch v${RESTY_MODSECURITY_VERSION} https://${RESTY_GIT_MIRROR}/owasp-modsecurity/ModSecurity.git modsecurity \
+    && git clone --depth=1 --recurse-submodules --branch v${RESTY_MODSECURITY_VERSION} https://${RESTY_GIT_MIRROR}/owasp-modsecurity/ModSecurity.git modsecurity
+
+# Fetch nginx modules.
+RUN mkdir -p /build/modules \
     && cd /build/modules \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_condition_module.git ngx_condition_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_stat_module.git ngx_stat_module \
@@ -360,16 +362,20 @@ RUN BUNDLE_RESTY_VERSION="$(cat /build/openresty-version)" \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_stream_lua_upstream_module.git ngx_stream_lua_upstream_module \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/alibaba/tengine.git tengine \
     && mv tengine/modules/ngx_http_trim_filter_module ngx_http_trim_filter_module \
-    && rm -rf tengine \
-    && git clone --depth=1 https://${RESTY_GIT_MIRROR}/owasp-modsecurity/ModSecurity-nginx.git ngx_http_modsecurity_module \
+    && git clone --depth=1 https://${RESTY_GIT_MIRROR}/owasp-modsecurity/ModSecurity-nginx.git ngx_http_modsecurity_module
+
+# Fetch Lua libraries that are not included in the OpenResty bundle.
+RUN mkdir -p /build/lualib \
     && cd /build/lualib \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/agentzh/lua-resty-multipart-parser.git lua-resty-multipart-parser \
     && git clone --depth=1 --branch v${RESTY_LUA_RESTY_BALANCER_VERSION} https://${RESTY_GIT_MIRROR}/openresty/lua-resty-balancer.git lua-resty-balancer \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/api7/jsonschema.git jsonschema \
     && git clone --depth=1 --branch supported_semaphore_wait_phases https://${RESTY_GIT_MIRROR}/HanadaLee/lua-resty-dns-client.git lua-resty-dns-client \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/lua-resty-mlcache.git lua-resty-mlcache \
-    && git clone --depth=1 --recurse-submodules https://${RESTY_GIT_MIRROR}/HanadaLee/lua-lolhtml.git \
-    && cd /build/lib/libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION} \
+    && git clone --depth=1 --recurse-submodules https://${RESTY_GIT_MIRROR}/HanadaLee/lua-lolhtml.git
+
+# Build foundational native libraries.
+RUN cd /build/lib/libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION} \
     && ./configure \
     && make -j${RESTY_J} \
     && make check \
@@ -406,8 +412,10 @@ RUN BUNDLE_RESTY_VERSION="$(cat /build/openresty-version)" \
     && cd /build/lib/zstd-${RESTY_ZSTD_VERSION} \
     && make -j${RESTY_J} \
     && make install \
-    && ldconfig \
-    && cd /build/lib/vips-${RESTY_LIBVIPS_VERSION} \
+    && ldconfig
+
+# Build higher-level libraries used by third-party nginx and Lua modules.
+RUN cd /build/lib/vips-${RESTY_LIBVIPS_VERSION} \
     && meson setup build \
         --libdir=lib \
         --buildtype=release \
@@ -422,7 +430,6 @@ RUN BUNDLE_RESTY_VERSION="$(cat /build/openresty-version)" \
         -Drsvg=enabled \
         -Dmagick=enabled \
         -Dmagick-module=disabled \
-        "$@" \
     && ninja -C build \
     && ninja -C build install \
     && ldconfig \
@@ -454,6 +461,17 @@ RUN BUNDLE_RESTY_VERSION="$(cat /build/openresty-version)" \
     && meson compile -C build \
     && meson install -C build \
     && ldconfig \
+    && cd /build/lualib/lua-resty-balancer \
+    && make -j${RESTY_J}
+
+COPY patches /build/patches
+
+# Apply local patches and brand the release.
+RUN RESTY_VERSION="$(cat /build/openresty-version)" \
+    && test -n "${RESTY_VERSION}" \
+    && NGINX_VERSION="${RESTY_VERSION%.*}" \
+    && OPENRESTY_DIR="/build/openresty-${RESTY_VERSION}" \
+    && NGINX_DIR="${OPENRESTY_DIR}/bundle/nginx-${NGINX_VERSION}" \
     && cd /build/modules/ngx_http_modsecurity_module \
     && echo 'patching ngx_http_modsecurity_module' \
     && patch -p1 < /build/patches/ngx_http_modsecurity_module-ext.patch \
@@ -466,56 +484,60 @@ RUN BUNDLE_RESTY_VERSION="$(cat /build/openresty-version)" \
     && cd /build/lualib/lua-resty-dns-client \
     && echo 'patching lua-resty-dns-client for preaccess_by_lua' \
     && patch -p1 < /build/patches/lua-resty-dns-client-preaccess_by_lua.patch \
-    && cd /build/lualib/lua-resty-balancer \
-    && make -j${RESTY_J} \
-    && make install \
-    && cd /build/openresty-${RESTY_VERSION} \
+    && cd "${OPENRESTY_DIR}" \
     && echo "patching openresty-${RESTY_VERSION}" \
     && patch -p1 < /build/patches/openresty-fix_prefix_1.27.1.2+.patch \
-    && cd /build/openresty-${RESTY_VERSION}/bundle/ngx_stream_lua-* \
+    && cd "${OPENRESTY_DIR}"/bundle/ngx_stream_lua-* \
     && echo "patching ngx_stream_lua_module" \
     && patch -p1 < /build/patches/ngx_stream_lua_module-expose_request_struct_0.0.18RC2+.patch \
     && patch -p1 < /build/patches/ngx_stream_lua_module-access_by_lua_0.0.18RC2+.patch \
-    && cd /build/openresty-${RESTY_VERSION}/bundle/lua-resty-websocket-* \
+    && cd "${OPENRESTY_DIR}"/bundle/lua-resty-websocket-* \
     && echo "patching lua-resty-websocket" \
     && patch -p1 < /build/patches/lua-resty-websocket-fix_stream_0.13+.patch \
-    && cd /build/openresty-${RESTY_VERSION}/bundle/lua-resty-core-* \
+    && cd "${OPENRESTY_DIR}"/bundle/lua-resty-core-* \
     && echo "patching lua-resty-core for preaccess_by_lua" \
     && patch -p1 < /build/patches/lua-resty-core-preaccess_by_lua.patch \
-    && cd /build/openresty-${RESTY_VERSION}/bundle/ngx_lua-* \
+    && cd "${OPENRESTY_DIR}"/bundle/ngx_lua-* \
     && echo "patching ngx_http_lua_module for preaccess_by_lua" \
     && patch -p1 < /build/patches/ngx_http_lua_module-preaccess_by_lua.patch \
-    && cd /build/openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) \
-    && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) ext" \
+    && cd "${NGINX_DIR}" \
+    && echo "patching nginx-${NGINX_VERSION} ext" \
     && patch -p1 < /build/patches/nginx-ext_1.31.6+.patch \
-    && cd /build/openresty-${RESTY_VERSION}/bundle/redis-nginx-module-* \
+    && cd "${OPENRESTY_DIR}"/bundle/redis-nginx-module-* \
     && echo "patching ngx_http_redis_module" \
     && patch -p1 < /build/patches/ngx_http_redis_module-conditional_upstream.patch \
-    && cd /build/openresty-${RESTY_VERSION}/bundle/redis2-nginx-module-* \
+    && cd "${OPENRESTY_DIR}"/bundle/redis2-nginx-module-* \
     && echo "patching ngx_http_redis2_module" \
     && patch -p1 < /build/patches/ngx_http_redis2_module-conditional_upstream.patch \
-    && cd /build/openresty-${RESTY_VERSION}/bundle/drizzle-nginx-module-* \
+    && cd "${OPENRESTY_DIR}"/bundle/drizzle-nginx-module-* \
     && echo "patching ngx_http_drizzle_module" \
     && patch -p1 < /build/patches/ngx_http_drizzle_module-conditional_upstream.patch \
-    && cd /build/openresty-${RESTY_VERSION}/bundle/ngx_postgres-* \
+    && cd "${OPENRESTY_DIR}"/bundle/ngx_postgres-* \
     && echo "patching ngx_postgres_module" \
     && patch -p1 < /build/patches/ngx_postgres_module-conditional_upstream.patch \
-    && cd /build/openresty-${RESTY_VERSION}/bundle/ngx_lua-* \
+    && cd "${OPENRESTY_DIR}"/bundle/ngx_lua-* \
     && echo "patching ngx_http_lua_module for conditional upstream settings" \
     && patch -p1 < /build/patches/ngx_http_lua_module-conditional_upstream.patch \
-    && cd /build/openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) \
-    && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) for ngx_http_upstream_log_module" \
+    && cd "${NGINX_DIR}" \
+    && echo "patching nginx-${NGINX_VERSION} for ngx_http_upstream_log_module" \
     && patch -p1 < /build/modules/ngx_http_upstream_log_module/ngx_http_upstream_log_1.25.3+.patch \
-    && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) for ngx_ssl_fingerprint_module" \
+    && echo "patching nginx-${NGINX_VERSION} for ngx_ssl_fingerprint_module" \
     && patch -p1 < /build/modules/ngx_ssl_fingerprint_module/patches/nginx-1.29.3+.patch \
     && echo "resetting openresty release version" \
-    && sed -i "s/\(openresty\/.*\)\"/\1.${RESTY_RELEASE}\"/" src/core/nginx.h \
-    && cd /build/openresty-${RESTY_VERSION} \
+    && sed -i "s/\(openresty\/.*\)\"/\1.${RESTY_RELEASE}\"/" src/core/nginx.h
+
+# Configure and install OpenResty.
+RUN RESTY_VERSION="$(cat /build/openresty-version)" \
+    && NGINX_VERSION="${RESTY_VERSION%.*}" \
+    && OPENRESTY_DIR="/build/openresty-${RESTY_VERSION}" \
+    && cd "${OPENRESTY_DIR}" \
     && eval ./configure -j${RESTY_J} ${RESTY_PATH_OPTIONS} ${RESTY_USER_OPTIONS} ${RESTY_DEBUG_OPTIONS} ${RESTY_CONFIG_OPTIONS} ${RESTY_CONFIG_DEPS} \
     && make -j${RESTY_J} \
     && make install \
-    && cat /build/openresty-${RESTY_VERSION}/build/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6)/objs/ngx_modules.c \
-    && mkdir -p /usr/local/openresty/share \
+    && cat "${OPENRESTY_DIR}/build/nginx-${NGINX_VERSION}/objs/ngx_modules.c"
+
+# Assemble the OpenResty tree and install bundled Lua components.
+RUN mkdir -p /usr/local/openresty/share \
     && mv /usr/local/openresty/html /usr/local/openresty/share \
     && rm -rf /usr/local/openresty/nginx \
     && mkdir -p /usr/local/openresty/var/lib/tmp \
@@ -526,10 +548,9 @@ RUN BUNDLE_RESTY_VERSION="$(cat /build/openresty-version)" \
     && mkdir -p /usr/local/openresty/lib \
     && cd /usr/local/openresty/lib \
     && cp -r -d /usr/local/lib/*.so* . \
+    && cp -r -d /usr/lib/*/libweserv.so* . \
     && echo "/usr/local/openresty/lib" | tee /etc/ld.so.conf.d/openresty.conf \
     && ldconfig \
-    && cd /usr/local/openresty/lualib \
-    && cp -r -d /usr/local/lib/lua/*.so* . \
     && cd /build/luarocks-${RESTY_LUAROCKS_VERSION} \
     && ./configure \
         --prefix=/usr/local/openresty/luajit \
@@ -546,13 +567,16 @@ RUN BUNDLE_RESTY_VERSION="$(cat /build/openresty-version)" \
     && cd /build/lualib \
     && cp -r lua-resty-multipart-parser/lib/* /usr/local/openresty/lualib/ \
     && cp -r lua-resty-balancer/lib/* /usr/local/openresty/lualib/ \
+    && install -m 755 lua-resty-balancer/librestychash.so /usr/local/openresty/lualib/ \
     && cp -r jsonschema/lib/* /usr/local/openresty/lualib/ \
     && cp -r lua-resty-dns-client/src/* /usr/local/openresty/lualib/ \
     && cp -r lua-resty-mlcache/lib/* /usr/local/openresty/lualib/ \
     && cd /build/lualib/lua-lolhtml \
     && make -j${RESTY_J} CFLAGS="-O3 -fPIC -I/usr/local/openresty/luajit/include/luajit-2.1" \
-    && cp lolhtml.so /usr/local/openresty/lualib \
-    && /usr/local/openresty/luajit/bin/luarocks install binaryheap \
+    && cp lolhtml.so /usr/local/openresty/lualib
+
+# Install LuaRocks packages and runtime data, then trim the assembled tree.
+RUN /usr/local/openresty/luajit/bin/luarocks install binaryheap \
     && /usr/local/openresty/luajit/bin/luarocks install luafilesystem \
     && /usr/local/openresty/luajit/bin/luarocks install penlight \
     && /usr/local/openresty/luajit/bin/luarocks install net-url \
@@ -594,8 +618,13 @@ RUN BUNDLE_RESTY_VERSION="$(cat /build/openresty-version)" \
     && cd coreruleset \
     && rm -rf docs \
     && cp crs-setup.conf.example crs-setup.conf \
-    && cp -r -d /usr/lib/*/libweserv.so* /usr/local/openresty/lib/ \
-    && find /usr/local/openresty/lib -type f -name '*.so*' -exec strip --strip-unneeded {} + \
+    && if [ "${RESTY_DEBUG_OPTIONS#*--with-debug}" = "${RESTY_DEBUG_OPTIONS}" ]; then \
+         find /usr/local/openresty -type f \
+           \( -name '*.so' -o -name '*.so.*' \
+              -o -path '/usr/local/openresty/sbin/nginx' \
+              -o -path '/usr/local/openresty/luajit/bin/luajit-*' \) \
+           -exec strip --strip-debug {} +; \
+       fi \
     && cd /usr/local/openresty \
     && rm -rf pod site resty.index bin/md2pod.pl bin/nginx-xml2pod bin/restydoc bin/restydoc-index
 
