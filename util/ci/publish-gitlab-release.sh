@@ -6,15 +6,15 @@ version="${1:-}"
 notes_file="${2:-release-notes.md}"
 gitlab_api_url="${GITLAB_API_URL:-https://git.hanada.info/api/v4}"
 gitlab_project_id="${GITLAB_PROJECT_ID:-22}"
-gitlab_push_token="${GITLAB_PUSH_TOKEN:-}"
+gitlab_password="${GITLAB_PASSWORD:-}"
 
 if [[ -z "$version" ]]; then
     echo "Usage: $0 <version> [notes-file]" >&2
     exit 2
 fi
 
-if [[ -z "$gitlab_push_token" ]]; then
-    echo "GITLAB_PUSH_TOKEN is required" >&2
+if [[ -z "$gitlab_password" ]]; then
+    echo "GITLAB_PASSWORD is required" >&2
     exit 2
 fi
 
@@ -26,7 +26,7 @@ fi
 release_url="${gitlab_api_url}/projects/${gitlab_project_id}/releases/${version}"
 release_status="$(
     curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
-        --header "PRIVATE-TOKEN: ${gitlab_push_token}" \
+        --header "PRIVATE-TOKEN: ${gitlab_password}" \
         "$release_url"
 )"
 
@@ -34,7 +34,7 @@ case "$release_status" in
     200)
         curl --fail-with-body --silent --show-error \
             --request PUT \
-            --header "PRIVATE-TOKEN: ${gitlab_push_token}" \
+            --header "PRIVATE-TOKEN: ${gitlab_password}" \
             --data-urlencode "name=${version}" \
             --data-urlencode "description@${notes_file}" \
             "$release_url" >/dev/null
@@ -44,7 +44,7 @@ case "$release_status" in
     404)
         curl --fail-with-body --silent --show-error \
             --request POST \
-            --header "PRIVATE-TOKEN: ${gitlab_push_token}" \
+            --header "PRIVATE-TOKEN: ${gitlab_password}" \
             --data-urlencode "name=${version}" \
             --data-urlencode "tag_name=${version}" \
             --data-urlencode "description@${notes_file}" \

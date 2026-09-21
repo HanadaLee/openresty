@@ -11,7 +11,9 @@ on:
         type: string
         default: ""
     secrets:
-      GITLAB_PUSH_TOKEN:
+      GITLAB_USERNAME:
+        required: true
+      GITLAB_PASSWORD:
         required: true
   workflow_dispatch:
     inputs:
@@ -105,14 +107,14 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
-          ref: ${{ inputs.commit || github.sha }}
 
       - name: Synchronize tags and publish releases
         shell: bash
         env:
           COMMIT: ${{ inputs.commit || github.sha }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLAB_PUSH_TOKEN: ${{ secrets.GITLAB_PUSH_TOKEN }}
+          GITLAB_USERNAME: ${{ secrets.GITLAB_USERNAME }}
+          GITLAB_PASSWORD: ${{ secrets.GITLAB_PASSWORD }}
           VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail

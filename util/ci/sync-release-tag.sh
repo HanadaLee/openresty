@@ -5,16 +5,16 @@ set -euo pipefail
 commit="${1:-}"
 version="${2:-}"
 gitlab_repository="${GITLAB_REPOSITORY:-https://git.hanada.info/hanada/openresty.git}"
-gitlab_push_username="${GITLAB_PUSH_USERNAME:-oauth2}"
-gitlab_push_token="${GITLAB_PUSH_TOKEN:-}"
+gitlab_username="${GITLAB_USERNAME:-}"
+gitlab_password="${GITLAB_PASSWORD:-}"
 
 if [[ -z "$commit" || -z "$version" ]]; then
     echo "Usage: $0 <commit> <version>" >&2
     exit 2
 fi
 
-if [[ -z "$gitlab_push_token" ]]; then
-    echo "GITLAB_PUSH_TOKEN is required" >&2
+if [[ -z "$gitlab_username" || -z "$gitlab_password" ]]; then
+    echo "GITLAB_USERNAME and GITLAB_PASSWORD are required" >&2
     exit 2
 fi
 
@@ -73,15 +73,15 @@ cat > "$askpass" <<'EOF'
 #!/bin/sh
 
 case "$1" in
-    *Username*) printf '%s\n' "$GITLAB_PUSH_USERNAME" ;;
-    *Password*) printf '%s\n' "$GITLAB_PUSH_TOKEN" ;;
+    *Username*) printf '%s\n' "$GITLAB_USERNAME" ;;
+    *Password*) printf '%s\n' "$GITLAB_PASSWORD" ;;
     *) exit 1 ;;
 esac
 EOF
 chmod 700 "$askpass"
 
-export GITLAB_PUSH_TOKEN
-export GITLAB_PUSH_USERNAME="$gitlab_push_username"
+export GITLAB_USERNAME="$gitlab_username"
+export GITLAB_PASSWORD="$gitlab_password"
 GIT_ASKPASS="$askpass" GIT_TERMINAL_PROMPT=0 \
     git -C "$repository_root" push "$gitlab_repository" \
         "refs/tags/${version}:refs/tags/${version}"

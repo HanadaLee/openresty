@@ -196,12 +196,13 @@ GitHub Container Registry, then creates a matching Git tag and release. Release
 notes summarize commits since the previous version tag.
 
 The release workflow publishes the same tag and release notes to GitLab and
-GitHub. Configure the GitHub Actions secret `GITLAB_PUSH_TOKEN` with either a
-personal access token that has the `api` scope, or a GitLab project access
-token that has both the `api` and `write_repository` scopes. The project token
-must have at least the Developer role, or the Maintainer role when release tags
-are protected. Publishing the canonical GitLab tag first prevents the GitHub
-mirror from pruning tags created only by GitHub Actions.
+GitHub. Configure the GitHub Actions secrets `GITLAB_USERNAME` with the GitLab
+username and `GITLAB_PASSWORD` with either a personal access token that has the
+`api` scope, or a GitLab project access token that has both the `api` and
+`write_repository` scopes. The project token must have at least the Developer
+role, or the Maintainer role when release tags are protected. Publishing the
+canonical GitLab tag first prevents the GitHub mirror from pruning tags created
+only by GitHub Actions.
 
 The GitHub workflow can also be started manually. An already tagged version is
 always treated as test-only, preventing an existing release from being
