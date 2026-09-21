@@ -1,25 +1,23 @@
 # Intentionally empty: the version is read from util/ver at RESTY_COMMIT so it
 # is not pinned separately from the upstream source revision.
 ARG RESTY_VERSION
-ARG RESTY_RELEASE="378"
+ARG RESTY_RELEASE="379"
 ARG RESTY_COMMIT="810a7ded155e929050d34649a5d54bccb786c644"
 ARG RESTY_J="4"
 ARG RESTY_IMAGE_BASE="debian"
-ARG RESTY_IMAGE_TAG="bookworm-slim"
+ARG RESTY_IMAGE_TAG="trixie-slim"
 ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_REPOSITORY="https://${RESTY_GIT_MIRROR}/openresty/openresty.git"
 ARG RESTY_LUAROCKS_VERSION="3.13.0"
 ARG RESTY_LUA_RESTY_BALANCER_VERSION="0.05"
-ARG RESTY_JEMALLOC_VERSION="5.4.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.14.1"
 ARG RESTY_OPENSSL_VERSION="3.5.8"
 ARG RESTY_OPENSSL_PATCH_VERSION="3.5.5"
 ARG RESTY_PCRE_VERSION="10.48"
 ARG RESTY_ZLIB_VERSION="1.3.2"
 ARG RESTY_ZSTD_VERSION="1.5.7"
-ARG RESTY_LIBATOMIC_VERSION="7.10.0"
 ARG RESTY_LIBVIPS_VERSION="8.18.6"
 ARG RESTY_MODSECURITY_VERSION="3.0.16"
 ARG RESTY_OWSAP_CRS_VERSION="4.29.0"
@@ -71,7 +69,6 @@ ARG RESTY_VERSION
 ARG RESTY_RELEASE
 ARG RESTY_LUAROCKS_VERSION
 ARG RESTY_LUA_RESTY_BALANCER_VERSION
-ARG RESTY_JEMALLOC_VERSION
 ARG RESTY_LIBMAXMINDDB_VERSION
 ARG RESTY_OPENSSL_VERSION
 ARG RESTY_OPENSSL_PATCH_VERSION
@@ -99,7 +96,6 @@ ARG RESTY_PCRE_BUILD_OPTIONS="\
 "
 ARG RESTY_ZLIB_VERSION
 ARG RESTY_ZSTD_VERSION
-ARG RESTY_LIBATOMIC_VERSION
 ARG RESTY_LIBVIPS_VERSION
 ARG RESTY_MODSECURITY_VERSION
 ARG RESTY_OWSAP_CRS_VERSION
@@ -209,9 +205,9 @@ ARG RESTY_CONFIG_OPTIONS="\
     --add-module=/build/modules/ngx_var_module \
 "
 ARG RESTY_LUAJIT_OPTIONS="--with-luajit-xcflags='-DLUAJIT_NUMMODE=2 -DLUAJIT_ENABLE_LUA52COMPAT'"
-ARG RESTY_CONFIG_DEPS="--with-pcre --with-pcre-jit --with-libatomic \
-    --with-cc-opt='-DNGX_LUA_ABORT_AT_PANIC -Wp,-D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIC' \
-    --with-ld-opt='-Wl,-rpath,/usr/local/openresty/lib -Wl,-Bsymbolic-functions -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-whole-archive -Wl,--gc-sections -pie -ljemalloc -Wl,-Bdynamic -lm -lstdc++ -pthread -ldl -Wl,-E' \
+ARG RESTY_CONFIG_DEPS="--with-pcre --with-pcre-jit \
+    --with-cc-opt='-DNGX_LUA_ABORT_AT_PANIC -Wp,-D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIE' \
+    --with-ld-opt='-Wl,-rpath,/usr/local/openresty/lib -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--gc-sections -pie' \
 "
 
 COPY --from=openresty-bundle /openresty.tar.gz /build/openresty.tar.gz
@@ -227,28 +223,22 @@ RUN BUNDLE_RESTY_VERSION="$(cat /build/openresty-version)" \
     && test -n "${RESTY_RELEASE}" \
     && groupmod -n nginx www-data \
     && usermod -l nginx www-data \
-    && echo "deb http://deb.debian.org/debian bookworm-backports main" > /etc/apt/sources.list.d/backports.list \
     && DEBIAN_FRONTEND=noninteractive apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -t bookworm-backports \
-        libheif-dev \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         libgd-dev \
+        libheif-dev \
+        libhwy-dev \
         libyaml-dev \
         libyaml-cpp-dev \
         unzip \
-        wget \
         git \
         curl \
+        wget \
         libcurl4-openssl-dev \
         ca-certificates \
         bison \
         build-essential \
-        gettext-base \
-        libncurses5-dev \
-        libperl-dev \
-        libreadline-dev \
-        libxslt1-dev \
-        make \
+        cargo \
         perl \
         autoconf \
         automake \
@@ -258,27 +248,25 @@ RUN BUNDLE_RESTY_VERSION="$(cat /build/openresty-version)" \
         libglib2.0-dev \
         libexif-dev \
         libcgif-dev \
-        libfftw3-dev \
         liblcms2-dev \
         libimagequant-dev \
-        liborc-0.4-dev \
+        libmagickcore-dev \
         libopenjp2-7-dev \
+        libpango1.0-dev \
+        libpoppler-glib-dev \
+        librsvg2-dev \
         libjxl-dev \
         libexpat1-dev \
-        libffi-dev \
-        libpng-dev \
+        libspng-dev \
         libtiff-dev \
         libwebp-dev \
         meson \
         flex \
-        libsodium-dev \
         libunwind-dev \
         libqrencode-dev \
         libre2-dev \
-        libgtest-dev \
-        libclang-dev \
-        libcjson-dev \
         libyajl-dev \
+        rustc \
     && if [ "${RESTY_GIT_MIRROR}" != "github.com" ]; then \
          git config --global \
            url."https://${RESTY_GIT_MIRROR}/".insteadOf \
@@ -291,8 +279,6 @@ RUN BUNDLE_RESTY_VERSION="$(cat /build/openresty-version)" \
     && tar xzf luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz \
     && mkdir -p /build/lib /build/modules /build/lualib \
     && cd /build/lib \
-    && curl -fSLv https://${RESTY_GIT_MIRROR}/jemalloc/jemalloc/releases/download/${RESTY_JEMALLOC_VERSION}/jemalloc-${RESTY_JEMALLOC_VERSION}.tar.bz2 -o jemalloc-${RESTY_JEMALLOC_VERSION}.tar.bz2 \
-    && tar xjf jemalloc-${RESTY_JEMALLOC_VERSION}.tar.bz2 \
     && curl -fSLv https://${RESTY_GIT_MIRROR}/libvips/libvips/releases/download/v${RESTY_LIBVIPS_VERSION}/vips-${RESTY_LIBVIPS_VERSION}.tar.xz -o vips-${RESTY_LIBVIPS_VERSION}.tar.xz \
     && tar xf vips-${RESTY_LIBVIPS_VERSION}.tar.xz \
     && curl -fSLv https://${RESTY_GIT_MIRROR}/maxmind/libmaxminddb/releases/download/${RESTY_LIBMAXMINDDB_VERSION}/libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION}.tar.gz -o libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION}.tar.gz \
@@ -306,8 +292,6 @@ RUN BUNDLE_RESTY_VERSION="$(cat /build/openresty-version)" \
     && tar xzf pcre2-${RESTY_PCRE_VERSION}.tar.gz \
     && curl -fSLv https://${RESTY_GIT_MIRROR}/facebook/zstd/releases/download/v${RESTY_ZSTD_VERSION}/zstd-${RESTY_ZSTD_VERSION}.tar.gz -o zstd-${RESTY_ZSTD_VERSION}.tar.gz \
     && tar xzf zstd-${RESTY_ZSTD_VERSION}.tar.gz \
-    && curl -fSLv https://${RESTY_GIT_MIRROR}/bdwgc/libatomic_ops/releases/download/v${RESTY_LIBATOMIC_VERSION}/libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz -o libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz \
-    && tar xzf libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz \
     && git clone --depth=1 --recurse-submodules https://${RESTY_GIT_MIRROR}/ua-parser/uap-cpp.git uap-cpp \
     && git clone --depth=1 --recurse-submodules --branch v${RESTY_MODSECURITY_VERSION} https://${RESTY_GIT_MIRROR}/owasp-modsecurity/ModSecurity.git modsecurity \
     && cd /build/modules \
@@ -385,16 +369,6 @@ RUN BUNDLE_RESTY_VERSION="$(cat /build/openresty-version)" \
     && git clone --depth=1 --branch supported_semaphore_wait_phases https://${RESTY_GIT_MIRROR}/HanadaLee/lua-resty-dns-client.git lua-resty-dns-client \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/lua-resty-mlcache.git lua-resty-mlcache \
     && git clone --depth=1 --recurse-submodules https://${RESTY_GIT_MIRROR}/HanadaLee/lua-lolhtml.git \
-    && cd /build \
-    && curl -fSLv https://sh.rustup.rs | sh -s -- -y \
-    && . $HOME/.cargo/env \
-    && cd /build/lib/jemalloc-${RESTY_JEMALLOC_VERSION} \
-    && ./configure \
-    && make -j${RESTY_J} \
-        EXTRA_CXXFLAGS="-Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIC" \
-        EXTRA_CFLAGS="-Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIC" \
-    && make install \
-    && ldconfig \
     && cd /build/lib/libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION} \
     && ./configure \
     && make -j${RESTY_J} \
@@ -433,22 +407,29 @@ RUN BUNDLE_RESTY_VERSION="$(cat /build/openresty-version)" \
     && make -j${RESTY_J} \
     && make install \
     && ldconfig \
-    && cd /build/lib/libatomic_ops-${RESTY_LIBATOMIC_VERSION}/src \
-    && ln -s -f ./.libs/libatomic_ops.a . \
-    && cd .. \
-    && ./configure \
-    && make -j${RESTY_J} \
-    && make install \
-    && ldconfig \
     && cd /build/lib/vips-${RESTY_LIBVIPS_VERSION} \
-    && meson setup build --libdir=lib --buildtype=release "$@" \
+    && meson setup build \
+        --libdir=lib \
+        --buildtype=release \
+        -Dmodules=disabled \
+        -Dfftw=disabled \
+        -Dorc=disabled \
+        -Dhighway=enabled \
+        -Dpng=disabled \
+        -Dspng=enabled \
+        -Dpoppler=enabled \
+        -Dpoppler-module=disabled \
+        -Drsvg=enabled \
+        -Dmagick=enabled \
+        -Dmagick-module=disabled \
+        "$@" \
     && ninja -C build \
     && ninja -C build install \
     && ldconfig \
     && cd /build/lib/uap-cpp \
     && mkdir -p build \
     && cd build \
-    && cmake .. \
+    && cmake -DBUILD_STATIC=OFF -DBUILD_TESTS=OFF .. \
     && make uap-cpp-shared \
     && make install \
     && ldconfig \
@@ -613,16 +594,10 @@ RUN BUNDLE_RESTY_VERSION="$(cat /build/openresty-version)" \
     && cd coreruleset \
     && rm -rf docs \
     && cp crs-setup.conf.example crs-setup.conf \
+    && cp -r -d /usr/lib/*/libweserv.so* /usr/local/openresty/lib/ \
     && find /usr/local/openresty/lib -type f -name '*.so*' -exec strip --strip-unneeded {} + \
     && cd /usr/local/openresty \
     && rm -rf pod site resty.index bin/md2pod.pl bin/nginx-xml2pod bin/restydoc bin/restydoc-index
-
-FROM openresty-build AS openresty-runtime-files
-
-# weserv installs its shared library under Debian's multiarch lib directory.
-# Stage it with the rest of the self-built runtime so the final image does not
-# need to copy arbitrary files from the builder root filesystem.
-RUN cp -r -d /usr/lib/*/libweserv.so* /usr/local/openresty/lib/
 
 FROM dockerhub.hanada.info/${RESTY_IMAGE_BASE}:${RESTY_IMAGE_TAG} AS runtime
 
@@ -631,64 +606,53 @@ ARG RESTY_IMAGE_TAG
 ARG RESTY_VERSION
 ARG RESTY_RELEASE
 ARG RESTY_LUAROCKS_VERSION
-ARG RESTY_JEMALLOC_VERSION
 ARG RESTY_LIBMAXMINDDB_VERSION
 ARG RESTY_OPENSSL_VERSION
 ARG RESTY_OPENSSL_PATCH_VERSION
 ARG RESTY_PCRE_VERSION
 ARG RESTY_ZLIB_VERSION
 ARG RESTY_ZSTD_VERSION
-ARG RESTY_LIBATOMIC_VERSION
 ARG RESTY_MODSECURITY_VERSION
 
 RUN groupmod -n nginx www-data \
     && usermod -l nginx www-data \
-    && echo "deb http://deb.debian.org/debian bookworm-backports main" \
-       > /etc/apt/sources.list.d/backports.list \
     && DEBIAN_FRONTEND=noninteractive apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -t bookworm-backports \
-        libheif1 \
-        libheif-plugin-aomenc \
-        libheif-plugin-x265 \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         ca-certificates \
-        curl \
-        gettext-base \
         libcgif0 \
-        libcjson1 \
-        libcurl4 \
+        libcurl4t64 \
         libexif12 \
         libexpat1 \
-        libffi8 \
-        libfftw3-double3 \
         libgd3 \
-        libglib2.0-0 \
+        libglib2.0-0t64 \
+        libheif1 \
+        libheif-plugin-aomenc \
+        libhwy1t64 \
         libimagequant0 \
-        libjxl0.7 \
+        libjxl0.11 \
         liblcms2-2 \
-        libncurses5 \
+        libmagickcore-7.q16-10 \
         libopenjp2-7 \
-        liborc-0.4-0 \
-        libpng16-16 \
+        libopenexr-3-1-30 \
+        libpoppler-glib8t64 \
         libqrencode4 \
-        libre2-9 \
-        libreadline8 \
-        libsodium23 \
+        libre2-11 \
+        librsvg2-2 \
+        libspng0 \
         libtiff6 \
         libunwind8 \
         libwebp7 \
         libwebpdemux2 \
         libwebpmux3 \
-        libxslt1.1 \
         libyajl2 \
         libyaml-0-2 \
-        libyaml-cpp0.7 \
+        libyaml-cpp0.8 \
         tzdata \
     && echo "/usr/local/openresty/lib" > /etc/ld.so.conf.d/openresty.conf \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=openresty-runtime-files /usr/local/openresty /usr/local/openresty
+COPY --from=openresty-build /usr/local/openresty /usr/local/openresty
 
 RUN ldconfig
 
@@ -701,10 +665,8 @@ LABEL resty_luarocks_version="${RESTY_LUAROCKS_VERSION}"
 LABEL resty_openssl_patch_version="${RESTY_OPENSSL_PATCH_VERSION}"
 LABEL resty_openssl_version="${RESTY_OPENSSL_VERSION}"
 LABEL resty_pcre_version="${RESTY_PCRE_VERSION}"
-LABEL resty_libatomic_version="${RESTY_LIBATOMIC_VERSION}"
 LABEL resty_zlib_version="${RESTY_ZLIB_VERSION}"
 LABEL resty_zstd_version="${RESTY_ZSTD_VERSION}"
-LABEL resty_jemalloc_version="${RESTY_JEMALLOC_VERSION}"
 LABEL resty_libmaxminddb_version="${RESTY_LIBMAXMINDDB_VERSION}"
 LABEL resty_modsecurity_version="${RESTY_MODSECURITY_VERSION}"
 
