@@ -6,19 +6,49 @@ on:
       version:
         required: true
         type: string
+      commit:
+        required: false
+        type: string
+        default: ""
     secrets:
       GITLAB_PUSH_TOKEN:
         required: true
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version to publish or repair
+        required: true
+        type: string
+      commit:
+        description: Full commit SHA for the release tag
+        required: true
+        type: string
+      publish_manifests:
+        description: Recreate and publish container manifests
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  packages: write
 
 env:
   HARBOR_IMAGE: registry.hanada.info/openresty/openresty
   DOCKERHUB_IMAGE: docker.io/hanadalee/openresty
   GHCR_IMAGE: ghcr.io/hanadalee/openresty
   GITLAB_REPOSITORY: https://git.hanada.info/hanada/openresty.git
+  GITLAB_API_URL: https://git.hanada.info/api/v4
+  GITLAB_PROJECT_ID: "22"
+
+concurrency:
+  group: publish-release-${{ inputs.version }}
+  cancel-in-progress: false
 
 jobs:
   manifest:
     name: Publish multi-platform manifests
+    if: github.event_name != 'workflow_dispatch' || inputs.publish_manifests
     runs-on: ubuntu-24.04
 
     steps:
@@ -62,9 +92,12 @@ jobs:
           done
 
   release:
-    name: Publish tag and release
+    name: Publish tags and releases
     needs:
       - manifest
+    if: >-
+      always() &&
+      (needs.manifest.result == 'success' || needs.manifest.result == 'skipped')
     runs-on: ubuntu-24.04
 
     steps:
@@ -72,18 +105,32 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          ref: ${{ inputs.commit || github.sha }}
 
-      - name: Synchronize tag and publish release
+      - name: Synchronize tags and publish releases
         shell: bash
         env:
+          COMMIT: ${{ inputs.commit || github.sha }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLAB_PUSH_TOKEN: ${{ secrets.GITLAB_PUSH_TOKEN }}
           VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
-          bash util/ci/sync-release-tag.sh "$GITHUB_SHA" "$VERSION"
-          bash util/ci/release-notes.sh "$GITHUB_SHA" "$VERSION"
-          gh release create "$VERSION" \
-            --target "$GITHUB_SHA" \
-            --title "$VERSION" \
-            --notes-file release-notes.md
+          bash util/ci/sync-release-tag.sh "$COMMIT" "$VERSION"
+          git push origin "refs/tags/${VERSION}:refs/tags/${VERSION}"
+          bash util/ci/release-notes.sh "$COMMIT" "$VERSION"
+          bash util/ci/publish-gitlab-release.sh \
+            "$VERSION" release-notes.md
+
+          if gh release view "$VERSION" >/dev/null 2>&1; then
+            gh release edit "$VERSION" \
+              --target "$COMMIT" \
+              --title "$VERSION" \
+              --notes-file release-notes.md
+          else
+            gh release create "$VERSION" \
+              --verify-tag \
+              --target "$COMMIT" \
+              --title "$VERSION" \
+              --notes-file release-notes.md
+          fi

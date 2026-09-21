@@ -195,15 +195,19 @@ the `version` and `latest` multi-platform manifests to Harbor, Docker Hub, and
 GitHub Container Registry, then creates a matching Git tag and release. Release
 notes summarize commits since the previous version tag.
 
-Before publishing a GitHub release, the workflow pushes the same tag to the
-canonical GitLab repository. Configure the GitHub Actions secret
-`GITLAB_PUSH_TOKEN` with a GitLab project access token that has the
-`write_repository` scope. This prevents the GitHub mirror from pruning tags
-created only by GitHub Actions.
+The release workflow publishes the same tag and release notes to GitLab and
+GitHub. Configure the GitHub Actions secret `GITLAB_PUSH_TOKEN` with either a
+personal access token that has the `api` scope, or a GitLab project access
+token that has both the `api` and `write_repository` scopes. The project token
+must have at least the Developer role, or the Maintainer role when release tags
+are protected. Publishing the canonical GitLab tag first prevents the GitHub
+mirror from pruning tags created only by GitHub Actions.
 
 The GitHub workflow can also be started manually. An already tagged version is
 always treated as test-only, preventing an existing release from being
-published again.
+published again by the main CI workflow. The `Publish release` workflow can be
+started manually with an existing version and its full commit SHA to repair or
+republish GitLab and GitHub releases without rebuilding container images.
 
 [Back to TOC](#table-of-contents)
 
