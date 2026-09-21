@@ -125,10 +125,7 @@ jobs:
             "$VERSION" release-notes.md
 
           if gh release view "$VERSION" >/dev/null 2>&1; then
-            gh release edit "$VERSION" \
-              --target "$COMMIT" \
-              --title "$VERSION" \
-              --notes-file release-notes.md
+            echo "GitHub release ${VERSION} already exists"
           else
             gh release create "$VERSION" \
               --verify-tag \

@@ -208,7 +208,8 @@ The GitHub workflow can also be started manually. An already tagged version is
 always treated as test-only, preventing an existing release from being
 published again by the main CI workflow. The `Publish release` workflow can be
 started manually with an existing version and its full commit SHA to repair or
-republish GitLab and GitHub releases without rebuilding container images.
+publish missing GitLab and GitHub releases without rebuilding container
+images. Existing immutable GitHub releases are left unchanged.
 
 [Back to TOC](#table-of-contents)
 
