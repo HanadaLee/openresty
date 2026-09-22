@@ -1,7 +1,7 @@
 # Intentionally empty: the version is read from util/ver at RESTY_COMMIT so it
 # is not pinned separately from the upstream source revision.
 ARG RESTY_VERSION
-ARG RESTY_RELEASE="381"
+ARG RESTY_RELEASE="382"
 ARG RESTY_COMMIT="bc8bf89488f2d02572389158533b3f85ca0ded7f"
 ARG RESTY_J="4"
 ARG RESTY_IMAGE_BASE="debian"
@@ -207,7 +207,7 @@ ARG RESTY_CONFIG_OPTIONS="\
 ARG RESTY_LUAJIT_OPTIONS="--with-luajit-xcflags='-DLUAJIT_NUMMODE=2 -DLUAJIT_ENABLE_LUA52COMPAT'"
 ARG RESTY_CONFIG_DEPS="--with-pcre --with-pcre-jit \
     --with-cc-opt='-DNGX_LUA_ABORT_AT_PANIC -Wp,-D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIE' \
-    --with-ld-opt='-Wl,-rpath,/usr/local/openresty/lib -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--gc-sections -pie' \
+    --with-ld-opt='-Wl,-rpath,/usr/local/openresty/lib -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--gc-sections -pie -ljemalloc' \
 "
 
 COPY --from=openresty-bundle /openresty.tar.gz /build/openresty.tar.gz
@@ -242,6 +242,7 @@ RUN BUNDLE_RESTY_VERSION="$(cat /build/openresty-version)" \
         libheif-dev \
         libhwy-dev \
         libimagequant-dev \
+        libjemalloc-dev \
         libjxl-dev \
         liblcms2-dev \
         libmagickcore-dev \
@@ -659,6 +660,7 @@ RUN groupmod -n nginx www-data \
         libheif-plugin-aomenc \
         libhwy1t64 \
         libimagequant0 \
+        libjemalloc2 \
         libjxl0.11 \
         liblcms2-2 \
         libmagickcore-7.q16-10 \
