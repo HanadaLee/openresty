@@ -21,7 +21,7 @@ select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
 my $t = Test::Nginx->new()->has(qw/http http_v2 proxy rewrite
-	ngx_condition_module/);
+	ngx_expr_module/);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -39,7 +39,7 @@ http {
         listen       127.0.0.1:8080;
         server_name  localhost;
 
-        condition cookies str_in $arg_case cookies;
+        expr cookies str_in $arg_case cookies;
 
         location / {
             proxy_pass http://127.0.0.1:8081;

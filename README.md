@@ -228,7 +228,7 @@ For details on OpenResty's bundled components and features, refer to [openresty.
 The following components are additionally bundled with OpenResty, some of which are developed and maintained by Hanada.
 
 * [ngx_backtrace_module](https://git.hanada.info/hanada/ngx_backtrace_module)
-* [ngx_condition_module](https://git.hanada.info/hanada/ngx_condition_module)
+* [ngx_expr_module](https://git.hanada.info/hanada/ngx_expr_module)
 * [ngx_geoip2_module](https://git.hanada.info/hanada/ngx_geoip2_module)
 * [ngx_http_access_control_module](https://git.hanada.info/hanada/ngx_http_access_control_module)
 * [ngx_http_auth_akamai_g2o_module](https://git.hanada.info/hanada/ngx_http_auth_akamai_g2o_module)
@@ -540,10 +540,10 @@ Specify whether to ignore an invalid range header. If enabled, invalid range hea
 
 For the original usage, please refer to [error_page](https://nginx.org/en/docs/http/ngx_http_core_module.html#error_page) of nginx documentation.
 
-Define conditions with `ngx_condition_module` and place each conditional error page in a `when` block. Multiple condition references in one `when` are ANDed; prefix a reference with `!` to negate it. Entries retain configuration order, so an earlier unconditional error page for the same status takes precedence over a later conditional entry.
+Define conditions with `ngx_expr_module` and place each conditional error page in a `when` block. Multiple condition references in one `when` are ANDed; prefix a reference with `!` to negate it. Entries retain configuration order, so an earlier unconditional error page for the same status takes precedence over a later conditional entry.
 
 ```nginx
-condition use_json_error str_eq $http_accept application/json;
+expr use_json_error str_eq $http_accept application/json;
 
 when use_json_error {
     error_page 404 /404.json;
@@ -687,7 +687,7 @@ New variables are introduced to get the start timestamp, end timestamp, and time
 
 * **Context:** *http, server, location, when*
 
-Enables or disables response slicing. When `ngx_condition_module` is compiled, this directive can be placed in a `when` block. Slicing is performed only when this directive is enabled, `slice_size` is nonzero, and no `slice_bypass` expression evaluates to a nonempty value other than `0`.
+Enables or disables response slicing. When `ngx_expr_module` is compiled, this directive can be placed in a `when` block. Slicing is performed only when this directive is enabled, `slice_size` is nonzero, and no `slice_bypass` expression evaluates to a nonempty value other than `0`.
 
 ### slice_size
 
@@ -761,10 +761,10 @@ not found when slice processing was not entered.
 
 * **Context:** *http, server, location, when*
 
-Refer to [sub_filter](https://nginx.org/en/docs/http/ngx_http_sub_module.html#sub_filter) for the original directive behavior. Define conditions with `ngx_condition_module` and place conditional replacement pairs in `when` blocks.
+Refer to [sub_filter](https://nginx.org/en/docs/http/ngx_http_sub_module.html#sub_filter) for the original directive behavior. Define conditions with `ngx_expr_module` and place conditional replacement pairs in `when` blocks.
 
 ```nginx
-condition replace_origin str_eq $upstream_type origin;
+expr replace_origin str_eq $upstream_type origin;
 
 when replace_origin {
     sub_filter http://origin.example https://www.example.com;
@@ -836,12 +836,12 @@ grpc_method POST;
 
 ### Conditional upstream directives
 
-When `ngx_condition_module` is compiled, the built-in upstream directives listed below can also be declared in applicable `when` blocks. HTTP directives support the `http`, `server`, and `location` levels, while stream proxy directives support the `stream` and `server` levels. Their native syntax, defaults, and inheritance behavior are unchanged.
+When `ngx_expr_module` is compiled, the built-in upstream directives listed below can also be declared in applicable `when` blocks. HTTP directives support the `http`, `server`, and `location` levels, while stream proxy directives support the `stream` and `server` levels. Their native syntax, defaults, and inheritance behavior are unchanged.
 
 For directives that select one effective value, declarations are evaluated in configuration order: the first unconditional declaration or declaration with a matching condition wins. A conditional declaration does not take precedence merely because it has a condition, so put conditional cases before an unconditional fallback.
 
 ```nginx
-condition long_read str_in $http_x_profile slow debug;
+expr long_read str_in $http_x_profile slow debug;
 
 when long_read {
     proxy_read_timeout 120s;
@@ -1407,12 +1407,12 @@ Defines conditions under which the response will not be gzipped. If at least one
 
 refer to [access_log](https://nginx.org/en/docs/http/ngx_http_log_module.html#access_log)
 
-Define conditions with `ngx_condition_module` and put conditional log entries
+Define conditions with `ngx_expr_module` and put conditional log entries
 in `when` blocks. Every matching `access_log` entry is written in configuration
 order. Use `when !condition_name` for the inverse case.
 
 ```nginx
-condition loggable str_ne $status 204;
+expr loggable !str_eq $status 204;
 
 when loggable {
     access_log logs/access.log combined;

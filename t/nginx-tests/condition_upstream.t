@@ -20,7 +20,7 @@ select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
 my $t = Test::Nginx->new()->has(qw/http cache fastcgi uwsgi scgi grpc
-	memcached tunnel http_ssl ngx_condition_module/)->plan(9);
+	memcached tunnel http_ssl ngx_expr_module/)->plan(9);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -38,7 +38,7 @@ http {
         listen       127.0.0.1:8080;
         server_name  localhost;
 
-        condition enabled str_in $http_x_case enabled;
+        expr enabled str_in $http_x_case enabled;
 
         location /fastcgi {
             when enabled {
@@ -211,7 +211,7 @@ http {
         listen       127.0.0.1:8087;
         server_name  localhost;
 
-        condition enabled str_in $http_x_case enabled;
+        expr enabled str_in $http_x_case enabled;
 
         when enabled {
             tunnel_connect_timeout 1s;

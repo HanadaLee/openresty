@@ -21,7 +21,7 @@ select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
 my $t = Test::Nginx->new()->has(qw/stream stream_ssl stream_return sni
-	socket_ssl ngx_condition_module/)->has_daemon('openssl')->plan(16);
+	socket_ssl ngx_expr_module/)->has_daemon('openssl')->plan(16);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -35,7 +35,7 @@ events {
 stream {
     %%TEST_GLOBALS_STREAM%%
 
-    condition hit str_in $proxy_protocol_addr 192.0.2.1;
+    expr hit str_in $proxy_protocol_addr 192.0.2.1;
 
     when hit {
         proxy_timeout 1s;

@@ -21,7 +21,7 @@ select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
 my $t = Test::Nginx->new()
-	->has(qw/http stream stream_return ngx_condition_module/)
+	->has(qw/http stream stream_return ngx_expr_module/)
 	->plan(10);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
@@ -38,8 +38,8 @@ http {
 
     log_format condition_test '$uri:$status';
 
-    condition h_true bool true;
-    condition h_false bool false;
+    expr h_true bool true;
+    expr h_false bool false;
 
     server {
         listen       127.0.0.1:8080;
@@ -70,8 +70,8 @@ stream {
 
     log_format condition_test '$remote_addr';
 
-    condition s_true bool true;
-    condition s_false bool false;
+    expr s_true bool true;
+    expr s_false bool false;
 
     server {
         listen  127.0.0.1:8081;

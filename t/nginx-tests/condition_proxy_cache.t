@@ -19,7 +19,7 @@ use Test::Nginx qw/ :DEFAULT /;
 select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
-my $t = Test::Nginx->new()->has(qw/http proxy cache ngx_condition_module/)
+my $t = Test::Nginx->new()->has(qw/http proxy cache ngx_expr_module/)
 	->plan(36);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
@@ -40,17 +40,17 @@ http {
         listen       127.0.0.1:8080;
         server_name  localhost;
 
-        condition methods str_in $http_x_case methods;
-        condition range str_in $http_x_case range;
-        condition stale str_in $http_x_case stale;
-        condition background str_in $http_x_case background;
-        condition min_uses str_in $http_x_case min_uses;
-        condition min_length str_in $http_x_case min_length;
-        condition max_length str_in $http_x_case max_length;
-        condition vary str_in $http_x_case vary;
-        condition cache_hide str_in $http_x_case cache_hide;
-        condition hide str_in $http_x_case hide;
-        condition ignore_control str_in $http_x_case ignore_control;
+        expr methods str_in $http_x_case methods;
+        expr range str_in $http_x_case range;
+        expr stale str_in $http_x_case stale;
+        expr background str_in $http_x_case background;
+        expr min_uses str_in $http_x_case min_uses;
+        expr min_length str_in $http_x_case min_length;
+        expr max_length str_in $http_x_case max_length;
+        expr vary str_in $http_x_case vary;
+        expr cache_hide str_in $http_x_case cache_hide;
+        expr hide str_in $http_x_case hide;
+        expr ignore_control str_in $http_x_case ignore_control;
 
         location /methods/ {
             proxy_pass http://127.0.0.1:8081;
