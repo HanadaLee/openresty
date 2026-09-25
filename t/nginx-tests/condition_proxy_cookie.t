@@ -20,7 +20,7 @@ select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
 my $t = Test::Nginx->new()->has(qw/http proxy rewrite pcre
-	ngx_condition_module/)->plan(23);
+	ngx_expr_module/)->plan(23);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -34,7 +34,7 @@ events {
 http {
     %%TEST_GLOBALS_HTTP%%
 
-    condition http_cookie str_in $arg_case http;
+    expr http_cookie str_in $arg_case http;
 
     when http_cookie {
         proxy_cookie_domain old.example http.example;
@@ -54,16 +54,16 @@ http {
         listen       127.0.0.1:8080;
         server_name  localhost;
 
-        condition domain str_in $arg_case domain;
-        condition path str_in $arg_case path;
-        condition flags str_in $arg_case flags;
-        condition value str_in $arg_case value;
-        condition max_age str_in $arg_case max_age;
-        condition all str_in $arg_case all;
-        condition regex str_in $arg_case regex;
-        condition disabled str_in $arg_case disabled;
-        condition vars str_in $arg_case vars;
-        condition multi str_in $arg_case multi;
+        expr domain str_in $arg_case domain;
+        expr path str_in $arg_case path;
+        expr flags str_in $arg_case flags;
+        expr value str_in $arg_case value;
+        expr max_age str_in $arg_case max_age;
+        expr all str_in $arg_case all;
+        expr regex str_in $arg_case regex;
+        expr disabled str_in $arg_case disabled;
+        expr vars str_in $arg_case vars;
+        expr multi str_in $arg_case multi;
 
         location /http/ {
             proxy_pass http://127.0.0.1:8081/;
@@ -233,7 +233,7 @@ http {
         listen       127.0.0.1:8082;
         server_name  localhost;
 
-        condition server_cookie str_in $arg_case server;
+        expr server_cookie str_in $arg_case server;
 
         when server_cookie {
             proxy_cookie_domain old.example server.example;

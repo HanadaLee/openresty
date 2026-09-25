@@ -139,7 +139,7 @@ ARG RESTY_CONFIG_OPTIONS="\
     --with-stream_ssl_preread_module \
     --with-stream_realip_module \
     --add-module=/build/modules/ngx_backtrace_module \
-    --add-module=/build/modules/ngx_condition_module \
+    --add-module=/build/modules/ngx_expr_module \
     --add-module=/build/modules/ngx_stat_module \
     --add-module=/build/modules/ngx_geoip2_module \
     --add-module=/build/modules/ngx_http_access_control_module \
@@ -298,7 +298,7 @@ RUN mkdir -p /build/lib \
 # Fetch nginx modules.
 RUN mkdir -p /build/modules \
     && cd /build/modules \
-    && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_condition_module.git ngx_condition_module \
+    && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_condition_module.git ngx_expr_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_stat_module.git ngx_stat_module \
     && git clone --depth=1 --recurse-submodules https://${RESTY_GIT_REPO}/hanada/ngx_http_brotli_module.git ngx_http_brotli_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_ssl_fingerprint_module.git ngx_ssl_fingerprint_module \

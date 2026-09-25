@@ -23,7 +23,7 @@ select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
 my $t = Test::Nginx->new()->has(qw/http proxy cache rewrite http_ssl
-	ngx_condition_module/)->has_daemon('openssl')->plan(35);
+	ngx_expr_module/)->has_daemon('openssl')->plan(35);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -46,25 +46,25 @@ http {
         listen       127.0.0.1:8080;
         server_name  localhost;
 
-        condition method str_in $arg_case method;
-        condition version str_in $arg_case version;
-        condition redirect str_in $arg_case redirect;
-        condition ranges str_in $arg_case ranges;
-        condition headers str_in $arg_case headers;
-        condition buffering str_in $arg_case buffering;
-        condition request_buffering str_in $arg_case request_buffering;
-        condition abort str_in $arg_case abort;
-        condition connect_timeout str_in $arg_case connect_timeout;
-        condition send_timeout str_in $arg_case send_timeout;
-        condition read_timeout str_in $arg_case read_timeout;
-        condition limit_rate str_in $arg_case limit_rate;
-        condition next str_in $arg_case next;
-        condition tries str_in $arg_case tries;
-        condition next_timeout str_in $arg_case next_timeout;
-        condition ssl_server_name str_in $arg_case ssl_server_name;
-        condition ssl_name str_in $arg_case ssl_name;
-        condition pass_headers str_in $arg_case pass_headers;
-        condition pass_body str_in $arg_case pass_body;
+        expr method str_in $arg_case method;
+        expr version str_in $arg_case version;
+        expr redirect str_in $arg_case redirect;
+        expr ranges str_in $arg_case ranges;
+        expr headers str_in $arg_case headers;
+        expr buffering str_in $arg_case buffering;
+        expr request_buffering str_in $arg_case request_buffering;
+        expr abort str_in $arg_case abort;
+        expr connect_timeout str_in $arg_case connect_timeout;
+        expr send_timeout str_in $arg_case send_timeout;
+        expr read_timeout str_in $arg_case read_timeout;
+        expr limit_rate str_in $arg_case limit_rate;
+        expr next str_in $arg_case next;
+        expr tries str_in $arg_case tries;
+        expr next_timeout str_in $arg_case next_timeout;
+        expr ssl_server_name str_in $arg_case ssl_server_name;
+        expr ssl_name str_in $arg_case ssl_name;
+        expr pass_headers str_in $arg_case pass_headers;
+        expr pass_body str_in $arg_case pass_body;
 
         location /basic/ {
             proxy_pass http://127.0.0.1:8081/;

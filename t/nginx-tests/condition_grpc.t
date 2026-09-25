@@ -22,7 +22,7 @@ select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
 my $t = Test::Nginx->new()->has(qw/http http_v2 grpc
-	ngx_condition_module/)->plan(5);
+	ngx_expr_module/)->plan(5);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 
@@ -40,7 +40,7 @@ http {
         listen       127.0.0.1:8080;
         server_name  localhost;
 
-        condition method str_in $arg_case method variable;
+        expr method str_in $arg_case method variable;
 
         location /method {
             when method {

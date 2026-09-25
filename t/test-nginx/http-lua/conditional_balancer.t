@@ -29,7 +29,7 @@ __DATA__
         }
     }
 --- config
-    condition enabled str_in $http_x_case enabled;
+    expr enabled str_in $http_x_case enabled;
 
     location = /t {
         proxy_connect_timeout 100ms;
@@ -72,7 +72,7 @@ conditional tries warning: reduced tries due to limit
         }
     }
 --- config
-    condition enabled str_in $http_x_case enabled;
+    expr enabled str_in $http_x_case enabled;
 
     location = /t {
         proxy_connect_timeout 100ms;

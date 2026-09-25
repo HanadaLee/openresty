@@ -19,7 +19,7 @@ use Test::Nginx qw/ :DEFAULT http_end /;
 select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
-my $t = Test::Nginx->new()->has(qw/http proxy cache ngx_condition_module/)
+my $t = Test::Nginx->new()->has(qw/http proxy cache ngx_expr_module/)
 	->plan(15);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
@@ -40,9 +40,9 @@ http {
         listen       127.0.0.1:8080;
         server_name  localhost;
 
-        condition lock str_in $http_x_case lock;
-        condition timeout str_in $http_x_case timeout;
-        condition age str_in $http_x_case age;
+        expr lock str_in $http_x_case lock;
+        expr timeout str_in $http_x_case timeout;
+        expr age str_in $http_x_case age;
 
         location /lock/ {
             proxy_pass http://127.0.0.1:8081;
