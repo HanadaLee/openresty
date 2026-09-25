@@ -1,5 +1,5 @@
 diff --git a/src/ngx_http_lua_balancer.c b/src/ngx_http_lua_balancer.c
-index 904de3a..adb6da4 100644
+index 904de3a..81334ac 100644
 --- a/src/ngx_http_lua_balancer.c
 +++ b/src/ngx_http_lua_balancer.c
 @@ -15,6 +15,10 @@
@@ -21,8 +21,8 @@ index 904de3a..adb6da4 100644
 +    if (r->upstream->conf->next_upstream_tries_conf != NULL
 +        && r->upstream->conf->next_upstream_tries_conf != NGX_CONF_UNSET_PTR)
 +    {
-+        max_tries = (ngx_uint_t) ngx_http_get_expr_num_value(
-+            r, r->upstream->conf->next_upstream_tries_conf);
++        max_tries = (ngx_uint_t) ngx_http_get_expr_num_value(r,
++                                   r->upstream->conf->next_upstream_tries_conf);
 +    } else {
 +        max_tries = r->upstream->conf->next_upstream_tries;
 +    }
@@ -32,7 +32,7 @@ index 904de3a..adb6da4 100644
      total = bp->total_tries + r->upstream->peer.tries - 1;
  
      if (max_tries && total + count > max_tries) {
-@@ -1385,6 +1400,23 @@ ngx_http_lua_upstream_get_ssl_name(ngx_http_request_t *r,
+@@ -1385,6 +1400,22 @@ ngx_http_lua_upstream_get_ssl_name(ngx_http_request_t *r,
  {
      u_char     *p, *last;
      ngx_str_t   name;
@@ -42,8 +42,7 @@ index 904de3a..adb6da4 100644
 +    if (u->conf->ssl_name_conf != NULL
 +        && u->conf->ssl_name_conf != NGX_CONF_UNSET_PTR)
 +    {
-+        rc = ngx_http_get_expr_complex_value(
-+            r, u->conf->ssl_name_conf, &name);
++        rc = ngx_http_get_expr_complex_value(r, u->conf->ssl_name_conf, &name);
 +        if (rc == NGX_OK) {
 +            goto ssl_name_set;
 +        }
@@ -56,7 +55,7 @@ index 904de3a..adb6da4 100644
  
      if (u->conf->ssl_name) {
          if (ngx_http_complex_value(r, u->conf->ssl_name, &name) != NGX_OK) {
-@@ -1395,6 +1427,7 @@ ngx_http_lua_upstream_get_ssl_name(ngx_http_request_t *r,
+@@ -1395,6 +1426,7 @@ ngx_http_lua_upstream_get_ssl_name(ngx_http_request_t *r,
          name = u->ssl_name;
      }
  

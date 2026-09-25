@@ -1,5 +1,5 @@
 diff --git a/src/ngx_http_redis2_module.c b/src/ngx_http_redis2_module.c
-index c8306d4..5d29d13 100644
+index c8306d4..102c1ec 100644
 --- a/src/ngx_http_redis2_module.c
 +++ b/src/ngx_http_redis2_module.c
 @@ -7,6 +7,10 @@
@@ -132,52 +132,52 @@ index c8306d4..5d29d13 100644
  
 +#if (NGX_RESTY_EXT && NGX_EXPR)
 +    if (ngx_conf_init_expr_flag_value(cf,
-+            &conf->upstream.buffering_conf, 0)
++                                      &conf->upstream.buffering_conf, 0)
 +        != NGX_OK)
 +    {
 +        return NGX_CONF_ERROR;
 +    }
 +
 +    if (ngx_conf_init_expr_flag_value(cf,
-+            &conf->upstream.ignore_client_abort_conf, 1)
++                                    &conf->upstream.ignore_client_abort_conf, 1)
 +        != NGX_OK)
 +    {
 +        return NGX_CONF_ERROR;
 +    }
 +
 +    if (ngx_conf_init_expr_flag_value(cf,
-+            &conf->upstream.pass_request_headers_conf, 0)
++                                   &conf->upstream.pass_request_headers_conf, 0)
 +        != NGX_OK)
 +    {
 +        return NGX_CONF_ERROR;
 +    }
 +
 +    if (ngx_conf_init_expr_flag_value(cf,
-+            &conf->upstream.pass_request_body_conf, 0)
++                                      &conf->upstream.pass_request_body_conf, 0)
 +        != NGX_OK)
 +    {
 +        return NGX_CONF_ERROR;
 +    }
 +
 +    if (ngx_conf_merge_expr_msec_value(cf,
-+            &conf->upstream.connect_timeout_conf,
-+            prev->upstream.connect_timeout_conf, 60000)
++                                     &conf->upstream.connect_timeout_conf,
++                                     prev->upstream.connect_timeout_conf, 60000)
 +        != NGX_OK)
 +    {
 +        return NGX_CONF_ERROR;
 +    }
 +
 +    if (ngx_conf_merge_expr_msec_value(cf,
-+            &conf->upstream.send_timeout_conf,
-+            prev->upstream.send_timeout_conf, 60000)
++                                       &conf->upstream.send_timeout_conf,
++                                       prev->upstream.send_timeout_conf, 60000)
 +        != NGX_OK)
 +    {
 +        return NGX_CONF_ERROR;
 +    }
 +
 +    if (ngx_conf_merge_expr_msec_value(cf,
-+            &conf->upstream.read_timeout_conf,
-+            prev->upstream.read_timeout_conf, 60000)
++                                       &conf->upstream.read_timeout_conf,
++                                       prev->upstream.read_timeout_conf, 60000)
 +        != NGX_OK)
 +    {
 +        return NGX_CONF_ERROR;
@@ -198,19 +198,19 @@ index c8306d4..5d29d13 100644
  
 +#if (NGX_RESTY_EXT && NGX_EXPR)
 +    if (ngx_conf_merge_expr_bitmask_value(cf,
-+            &conf->upstream.next_upstream_conf,
-+            prev->upstream.next_upstream_conf,
-+            (NGX_CONF_BITMASK_SET
-+             |NGX_HTTP_UPSTREAM_FT_ERROR
-+             |NGX_HTTP_UPSTREAM_FT_TIMEOUT))
++                                          &conf->upstream.next_upstream_conf,
++                                          prev->upstream.next_upstream_conf,
++                                          (NGX_CONF_BITMASK_SET
++                                           |NGX_HTTP_UPSTREAM_FT_ERROR
++                                           |NGX_HTTP_UPSTREAM_FT_TIMEOUT))
 +        != NGX_OK)
 +    {
 +        return NGX_CONF_ERROR;
 +    }
 +
 +    {
-+        ngx_uint_t                         i;
-+        ngx_conf_expr_bitmask_ctx_t       *bm;
++        ngx_uint_t                    i;
++        ngx_conf_expr_bitmask_ctx_t  *bm;
 +
 +        bm = conf->upstream.next_upstream_conf->elts;
 +        for (i = 0; i < conf->upstream.next_upstream_conf->nelts; i++) {

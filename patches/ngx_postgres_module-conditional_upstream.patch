@@ -1,5 +1,5 @@
 diff --git a/src/ngx_postgres_module.c b/src/ngx_postgres_module.c
-index 5c04b35..138be7e 100644
+index 5c04b35..aff6229 100644
 --- a/src/ngx_postgres_module.c
 +++ b/src/ngx_postgres_module.c
 @@ -41,6 +41,10 @@
@@ -96,44 +96,44 @@ index 5c04b35..138be7e 100644
  
 +#if (NGX_RESTY_EXT && NGX_EXPR)
 +    if (ngx_conf_init_expr_flag_value(cf,
-+            &conf->upstream.buffering_conf, 1)
++                                      &conf->upstream.buffering_conf, 1)
 +        != NGX_OK)
 +    {
 +        return NGX_CONF_ERROR;
 +    }
 +
 +    if (ngx_conf_init_expr_flag_value(cf,
-+            &conf->upstream.ignore_client_abort_conf, 1)
++                                    &conf->upstream.ignore_client_abort_conf, 1)
 +        != NGX_OK)
 +    {
 +        return NGX_CONF_ERROR;
 +    }
 +
 +    if (ngx_conf_init_expr_flag_value(cf,
-+            &conf->upstream.pass_request_headers_conf, 0)
++                                   &conf->upstream.pass_request_headers_conf, 0)
 +        != NGX_OK)
 +    {
 +        return NGX_CONF_ERROR;
 +    }
 +
 +    if (ngx_conf_init_expr_flag_value(cf,
-+            &conf->upstream.pass_request_body_conf, 0)
++                                      &conf->upstream.pass_request_body_conf, 0)
 +        != NGX_OK)
 +    {
 +        return NGX_CONF_ERROR;
 +    }
 +
 +    if (ngx_conf_merge_expr_msec_value(cf,
-+            &conf->upstream.connect_timeout_conf,
-+            prev->upstream.connect_timeout_conf, 10000)
++                                     &conf->upstream.connect_timeout_conf,
++                                     prev->upstream.connect_timeout_conf, 10000)
 +        != NGX_OK)
 +    {
 +        return NGX_CONF_ERROR;
 +    }
 +
 +    if (ngx_conf_merge_expr_msec_value(cf,
-+            &conf->upstream.read_timeout_conf,
-+            prev->upstream.read_timeout_conf, 30000)
++                                       &conf->upstream.read_timeout_conf,
++                                       prev->upstream.read_timeout_conf, 30000)
 +        != NGX_OK)
 +    {
 +        return NGX_CONF_ERROR;
@@ -176,7 +176,7 @@ index 31dc213..6a68092 100644
      dd("query sent successfully");
      ngx_log_debug0(NGX_LOG_DEBUG_HTTP, pgxc->log, 0,
 diff --git a/src/ngx_postgres_util.c b/src/ngx_postgres_util.c
-index f13c90a..a6b4019 100644
+index f13c90a..5567be6 100644
 --- a/src/ngx_postgres_util.c
 +++ b/src/ngx_postgres_util.c
 @@ -35,6 +35,10 @@
@@ -209,8 +209,8 @@ index f13c90a..a6b4019 100644
 +        if (u->conf->next_upstream_conf != NULL
 +            && u->conf->next_upstream_conf != NGX_CONF_UNSET_PTR)
 +        {
-+            next_upstream = ngx_http_get_expr_bitmask_value(
-+                r, u->conf->next_upstream_conf);
++            next_upstream = ngx_http_get_expr_bitmask_value(r,
++                                                   u->conf->next_upstream_conf);
 +        }
 +
 +        if (u->peer.tries == 0 || !(next_upstream & ft_type)) {

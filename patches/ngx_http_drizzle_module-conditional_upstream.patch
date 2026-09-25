@@ -15,7 +15,7 @@ index b2f1e3c..66840a8 100644
      ngx_http_upstream_dbd_init(r);
  
 diff --git a/src/ngx_http_drizzle_module.c b/src/ngx_http_drizzle_module.c
-index 84c3946..6c7bf9d 100644
+index 84c3946..90f486f 100644
 --- a/src/ngx_http_drizzle_module.c
 +++ b/src/ngx_http_drizzle_module.c
 @@ -16,6 +16,10 @@
@@ -111,44 +111,44 @@ index 84c3946..6c7bf9d 100644
  
 +#if (NGX_RESTY_EXT && NGX_EXPR)
 +    if (ngx_conf_init_expr_flag_value(cf,
-+            &conf->upstream.buffering_conf, 0)
++                                      &conf->upstream.buffering_conf, 0)
 +        != NGX_OK)
 +    {
 +        return NGX_CONF_ERROR;
 +    }
 +
 +    if (ngx_conf_init_expr_flag_value(cf,
-+            &conf->upstream.ignore_client_abort_conf, 0)
++                                    &conf->upstream.ignore_client_abort_conf, 0)
 +        != NGX_OK)
 +    {
 +        return NGX_CONF_ERROR;
 +    }
 +
 +    if (ngx_conf_init_expr_flag_value(cf,
-+            &conf->upstream.pass_request_headers_conf, 0)
++                                   &conf->upstream.pass_request_headers_conf, 0)
 +        != NGX_OK)
 +    {
 +        return NGX_CONF_ERROR;
 +    }
 +
 +    if (ngx_conf_init_expr_flag_value(cf,
-+            &conf->upstream.pass_request_body_conf, 0)
++                                      &conf->upstream.pass_request_body_conf, 0)
 +        != NGX_OK)
 +    {
 +        return NGX_CONF_ERROR;
 +    }
 +
 +    if (ngx_conf_merge_expr_msec_value(cf,
-+            &conf->upstream.connect_timeout_conf,
-+            prev->upstream.connect_timeout_conf, 60000)
++                                     &conf->upstream.connect_timeout_conf,
++                                     prev->upstream.connect_timeout_conf, 60000)
 +        != NGX_OK)
 +    {
 +        return NGX_CONF_ERROR;
 +    }
 +
 +    if (ngx_conf_merge_expr_msec_value(cf,
-+            &conf->upstream.send_timeout_conf,
-+            prev->upstream.send_timeout_conf, 60000)
++                                       &conf->upstream.send_timeout_conf,
++                                       prev->upstream.send_timeout_conf, 60000)
 +        != NGX_OK)
 +    {
 +        return NGX_CONF_ERROR;
@@ -191,7 +191,7 @@ index b987417..f2467ef 100644
  
          return NGX_AGAIN;
 diff --git a/src/ngx_http_drizzle_util.c b/src/ngx_http_drizzle_util.c
-index 370999d..e330a83 100644
+index 370999d..27032f9 100644
 --- a/src/ngx_http_drizzle_util.c
 +++ b/src/ngx_http_drizzle_util.c
 @@ -19,6 +19,10 @@
@@ -224,8 +224,8 @@ index 370999d..e330a83 100644
 +        if (u->conf->next_upstream_conf != NULL
 +            && u->conf->next_upstream_conf != NGX_CONF_UNSET_PTR)
 +        {
-+            next_upstream = ngx_http_get_expr_bitmask_value(
-+                r, u->conf->next_upstream_conf);
++            next_upstream = ngx_http_get_expr_bitmask_value(r,
++                                                   u->conf->next_upstream_conf);
 +        }
 +
 +        if (u->peer.tries == 0 || !(next_upstream & ft_type)) {
@@ -254,16 +254,16 @@ index 370999d..e330a83 100644
 +    if (u->conf->connect_timeout_conf != NULL
 +        && u->conf->connect_timeout_conf != NGX_CONF_UNSET_PTR)
 +    {
-+        u->connect_timeout = ngx_http_get_expr_msec_value(
-+            r, u->conf->connect_timeout_conf);
++        u->connect_timeout = ngx_http_get_expr_msec_value(r,
++                                                 u->conf->connect_timeout_conf);
 +    }
 +
 +    u->send_timeout = u->conf->send_timeout;
 +    if (u->conf->send_timeout_conf != NULL
 +        && u->conf->send_timeout_conf != NGX_CONF_UNSET_PTR)
 +    {
-+        u->send_timeout = ngx_http_get_expr_msec_value(
-+            r, u->conf->send_timeout_conf);
++        u->send_timeout = ngx_http_get_expr_msec_value(r,
++                                                    u->conf->send_timeout_conf);
 +    }
 +#endif
 +
@@ -280,7 +280,7 @@ index 370999d..e330a83 100644
 +        && u->conf->ignore_client_abort_conf != NGX_CONF_UNSET_PTR)
 +    {
 +        ignore_client_abort = ngx_http_get_expr_flag_value(r,
-+                                        u->conf->ignore_client_abort_conf);
++                                             u->conf->ignore_client_abort_conf);
 +    }
 +
 +    if (!u->store && !r->post_action && !ignore_client_abort) {
