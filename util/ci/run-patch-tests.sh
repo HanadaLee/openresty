@@ -39,6 +39,7 @@ docker run --rm \
             libtest-longstring-perl \
             libwww-perl \
             libipc-run-perl \
+            libio-socket-ssl-perl \
             liburi-perl \
             liblist-moreutils-perl
 

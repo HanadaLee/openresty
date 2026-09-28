@@ -30,6 +30,7 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [Conditional error\_page](#conditional-error_page)
     - [More directives for not modified checking](#more-directives-for-not-modified-checking)
   - [ngx\_http\_ssl\_module](#ngx_http_ssl_module)
+    - [ssl\_certificate\_load](#ssl_certificate_load)
     - [Optimizing TLS over TCP to reduce latency](#optimizing-tls-over-tcp-to-reduce-latency)
     - [Strict SNI validation](#strict-sni-validation)
     - [Variables about SSL handshake timestamps and time spent](#variables-about-ssl-handshake-timestamps-and-time-spent)
@@ -43,6 +44,7 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
   - [ngx\_http\_sub\_filter\_module](#ngx_http_sub_filter_module)
     - [Conditional sub\_filter](#conditional-sub_filter)
   - [ngx\_http\_proxy\_module and related modules](#ngx_http_proxy_module-and-related-modules)
+    - [proxy\_ssl\_certificate\_load](#proxy_ssl_certificate_load)
     - [Proxy filter Framework](#proxy-filter-framework)
     - [gRPC filter Framework](#grpc-filter-framework)
     - [gRPC upstream request header variables](#grpc-upstream-request-header-variables)
@@ -80,7 +82,10 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [access\_by\_lua\_file](#access_by_lua_file)
     - [access\_by\_lua\_no\_postpone](#access_by_lua_no_postpone)
   - [ngx\_stream\_ssl\_module](#ngx_stream_ssl_module)
+    - [ssl\_certificate\_load](#ssl_certificate_load-1)
     - [Variables about SSL handshake timestamps and time spent](#variables-about-ssl-handshake-timestamps-and-time-spent-1)
+  - [ngx\_stream\_proxy\_module](#ngx_stream_proxy_module)
+    - [proxy\_ssl\_certificate\_load](#proxy_ssl_certificate_load-1)
   - [ngx\_stream\_upstream\_module](#ngx_stream_upstream_module)
     - [Extra variables for upstream information](#extra-variables-for-upstream-information-1)
 - [LuaRocks](#luarocks)
@@ -593,6 +598,25 @@ Specifies how to check if the response is unmodified (304 Not Modified):
 
 ## ngx_http_ssl_module
 
+### ssl_certificate_load
+
+* **Syntax:** *ssl_certificate_load default | runtime;*
+
+* **Default:** *ssl_certificate_load default;*
+
+* **Context:** *http, server*
+
+Specifies when certificates and private keys configured by `ssl_certificate`
+and `ssl_certificate_key` are loaded. In `default` mode, files specified by
+constant paths are loaded during startup or reload. In `runtime` mode, these
+files are loaded on demand during TLS handshakes, in the same way as files
+specified by paths containing variables.
+
+If either path contains variables, certificates and private keys are always
+loaded on demand at runtime, regardless of the selected mode.
+`ssl_certificate_cache` also applies to files loaded in `runtime` mode.
+The setting is inherited unless overridden.
+
 ### Optimizing TLS over TCP to reduce latency
 
 By initially sending small (1 TCP segment) sized records, we are able to avoid HoL blocking of the first byte. This means TTFB is sometime lower by a whole RTT.
@@ -779,6 +803,27 @@ All unconditional pairs and all pairs whose conditions match are applied togethe
 [Back to TOC](#table-of-contents)
 
 ## ngx_http_proxy_module and related modules
+
+### proxy_ssl_certificate_load
+
+* **Syntax:** *proxy_ssl_certificate_load default | runtime;*
+
+* **Default:** *proxy_ssl_certificate_load default;*
+
+* **Context:** *http, server, location*
+
+Specifies when certificates and private keys configured by
+`proxy_ssl_certificate` and `proxy_ssl_certificate_key` are loaded. In `default`
+mode, files specified by constant paths are loaded during startup or reload.
+In `runtime` mode, these files are loaded on demand when establishing upstream
+TLS connections, in the same way as files specified by paths containing variables.
+
+If either path contains variables, certificates and private keys are always
+loaded on demand at runtime, regardless of the selected mode.
+`proxy_ssl_certificate_cache` also applies to files loaded in `runtime` mode.
+The setting is inherited unless overridden.
+
+> `grpc_ssl_certificate_load` and `uwsgi_ssl_certificate_load` are also available with the same behavior.
 
 ### Proxy filter Framework
 
@@ -1519,6 +1564,25 @@ handlers.
 
 ## ngx_stream_ssl_module
 
+### ssl_certificate_load
+
+* **Syntax:** *ssl_certificate_load default | runtime;*
+
+* **Default:** *ssl_certificate_load default;*
+
+* **Context:** *stream, server*
+
+Specifies when certificates and private keys configured by `ssl_certificate`
+and `ssl_certificate_key` are loaded. In `default` mode, files specified by
+constant paths are loaded during startup or reload. In `runtime` mode, these
+files are loaded on demand during TLS handshakes, in the same way as files
+specified by paths containing variables.
+
+If either path contains variables, certificates and private keys are always
+loaded on demand at runtime, regardless of the selected mode.
+`ssl_certificate_cache` also applies to files loaded in `runtime` mode.
+The setting is inherited unless overridden.
+
 ### Variables about SSL handshake timestamps and time spent
 
 In the stream subsystem, new variables are introduced to get the start timestamp, end timestamp, and time taken for the SSL handshake. The module [ngx_stream_extra_variables_module](https://git.hanada.info/hanada/ngx_stream_extra_variables_module) must be compiled to use these variables.
@@ -1528,6 +1592,29 @@ In the stream subsystem, new variables are introduced to get the start timestamp
 | **$ssl_handshake_start_msec**     | SSL handshake start timestamp in seconds with the milliseconds resolution.|
 | **$ssl_handshake_end_msec**       | SSL handshake finish timestamp in seconds with the milliseconds resolution.|
 | **$ssl_handshake_time**           | Keeps time spent on ssl handshaking in seconds with the milliseconds resolution.|
+
+[Back to TOC](#table-of-contents)
+
+## ngx_stream_proxy_module
+
+### proxy_ssl_certificate_load
+
+* **Syntax:** *proxy_ssl_certificate_load default | runtime;*
+
+* **Default:** *proxy_ssl_certificate_load default;*
+
+* **Context:** *stream, server*
+
+Specifies when certificates and private keys configured by
+`proxy_ssl_certificate` and `proxy_ssl_certificate_key` are loaded. In `default`
+mode, files specified by constant paths are loaded during startup or reload.
+In `runtime` mode, these files are loaded on demand when establishing upstream
+TLS connections, in the same way as files specified by paths containing variables.
+
+If either path contains variables, certificates and private keys are always
+loaded on demand at runtime, regardless of the selected mode.
+`proxy_ssl_certificate_cache` also applies to files loaded in `runtime` mode.
+The setting is inherited unless overridden.
 
 [Back to TOC](#table-of-contents)
 
