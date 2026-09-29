@@ -16,6 +16,7 @@ use Test::Nginx;
 my $t = Test::Nginx->new()->has(qw/http http_ssl http_v2 rewrite proxy
 	grpc uwsgi stream stream_ssl stream_return stream_map/)->has_daemon('openssl');
 my $d = $t->testdir();
+my $subject_error;
 
 # Runtime defers missing-file errors but still rejects a missing key directive.
 my @targets = qw/http stream proxy grpc uwsgi stream-proxy/;
@@ -157,16 +158,26 @@ stream {
 }
 EOF
 
+# nginx -t leaves an empty pid file, but run() waits only for its existence.
+if (-e "$d/nginx.pid") {
+	unlink("$d/nginx.pid") or die "unlink nginx.pid: $!";
+}
+
 # The late files do not exist yet; startup must nevertheless succeed.
 $t->run();
+$t->waitforsocket('127.0.0.1:' . port(18081))
+	or die "test listener did not become ready\n" . $t->read_file('error.log');
+
 for my $target (@targets) {
 	for my $mode (@modes) {
 		my $expected = $mode eq 'late' ? '' :
 			$mode eq 'encrypted' ? 'encrypted' : 'one';
-		is(subject($target, $mode), $expected, "$target: initial $mode");
+		is(subject($target, $mode), $expected, "$target: initial $mode")
+			or diag $subject_error;
 	}
 	deploy("$target-late", 'two');
-	is(subject($target, 'late'), 'two', "$target: files deployed after startup");
+	is(subject($target, 'late'), 'two', "$target: files deployed after startup")
+		or diag $subject_error;
 }
 
 for my $target (@targets) {
@@ -174,19 +185,19 @@ for my $target (@targets) {
 	for my $mode (qw/runtime default cache variable-cert variable-key/) {
 		is(subject($target, $mode),
 			$mode eq 'default' || $mode eq 'cache' ? 'one' : '',
-			"$target: $mode after files removed");
+			"$target: $mode after files removed") or diag $subject_error;
 	}
 	deploy($target, 'two');
 	for my $mode (qw/runtime default cache variable-cert variable-key/) {
 		is(subject($target, $mode),
 			$mode eq 'default' || $mode eq 'cache' ? 'one' : 'two',
-			"$target: $mode after certificate replacement");
+			"$target: $mode after certificate replacement") or diag $subject_error;
 	}
 	if ($target eq 'http' || $target eq 'stream') {
 		is(subject($target, 'sni', 'default.example'), 'one',
-			"$target: default SNI certificate");
+			"$target: default SNI certificate") or diag $subject_error;
 		is(subject($target, 'sni', 'runtime.example'), 'two',
-			"$target: runtime SNI certificate");
+			"$target: runtime SNI certificate") or diag $subject_error;
 	}
 }
 
@@ -240,12 +251,21 @@ sub subject {
 		my $s = IO::Socket::SSL->new(
 			PeerAddr => "127.0.0.1:$p", Timeout => 3,
 			SSL_verify_mode => 0, SSL_hostname => $host // 'localhost',
-		) or return '';
+		);
+		unless ($s) {
+			$subject_error = "TLS connection to 127.0.0.1:$p failed: "
+				. IO::Socket::SSL::errstr();
+			return '';
+		}
 		my $name = $s->peer_certificate('cn');
+		$subject_error = "Peer certificate CN at 127.0.0.1:$p: "
+			. ($name // '<missing>');
 		$s->close();
 		return $name // '';
 	}
 	my $response = http_get('/', PeerAddr => "127.0.0.1:$p") // '';
+	$subject_error = "Upstream response from 127.0.0.1:$p:\n"
+		. (length($response) ? $response : '<empty response>');
 	return $response =~ /X-Client:.*?CN=([a-z]+)/i ? $1 : '';
 }
 
