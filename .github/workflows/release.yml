@@ -10,7 +10,19 @@ on:
         required: false
         type: string
         default: ""
+      publish_manifests:
+        required: false
+        type: boolean
+        default: true
     secrets:
+      HARBOR_USERNAME:
+        required: false
+      HARBOR_PASSWORD:
+        required: false
+      DOCKERHUB_USERNAME:
+        required: false
+      DOCKERHUB_PASSWORD:
+        required: false
       GITLAB_USERNAME:
         required: true
       GITLAB_PASSWORD:
@@ -50,7 +62,7 @@ concurrency:
 jobs:
   manifest:
     name: Publish multi-platform manifests
-    if: github.event_name != 'workflow_dispatch' || inputs.publish_manifests
+    if: github.repository == 'HanadaLee/openresty' && inputs.publish_manifests
     runs-on: ubuntu-24.04
 
     steps:
@@ -99,6 +111,7 @@ jobs:
       - manifest
     if: >-
       always() &&
+      github.repository == 'HanadaLee/openresty' &&
       (needs.manifest.result == 'success' || needs.manifest.result == 'skipped')
     runs-on: ubuntu-24.04
 
@@ -124,12 +137,5 @@ jobs:
           bash util/ci/publish-gitlab-release.sh \
             "$VERSION" release-notes.md
 
-          if gh release view "$VERSION" >/dev/null 2>&1; then
-            echo "GitHub release ${VERSION} already exists"
-          else
-            gh release create "$VERSION" \
-              --verify-tag \
-              --target "$COMMIT" \
-              --title "$VERSION" \
-              --notes-file release-notes.md
-          fi
+          bash util/ci/publish-github-release.sh \
+            "$VERSION" "$COMMIT" release-notes.md

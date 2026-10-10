@@ -9,7 +9,6 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
 - [Description](#description)
 - [Building](#building)
 - [Testing](#testing)
-- [Continuous Integration and Releases](#continuous-integration-and-releases)
 - [Components](#components)
   - [Components of official OpenResty bundle](#components-of-official-openresty-bundle)
   - [Components of this OpenResty bundle](#components-of-this-openresty-bundle)
@@ -125,8 +124,7 @@ built directly from the repository root:
 docker build --tag openresty:local .
 ```
 
-To build a versioned local image with the same version metadata as CI, resolve
-the pinned upstream version first:
+To build a versioned local image, resolve the pinned upstream version first:
 
 ```shell
 resty_version="$(bash util/openresty-version.sh)"
@@ -153,15 +151,9 @@ the mirror also applies to the pinned OpenResty source checkout.
 
 # Testing
 
-The patch regression suite is not embedded in the runtime image and is not run
-by the Dockerfile. CI builds a dedicated test image with `--with-debug`, checks
-out fresh copies of OpenResty's `test-nginx` and nginx's `nginx-tests`, and runs
-the repository's tests in a disposable container. This image is never
-published. When a release is needed, CI separately builds production images
-without `--with-debug` after the test suite succeeds.
-
-The same suite can be run locally with Docker, Git, and a POSIX-compatible
-shell:
+The patch regression suite requires a test image built with `--with-debug`.
+It is not embedded in the runtime image and is not run by the Dockerfile.
+To run the suite locally, use Docker, Git, and a POSIX-compatible shell:
 
 ```shell
 docker build \
@@ -182,41 +174,6 @@ TEST_NGINX_ROOT=/path/to/test-nginx \
 NGINX_TESTS_ROOT=/path/to/nginx-tests \
 bash util/run-tests.sh
 ```
-
-[Back to TOC](#table-of-contents)
-
-# Continuous Integration and Releases
-
-GitHub Actions builds and tests both `linux/amd64` and `linux/arm64` images.
-The release version is
-`RESTY_VERSION.RESTY_RELEASE`: CI reads `RESTY_VERSION` from the pinned
-upstream commit's `util/ver`, while `RESTY_RELEASE` comes from the Dockerfile.
-
-Every push to the main branch builds the debug-only test image and runs the
-patch regression suite. If the version is unchanged, CI stops after testing and
-does not build or push production images. When the version changes, CI performs
-a separate non-debug production build and publishes the architecture images and
-the `version` and `latest` multi-platform manifests to Harbor, Docker Hub, and
-GitHub Container Registry, then creates a matching Git tag and release. Release
-notes summarize commits since the previous version tag, link to the full GitHub
-comparison, and list the versioned Harbor, Docker Hub, and GitHub Container
-Registry image references.
-
-The release workflow publishes the same tag and release notes to GitLab and
-GitHub. Configure the GitHub Actions secrets `GITLAB_USERNAME` with the GitLab
-username and `GITLAB_PASSWORD` with either a personal access token that has the
-`api` scope, or a GitLab project access token that has both the `api` and
-`write_repository` scopes. The project token must have at least the Developer
-role, or the Maintainer role when release tags are protected. Publishing the
-canonical GitLab tag first prevents the GitHub mirror from pruning tags created
-only by GitHub Actions.
-
-The GitHub workflow can also be started manually. An already tagged version is
-always treated as test-only, preventing an existing release from being
-published again by the main CI workflow. The `Publish release` workflow can be
-started manually with an existing version and its full commit SHA to repair or
-publish missing GitLab and GitHub releases without rebuilding container
-images. Existing immutable GitHub releases are left unchanged.
 
 [Back to TOC](#table-of-contents)
 

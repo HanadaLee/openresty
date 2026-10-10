@@ -17,12 +17,15 @@ concurrency:
 jobs:
   prepare:
     name: Read version and determine release
+    if: github.repository == 'HanadaLee/openresty'
     runs-on: ubuntu-24.04
     outputs:
       resty_version: ${{ steps.version.outputs.RESTY_VERSION }}
       resty_release: ${{ steps.version.outputs.RESTY_RELEASE }}
       version: ${{ steps.version.outputs.VERSION }}
       release_needed: ${{ steps.version.outputs.RELEASE_NEEDED }}
+      publish_images: ${{ steps.version.outputs.PUBLISH_IMAGES }}
+      release_commit: ${{ steps.version.outputs.RELEASE_COMMIT }}
 
     steps:
       - name: Check out repository
@@ -30,18 +33,22 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Check release decision logic
+        shell: bash
+        run: bash t/ci/release-state.sh
+
       - name: Read version
         id: version
         shell: bash
         env:
-          BEFORE_SHA: ${{ github.event.before }}
-          EVENT_NAME: ${{ github.event_name }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           bash util/ci/resolve-version.sh Dockerfile >> "$GITHUB_OUTPUT"
 
   build:
     name: Build and test
+    if: github.repository == 'HanadaLee/openresty'
     needs:
       - prepare
     uses: ./.github/workflows/build.yml
@@ -49,16 +56,18 @@ jobs:
       resty_version: ${{ needs.prepare.outputs.resty_version }}
       resty_release: ${{ needs.prepare.outputs.resty_release }}
       version: ${{ needs.prepare.outputs.version }}
-      publish_arch_images: ${{ needs.prepare.outputs.release_needed == 'true' }}
+      publish_arch_images: ${{ needs.prepare.outputs.publish_images == 'true' }}
     secrets: inherit
 
   publish:
     name: Publish manifests and release
-    if: needs.prepare.outputs.release_needed == 'true'
+    if: github.repository == 'HanadaLee/openresty' && needs.prepare.outputs.release_needed == 'true'
     needs:
       - prepare
       - build
     uses: ./.github/workflows/release.yml
     with:
       version: ${{ needs.prepare.outputs.version }}
+      commit: ${{ needs.prepare.outputs.release_commit }}
+      publish_manifests: ${{ needs.prepare.outputs.publish_images == 'true' }}
     secrets: inherit

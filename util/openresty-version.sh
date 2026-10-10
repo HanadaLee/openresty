@@ -11,8 +11,7 @@ read_arg() {
         "$dockerfile" | head -n 1
 }
 
-# Keep compatibility with older revisions so CI can compare a migration
-# commit with a parent that still pinned RESTY_VERSION directly.
+# Keep compatibility with revisions that pinned RESTY_VERSION directly.
 version="$(read_arg RESTY_VERSION)"
 if [[ -n "$version" ]]; then
     printf '%s\n' "$version"

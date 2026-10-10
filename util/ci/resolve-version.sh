@@ -5,43 +5,12 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repository_root="$(cd "$script_dir/../.." && pwd)"
 dockerfile="${1:-$repository_root/Dockerfile}"
-event_name="${EVENT_NAME:-}"
-before_sha="${BEFORE_SHA:-}"
 remote="${GIT_REMOTE:-origin}"
-zero_sha="0000000000000000000000000000000000000000"
+gitlab_repository="${GITLAB_REPOSITORY:-https://git.hanada.info/hanada/openresty.git}"
 
 read_release() {
     sed -n 's/^ARG RESTY_RELEASE="\([^"]*\)"[[:space:]]*$/\1/p' "$1" |
         head -n 1
-}
-
-read_version_at() {
-    local ref="$1"
-    local historical_dockerfile
-    local resty_version
-    local resty_release
-
-    historical_dockerfile="$(mktemp)"
-    if ! git -C "$repository_root" show "${ref}:Dockerfile" > "$historical_dockerfile"; then
-        rm -f "$historical_dockerfile"
-        return 1
-    fi
-
-    if ! resty_version="$(bash "$script_dir/../openresty-version.sh" \
-        "$historical_dockerfile")"; then
-        rm -f "$historical_dockerfile"
-        return 1
-    fi
-
-    resty_release="$(read_release "$historical_dockerfile")"
-    rm -f "$historical_dockerfile"
-
-    if [[ -z "$resty_version" || -z "$resty_release" ]]; then
-        echo "Failed to read version from ${ref}:Dockerfile" >&2
-        return 1
-    fi
-
-    printf '%s.%s\n' "$resty_version" "$resty_release"
 }
 
 resty_version="$(bash "$script_dir/../openresty-version.sh" "$dockerfile")"
@@ -59,30 +28,54 @@ if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
 fi
 
 release_needed=false
+publish_images=false
+release_commit="$(git -C "$repository_root" rev-parse --verify HEAD)"
 git -C "$repository_root" fetch --force --tags "$remote"
 
-if git -C "$repository_root" rev-parse -q \
-    --verify "refs/tags/${version}" >/dev/null; then
-    echo "Version ${version} is already tagged; running tests only." >&2
-elif [[ "$event_name" == "push" &&
-        -n "$before_sha" &&
-        "$before_sha" != "$zero_sha" ]]; then
-    if ! git -C "$repository_root" cat-file -e \
-        "${before_sha}^{commit}" 2>/dev/null; then
-        git -C "$repository_root" fetch --no-tags "$remote" "$before_sha"
-    fi
+tag_commit="$(git -C "$repository_root" rev-parse -q \
+    --verify "refs/tags/${version}^{commit}" || true)"
 
-    previous_version="$(read_version_at "$before_sha")"
-    if [[ "$version" != "$previous_version" ]]; then
-        release_needed=true
-    else
-        echo "Version remains ${version}; running tests only." >&2
+if [[ -n "${GITHUB_REPOSITORY:-}" ]]; then
+    # GitLab's tag may exist before the GitHub mirror has synchronized it.
+    gitlab_refs="$(git ls-remote "$gitlab_repository" \
+        "refs/tags/${version}" "refs/tags/${version}^{}")"
+    gitlab_commit="$(awk '
+        $2 ~ /\^\{\}$/ { peeled = $1 }
+        $2 !~ /\^\{\}$/ { direct = $1 }
+        END { print peeled != "" ? peeled : direct }
+    ' <<< "$gitlab_refs")"
+
+    if [[ -n "$tag_commit" && -n "$gitlab_commit" &&
+          "$tag_commit" != "$gitlab_commit" ]]; then
+        echo "GitHub and GitLab tags disagree for ${version}; refusing to publish." >&2
+        exit 1
     fi
+    tag_commit="${tag_commit:-$gitlab_commit}"
+    release_state="$(bash "$script_dir/github-release-state.sh" "$version")"
+elif [[ -n "$tag_commit" ]]; then
+    # Preserve tag-based operation for callers outside GitHub Actions.
+    release_state=published
+else
+    release_state=missing
+fi
+
+if [[ "$release_state" == published ]]; then
+    echo "Version ${version} is already published; running tests only." >&2
+elif [[ -n "$tag_commit" ]]; then
+    # Tags are created only after manifests. Resume metadata publication at
+    # the original commit without moving the tag or rebuilding its images.
+    release_needed=true
+    release_commit="$tag_commit"
+    echo "Version ${version} is tagged but not published; repairing releases at ${release_commit}." >&2
 else
     release_needed=true
+    publish_images=true
+    echo "Version ${version} is not tagged; building and publishing it, including same-version retries." >&2
 fi
 
 printf 'RESTY_VERSION=%s\n' "$resty_version"
 printf 'RESTY_RELEASE=%s\n' "$resty_release"
 printf 'VERSION=%s\n' "$version"
 printf 'RELEASE_NEEDED=%s\n' "$release_needed"
+printf 'PUBLISH_IMAGES=%s\n' "$publish_images"
+printf 'RELEASE_COMMIT=%s\n' "$release_commit"
