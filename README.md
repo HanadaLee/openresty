@@ -1061,7 +1061,7 @@ The stale-while-revalidate extension of the Cache-Control header field permits u
 
 * **Syntax:** *proxy_cache_types mime-type ...;*
 
-* **Default:** *proxy_cache_types text/html;*
+* **Default:** `proxy_cache_types *;`
 
 * **Context:** *http, server, location*
 
