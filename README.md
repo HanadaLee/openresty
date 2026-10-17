@@ -589,27 +589,25 @@ By initially sending small (1 TCP segment) sized records, we are able to avoid H
 
 By sending increasingly larger records later in the connection, when HoL is not a problem, we reduce the overhead of TLS record (29 bytes per record with GCM/CHACHA-POLY).
 
-Start each connection with small records (1369 byte by default, it can be changed with ssl_dyn_rec_size_lo).
+Start each connection with small records (1369 bytes by default, configurable with `ssl_dynamic_record_low_size`).
 
-After a given number of records (40, change with ssl_dyn_rec_threshold) start sending larger records (4229, ssl_dyn_rec_size_hi).
+After a given number of records (40, configurable with `ssl_dynamic_record_threshold`), start sending larger records (4229 bytes, `ssl_dynamic_record_high_size`).
 
 Eventually after the same number of records, start sending the largest records (ssl_buffer_size).
 
-In case the connection idles for a given amount of time (1s, ssl_dyn_rec_timeout), the process repeats itself (i.e. begin sending small records again).
+In case the connection idles for a given amount of time (1s, `ssl_dynamic_record_timeout`), the process repeats itself (i.e. begin sending small records again).
 
-* **Syntax:** *ssl_dyn_rec on | off;*
+* **Syntax:** *ssl_dynamic_record on | off;*
 
-* **Default:** *ssl_dyn_rec off;*
+* **Default:** *ssl_dynamic_record off;*
 
 * **Context:** *http, server*
 
-Enable dynamic tls records.
+Enables dynamic TLS record sizing.
 
-Unlike the original patch, the directive name is changed from `ssl_dyn_rec_enable` to `ssl_dyn_rec`.
+* **Syntax:** *ssl_dynamic_record_timeout time;*
 
-* **Syntax:** *ssl_dyn_rec_timeout time;*
-
-* **Default:** *ssl_dyn_rec_timeout 1s;*
+* **Default:** *ssl_dynamic_record_timeout 1s;*
 
 * **Context:** *http, server*
 
@@ -617,27 +615,27 @@ We want the initial records to fit into one TCP segment so we don't get TCP HoL 
 
 A connection always starts with small records, but after a certain number of records have been sent, we increase the record size to reduce header overhead.
 
-After a connection has idled for a given timeout, begin the process from the start. The actual parameters are configurable. If ssl_dyn_rec_timeout is 0, we assume ssl_dyn_rec is off.
+After a connection has idled for the specified timeout, the process starts again with small records. A value of `0` disables dynamic TLS record sizing.
 
-* **Syntax:** *ssl_dyn_rec_size_lo number;*
+* **Syntax:** *ssl_dynamic_record_low_size size;*
 
-* **Default:** *ssl_dyn_rec_size_lo 1369;*
-
-* **Context:** *http, server*
-
-Default sizes for the dynamic record sizes are defined to fit maximal TLS + IPv6 overhead in a single TCP segment for lo and 3 segments for hi: 1369 = 1500 - 40 (IP) - 20 (TCP) - 10 (Time) - 61 (Max TLS overhead)
-
-* **Syntax:** *ssl_dyn_rec_size_hi number;*
-
-* **Default:** *ssl_dyn_rec_size_hi 4229;*
+* **Default:** *ssl_dynamic_record_low_size 1369;*
 
 * **Context:** *http, server*
 
-4229 = (1500 - 40 - 20 - 10) * 3 - 61
+Sets the initial record size, also used after an idle timeout. The default accounts for the maximum TLS and IPv6 overhead in one TCP segment: 1369 = 1500 - 40 (IP) - 20 (TCP) - 10 (Time) - 61 (TLS overhead). The size is limited to `ssl_buffer_size`.
 
-* **Syntax:** *ssl_dyn_rec_threshold number;*
+* **Syntax:** *ssl_dynamic_record_high_size size;*
 
-* **Default:** *ssl_dyn_rec_threshold 40;*
+* **Default:** *ssl_dynamic_record_high_size 4229;*
+
+* **Context:** *http, server*
+
+Sets the intermediate record size. The default accounts for three TCP segments: 4229 = (1500 - 40 - 20 - 10) * 3 - 61. The size is limited to `ssl_buffer_size`.
+
+* **Syntax:** *ssl_dynamic_record_threshold number;*
+
+* **Default:** *ssl_dynamic_record_threshold 40;*
 
 * **Context:** *http, server*
 
