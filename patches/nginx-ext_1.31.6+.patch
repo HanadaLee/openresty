@@ -18737,7 +18737,7 @@ index df57a021d..0f40f4af7 100644
      ngx_uint_t                        err_status;
  
 diff --git a/src/http/ngx_http_script.c b/src/http/ngx_http_script.c
-index 6d41cc720..82df16a69 100644
+index 6d41cc720..080c13bcf 100644
 --- a/src/http/ngx_http_script.c
 +++ b/src/http/ngx_http_script.c
 @@ -1,5 +1,6 @@
@@ -18861,7 +18861,7 @@ index 6d41cc720..82df16a69 100644
 +        return NGX_CONF_OK;
 +    }
 +
-+    cv->u.msec = ngx_parse_time(&cv->value, 1);
++    cv->u.msec = ngx_parse_time(&cv->value, 0);
 +    if (cv->u.msec == (ngx_msec_t) NGX_ERROR) {
 +        return "invalid value";
 +    }
