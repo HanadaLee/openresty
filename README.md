@@ -944,6 +944,8 @@ Rewrites the value of a cookie in a proxied response. Plain cookie names are mat
 
 For a plain `value`, the matching prefix is replaced and the rest of the cookie value is preserved. A value starting with `~` uses a case-sensitive regular expression, while `~*` uses a case-insensitive regular expression. The `replacement` can contain variables and can reference captures from the value regular expression.
 
+A cookie without `=` is matched as having an empty value. The `=` is added only when the value is rewritten; otherwise the original form is preserved.
+
 ```nginx
 proxy_cookie_value sessionid old- new-;
 proxy_cookie_value ~^session_ ~*^old-(.+)$ new-$1;
