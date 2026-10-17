@@ -44,6 +44,37 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
+      - name: Build C regression environment
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          target: openresty-build
+          platforms: ${{ matrix.platform }}
+          load: true
+          push: false
+          provenance: false
+          build-args: |
+            RESTY_VERSION=${{ inputs.resty_version }}
+            RESTY_RELEASE=${{ inputs.resty_release }}
+            RESTY_DEBUG_OPTIONS=--with-debug
+          tags: openresty-c-test:${{ inputs.version }}-${{ matrix.suffix }}
+
+      - name: Run C module regressions
+        shell: bash
+        env:
+          TEST_BUILD_IMAGE: openresty-c-test:${{ inputs.version }}-${{ matrix.suffix }}
+        run: bash util/ci/run-c-module-tests.sh "$TEST_BUILD_IMAGE"
+
+      - name: Remove C regression environment
+        if: always()
+        shell: bash
+        env:
+          TEST_BUILD_IMAGE: openresty-c-test:${{ inputs.version }}-${{ matrix.suffix }}
+        run: |
+          if docker image inspect "$TEST_BUILD_IMAGE" > /dev/null 2>&1; then
+            docker image rm "$TEST_BUILD_IMAGE"
+          fi
+
       - name: Build debug test image
         uses: docker/build-push-action@v7
         with:
