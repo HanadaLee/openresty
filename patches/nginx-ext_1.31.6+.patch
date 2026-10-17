@@ -17592,7 +17592,7 @@ index bb936c5fe..65d024de0 100644
  char *ngx_http_file_cache_set_slot(ngx_conf_t *cf, ngx_command_t *cmd,
      void *conf);
 diff --git a/src/http/ngx_http_core_module.c b/src/http/ngx_http_core_module.c
-index 0a3ce19b9..68e78ca1b 100644
+index 0a3ce19b9..1fc686601 100644
 --- a/src/http/ngx_http_core_module.c
 +++ b/src/http/ngx_http_core_module.c
 @@ -9,6 +9,10 @@
@@ -17787,7 +17787,7 @@ index 0a3ce19b9..68e78ca1b 100644
  #if (NGX_HTTP_GZIP)
  
      { ngx_string("gzip_vary"),
-@@ -2428,6 +2564,127 @@ ngx_http_gzip_quantity(u_char *p, u_char *last)
+@@ -2428,6 +2564,147 @@ ngx_http_gzip_quantity(u_char *p, u_char *last)
  #endif
  
  
@@ -17798,12 +17798,11 @@ index 0a3ce19b9..68e78ca1b 100644
 +{
 +    ngx_http_core_loc_conf_t   *clcf;
 +
-+    u_char                     *buf;
-+    u_char                     *p;
++    u_char                      ch, *p, *buf;
 +    ngx_time_t                 *tp;
 +    ngx_list_part_t            *part;
 +    ngx_table_elt_t            *header;
-+    ngx_uint_t                  i;
++    ngx_uint_t                  i, j;
 +    uint64_t                    random_bytes[2];
 +
 +    static uint64_t             counter, key[2];
@@ -17840,9 +17839,30 @@ index 0a3ce19b9..68e78ca1b 100644
 +            if (header[i].key.len == clcf->request_id_header.len
 +                && ngx_strncasecmp(header[i].key.data,
 +                                   clcf->request_id_header.data,
-+                                   clcf->request_id_header.len) == 0
-+                && header[i].value.len > 0)
++                                   clcf->request_id_header.len) == 0)
 +            {
++                if (header[i].value.len == 0 || header[i].value.len > 1024) {
++                    break;
++                }
++
++                for (j = 0; j < header[i].value.len; j++) {
++                    ch = header[i].value.data[j];
++
++                    if ((ch >= 'a' && ch <= 'z')
++                        || (ch >= 'A' && ch <= 'Z')
++                        || (ch >= '0' && ch <= '9')
++                        || ch == '.' || ch == '-' || ch == '_')
++                    {
++                        continue;
++                    }
++
++                    break;
++                }
++
++                if (j != header[i].value.len) {
++                    break;
++                }
++
 +                r->request_id = header[i].value;
 +                *id = r->request_id;
 +                return NGX_OK;
@@ -17915,7 +17935,7 @@ index 0a3ce19b9..68e78ca1b 100644
  ngx_int_t
  ngx_http_subrequest(ngx_http_request_t *r,
      ngx_str_t *uri, ngx_str_t *args, ngx_http_request_t **psr,
-@@ -3558,7 +3815,11 @@ ngx_http_core_init_main_conf(ngx_conf_t *cf, void *conf)
+@@ -3558,7 +3835,11 @@ ngx_http_core_init_main_conf(ngx_conf_t *cf, void *conf)
              ngx_align(cmcf->server_names_hash_bucket_size, ngx_cacheline_size);
  
  
@@ -17927,7 +17947,7 @@ index 0a3ce19b9..68e78ca1b 100644
      ngx_conf_init_uint_value(cmcf->variables_hash_bucket_size, 64);
  
      cmcf->variables_hash_bucket_size =
-@@ -3709,6 +3970,7 @@ ngx_http_core_create_loc_conf(ngx_conf_t *cf)
+@@ -3709,6 +3990,7 @@ ngx_http_core_create_loc_conf(ngx_conf_t *cf)
       *     clcf->post_action = { 0, NULL };
       *     clcf->types = NULL;
       *     clcf->default_type = { 0, NULL };
@@ -17935,7 +17955,7 @@ index 0a3ce19b9..68e78ca1b 100644
       *     clcf->error_log = NULL;
       *     clcf->client_body_path = NULL;
       *     clcf->regex = NULL;
-@@ -3728,6 +3990,9 @@ ngx_http_core_create_loc_conf(ngx_conf_t *cf)
+@@ -3728,6 +4010,9 @@ ngx_http_core_create_loc_conf(ngx_conf_t *cf)
      clcf->auth_delay = NGX_CONF_UNSET_MSEC;
      clcf->if_modified_since = NGX_CONF_UNSET_UINT;
      clcf->max_ranges = NGX_CONF_UNSET_UINT;
@@ -17945,7 +17965,7 @@ index 0a3ce19b9..68e78ca1b 100644
      clcf->client_body_in_file_only = NGX_CONF_UNSET_UINT;
      clcf->client_body_in_single_buffer = NGX_CONF_UNSET;
      clcf->internal = NGX_CONF_UNSET;
-@@ -3770,6 +4035,9 @@ ngx_http_core_create_loc_conf(ngx_conf_t *cf)
+@@ -3770,6 +4055,9 @@ ngx_http_core_create_loc_conf(ngx_conf_t *cf)
      clcf->recursive_error_pages = NGX_CONF_UNSET;
      clcf->chunked_transfer_encoding = NGX_CONF_UNSET;
      clcf->etag = NGX_CONF_UNSET;
@@ -17955,7 +17975,7 @@ index 0a3ce19b9..68e78ca1b 100644
      clcf->server_tokens = NGX_CONF_UNSET_UINT;
      clcf->early_hints = NGX_CONF_UNSET_PTR;
      clcf->types_hash_max_size = NGX_CONF_UNSET_UINT;
-@@ -3781,6 +4049,17 @@ ngx_http_core_create_loc_conf(ngx_conf_t *cf)
+@@ -3781,6 +4069,17 @@ ngx_http_core_create_loc_conf(ngx_conf_t *cf)
      clcf->open_file_cache_errors = NGX_CONF_UNSET;
      clcf->open_file_cache_events = NGX_CONF_UNSET;
  
@@ -17973,7 +17993,7 @@ index 0a3ce19b9..68e78ca1b 100644
  #if (NGX_HTTP_GZIP)
      clcf->gzip_vary = NGX_CONF_UNSET;
      clcf->gzip_http_version = NGX_CONF_UNSET_UINT;
-@@ -3949,6 +4228,10 @@ ngx_http_core_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -3949,6 +4248,10 @@ ngx_http_core_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
                                NGX_HTTP_IMS_EXACT);
      ngx_conf_merge_uint_value(conf->max_ranges, prev->max_ranges,
                                NGX_MAX_INT32_VALUE);
@@ -17984,7 +18004,7 @@ index 0a3ce19b9..68e78ca1b 100644
      ngx_conf_merge_uint_value(conf->client_body_in_file_only,
                                prev->client_body_in_file_only,
                                NGX_HTTP_REQUEST_BODY_FILE_OFF);
-@@ -4047,6 +4330,17 @@ ngx_http_core_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -4047,6 +4350,17 @@ ngx_http_core_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
                                prev->chunked_transfer_encoding, 1);
      ngx_conf_merge_value(conf->etag, prev->etag, 1);
  
@@ -18002,7 +18022,7 @@ index 0a3ce19b9..68e78ca1b 100644
      ngx_conf_merge_uint_value(conf->server_tokens, prev->server_tokens,
                                NGX_HTTP_SERVER_TOKENS_ON);
  
-@@ -4066,6 +4360,34 @@ ngx_http_core_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -4066,6 +4380,34 @@ ngx_http_core_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
  
      ngx_conf_merge_sec_value(conf->open_file_cache_events,
                                prev->open_file_cache_events, 0);
@@ -18037,7 +18057,7 @@ index 0a3ce19b9..68e78ca1b 100644
  #if (NGX_HTTP_GZIP)
  
      ngx_conf_merge_value(conf->gzip_vary, prev->gzip_vary, 0);
-@@ -4468,6 +4790,20 @@ ngx_http_core_listen(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+@@ -4468,6 +4810,20 @@ ngx_http_core_listen(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
              continue;
          }
  
@@ -18058,7 +18078,7 @@ index 0a3ce19b9..68e78ca1b 100644
          ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
                             "invalid parameter \"%V\"", &value[n]);
          return NGX_CONF_ERROR;
-@@ -5118,6 +5454,9 @@ ngx_http_core_error_page(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+@@ -5118,6 +5474,9 @@ ngx_http_core_error_page(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
  
          err->value = cv;
          err->args = args;
@@ -18068,7 +18088,7 @@ index 0a3ce19b9..68e78ca1b 100644
      }
  
      return NGX_CONF_OK;
-@@ -5300,6 +5639,106 @@ ngx_http_core_resolver(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+@@ -5300,6 +5659,106 @@ ngx_http_core_resolver(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
  }
  
  

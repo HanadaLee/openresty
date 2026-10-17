@@ -455,7 +455,7 @@ Specify the format of the request ID.
 
 * **Context:** *http, server, location*
 
-Specify the header name to be inherited by the request ID. If no header is specified, the request id will always be regenerated.
+Specifies the request header from which to inherit the request ID. The first matching header is used. Its value must contain 1 to 1024 bytes, using only ASCII letters, digits, periods (`.`), hyphens (`-`), and underscores (`_`). If the header is not configured, is missing, or has an invalid value, a new ID is generated using `request_id_algorithm`.
 
 ### Configurable default error pages
 
