@@ -325,8 +325,9 @@ like(http_get('/basic/echo?case=version'), qr/GET\|HTTP\/1\.1/,
 like(http_get('/basic/redirect'),
 	qr/^Location: http:\/\/backend\.example\/old\x0d?$/mi,
 	'proxy_redirect default');
+my $redirect_port = port(8080);
 like(http_get('/basic/redirect?case=redirect'),
-	qr/^Location: http:\/\/localhost:8080\/rewritten\/old\x0d?$/mi,
+	qr/^Location: http:\/\/localhost:$redirect_port\/rewritten\/old\x0d?$/mi,
 	'proxy_redirect condition');
 
 unlike(range('/basic/range', 'bytes=4-'), qr/^THIS$/m,

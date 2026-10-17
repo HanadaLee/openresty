@@ -2,7 +2,7 @@
 # is not pinned separately from the upstream source revision.
 ARG RESTY_VERSION
 ARG RESTY_RELEASE="384"
-ARG RESTY_COMMIT="bc8bf89488f2d02572389158533b3f85ca0ded7f"
+ARG RESTY_COMMIT="62905035de19a2caa0b964ef98db9d7df51d881a"
 ARG RESTY_J="4"
 ARG RESTY_IMAGE_BASE="debian"
 ARG RESTY_IMAGE_TAG="trixie-slim"
@@ -503,7 +503,7 @@ RUN RESTY_VERSION="$(cat /build/openresty-version)" \
     && patch -p1 < /build/patches/ngx_http_lua_module-preaccess_by_lua.patch \
     && cd "${NGINX_DIR}" \
     && echo "patching nginx-${NGINX_VERSION} ext" \
-    && patch -p1 < /build/patches/nginx-ext_1.31.6+.patch \
+    && patch -p1 < /build/patches/nginx-ext_1.31.7+.patch \
     && cd "${OPENRESTY_DIR}"/bundle/redis-nginx-module-* \
     && echo "patching ngx_http_redis_module" \
     && patch -p1 < /build/patches/ngx_http_redis_module-conditional_upstream.patch \

@@ -852,11 +852,14 @@ diff --git a/src/ngx_http_lua_subrequest.c b/src/ngx_http_lua_subrequest.c
 index 007f0705..429c1611 100644
 --- a/src/ngx_http_lua_subrequest.c
 +++ b/src/ngx_http_lua_subrequest.c
-@@ -181,3 +181,4 @@ ngx_http_lua_ngx_location_capture_multi(lua_State *L)
+@@ -180,6 +180,7 @@ ngx_http_lua_ngx_location_capture_multi(lua_State *L)
+ 
      ngx_http_lua_check_context(L, ctx, NGX_HTTP_LUA_CONTEXT_REWRITE
                                 | NGX_HTTP_LUA_CONTEXT_ACCESS
 +                               | NGX_HTTP_LUA_CONTEXT_PREACCESS
                                 | NGX_HTTP_LUA_CONTEXT_CONTENT);
+ 
+     coctx = ctx->cur_co_ctx;
 diff --git a/src/ngx_http_lua_util.c b/src/ngx_http_lua_util.c
 index 01c36440..41fc30c8 100644
 --- a/src/ngx_http_lua_util.c

@@ -71,6 +71,62 @@ for my $directive (@directives[1, 4]) {
 	ok($ok, "$name: zero remains valid") or diag $output;
 }
 
+my (undef, $version) = nginx_command('-v');
+my ($major, $minor, $patch) =
+	$version =~ m{(?:nginx|openresty)/(\d+)\.(\d+)\.(\d+)};
+BAIL_OUT("cannot determine nginx version: $version") unless defined $patch;
+my $nonzero_sizes = $major * 1_000_000 + $minor * 1_000 + $patch >= 1031007;
+
+for my $name (qw/ssl_dynamic_record_low_size ssl_dynamic_record_high_size
+	ssl_buffer_size/)
+{
+	for my $scope (qw/http server/) {
+		for my $mode ('on', 'off', 'on; ssl_dynamic_record_timeout 0',
+			'on; ssl_dynamic_record_threshold 0')
+		{
+			for my $size (qw/0 0k 0m/) {
+				SKIP: {
+					skip 'nonzero size validation requires nginx 1.31.7', 2
+						unless $nonzero_sizes;
+					($ok, $output) = config_test($scope,
+						"ssl_dynamic_record $mode; $name $size;");
+					ok(!$ok, "$scope: $name $size rejected ($mode)")
+						or diag $output;
+					like($output,
+						qr/"\Q$name\E" directive value must be nonzero/,
+						"$name: official nonzero size diagnostic");
+				}
+			}
+		}
+
+		($ok, $output) = config_test($scope, "$name 1;");
+		ok($ok, "$scope: $name accepts the smallest positive size")
+			or diag $output;
+	}
+
+	($ok, $output) = config_test('server', '', "$name 1k;");
+	ok($ok, "$name: positive size can be inherited") or diag $output;
+
+	SKIP: {
+		skip 'nonzero size validation requires nginx 1.31.7', 2
+			unless $nonzero_sizes;
+		($ok, $output) = config_test('server', "$name 1k;", "$name 0;");
+		ok(!$ok, "$name: child override cannot hide a zero parent value")
+			or diag $output;
+		like($output, qr/"\Q$name\E" directive value must be nonzero/,
+			"$name: parent is validated at parse time");
+	}
+}
+
+for my $sizes ('ssl_dynamic_record_low_size 8k; ssl_dynamic_record_high_size 1k;',
+	'ssl_dynamic_record_low_size 1m; ssl_dynamic_record_high_size 2m;')
+{
+	($ok, $output) = config_test('server',
+		"ssl_dynamic_record on; ssl_buffer_size 4k; $sizes");
+	ok($ok, 'positive record sizes keep existing ordering and clamping rules')
+		or diag $output;
+}
+
 done_testing();
 
 sub config_test {
@@ -100,12 +156,16 @@ http {
 }
 EOF
 
+	return nginx_command('-t', '-p', "$d/", '-c', 'nginx.conf', '-e', 'error.log');
+}
+
+sub nginx_command {
+	my @arguments = @_;
 	my $pid = open(my $pipe, '-|');
 	die "fork: $!" unless defined $pid;
 	if (!$pid) {
 		open STDERR, '>&', \*STDOUT or die "dup: $!";
-		exec($Test::Nginx::NGINX, '-t', '-p', "$d/", '-c', 'nginx.conf',
-			'-e', 'error.log');
+		exec($Test::Nginx::NGINX, @arguments);
 		die "exec: $!";
 	}
 	my $output = do { local $/; <$pipe> };

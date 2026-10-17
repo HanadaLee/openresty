@@ -807,9 +807,12 @@ index e395ecc..6cd1929 100644
  
  
  #define ngx_stream_lua_context_name(c)                                       \
-@@ -95,4 +96,5 @@ extern char ngx_stream_lua_headers_metatable_key;
+@@ -95,7 +96,8 @@ extern char ngx_stream_lua_headers_metatable_key;
                                              "proxy_ssl_certificate_by_lua*"  \
       : (c) == NGX_STREAM_LUA_CONTEXT_PROXY_SSL_VERIFY ?                      \
                                                   "proxy_ssl_verify_by_lua*"  \
 +     : (c) == NGX_STREAM_LUA_CONTEXT_ACCESS ? "access_by_lua*"               \
       : "(unknown)")
+ 
+ 
+ #define ngx_stream_lua_check_context(L, ctx, flags)                          \
