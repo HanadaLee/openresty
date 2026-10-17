@@ -57,6 +57,65 @@ index 09c732cd6..b92f7d984 100644
  uwsgi_param  CONTENT_TYPE       $content_type;
  uwsgi_param  CONTENT_LENGTH     $content_length;
  
+diff --git a/src/core/ngx_module.h b/src/core/ngx_module.h
+index a415cd6d9..06dfde359 100644
+--- a/src/core/ngx_module.h
++++ b/src/core/ngx_module.h
+@@ -202,6 +202,45 @@
+ #define NGX_MODULE_SIGNATURE_34  "0"
+ #endif
+ 
++#if (NGX_RESTY_EXT)
++
++/* Bump when an extension changes the public ABI without a version change. */
++#define NGX_RESTY_ABI_VERSION  1
++
++#if (NGX_EXPR)
++#define NGX_MODULE_SIGNATURE_RESTY_EXPR  "1"
++#else
++#define NGX_MODULE_SIGNATURE_RESTY_EXPR  "0"
++#endif
++
++#if (NGX_HTTP_PROXY_FILTER)
++#define NGX_MODULE_SIGNATURE_RESTY_PROXY_FILTER  "1"
++#else
++#define NGX_MODULE_SIGNATURE_RESTY_PROXY_FILTER  "0"
++#endif
++
++#if (NGX_HTTP_GRPC_FILTER)
++#define NGX_MODULE_SIGNATURE_RESTY_GRPC_FILTER  "1"
++#else
++#define NGX_MODULE_SIGNATURE_RESTY_GRPC_FILTER  "0"
++#endif
++
++/* NGX_COMPAT does not reserve the extension's SSL-dependent fields. */
++#if (NGX_HTTP_SSL)
++#define NGX_MODULE_SIGNATURE_RESTY_HTTP_SSL  "1"
++#else
++#define NGX_MODULE_SIGNATURE_RESTY_HTTP_SSL  "0"
++#endif
++
++#define NGX_MODULE_SIGNATURE_RESTY                                            \
++    ",resty," ngx_value(NGX_RESTY_ABI_VERSION) ","                            \
++    NGX_MODULE_SIGNATURE_RESTY_EXPR NGX_MODULE_SIGNATURE_RESTY_PROXY_FILTER   \
++    NGX_MODULE_SIGNATURE_RESTY_GRPC_FILTER NGX_MODULE_SIGNATURE_RESTY_HTTP_SSL
++
++#else
++#define NGX_MODULE_SIGNATURE_RESTY  ""
++#endif
++
+ #define NGX_MODULE_SIGNATURE                                                  \
+     NGX_MODULE_SIGNATURE_0 NGX_MODULE_SIGNATURE_1 NGX_MODULE_SIGNATURE_2      \
+     NGX_MODULE_SIGNATURE_3 NGX_MODULE_SIGNATURE_4 NGX_MODULE_SIGNATURE_5      \
+@@ -214,7 +253,7 @@
+     NGX_MODULE_SIGNATURE_24 NGX_MODULE_SIGNATURE_25 NGX_MODULE_SIGNATURE_26   \
+     NGX_MODULE_SIGNATURE_27 NGX_MODULE_SIGNATURE_28 NGX_MODULE_SIGNATURE_29   \
+     NGX_MODULE_SIGNATURE_30 NGX_MODULE_SIGNATURE_31 NGX_MODULE_SIGNATURE_32   \
+-    NGX_MODULE_SIGNATURE_33 NGX_MODULE_SIGNATURE_34
++    NGX_MODULE_SIGNATURE_33 NGX_MODULE_SIGNATURE_34 NGX_MODULE_SIGNATURE_RESTY
+ 
+ 
+ #define NGX_MODULE_V1                                                         \
 diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
 index 3e92a49e8..f1af8a0d8 100644
 --- a/src/event/ngx_event_openssl.c

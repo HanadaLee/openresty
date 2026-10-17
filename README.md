@@ -147,6 +147,15 @@ commit and must be regenerated or revalidated whenever that commit changes.
 The default `RESTY_REPOSITORY` is derived from `RESTY_GIT_MIRROR`, so overriding
 the mirror also applies to the pinned OpenResty source checkout.
 
+Dynamic modules must be rebuilt using the same patched source revision and
+configuration headers as the server. The module signature includes an extension
+ABI revision and the expression, proxy-filter, gRPC-filter and HTTP SSL feature
+flags.
+Modules built for unpatched nginx, earlier extension ABIs or incompatible
+feature configurations are rejected with `is not binary compatible`.
+`--with-compat` does not bypass these extension checks; existing `.so` files
+must be rebuilt when adopting this ABI revision.
+
 [Back to TOC](#table-of-contents)
 
 # Testing
