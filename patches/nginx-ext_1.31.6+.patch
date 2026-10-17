@@ -11865,7 +11865,7 @@ index fec3642cf..bdaf94200 100644
  
      case NGX_ERROR:
 diff --git a/src/http/modules/ngx_http_realip_module.c b/src/http/modules/ngx_http_realip_module.c
-index f6731e780..cd79e0478 100644
+index f6731e780..b5098be55 100644
 --- a/src/http/modules/ngx_http_realip_module.c
 +++ b/src/http/modules/ngx_http_realip_module.c
 @@ -16,6 +16,20 @@
@@ -11909,11 +11909,12 @@ index f6731e780..cd79e0478 100644
        ngx_http_realip,
        NGX_HTTP_LOC_CONF_OFFSET,
        0,
-@@ -133,12 +152,18 @@ ngx_http_realip_handler(ngx_http_request_t *r)
+@@ -133,12 +152,19 @@ ngx_http_realip_handler(ngx_http_request_t *r)
      size_t                       len;
      ngx_str_t                   *value;
      ngx_uint_t                   i, hash;
 +#if (NGX_RESTY_EXT)
++    ngx_int_t                    rc;
 +    ngx_uint_t                   j;
 +#endif
      ngx_addr_t                   addr;
@@ -11928,13 +11929,12 @@ index f6731e780..cd79e0478 100644
  
      rlcf = ngx_http_get_module_loc_conf(r, ngx_http_realip_module);
  
-@@ -152,6 +177,81 @@ ngx_http_realip_handler(ngx_http_request_t *r)
+@@ -152,6 +178,112 @@ ngx_http_realip_handler(ngx_http_request_t *r)
          return NGX_DECLINED;
      }
  
 +#if (NGX_RESTY_EXT)
-+    value = NULL;
-+    xfwd = NULL;
++    c = r->connection;
 +
 +    for (j = 0; j < rlcf->headers->nelts; j++) {
 +        realip_header = &((ngx_http_realip_header_t *) rlcf->headers->elts)[j];
@@ -12003,6 +12003,38 @@ index f6731e780..cd79e0478 100644
 +                }
 +            }
 +        }
++
++        continue;
++
++    found:
++
++        if (value != NULL && value->len == 0) {
++            continue;
++        }
++
++        /* Each candidate is evaluated against the original peer address. */
++
++        addr.sockaddr = c->sockaddr;
++        addr.socklen = c->socklen;
++
++        rc = ngx_http_get_forwarded_addr(r, &addr, xfwd, value, rlcf->from,
++                                         rlcf->recursive);
++
++        if (rc == NGX_DECLINED) {
++            continue;
++        }
++
++        if (rc == NGX_ERROR) {
++            return NGX_HTTP_INTERNAL_SERVER_ERROR;
++        }
++
++        /* NGX_DONE also yields an address from a partially traversed chain. */
++
++        if (realip_header->type == NGX_HTTP_REALIP_PROXY) {
++            ngx_inet_set_port(addr.sockaddr, c->proxy_protocol->src_port);
++        }
++
++        return ngx_http_realip_set_addr(r, &addr);
 +    }
 +
 +    return NGX_DECLINED;
@@ -12010,27 +12042,15 @@ index f6731e780..cd79e0478 100644
      switch (rlcf->type) {
  
      case NGX_HTTP_REALIP_XREALIP:
-@@ -222,6 +322,7 @@ ngx_http_realip_handler(ngx_http_request_t *r)
- 
-         return NGX_DECLINED;
+@@ -243,6 +375,7 @@ found:
      }
+ 
+     return NGX_DECLINED;
 +#endif
+ }
  
- found:
  
-@@ -235,7 +336,11 @@ found:
-                                     rlcf->recursive)
-         != NGX_DECLINED)
-     {
-+#if (NGX_RESTY_EXT)
-+        if (realip_header->type == NGX_HTTP_REALIP_PROXY) {
-+#else
-         if (rlcf->type == NGX_HTTP_REALIP_PROXY) {
-+#endif
-             ngx_inet_set_port(addr.sockaddr, c->proxy_protocol->src_port);
-         }
- 
-@@ -418,6 +523,43 @@ ngx_http_realip(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+@@ -418,6 +551,44 @@ ngx_http_realip(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
  {
      ngx_http_realip_loc_conf_t *rlcf = conf;
  
@@ -12040,7 +12060,8 @@ index f6731e780..cd79e0478 100644
 +    ngx_uint_t                i;
 +
 +    if (rlcf->headers == NULL) {
-+        rlcf->headers = ngx_array_create(cf->pool, 4, sizeof(ngx_str_t));
++        rlcf->headers = ngx_array_create(cf->pool, 4,
++                                         sizeof(ngx_http_realip_header_t));
 +        if (rlcf->headers == NULL) {
 +            return NGX_CONF_ERROR;
 +        }
@@ -12054,13 +12075,13 @@ index f6731e780..cd79e0478 100644
 +            return NGX_CONF_ERROR;
 +        }
 +
-+        if (ngx_strcmp(value[1].data, "X-Real-IP") == 0) {
++        if (ngx_strcmp(value[i].data, "X-Real-IP") == 0) {
 +            header->type = NGX_HTTP_REALIP_XREALIP;
 +
-+        } else if (ngx_strcmp(value[1].data, "X-Forwarded-For") == 0) {
++        } else if (ngx_strcmp(value[i].data, "X-Forwarded-For") == 0) {
 +            header->type = NGX_HTTP_REALIP_XFWD;
 +
-+        } else if (ngx_strcmp(value[1].data, "proxy_protocol") == 0) {
++        } else if (ngx_strcmp(value[i].data, "proxy_protocol") == 0) {
 +            header->type = NGX_HTTP_REALIP_PROXY;
 +
 +        } else {
@@ -12074,7 +12095,7 @@ index f6731e780..cd79e0478 100644
      ngx_str_t  *value;
  
      if (rlcf->type != NGX_CONF_UNSET_UINT) {
-@@ -444,6 +586,7 @@ ngx_http_realip(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+@@ -444,6 +615,7 @@ ngx_http_realip(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
      rlcf->type = NGX_HTTP_REALIP_HEADER;
      rlcf->hash = ngx_hash_strlow(value[1].data, value[1].data, value[1].len);
      rlcf->header = value[1];
@@ -12082,7 +12103,7 @@ index f6731e780..cd79e0478 100644
  
      return NGX_CONF_OK;
  }
-@@ -463,11 +606,17 @@ ngx_http_realip_create_loc_conf(ngx_conf_t *cf)
+@@ -463,11 +635,17 @@ ngx_http_realip_create_loc_conf(ngx_conf_t *cf)
       * set by ngx_pcalloc():
       *
       *     conf->from = NULL;
@@ -12102,7 +12123,7 @@ index f6731e780..cd79e0478 100644
      conf->recursive = NGX_CONF_UNSET;
  
      return conf;
-@@ -479,18 +628,40 @@ ngx_http_realip_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -479,18 +657,40 @@ ngx_http_realip_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
  {
      ngx_http_realip_loc_conf_t  *prev = parent;
      ngx_http_realip_loc_conf_t  *conf = child;

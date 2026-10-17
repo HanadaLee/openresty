@@ -1195,24 +1195,40 @@ upstream state is created are retained and included in the same sequence.
 
 ### Configuring real client IP with multiple request headers
 
-* **Syntax:** *real_ip_header field | X-Real-IP | X-Forwarded-For | proxy_protocol;*
+* **Syntax:** *real_ip_header field | X-Real-IP | X-Forwarded-For | proxy_protocol [...];*
 
 * **Default:** *real_ip_header X-Real-IP;*
 
 * **Context:** *http, server, location*
 
-Defines the request header fields whose value will be used to replace the client address. 
+Defines the sources used to replace the client address.
 
-If multiple request fields are defined, the header values ​​will be checked in the order defined in the configuration, and the first header with a valid value will be used:
+Sources are checked in configuration order. Missing or empty sources, and values
+from which no address can be obtained, are skipped. The first source that yields
+an address is used:
 
 ```nginx
 real_ip_header X-Real-IP Cdn-Src-Ip X-Forwarded-For;
 ```
-The values ​​of the above headers will be checked in turn until a valid value is found.
+The connection peer must be trusted by `set_real_ip_from`. The resulting client
+address does not itself need to be trusted.
+
+Comma-separated addresses are processed from right to left, including in ordinary
+header fields. With `real_ip_recursive off`, the last address is used; with `on`,
+trusted proxy addresses are traversed until a non-trusted address is reached.
+Once an address has been obtained, stopping within that chain does not cause
+another source to be selected. `X-Forwarded-For` also processes multiple header
+lines; ordinary fields retain their first matching header line.
+
+Repeated directives at the same configuration level append sources in declaration
+order. Sources are inherited from the previous level only if no `real_ip_header`
+directive is defined at the current level.
 
 The request header field value that contains an optional port is also used to replace the client port. The address and port should be specified according to RFC 3986.
 
-The proxy_protocol parameter changes the client address to the one from the PROXY protocol header. The PROXY protocol must be previously enabled by setting the proxy_protocol parameter in the listen directive.
+The `proxy_protocol` parameter uses the address and port from the PROXY protocol,
+not from an HTTP request header. The PROXY protocol must be enabled by setting
+the `proxy_protocol` parameter in the `listen` directive.
 
 [Back to TOC](#table-of-contents)
 
