@@ -5064,13 +5064,13 @@ index f72044097..39cfa011e 100644
              *expires = NGX_HTTP_EXPIRES_OFF;
              return NGX_OK;
 diff --git a/src/http/modules/ngx_http_log_module.c b/src/http/modules/ngx_http_log_module.c
-index 9e398cd71..4660d3372 100644
+index 9e398cd71..2102f0209 100644
 --- a/src/http/modules/ngx_http_log_module.c
 +++ b/src/http/modules/ngx_http_log_module.c
 @@ -9,6 +9,10 @@
  #include <ngx_core.h>
  #include <ngx_http.h>
- 
+
 +#if (NGX_RESTY_EXT && NGX_EXPR)
 +#include <ngx_http_expr_module.h>
 +#endif
@@ -5078,31 +5078,29 @@ index 9e398cd71..4660d3372 100644
  #if (NGX_ZLIB)
  #include <zlib.h>
  #endif
-@@ -68,7 +72,12 @@ typedef struct {
+@@ -68,6 +72,10 @@ typedef struct {
      time_t                      error_log_time;
      ngx_syslog_peer_t          *syslog_peer;
      ngx_http_log_fmt_t         *format;
 +#if (NGX_RESTY_EXT && NGX_EXPR)
 +    ngx_flag_t                  off;
 +    ngx_expr_when_id_t          expr_id;
-+#else
-     ngx_http_complex_value_t   *filter;
 +#endif
+     ngx_http_complex_value_t   *filter;
  } ngx_http_log_t;
- 
- 
-@@ -81,7 +90,9 @@ typedef struct {
- 
+
+@@ -81,7 +89,9 @@ typedef struct {
+
      ngx_flag_t                  escape_non_ascii;
- 
+
 +#if !(NGX_RESTY_EXT && NGX_EXPR)
      ngx_uint_t                  off;        /* unsigned  off:1 */
 +#endif
  } ngx_http_log_loc_conf_t;
- 
- 
-@@ -179,6 +190,10 @@ static ngx_command_t  ngx_http_log_commands[] = {
- 
+
+
+@@ -179,6 +189,10 @@ static ngx_command_t  ngx_http_log_commands[] = {
+
      { ngx_string("access_log"),
        NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF
 +#if (NGX_RESTY_EXT && NGX_EXPR)
@@ -5112,29 +5110,19 @@ index 9e398cd71..4660d3372 100644
                          |NGX_HTTP_LMT_CONF|NGX_CONF_1MORE,
        ngx_http_log_set_log,
        NGX_HTTP_LOC_CONF_OFFSET,
-@@ -269,7 +284,9 @@ ngx_http_log_handler(ngx_http_request_t *r)
-     u_char                   *line, *p, *end;
-     size_t                    len, size;
-     ssize_t                   n;
-+#if !(NGX_RESTY_EXT && NGX_EXPR)
-     ngx_str_t                 val;
-+#endif
-     ngx_uint_t                i, l;
-     ngx_http_log_t           *log;
-     ngx_http_log_op_t        *op;
-@@ -281,13 +298,25 @@ ngx_http_log_handler(ngx_http_request_t *r)
- 
+@@ -281,13 +295,26 @@ ngx_http_log_handler(ngx_http_request_t *r)
+
      lcf = ngx_http_get_module_loc_conf(r, ngx_http_log_module);
- 
+
 +#if !(NGX_RESTY_EXT && NGX_EXPR)
      if (lcf->off) {
          return NGX_OK;
      }
 +#endif
- 
+
      log = lcf->logs->elts;
      for (l = 0; l < lcf->logs->nelts; l++) {
- 
+
 +#if (NGX_RESTY_EXT && NGX_EXPR)
 +        if (ngx_http_expr_get_result(r, log[l].expr_id) != NGX_EXPR_WHEN_HIT)
 +        {
@@ -5144,22 +5132,15 @@ index 9e398cd71..4660d3372 100644
 +        if (log[l].off) {
 +            return NGX_OK;
 +        }
-+#else
++#endif
++
          if (log[l].filter) {
              if (ngx_http_complex_value(r, log[l].filter, &val) != NGX_OK) {
                  return NGX_ERROR;
-@@ -297,6 +326,7 @@ ngx_http_log_handler(ngx_http_request_t *r)
-                 continue;
-             }
-         }
-+#endif
- 
-         if (ngx_time() == log[l].disk_full_time) {
- 
-@@ -1336,6 +1366,17 @@ ngx_http_log_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -1336,6 +1363,17 @@ ngx_http_log_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
          }
      }
- 
+
 +#if (NGX_RESTY_EXT && NGX_EXPR)
 +    if (conf->logs) {
 +        return NGX_CONF_OK;
@@ -5174,24 +5155,17 @@ index 9e398cd71..4660d3372 100644
      if (conf->logs || conf->off) {
          return NGX_CONF_OK;
      }
-@@ -1346,6 +1387,7 @@ ngx_http_log_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -1346,6 +1384,7 @@ ngx_http_log_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      if (conf->logs || conf->off) {
          return NGX_CONF_OK;
      }
 +#endif
- 
+
      conf->logs = ngx_array_create(cf->pool, 2, sizeof(ngx_http_log_t));
      if (conf->logs == NULL) {
-@@ -1391,11 +1433,39 @@ ngx_http_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
-     ngx_http_log_fmt_t                *fmt;
-     ngx_http_log_main_conf_t          *lmcf;
-     ngx_http_script_compile_t          sc;
-+#if !(NGX_RESTY_EXT && NGX_EXPR)
-     ngx_http_compile_complex_value_t   ccv;
-+#endif
- 
+@@ -1396,6 +1435,32 @@ ngx_http_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
      value = cf->args->elts;
- 
+
      if (ngx_strcmp(value[1].data, "off") == 0) {
 +#if (NGX_RESTY_EXT && NGX_EXPR)
 +        if (cf->args->nelts != 2) {
@@ -5222,40 +5196,24 @@ index 9e398cd71..4660d3372 100644
          llcf->off = 1;
          if (cf->args->nelts == 2) {
              return NGX_CONF_OK;
-@@ -1404,6 +1474,7 @@ ngx_http_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+@@ -1404,6 +1469,7 @@ ngx_http_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
          ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
                             "invalid parameter \"%V\"", &value[2]);
          return NGX_CONF_ERROR;
 +#endif
      }
- 
+
      if (llcf->logs == NULL) {
-@@ -1421,6 +1492,9 @@ ngx_http_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+@@ -1421,6 +1487,9 @@ ngx_http_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
      }
- 
+
      ngx_memzero(log, sizeof(ngx_http_log_t));
 +#if (NGX_RESTY_EXT && NGX_EXPR)
 +    log->expr_id = ngx_expr_get_associated_when_id(cf);
 +#endif
- 
- 
+
+
      if (ngx_strncmp(value[1].data, "syslog:", 7) == 0) {
-@@ -1571,6 +1645,7 @@ process_formats:
- #endif
-         }
- 
-+#if !(NGX_RESTY_EXT && NGX_EXPR)
-         if (ngx_strncmp(value[i].data, "if=", 3) == 0) {
-             s.len = value[i].len - 3;
-             s.data = value[i].data + 3;
-@@ -1593,6 +1668,7 @@ process_formats:
- 
-             continue;
-         }
-+#endif
- 
-         ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-                            "invalid parameter \"%V\"", &value[i]);
 diff --git a/src/http/modules/ngx_http_memcached_module.c b/src/http/modules/ngx_http_memcached_module.c
 index e7e8871ae..0097e7084 100644
 --- a/src/http/modules/ngx_http_memcached_module.c
@@ -23984,7 +23942,7 @@ index 6b487289a..b3862e797 100644
              ngx_http_close_request(r, NGX_HTTP_CLOSE);
              break;
 diff --git a/src/stream/ngx_stream_log_module.c b/src/stream/ngx_stream_log_module.c
-index 774bc7e93..b4d5acdb4 100644
+index 774bc7e93..bf6cf6d90 100644
 --- a/src/stream/ngx_stream_log_module.c
 +++ b/src/stream/ngx_stream_log_module.c
 @@ -9,6 +9,10 @@
@@ -23998,20 +23956,18 @@ index 774bc7e93..b4d5acdb4 100644
  #if (NGX_ZLIB)
  #include <zlib.h>
  #endif
-@@ -67,7 +71,12 @@ typedef struct {
+@@ -67,6 +71,10 @@ typedef struct {
      time_t                       error_log_time;
      ngx_syslog_peer_t           *syslog_peer;
      ngx_stream_log_fmt_t        *format;
 +#if (NGX_RESTY_EXT && NGX_EXPR)
 +    ngx_flag_t                   off;
 +    ngx_expr_when_id_t           expr_id;
-+#else
-     ngx_stream_complex_value_t  *filter;
 +#endif
+     ngx_stream_complex_value_t  *filter;
  } ngx_stream_log_t;
 
-
-@@ -78,7 +87,9 @@ typedef struct {
+@@ -78,7 +86,9 @@ typedef struct {
      time_t                       open_file_cache_valid;
      ngx_uint_t                   open_file_cache_min_uses;
 
@@ -24021,7 +23977,7 @@ index 774bc7e93..b4d5acdb4 100644
  } ngx_stream_log_srv_conf_t;
 
 
-@@ -155,7 +166,13 @@ static ngx_command_t  ngx_stream_log_commands[] = {
+@@ -155,7 +165,13 @@ static ngx_command_t  ngx_stream_log_commands[] = {
        NULL },
 
      { ngx_string("access_log"),
@@ -24035,17 +23991,7 @@ index 774bc7e93..b4d5acdb4 100644
        ngx_stream_log_set_log,
        NGX_STREAM_SRV_CONF_OFFSET,
        0,
-@@ -206,7 +223,9 @@ ngx_stream_log_handler(ngx_stream_session_t *s)
-     u_char                     *line, *p, *end;
-     size_t                      len, size;
-     ssize_t                     n;
-+#if !(NGX_RESTY_EXT && NGX_EXPR)
-     ngx_str_t                   val;
-+#endif
-     ngx_uint_t                  i, l;
-     ngx_stream_log_t           *log;
-     ngx_stream_log_op_t        *op;
-@@ -218,13 +237,27 @@ ngx_stream_log_handler(ngx_stream_session_t *s)
+@@ -218,13 +234,28 @@ ngx_stream_log_handler(ngx_stream_session_t *s)
 
      lscf = ngx_stream_get_module_srv_conf(s, ngx_stream_log_module);
 
@@ -24069,19 +24015,12 @@ index 774bc7e93..b4d5acdb4 100644
 +        if (log[l].off) {
 +            return NGX_OK;
 +        }
-+#else
++#endif
++
          if (log[l].filter) {
              if (ngx_stream_complex_value(s, log[l].filter, &val) != NGX_OK) {
                  return NGX_ERROR;
-@@ -234,6 +267,7 @@ ngx_stream_log_handler(ngx_stream_session_t *s)
-                 continue;
-             }
-         }
-+#endif
-
-         if (ngx_time() == log[l].disk_full_time) {
-
-@@ -1024,12 +1058,20 @@ ngx_stream_log_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -1024,12 +1055,20 @@ ngx_stream_log_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
          }
      }
 
@@ -24102,14 +24041,7 @@ index 774bc7e93..b4d5acdb4 100644
 
      return NGX_CONF_OK;
  }
-@@ -1051,11 +1093,39 @@ ngx_stream_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
-     ngx_stream_log_fmt_t                *fmt;
-     ngx_stream_script_compile_t          sc;
-     ngx_stream_log_main_conf_t          *lmcf;
-+#if !(NGX_RESTY_EXT && NGX_EXPR)
-     ngx_stream_compile_complex_value_t   ccv;
-+#endif
-
+@@ -1056,6 +1095,32 @@ ngx_stream_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
      value = cf->args->elts;
 
      if (ngx_strcmp(value[1].data, "off") == 0) {
@@ -24142,7 +24074,7 @@ index 774bc7e93..b4d5acdb4 100644
          lscf->off = 1;
          if (cf->args->nelts == 2) {
              return NGX_CONF_OK;
-@@ -1064,6 +1134,7 @@ ngx_stream_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+@@ -1064,6 +1129,7 @@ ngx_stream_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
          ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
                             "invalid parameter \"%V\"", &value[2]);
          return NGX_CONF_ERROR;
@@ -24150,7 +24082,7 @@ index 774bc7e93..b4d5acdb4 100644
      }
 
      if (lscf->logs == NULL) {
-@@ -1081,6 +1152,9 @@ ngx_stream_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+@@ -1081,6 +1147,9 @@ ngx_stream_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
      }
 
      ngx_memzero(log, sizeof(ngx_stream_log_t));
@@ -24160,22 +24092,6 @@ index 774bc7e93..b4d5acdb4 100644
 
 
      if (ngx_strncmp(value[1].data, "syslog:", 7) == 0) {
-@@ -1228,6 +1302,7 @@ process_formats:
- #endif
-         }
-
-+#if !(NGX_RESTY_EXT && NGX_EXPR)
-         if (ngx_strncmp(value[i].data, "if=", 3) == 0) {
-             s.len = value[i].len - 3;
-             s.data = value[i].data + 3;
-@@ -1250,6 +1325,7 @@ process_formats:
-
-             continue;
-         }
-+#endif
-
-         ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-                            "invalid parameter \"%V\"", &value[i]);
 diff --git a/src/stream/ngx_stream_proxy_module.c b/src/stream/ngx_stream_proxy_module.c
 index 746656910..a6bc49fdc 100644
 --- a/src/stream/ngx_stream_proxy_module.c

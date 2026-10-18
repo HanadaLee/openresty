@@ -1426,7 +1426,7 @@ Defines conditions under which the response will not be gzipped. If at least one
 
 ### Conditional access_log
 
-* **Syntax:** *access_log path [format [buffer=size] [gzip[=level]] [flush=time]]*;  *access_log off*;
+* **Syntax:** *access_log path [format [buffer=size] [gzip[=level]] [flush=time] [if=condition]]*;  *access_log off*;
 
 * **Default:** *access_log logs/access.log combined;*
 
