@@ -1,0 +1,52 @@
+diff --git a/ngx_cache_purge_refresh.c b/ngx_cache_purge_refresh.c
+index 0b68715..3ccaeb5 100644
+--- a/ngx_cache_purge_refresh.c
++++ b/ngx_cache_purge_refresh.c
+@@ -30,6 +30,10 @@
+ #include "ngx_cache_purge.h"
+ #include "ngx_cache_purge_upstream.h"
+ 
++#if (NGX_RESTY_EXT && NGX_EXPR)
++#include <ngx_http_expr_module.h>
++#endif
++
+ #if (NGX_HTTP_CACHE)
+ /* -- bounded conditional REFRESH ---------------------------------------- */
+ 
+@@ -903,11 +907,23 @@ ngx_http_cache_refresh_guard(ngx_http_request_t *r)
+         reason = "internal redirect changed the profile URI";
+         goto invalid;
+     }
++# if (NGX_RESTY_EXT && NGX_EXPR)
++    if (ngx_http_get_expr_flag_value(r,
++                                    proxy->upstream.pass_request_headers_conf))
++    {
++# else
+     if (proxy->upstream.pass_request_headers) {
++# endif
+         reason = "\"proxy_pass_request_headers\" must be off";
+         goto invalid;
+     }
++# if (NGX_RESTY_EXT && NGX_EXPR)
++    if (ngx_http_get_expr_flag_value(r,
++                                    proxy->upstream.pass_request_body_conf))
++    {
++# else
+     if (proxy->upstream.pass_request_body) {
++# endif
+         reason = "\"proxy_pass_request_body\" must be off";
+         goto invalid;
+     }
+@@ -926,8 +942,12 @@ ngx_http_cache_refresh_guard(ngx_http_request_t *r)
+     }
+     ngx_str_set(&method, "HEAD");
+ # if (nginx_version >= 1011006)
++#  if (NGX_RESTY_EXT && NGX_EXPR)
++    if (ngx_http_get_expr_complex_value(r, proxy->method, &method) == NGX_ERROR)
++#  else
+     if (proxy->method != NULL
+         && ngx_http_complex_value(r, proxy->method, &method) != NGX_OK)
++#  endif
+     {
+         reason = "could not evaluate \"proxy_method\"";
+         goto invalid;

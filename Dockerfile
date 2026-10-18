@@ -473,6 +473,9 @@ RUN RESTY_VERSION="$(cat /build/openresty-version)" \
     && NGINX_VERSION="${RESTY_VERSION%.*}" \
     && OPENRESTY_DIR="/build/openresty-${RESTY_VERSION}" \
     && NGINX_DIR="${OPENRESTY_DIR}/bundle/nginx-${NGINX_VERSION}" \
+    && cd /build/modules/ngx_http_cache_purge_module \
+    && echo 'patching ngx_http_cache_purge_module for conditional proxy settings' \
+    && patch -p1 < /build/patches/ngx_http_cache_purge_module-ext.patch \
     && cd /build/modules/ngx_http_modsecurity_module \
     && echo 'patching ngx_http_modsecurity_module' \
     && patch -p1 < /build/patches/ngx_http_modsecurity_module-ext.patch \
