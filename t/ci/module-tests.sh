@@ -9,6 +9,7 @@ trap 'rm -rf "$work"' EXIT
 mkdir -p "$work/bin" "$work/official/lib" "$work/openresty/lib"
 export MOCK_MODULE_ROOT="$work/modules with spaces"
 export MOCK_MODULE_CALLS="$work/calls"
+export TEST_MODULE_OUTPUT="$work/reports"
 export NGINX_TESTS_ROOT="$work/official"
 export TEST_NGINX_ROOT="$work/openresty"
 export TEST_NGINX_BINARY="$work/bin/nginx"
@@ -94,15 +95,16 @@ grep -Fxq "$module|log_set_legacy.t" "$MOCK_MODULE_CALLS"
 echo 'PASS: legacy-only suites are selected according to the built nginx configuration'
 unset MOCK_LEGACY_MODULES
 
-export MOCK_FAIL_MODULE=a
+export MOCK_FAIL_MODULE=a MOCK_FAIL_CODE=17
 if run; then
     echo 'FAIL: a failed module suite was accepted' >&2
     exit 1
 fi
 grep -Fxq 'b|official.t' "$MOCK_MODULE_CALLS"
 grep -Fxq 'a|socket.t' "$MOCK_MODULE_CALLS"
+grep -Fxq $'a\tofficial\t1\t17' "$TEST_MODULE_OUTPUT/results.tsv"
 echo 'PASS: failures propagate without skipping later suites'
-unset MOCK_FAIL_MODULE
+unset MOCK_FAIL_MODULE MOCK_FAIL_CODE
 
 export MOCK_MISSING_MODULE=1
 if run; then

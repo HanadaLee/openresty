@@ -21,4 +21,6 @@ for test in "$@"; do
     fi
     printf '%s|%s\n' "$(basename "$PWD")" "$(basename "$test")" >> "$MOCK_MODULE_CALLS"
 done
-[[ "${MOCK_FAIL_MODULE:-}" != "$(basename "$PWD")" ]]
+if [[ "${MOCK_FAIL_MODULE:-}" == "$(basename "$PWD")" ]]; then
+    exit "${MOCK_FAIL_CODE:-1}"
+fi

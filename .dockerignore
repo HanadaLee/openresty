@@ -1,6 +1,7 @@
 .git
 .github
 .gitlab-ci.yml
+.ci/test-output
 .gitattributes
 .gitignore
 

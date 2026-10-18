@@ -55,6 +55,9 @@ module_list="$(printf '%s\n' "$nginx_config" | perl -MText::ParseWords=shellword
 status=0
 suites=0
 files=0
+output="${TEST_MODULE_OUTPUT:-$(mktemp -d)}"
+mkdir -p "$output"
+printf 'module\tframework\tfiles\texit_code\n' > "$output/results.tsv"
 while IFS= read -r module_dir; do
     # Bundled OpenResty modules and dependency submodules are not standalone
     # repositories under this root. Only test modules compiled into this image.
@@ -114,11 +117,13 @@ while IFS= read -r module_dir; do
         suites=$((suites + 1))
         files=$((files + ${#tests[@]}))
         echo "::group::$name ($framework, ${#tests[@]} files)"
+        mkdir -p "$output/$name-$framework/tmp"
         if (
             cd "$module_dir" || exit 1
             # Keep the repository, fixtures and helper libraries together.
             # The two incompatible Test::Nginx implementations stay isolated.
             export PERL5LIB="$harness/lib:$module_dir/t/lib:$module_dir/lib"
+            export TMPDIR="$output/$name-$framework/tmp" TEST_NGINX_LEAVE=1
             if [[ "$(id -u)" == 0 ]]; then
                 export TEST_NGINX_GLOBALS="${TEST_NGINX_GLOBALS:-user root;}"
             fi
@@ -126,11 +131,19 @@ while IFS= read -r module_dir; do
                 export NGINX_TESTS="$NGINX_TESTS_ROOT"
             fi
             timeout "${TEST_MODULE_TIMEOUT:-600}" prove -v "${tests[@]}"
-        ); then
+        ) 2>&1 | tee "$output/$name-$framework/prove.log"; then
+            printf '%s\t%s\t%s\t0\n' "$name" "$framework" "${#tests[@]}" >> "$output/results.tsv"
             echo "PASS: $name ($framework)"
         else
+            suite_codes=("${PIPESTATUS[@]}")
+            suite_rc="${suite_codes[0]}"
+            if ((suite_rc == 0)); then suite_rc="${suite_codes[1]}"; fi
+            printf '%s\t%s\t%s\t%s\n' "$name" "$framework" "${#tests[@]}" "$suite_rc" >> "$output/results.tsv"
             echo "FAIL: $name ($framework)" >&2
             status=1
+        fi
+        if [[ -d "$module_dir/t/servroot" ]]; then
+            cp -a "$module_dir/t/servroot" "$output/$name-$framework/servroot"
         fi
         echo '::endgroup::'
     done
