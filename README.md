@@ -983,6 +983,11 @@ This bundle also adds controls for hiding upstream cookies by name and suppressi
 
 Sets "Set-Cookie" fields that will not be passed by cookie name.
 
+All unconditional declarations and declarations with matching `when` conditions
+at the current level are checked in declaration order. Declarations from the
+previous level are used only when none at the current level are enabled; a
+cookie name mismatch does not cause a fallback to the previous level.
+
 See also the [proxy_hide_header](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_hide_header) directive.
 
 > fastcgi_hide_cookie, scgi_hide_cookie and uwsgi_hide_cookie directives are also available.
