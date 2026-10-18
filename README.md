@@ -762,7 +762,7 @@ when replace_origin {
 sub_filter_once off;
 ```
 
-All unconditional pairs and all pairs whose conditions match are applied together in configuration order. The native inheritance rule is unchanged: pairs are inherited from the previous configuration level only when the current level defines no `sub_filter` pair, including pairs inside `when`.
+The previous configuration level is used when the current level has no pairs or all of its `when` conditions are false. Otherwise, its unconditional pairs and pairs with matching conditions form the replacement set. A search string that is absent from the response or evaluates to an empty value does not cause a fallback to parent pairs; an empty replacement removes the matching text.
 
 [Back to TOC](#table-of-contents)
 
