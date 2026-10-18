@@ -41,6 +41,10 @@ jobs:
         shell: bash
         run: bash t/ci/module-tests.sh
 
+      - name: Check regression result recording
+        shell: bash
+        run: bash t/ci/test-run.sh
+
       - name: Read version
         id: version
         shell: bash
@@ -61,7 +65,6 @@ jobs:
       resty_release: ${{ needs.prepare.outputs.resty_release }}
       version: ${{ needs.prepare.outputs.version }}
       publish_arch_images: ${{ needs.prepare.outputs.publish_images == 'true' }}
-      run_full_regression: ${{ needs.prepare.outputs.release_needed == 'true' }}
     secrets: inherit
 
   publish:

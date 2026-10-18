@@ -40,7 +40,20 @@ build-amd64:
     - debian-x86_64
   script:
     - |
+      set -eu
+      builder_image="openresty-c-test:${VERSION}-amd64"
       test_image="openresty-patch-test:${VERSION}-amd64"
+
+      bash t/ci/release-state.sh
+      bash t/ci/module-tests.sh
+      bash t/ci/test-run.sh
+      docker build --target openresty-build \
+        --build-arg RESTY_VERSION="${RESTY_VERSION}" \
+        --build-arg RESTY_RELEASE="${RESTY_RELEASE}" \
+        --build-arg RESTY_DEBUG_OPTIONS=--with-debug \
+        --tag "$builder_image" .
+      bash util/ci/run-c-module-tests.sh "$builder_image"
+      bash util/ci/run-module-tests.sh "$builder_image"
 
       docker build \
         --build-arg RESTY_VERSION="${RESTY_VERSION}" \
@@ -65,6 +78,11 @@ build-amd64:
           "${HARBOR_IMAGE}:${VERSION}-amd64"
         bash util/ci/push-architecture-images.sh "$VERSION" amd64
       fi
+  artifacts:
+    when: always
+    paths:
+      - .ci/test-output/
+    expire_in: 14 days
 
 build-arm64:
   extends: .docker-job
@@ -73,7 +91,20 @@ build-arm64:
     - debian-aarch64
   script:
     - |
+      set -eu
+      builder_image="openresty-c-test:${VERSION}-arm64"
       test_image="openresty-patch-test:${VERSION}-arm64"
+
+      bash t/ci/release-state.sh
+      bash t/ci/module-tests.sh
+      bash t/ci/test-run.sh
+      docker build --target openresty-build \
+        --build-arg RESTY_VERSION="${RESTY_VERSION}" \
+        --build-arg RESTY_RELEASE="${RESTY_RELEASE}" \
+        --build-arg RESTY_DEBUG_OPTIONS=--with-debug \
+        --tag "$builder_image" .
+      bash util/ci/run-c-module-tests.sh "$builder_image"
+      bash util/ci/run-module-tests.sh "$builder_image"
 
       docker build \
         --build-arg RESTY_VERSION="${RESTY_VERSION}" \
@@ -98,6 +129,11 @@ build-arm64:
           "${HARBOR_IMAGE}:${VERSION}-arm64"
         bash util/ci/push-architecture-images.sh "$VERSION" arm64
       fi
+  artifacts:
+    when: always
+    paths:
+      - .ci/test-output/
+    expire_in: 14 days
 
 create-manifest:
   extends: .docker-job

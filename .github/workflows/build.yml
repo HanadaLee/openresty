@@ -15,9 +15,6 @@ on:
       publish_arch_images:
         required: true
         type: boolean
-      run_full_regression:
-        required: true
-        type: boolean
 
 env:
   HARBOR_IMAGE: registry.hanada.info/openresty/openresty
@@ -69,7 +66,6 @@ jobs:
         run: bash util/ci/run-c-module-tests.sh "$TEST_BUILD_IMAGE"
 
       - name: Run full standalone module regression
-        if: inputs.run_full_regression
         shell: bash
         env:
           TEST_BUILD_IMAGE: openresty-c-test:${{ inputs.version }}-${{ matrix.suffix }}
@@ -174,3 +170,13 @@ jobs:
         run: |
           set -euo pipefail
           bash util/ci/push-architecture-images.sh "$VERSION" "$ARCH_SUFFIX"
+
+      - name: Upload regression results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: regression-results-${{ matrix.suffix }}
+          path: .ci/test-output/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 14
