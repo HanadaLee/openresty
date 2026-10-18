@@ -1438,6 +1438,22 @@ Define conditions with `ngx_expr_module` and put conditional log entries
 in `when` blocks. Every matching `access_log` entry is written in configuration
 order. Use `when !condition_name` for the inverse case.
 
+The `if=` parameter remains available with or without `ngx_expr_module`.
+Logging is skipped if its value is empty or equal to `0`. When both `when`
+and `if=` are specified, both conditions must permit logging. The `if!=`
+parameter is not supported. This also applies to `upstream_log`.
+
+At each configuration level, an unconditional entry or an entry whose `when`
+condition matches replaces the inherited log list. If no entry is active,
+the nearest parent level with active entries is used. All active entries on
+the selected level are processed in order; parent and child lists are not
+combined. Inherited conditions use the current expression definitions.
+
+The `if=` parameter filters entries after selecting the configuration level.
+A false `if=` value, a matching `off`, or a write failure does not cause
+fallback to a parent level. `upstream_log` and `stat_log` use the same level
+selection rules, independently of `access_log`.
+
 ```nginx
 expr loggable !str_eq $status 204;
 

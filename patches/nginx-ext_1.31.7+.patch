@@ -5064,7 +5064,7 @@ index f72044097..39cfa011e 100644
              *expires = NGX_HTTP_EXPIRES_OFF;
              return NGX_OK;
 diff --git a/src/http/modules/ngx_http_log_module.c b/src/http/modules/ngx_http_log_module.c
-index 9e398cd71..2102f0209 100644
+index 9e398cd71..18585ecec 100644
 --- a/src/http/modules/ngx_http_log_module.c
 +++ b/src/http/modules/ngx_http_log_module.c
 @@ -9,6 +9,10 @@
@@ -5078,7 +5078,7 @@ index 9e398cd71..2102f0209 100644
  #if (NGX_ZLIB)
  #include <zlib.h>
  #endif
-@@ -68,6 +72,10 @@ typedef struct {
+@@ -68,11 +72,19 @@ typedef struct {
      time_t                      error_log_time;
      ngx_syslog_peer_t          *syslog_peer;
      ngx_http_log_fmt_t         *format;
@@ -5089,17 +5089,28 @@ index 9e398cd71..2102f0209 100644
      ngx_http_complex_value_t   *filter;
  } ngx_http_log_t;
 
-@@ -81,7 +89,9 @@ typedef struct {
+
++#if (NGX_RESTY_EXT)
++typedef struct ngx_http_log_loc_conf_s {
++#else
+ typedef struct {
++#endif
+     ngx_array_t                *logs;       /* array of ngx_http_log_t */
+
+     ngx_open_file_cache_t      *open_file_cache;
+@@ -81,7 +93,11 @@ typedef struct {
 
      ngx_flag_t                  escape_non_ascii;
 
-+#if !(NGX_RESTY_EXT && NGX_EXPR)
++#if (NGX_RESTY_EXT && NGX_EXPR)
++    struct ngx_http_log_loc_conf_s  *parent;
++#else
      ngx_uint_t                  off;        /* unsigned  off:1 */
 +#endif
  } ngx_http_log_loc_conf_t;
 
 
-@@ -179,6 +189,10 @@ static ngx_command_t  ngx_http_log_commands[] = {
+@@ -179,6 +195,10 @@ static ngx_command_t  ngx_http_log_commands[] = {
 
      { ngx_string("access_log"),
        NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF
@@ -5110,11 +5121,32 @@ index 9e398cd71..2102f0209 100644
                          |NGX_HTTP_LMT_CONF|NGX_CONF_1MORE,
        ngx_http_log_set_log,
        NGX_HTTP_LOC_CONF_OFFSET,
-@@ -281,13 +295,26 @@ ngx_http_log_handler(ngx_http_request_t *r)
+@@ -275,19 +295,50 @@ ngx_http_log_handler(ngx_http_request_t *r)
+     ngx_http_log_op_t        *op;
+     ngx_http_log_buf_t       *buffer;
+     ngx_http_log_loc_conf_t  *lcf;
++#if (NGX_RESTY_EXT && NGX_EXPR)
++    ngx_uint_t                matched;
++#endif
+
+     ngx_log_debug0(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                    "http log handler");
 
      lcf = ngx_http_get_module_loc_conf(r, ngx_http_log_module);
 
-+#if !(NGX_RESTY_EXT && NGX_EXPR)
++#if (NGX_RESTY_EXT && NGX_EXPR)
++next_level:
++
++    while (lcf && lcf->logs == NULL) {
++        lcf = lcf->parent;
++    }
++
++    if (lcf == NULL) {
++        return NGX_OK;
++    }
++
++    matched = 0;
++#else
      if (lcf->off) {
          return NGX_OK;
      }
@@ -5129,6 +5161,9 @@ index 9e398cd71..2102f0209 100644
 +            continue;
 +        }
 +
++        /* A matching entry selects this level even if if= skips it. */
++        matched = 1;
++
 +        if (log[l].off) {
 +            return NGX_OK;
 +        }
@@ -5137,25 +5172,70 @@ index 9e398cd71..2102f0209 100644
          if (log[l].filter) {
              if (ngx_http_complex_value(r, log[l].filter, &val) != NGX_OK) {
                  return NGX_ERROR;
-@@ -1336,6 +1363,17 @@ ngx_http_log_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -421,6 +472,13 @@ ngx_http_log_handler(ngx_http_request_t *r)
+         ngx_http_log_write(r, &log[l], line, p - line);
+     }
+
++#if (NGX_RESTY_EXT && NGX_EXPR)
++    if (!matched) {
++        lcf = lcf->parent;
++        goto next_level;
++    }
++#endif
++
+     return NGX_OK;
+ }
+
+@@ -1322,6 +1380,10 @@ ngx_http_log_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+     ngx_http_log_t            *log;
+     ngx_http_log_fmt_t        *fmt;
+     ngx_http_log_main_conf_t  *lmcf;
++#if (NGX_RESTY_EXT && NGX_EXPR)
++    ngx_uint_t                i;
++    ngx_http_log_loc_conf_t  *fallback;
++#endif
+
+     ngx_conf_merge_value(conf->escape_non_ascii, prev->escape_non_ascii, 1);
+
+@@ -1336,6 +1398,37 @@ ngx_http_log_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
          }
      }
 
 +#if (NGX_RESTY_EXT && NGX_EXPR)
-+    if (conf->logs) {
-+        return NGX_CONF_OK;
++    conf->parent = prev;
++
++    /* Only a chain without an unconditional entry needs the default log. */
++    for (fallback = conf; /* void */; fallback = fallback->parent) {
++        if (fallback->logs) {
++            log = fallback->logs->elts;
++            for (i = 0; i < fallback->logs->nelts; i++) {
++                if (log[i].expr_id == NGX_EXPR_NO_WHEN_ID) {
++                    return NGX_CONF_OK;
++                }
++            }
++        }
++
++        if (fallback->parent == NULL) {
++            break;
++        }
 +    }
 +
-+    conf->logs = prev->logs;
++    if (fallback->logs) {
++        fallback->parent = ngx_pcalloc(cf->pool,
++                                       sizeof(ngx_http_log_loc_conf_t));
++        if (fallback->parent == NULL) {
++            return NGX_CONF_ERROR;
++        }
 +
-+    if (conf->logs) {
-+        return NGX_CONF_OK;
++        fallback = fallback->parent;
 +    }
++
++    conf = fallback;
 +#else
      if (conf->logs || conf->off) {
          return NGX_CONF_OK;
      }
-@@ -1346,6 +1384,7 @@ ngx_http_log_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -1346,6 +1439,7 @@ ngx_http_log_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      if (conf->logs || conf->off) {
          return NGX_CONF_OK;
      }
@@ -5163,7 +5243,18 @@ index 9e398cd71..2102f0209 100644
 
      conf->logs = ngx_array_create(cf->pool, 2, sizeof(ngx_http_log_t));
      if (conf->logs == NULL) {
-@@ -1396,6 +1435,32 @@ ngx_http_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+@@ -1359,6 +1453,10 @@ ngx_http_log_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+
+     ngx_memzero(log, sizeof(ngx_http_log_t));
+
++#if (NGX_RESTY_EXT && NGX_EXPR)
++    log->expr_id = NGX_EXPR_NO_WHEN_ID;
++#endif
++
+     log->file = ngx_conf_open_file(cf->cycle, &ngx_http_access_log);
+     if (log->file == NULL) {
+         return NGX_CONF_ERROR;
+@@ -1396,6 +1494,32 @@ ngx_http_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
      value = cf->args->elts;
 
      if (ngx_strcmp(value[1].data, "off") == 0) {
@@ -5196,7 +5287,7 @@ index 9e398cd71..2102f0209 100644
          llcf->off = 1;
          if (cf->args->nelts == 2) {
              return NGX_CONF_OK;
-@@ -1404,6 +1469,7 @@ ngx_http_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+@@ -1404,6 +1528,7 @@ ngx_http_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
          ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
                             "invalid parameter \"%V\"", &value[2]);
          return NGX_CONF_ERROR;
@@ -5204,7 +5295,7 @@ index 9e398cd71..2102f0209 100644
      }
 
      if (llcf->logs == NULL) {
-@@ -1421,6 +1487,9 @@ ngx_http_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+@@ -1421,6 +1546,9 @@ ngx_http_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
      }
 
      ngx_memzero(log, sizeof(ngx_http_log_t));
@@ -23942,7 +24033,7 @@ index 6b487289a..b3862e797 100644
              ngx_http_close_request(r, NGX_HTTP_CLOSE);
              break;
 diff --git a/src/stream/ngx_stream_log_module.c b/src/stream/ngx_stream_log_module.c
-index 774bc7e93..bf6cf6d90 100644
+index 774bc7e93..da18f30e6 100644
 --- a/src/stream/ngx_stream_log_module.c
 +++ b/src/stream/ngx_stream_log_module.c
 @@ -9,6 +9,10 @@
@@ -23956,7 +24047,7 @@ index 774bc7e93..bf6cf6d90 100644
  #if (NGX_ZLIB)
  #include <zlib.h>
  #endif
-@@ -67,6 +71,10 @@ typedef struct {
+@@ -67,18 +71,30 @@ typedef struct {
      time_t                       error_log_time;
      ngx_syslog_peer_t           *syslog_peer;
      ngx_stream_log_fmt_t        *format;
@@ -23967,17 +24058,27 @@ index 774bc7e93..bf6cf6d90 100644
      ngx_stream_complex_value_t  *filter;
  } ngx_stream_log_t;
 
-@@ -78,7 +86,9 @@ typedef struct {
+
++#if (NGX_RESTY_EXT)
++typedef struct ngx_stream_log_srv_conf_s {
++#else
+ typedef struct {
++#endif
+     ngx_array_t                 *logs;       /* array of ngx_stream_log_t */
+
+     ngx_open_file_cache_t       *open_file_cache;
      time_t                       open_file_cache_valid;
      ngx_uint_t                   open_file_cache_min_uses;
 
-+#if !(NGX_RESTY_EXT && NGX_EXPR)
++#if (NGX_RESTY_EXT && NGX_EXPR)
++    struct ngx_stream_log_srv_conf_s  *parent;
++#else
      ngx_uint_t                   off;        /* unsigned  off:1 */
 +#endif
  } ngx_stream_log_srv_conf_t;
 
 
-@@ -155,7 +165,13 @@ static ngx_command_t  ngx_stream_log_commands[] = {
+@@ -155,7 +171,13 @@ static ngx_command_t  ngx_stream_log_commands[] = {
        NULL },
 
      { ngx_string("access_log"),
@@ -23991,17 +24092,36 @@ index 774bc7e93..bf6cf6d90 100644
        ngx_stream_log_set_log,
        NGX_STREAM_SRV_CONF_OFFSET,
        0,
-@@ -218,13 +234,28 @@ ngx_stream_log_handler(ngx_stream_session_t *s)
+@@ -212,19 +234,50 @@ ngx_stream_log_handler(ngx_stream_session_t *s)
+     ngx_stream_log_op_t        *op;
+     ngx_stream_log_buf_t       *buffer;
+     ngx_stream_log_srv_conf_t  *lscf;
++#if (NGX_RESTY_EXT && NGX_EXPR)
++    ngx_uint_t                  matched;
++#endif
+
+     ngx_log_debug0(NGX_LOG_DEBUG_STREAM, s->connection->log, 0,
+                    "stream log handler");
 
      lscf = ngx_stream_get_module_srv_conf(s, ngx_stream_log_module);
 
 +#if (NGX_RESTY_EXT && NGX_EXPR)
-+    if (lscf->logs == NULL) {
++next_level:
++
++    while (lscf && lscf->logs == NULL) {
++        lscf = lscf->parent;
++    }
++
++    if (lscf == NULL) {
++        return NGX_OK;
++    }
++
++    matched = 0;
 +#else
      if (lscf->off || lscf->logs == NULL) {
-+#endif
          return NGX_OK;
      }
++#endif
 
      log = lscf->logs->elts;
      for (l = 0; l < lscf->logs->nelts; l++) {
@@ -24012,6 +24132,9 @@ index 774bc7e93..bf6cf6d90 100644
 +            continue;
 +        }
 +
++        /* A matching entry selects this level even if if= skips it. */
++        matched = 1;
++
 +        if (log[l].off) {
 +            return NGX_OK;
 +        }
@@ -24020,16 +24143,26 @@ index 774bc7e93..bf6cf6d90 100644
          if (log[l].filter) {
              if (ngx_stream_complex_value(s, log[l].filter, &val) != NGX_OK) {
                  return NGX_ERROR;
-@@ -1024,12 +1055,20 @@ ngx_stream_log_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -359,6 +412,13 @@ ngx_stream_log_handler(ngx_stream_session_t *s)
+         ngx_stream_log_write(s, &log[l], line, p - line);
+     }
+
++#if (NGX_RESTY_EXT && NGX_EXPR)
++    if (!matched) {
++        lscf = lscf->parent;
++        goto next_level;
++    }
++#endif
++
+     return NGX_OK;
+ }
+
+@@ -1024,12 +1084,16 @@ ngx_stream_log_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
          }
      }
 
 +#if (NGX_RESTY_EXT && NGX_EXPR)
-+    if (conf->logs) {
-+        return NGX_CONF_OK;
-+    }
-+
-+    conf->logs = prev->logs;
++    conf->parent = prev;
 +#else
      if (conf->logs || conf->off) {
          return NGX_CONF_OK;
@@ -24041,7 +24174,7 @@ index 774bc7e93..bf6cf6d90 100644
 
      return NGX_CONF_OK;
  }
-@@ -1056,6 +1095,32 @@ ngx_stream_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+@@ -1056,6 +1120,32 @@ ngx_stream_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
      value = cf->args->elts;
 
      if (ngx_strcmp(value[1].data, "off") == 0) {
@@ -24074,7 +24207,7 @@ index 774bc7e93..bf6cf6d90 100644
          lscf->off = 1;
          if (cf->args->nelts == 2) {
              return NGX_CONF_OK;
-@@ -1064,6 +1129,7 @@ ngx_stream_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+@@ -1064,6 +1154,7 @@ ngx_stream_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
          ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
                             "invalid parameter \"%V\"", &value[2]);
          return NGX_CONF_ERROR;
@@ -24082,7 +24215,7 @@ index 774bc7e93..bf6cf6d90 100644
      }
 
      if (lscf->logs == NULL) {
-@@ -1081,6 +1147,9 @@ ngx_stream_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+@@ -1081,6 +1172,9 @@ ngx_stream_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
      }
 
      ngx_memzero(log, sizeof(ngx_stream_log_t));
