@@ -394,8 +394,6 @@ RUN cd /build/lib/libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION} \
     && cd /build/lib/openssl-${RESTY_OPENSSL_VERSION} \
     && echo 'patching OpenSSL 3.x for OpenResty' \
     && curl -fSLv https://${RESTY_GIT_RAW_MIRROR}/openresty/openresty/${RESTY_COMMIT}/patches/openssl-${RESTY_OPENSSL_PATCH_VERSION}-sess_set_get_cb_yield.patch | patch -p1 \
-    && echo 'patching OpenSSL 3.x for ngx_ssl_figerprint_module' \
-    && patch -p1 < /build/modules/ngx_ssl_fingerprint_module/patches/openssl-3.5.5+.patch \
     && ./config \
         shared zlib -g \
         --libdir=lib \
