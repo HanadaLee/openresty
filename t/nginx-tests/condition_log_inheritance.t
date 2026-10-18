@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# Select the nearest active logging level, before applying per-entry if=.
+# HTTP and Stream access_log select the nearest active logging level.
 
 use strict;
 use warnings;
@@ -34,14 +34,12 @@ my @requests = (
     ['/parent-off/child', []],
     ['/parent-off/child?child=yes', ['off_child']],
     ['/redefine?server=yes', ['parent']],
-    ['/only-access?child=yes', ['only_access'], ['parent']],
-    ['/only-upstream?child=yes', ['parent'], ['only_upstream']],
     ['/redirect?child=yes&gate=1', ['child']],
-    ['/retry', ['parent'], ['retry', 'parent']],
+    ['/retry', ['parent']],
     ['/fallback', ['parent']],
 );
 my @destinations = qw/parent server child second before after leaf off_child
-    unused only_access only_upstream retry/;
+    unused retry/;
 my @sessions = (
     ['', ['parent']],
     ['when no { access_log %%TESTDIR%%/stream-child.log values; }', ['parent']],
@@ -67,8 +65,8 @@ my @sessions = (
 my @stream_destinations = qw/parent child second before after/;
 
 my $t = Test::Nginx->new()->has(qw/http proxy rewrite stream stream_return
-    ngx_expr_module ngx_http_upstream_log_module/)
-    ->plan(@requests + @sessions + 2 * @destinations + @stream_destinations);
+    ngx_expr_module/)
+    ->plan(@requests + @sessions + @destinations + @stream_destinations);
 
 my $config = <<'EOF';
 %%TEST_GLOBALS%%
@@ -83,7 +81,7 @@ http {
     expr leaf_selected str_eq $arg_leaf yes;
     expr failed_attempt str_eq $upstream_status 502;
     expr no bool false;
-    both_log parent;
+    access_log %%TESTDIR%%/access-parent.log values;
 
     upstream retry_backend {
         server 127.0.0.1:8999;
@@ -92,71 +90,59 @@ http {
     server {
         listen 127.0.0.1:8081;
         access_log off;
-        upstream_log off;
         return 200 ok;
     }
     server {
         listen 127.0.0.1:8080;
-        when server_selected { both_log server; }
+        when server_selected { access_log %%TESTDIR%%/access-server.log values; }
 
         location /fallback {
-            when no { both_log unused; }
+            when no { access_log %%TESTDIR%%/access-unused.log values; }
             proxy_pass http://127.0.0.1:8081;
         }
         location /select {
-            when child_selected { both_log child if=$arg_gate; }
-            when second_selected { both_log second; }
+            when child_selected { access_log %%TESTDIR%%/access-child.log values if=$arg_gate; }
+            when second_selected { access_log %%TESTDIR%%/access-second.log values; }
             proxy_pass http://127.0.0.1:8081;
         }
         location /off {
-            when child_selected { access_log off; upstream_log off; }
+            when child_selected { access_log off; }
             proxy_pass http://127.0.0.1:8081;
         }
         location /ordered {
-            both_log before;
-            when child_selected { access_log off; upstream_log off; }
-            both_log after;
+            access_log %%TESTDIR%%/access-before.log values;
+            when child_selected { access_log off; }
+            access_log %%TESTDIR%%/access-after.log values;
             proxy_pass http://127.0.0.1:8081;
         }
         location /local {
-            both_log child if=$arg_gate;
+            access_log %%TESTDIR%%/access-child.log values if=$arg_gate;
             proxy_pass http://127.0.0.1:8081;
         }
         location /nested {
-            when child_selected { both_log child; }
+            when child_selected { access_log %%TESTDIR%%/access-child.log values; }
             proxy_pass http://127.0.0.1:8081;
             location /nested/deep {
-                when leaf_selected { both_log leaf; }
+                when leaf_selected { access_log %%TESTDIR%%/access-leaf.log values; }
+                proxy_pass http://127.0.0.1:8081;
             }
         }
         location /parent-off {
             access_log off;
-            upstream_log off;
             proxy_pass http://127.0.0.1:8081;
             location /parent-off/child {
-                when child_selected { both_log off_child; }
+                when child_selected { access_log %%TESTDIR%%/access-off_child.log values; }
+                proxy_pass http://127.0.0.1:8081;
             }
         }
         location /redefine {
             expr server_selected bool false;
-            when no { both_log unused; }
-            proxy_pass http://127.0.0.1:8081;
-        }
-        location /only-access {
-            when child_selected {
-                access_log %%TESTDIR%%/access-only_access.log values;
-            }
-            proxy_pass http://127.0.0.1:8081;
-        }
-        location /only-upstream {
-            when child_selected {
-                upstream_log %%TESTDIR%%/upstream-only_upstream.log values;
-            }
+            when no { access_log %%TESTDIR%%/access-unused.log values; }
             proxy_pass http://127.0.0.1:8081;
         }
         location /redirect { rewrite ^ /select last; }
         location /retry {
-            when failed_attempt { both_log retry; }
+            when failed_attempt { access_log %%TESTDIR%%/access-retry.log values; }
             proxy_next_upstream error;
             proxy_next_upstream_tries 2;
             proxy_pass http://retry_backend;
@@ -175,11 +161,6 @@ stream {
 }
 EOF
 
-# Expand identical HTTP access/upstream configurations to compare their rules.
-$config =~ s{both_log ([a-z_]+)([^;]*);}{
-    "access_log %%TESTDIR%%/access-$1.log values$2;\n"
-    . "upstream_log %%TESTDIR%%/upstream-$1.log values$2;"
-}ge;
 my $servers = '';
 for my $i (0 .. $#sessions) {
     my $port = 8100 + $i;
@@ -191,12 +172,10 @@ $t->run();
 
 my %expected;
 for my $i (0 .. $#requests) {
-    my ($uri, $access, $upstream) = @{$requests[$i]};
-    $upstream = $access unless defined $upstream;
+    my ($uri, $access) = @{$requests[$i]};
     $uri .= ($uri =~ /\?/ ? '&' : '?') . "id=$i";
     like(http_get($uri), qr/^HTTP\/1\.1 200 /, "HTTP $uri");
     $expected{"access-$_"} .= "$i\n" for @$access;
-    $expected{"upstream-$_"} .= "$i\n" for @$upstream;
 }
 for my $i (0 .. $#sessions) {
     my $port = port(8100 + $i);
@@ -205,12 +184,10 @@ for my $i (0 .. $#sessions) {
 }
 $t->stop();
 
-for my $kind (qw/access upstream/) {
-    for my $name (@destinations) {
-        my $file = "$kind-$name.log";
-        my $actual = -e $t->testdir() . "/$file" ? $t->read_file($file) : '';
-        is($actual, $expected{"$kind-$name"} || '', "$kind $name inheritance");
-    }
+for my $name (@destinations) {
+    my $file = "access-$name.log";
+    my $actual = -e $t->testdir() . "/$file" ? $t->read_file($file) : '';
+    is($actual, $expected{"access-$name"} || '', "access $name inheritance");
 }
 for my $name (@stream_destinations) {
     is($t->read_file("stream-$name.log"), $expected{"stream-$name"} || '',

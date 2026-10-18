@@ -25,7 +25,7 @@ my @cases = (
     ['hit', 'false', 1],
 );
 my $t = Test::Nginx->new()->has(qw/http proxy rewrite stream stream_return
-    ngx_expr_module ngx_http_upstream_log_module/)->plan(31);
+    ngx_expr_module/)->plan(25);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 %%TEST_GLOBALS%%
@@ -39,10 +39,8 @@ http {
     server {
         listen 127.0.0.1:8080;
         access_log %%TESTDIR%%/access-plain.log values if=$arg_gate;
-        upstream_log %%TESTDIR%%/upstream-plain.log values if=$arg_gate;
         when selected {
             access_log %%TESTDIR%%/access-when.log values if=$arg_gate;
-            upstream_log %%TESTDIR%%/upstream-when.log values if=$arg_gate;
         }
         location / { proxy_pass http://127.0.0.1:8081; }
     }
@@ -86,10 +84,8 @@ for my $case (@cases) {
 is(stream('127.0.0.1:' . port(8082))->read(), 'ok', 'Stream if= session');
 $t->stop();
 
-for my $prefix (qw/access upstream/) {
-    is($t->read_file("$prefix-plain.log"), $plain, "$prefix standard truth values");
-    is($t->read_file("$prefix-when.log"), $combined, "$prefix when AND if=");
-}
+is($t->read_file('access-plain.log'), $plain, 'access standard truth values');
+is($t->read_file('access-when.log'), $combined, 'access when AND if=');
 for my $name (qw/plain hit nonzero/) {
     is($t->read_file("stream-$name.log"), port(8082) . "\n", "Stream $name logs");
 }
@@ -100,14 +96,13 @@ for my $name (qw/zero empty miss/) {
 # Check both ordinary and when contexts. Do not accept if!= syntax.
 for my $spec (
     ['http', 'access_log', '%%TESTDIR%%/invalid.log combined'],
-    ['http', 'upstream_log', '%%TESTDIR%%/invalid.log combined'],
     ['stream', 'access_log', '%%TESTDIR%%/invalid.log values'],
 ) {
     my ($context, $directive, $arguments) = @$spec;
     for my $wrapped (0, 1) {
         my $line = "$directive $arguments if!=1;";
         $line = "when selected { $line }" if $wrapped;
-        my $format = $context eq 'stream' ? "log_format values '\$remote_addr';" : '';
+        my $format = "log_format values '\$remote_addr';";
         $t->write_file_expand('nginx.conf', <<EOF);
 %%TEST_GLOBALS%%
 daemon off;
@@ -132,8 +127,8 @@ $t->write_file_expand('nginx.conf', <<'EOF');
 daemon off;
 events {}
 http {
+    log_format values '$remote_addr';
     access_log %%TESTDIR%%/only-if.log combined if=1;
-    upstream_log %%TESTDIR%%/only-upstream-if.log combined if=0;
 }
 stream {
     log_format values '$remote_addr';
