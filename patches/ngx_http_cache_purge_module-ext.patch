@@ -50,3 +50,12 @@ index 0b68715..3ccaeb5 100644
      {
          reason = "could not evaluate \"proxy_method\"";
          goto invalid;
+diff --git a/ngx_cache_purge_upstream.h b/ngx_cache_purge_upstream.h
+--- a/ngx_cache_purge_upstream.h
++++ b/ngx_cache_purge_upstream.h
+@@ -54 +54,5 @@ typedef struct {
++#  if (NGX_RESTY_EXT)
++    ngx_flag_t  params_inherit;
++#  endif
++
+     ngx_http_complex_value_t  cache_key;
