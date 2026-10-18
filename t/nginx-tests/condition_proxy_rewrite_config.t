@@ -86,6 +86,10 @@ for my $case (
     }
 }
 
+# Finish the harness checks before Test::More evaluates the test plan.  The
+# named configuration helper otherwise retains $t until global destruction.
+undef $t;
+
 sub write_config {
     my ($body) = @_;
     $t->write_file_expand('nginx.conf', <<EOF);
