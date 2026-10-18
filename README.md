@@ -845,7 +845,7 @@ grpc_method POST;
 
 ### Conditional upstream directives
 
-When `ngx_expr_module` is compiled, the built-in upstream directives listed below can also be declared in applicable `when` blocks. HTTP directives support the `http`, `server`, and `location` levels, while stream proxy directives support the `stream` and `server` levels. Their native syntax, defaults, and inheritance behavior are unchanged.
+When `ngx_expr_module` is compiled, the built-in upstream directives listed below can also be declared in applicable `when` blocks. HTTP directives support the `http`, `server`, and `location` levels, while stream proxy directives support the `stream` and `server` levels. Their syntax and defaults are unchanged.
 
 For directives that select one effective value, declarations are evaluated in configuration order: the first unconditional declaration or declaration with a matching condition wins. A conditional declaration does not take precedence merely because it has a condition, so put conditional cases before an unconditional fallback.
 
@@ -858,6 +858,20 @@ when long_read {
 
 proxy_read_timeout 30s;
 ```
+
+For `proxy_redirect` and `proxy_cookie_domain`, `proxy_cookie_path`,
+`proxy_cookie_flags`, `proxy_cookie_value`, and `proxy_cookie_max_age`, enabled
+rules are checked in declaration order when processing the upstream response.
+The previous configuration level is used only if no declaration at the current
+level is enabled. A rule that does not match its target does not cause a fallback
+to parent rules.
+
+A matching `off` declaration stops subsequent rules of that directive without
+changing the current target. It does not undo an earlier successful rewrite or
+disable other cookie directives. Combining `off` and ordinary rules under the
+same condition remains a configuration error, including across split blocks.
+An explicit `proxy_redirect default` participates at its declaration position;
+the implicit default is not an additional fallback after enabled rules miss.
 
 The supported directives are listed explicitly below.
 
@@ -951,7 +965,11 @@ proxy_cookie_value sessionid old- new-;
 proxy_cookie_value ~^session_ ~*^old-(.+)$ new-$1;
 ```
 
-Several `proxy_cookie_value` directives can be configured at the same level. The first rule with a matching cookie name is selected. The `off` parameter cancels rules inherited from the previous configuration level.
+Several `proxy_cookie_value` directives can be configured at the same level.
+The first rule matching both the cookie name and value is selected. A value
+mismatch continues to the next rule; a successful rewrite is not processed
+again by subsequent rules. The `off` parameter cancels rules inherited from
+the previous configuration level.
 
 * **Syntax:** *proxy_cookie_max_age off;*
 *proxy_cookie_max_age cookie time;*
