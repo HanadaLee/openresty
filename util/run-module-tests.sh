@@ -39,6 +39,11 @@ if [[ -n "${NGINX_SOURCE:-}" ]]; then
 fi
 
 nginx_config="$("$TEST_NGINX_BINARY" -V 2>&1)"
+if [[ "$nginx_config" == *"/ngx_expr_module"* ]]; then
+    export TEST_NGINX_EXPR=1 NGX_STAT_CONDITION=1
+else
+    export TEST_NGINX_EXPR=0 NGX_STAT_CONDITION=0
+fi
 # Parse quoted configure arguments without evaluating them as shell code.
 module_list="$(printf '%s\n' "$nginx_config" | perl -MText::ParseWords=shellwords -ne '
     next unless s/^configure arguments: //;
@@ -75,6 +80,20 @@ while IFS= read -r module_dir; do
     official=()
     openresty=()
     while IFS= read -r -d '' test; do
+        case "$name/${test#"$module_dir"/}" in
+            */t/*_legacy.t)
+                # Module repositories reserve these suites for non-EXPR builds.
+                if [[ "$TEST_NGINX_EXPR" == 1 ]]; then
+                    echo "SKIP: $name/${test#"$module_dir"/} (requires a build without ngx_expr_module)"
+                    continue
+                fi
+                ;;
+            ngx_http_headers_control_module/t/eval.t)
+                # nginx-eval-module is only built by this module's own CI.
+                echo "SKIP: $name/t/eval.t (requires nginx-eval-module, tested by its own GitHub Actions workflow)"
+                continue
+                ;;
+        esac
         if grep -Eq '^[[:space:]]*(use|require)[[:space:]]+Test::Nginx::(Socket|LWP)' "$test"; then
             openresty+=("$test")
         else
@@ -100,14 +119,11 @@ while IFS= read -r module_dir; do
             # Keep the repository, fixtures and helper libraries together.
             # The two incompatible Test::Nginx implementations stay isolated.
             export PERL5LIB="$harness/lib:$module_dir/t/lib:$module_dir/lib"
+            if [[ "$(id -u)" == 0 ]]; then
+                export TEST_NGINX_GLOBALS="${TEST_NGINX_GLOBALS:-user root;}"
+            fi
             if [[ "$framework" == official ]]; then
                 export NGINX_TESTS="$NGINX_TESTS_ROOT"
-                if [[ "$(id -u)" == 0 ]]; then
-                    export TEST_NGINX_GLOBALS="${TEST_NGINX_GLOBALS:-user root;}"
-                fi
-                if [[ "$nginx_config" == *"/ngx_expr_module"* ]]; then
-                    export NGX_STAT_CONDITION=1
-                fi
             fi
             timeout "${TEST_MODULE_TIMEOUT:-600}" prove -v "${tests[@]}"
         ); then

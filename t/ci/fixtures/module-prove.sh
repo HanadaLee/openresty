@@ -3,6 +3,11 @@ set -euo pipefail
 [[ "$1" == -v ]]
 shift
 [[ -f t/fixtures/marker ]]
+[[ "${TEST_NGINX_EXPR:-}" == "${MOCK_EXPECT_EXPR:-0}" ]]
+[[ "${NGX_STAT_CONDITION:-}" == "${MOCK_EXPECT_EXPR:-0}" ]]
+if [[ "$(id -u)" == 0 ]]; then
+    [[ "${TEST_NGINX_GLOBALS:-}" == "${MOCK_EXPECT_GLOBALS:-user root;}" ]]
+fi
 if [[ -n "${MOCK_EXPECT_INCLUDES:-}" ]]; then
     [[ "$C_INCLUDE_PATH" == "$MOCK_EXPECT_INCLUDES" ]]
 fi

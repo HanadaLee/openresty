@@ -51,6 +51,49 @@ done
 echo 'PASS: filter framework tests run only in their own repository CI'
 unset MOCK_FILTER_MODULES
 
+module=ngx_http_headers_control_module
+mkdir -p "$MOCK_MODULE_ROOT/$module/t/fixtures"
+touch "$MOCK_MODULE_ROOT/$module/t/fixtures/marker"
+for test in eval sanity; do
+    printf 'use Test::Nginx::Socket;\n' > "$MOCK_MODULE_ROOT/$module/t/$test.t"
+done
+export MOCK_HEADERS_MODULE=1
+run
+grep -Fxq 'Module tests: 4 suites, 4 files' "$work/output"
+grep -Fxq "$module|sanity.t" "$MOCK_MODULE_CALLS"
+! grep -Fxq "$module|eval.t" "$MOCK_MODULE_CALLS"
+grep -Fxq "SKIP: $module/t/eval.t (requires nginx-eval-module, tested by its own GitHub Actions workflow)" "$work/output"
+echo 'PASS: tests requiring extra nginx modules are excluded without skipping compatible tests'
+unset MOCK_HEADERS_MODULE
+
+export MOCK_EXPR=1 MOCK_EXPECT_EXPR=1
+run
+echo 'PASS: both harnesses select expr tests from the built nginx configuration'
+unset MOCK_EXPR MOCK_EXPECT_EXPR
+export TEST_NGINX_EXPR=1 NGX_STAT_CONDITION=1
+run
+echo 'PASS: a non-expr binary does not inherit expr test flags from the caller'
+unset TEST_NGINX_EXPR NGX_STAT_CONDITION
+
+module=ngx_stream_log_set_module
+mkdir -p "$MOCK_MODULE_ROOT/$module/t/fixtures"
+touch "$MOCK_MODULE_ROOT/$module/t/fixtures/marker"
+for test in log_set log_set_legacy; do
+    printf 'use Test::Nginx;\n' > "$MOCK_MODULE_ROOT/$module/t/$test.t"
+done
+export MOCK_LEGACY_MODULES=1 MOCK_EXPR=1 MOCK_EXPECT_EXPR=1
+run
+grep -Fxq 'Module tests: 4 suites, 4 files' "$work/output"
+grep -Fxq "$module|log_set.t" "$MOCK_MODULE_CALLS"
+! grep -Fxq "$module|log_set_legacy.t" "$MOCK_MODULE_CALLS"
+grep -Fxq "SKIP: $module/t/log_set_legacy.t (requires a build without ngx_expr_module)" "$work/output"
+unset MOCK_EXPR MOCK_EXPECT_EXPR
+run
+grep -Fxq 'Module tests: 4 suites, 5 files' "$work/output"
+grep -Fxq "$module|log_set_legacy.t" "$MOCK_MODULE_CALLS"
+echo 'PASS: legacy-only suites are selected according to the built nginx configuration'
+unset MOCK_LEGACY_MODULES
+
 export MOCK_FAIL_MODULE=a
 if run; then
     echo 'FAIL: a failed module suite was accepted' >&2
