@@ -476,6 +476,9 @@ RUN RESTY_VERSION="$(cat /build/openresty-version)" \
     && cd /build/modules/ngx_http_cache_purge_module \
     && echo 'patching ngx_http_cache_purge_module for conditional proxy settings' \
     && patch -p1 < /build/patches/ngx_http_cache_purge_module-ext.patch \
+    && cd /build/modules/ngx_http_trim_filter_module \
+    && echo 'patching ngx_http_trim_filter_module for conditional flags' \
+    && patch -p1 < /build/patches/ngx_http_trim_filter_module-when.patch \
     && cd /build/modules/ngx_http_modsecurity_module \
     && echo 'patching ngx_http_modsecurity_module' \
     && patch -p1 < /build/patches/ngx_http_modsecurity_module-ext.patch \

@@ -42,6 +42,8 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [$slice\_error](#slice_error)
   - [ngx\_http\_sub\_filter\_module](#ngx_http_sub_filter_module)
     - [Conditional sub\_filter](#conditional-sub_filter)
+  - [ngx\_http\_trim\_filter\_module](#ngx_http_trim_filter_module)
+    - [Conditional trim](#conditional-trim)
   - [ngx\_http\_proxy\_module and related modules](#ngx_http_proxy_module-and-related-modules)
     - [proxy\_ssl\_certificate\_load](#proxy_ssl_certificate_load)
     - [Proxy filter Framework](#proxy-filter-framework)
@@ -763,6 +765,43 @@ sub_filter_once off;
 ```
 
 The previous configuration level is used when the current level has no pairs or all of its `when` conditions are false. Otherwise, its unconditional pairs and pairs with matching conditions form the replacement set. A search string that is absent from the response or evaluates to an empty value does not cause a fallback to parent pairs; an empty replacement removes the matching text.
+
+[Back to TOC](#table-of-contents)
+
+## ngx_http_trim_filter_module
+
+### Conditional trim
+
+* **Syntax:** *trim on | off;*
+
+* **Default:** *trim off;*
+
+* **Context:** *http, server, location, when*
+
+Enables or disables removal of unnecessary whitespace and comments from HTML
+responses. The value must be `on` or `off`; variables are no longer accepted.
+Use expressions and `when` blocks for conditional settings:
+
+```nginx
+expr compact str_eq $arg_compact 1;
+
+when compact {
+    trim on;
+    trim_js on;
+    trim_css on;
+}
+```
+
+At each configuration level, the first matching setting is used. An
+unconditional setting also matches, so place it after conditional settings
+when using it as a fallback. If no setting matches at the current level, the
+previous level is used. A matching `off` disables the corresponding feature
+instead of falling back.
+
+`trim_js` and `trim_css` use the same syntax, contexts, and selection rules;
+both default to `off` and take effect only when `trim` is enabled. Each switch
+is selected independently. `trim_types` and the `http_trim=off` request
+parameter retain their original behavior.
 
 [Back to TOC](#table-of-contents)
 
