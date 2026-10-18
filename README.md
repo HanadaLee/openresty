@@ -521,7 +521,7 @@ when use_json_error {
 }
 ```
 
-These directives are inherited from the previous configuration level if and only if there are no error_page directives defined on the current level (including when subblocks).
+The previous configuration level is used when the current level has no entries or all of its `when` conditions are false. Any unconditional entry or matching condition selects the current level as a whole. If that level has no active mapping for the response status, no parent mapping is used. `no_error_pages` stops inheritance.
 
 ### More directives for not modified checking
 
