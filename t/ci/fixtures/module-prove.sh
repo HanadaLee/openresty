@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "$1" == -v ]]
+shift
+[[ -f t/fixtures/marker ]]
+if [[ -n "${MOCK_EXPECT_INCLUDES:-}" ]]; then
+    [[ "$C_INCLUDE_PATH" == "$MOCK_EXPECT_INCLUDES" ]]
+fi
+for test in "$@"; do
+    if grep -q 'Test::Nginx::Socket' "$test"; then
+        [[ "$PERL5LIB" == "$TEST_NGINX_ROOT/lib:"* ]]
+        [[ "$PERL5LIB" != *"$NGINX_TESTS_ROOT/lib"* ]]
+    else
+        [[ "$PERL5LIB" == "$NGINX_TESTS_ROOT/lib:"* ]]
+        [[ "$PERL5LIB" != *"$TEST_NGINX_ROOT/lib"* ]]
+    fi
+    printf '%s|%s\n' "$(basename "$PWD")" "$(basename "$test")" >> "$MOCK_MODULE_CALLS"
+done
+[[ "${MOCK_FAIL_MODULE:-}" != "$(basename "$PWD")" ]]
