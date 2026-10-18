@@ -1,0 +1,74 @@
+diff --git a/t/10-prefix.t b/t/10-prefix.t
+index 307c191..9f9631c 100644
+--- a/t/10-prefix.t
++++ b/t/10-prefix.t
+@@ -16,6 +16,13 @@ our $MainConfig = qq{
+ 
+ our $HttpConfig = qq{
+     lua_package_path "$pwd/lib/?.lua;;";
++
++    init_worker_by_lua_block {
++        -- Allow each test to drop the default DB even in a fresh environment.
++        local txn = require("resty.lmdb.transaction").begin(1)
++        txn:db_open(true)
++        assert(txn:commit())
++    }
+ };
+ 
+ no_long_string();
+@@ -131,13 +138,17 @@ key: test value: value
+     location = /t {
+         content_by_lua_block {
+             local l = require("resty.lmdb")
++            local txn = require("resty.lmdb.transaction")
+ 
+             for i = 511, 513 do
+                 ngx.say(l.db_drop(true))
+ 
++                -- Prepare the fixture without a synchronous commit per key.
++                local batch = txn.begin(i)
+                 for j = 1, i do
+-                    assert(l.set("test:" .. j, "value:" .. j))
++                    batch:set("test:" .. j, "value:" .. j)
+                 end
++                assert(batch:commit())
+ 
+                 local j = 0
+                 local found = {}
+@@ -184,9 +195,14 @@ done
+             local l = require("resty.lmdb")
+ 
+             ngx.say(l.db_drop(true))
++
++            -- Prepare the fixture without a synchronous commit per key.
++            local txn = require("resty.lmdb.transaction")
++            local batch = txn.begin(1024)
+             for i = 1, 1024 do
+-                assert(l.set("test:" .. i, "value:" .. string.rep("x", i)))
++                batch:set("test:" .. i, "value:" .. string.rep("x", i))
+             end
++            assert(batch:commit())
+ 
+             local j = 0
+             local found = {}
+@@ -364,9 +380,8 @@ key: test3 value: value3
+ 
+             ngx.say("PAGE SIZE 0")
+             local ok, err = pcall(p.page, "test", "test", nil, 0)
+-            if not ok then
+-                ngx.say(err)
+-            end
++            assert(not ok)
++            ngx.say(assert(err:match("page_size must be at least 1$")))
+         }
+     }
+ --- request
+@@ -378,7 +393,7 @@ PAGE SIZE 2
+ test value
+ test1 value1
+ PAGE SIZE 0
+-.../lua-resty-lmdb/lua-resty-lmdb/lib/resty/lmdb/prefix.lua:34: page_size must be at least 1
++page_size must be at least 1
+ --- no_error_log
+ [error]
+ [warn]
