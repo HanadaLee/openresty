@@ -1488,7 +1488,7 @@ Defines conditions under which the response will not be gzipped. If at least one
 
 ### Conditional access_log
 
-* **Syntax:** *access_log path [format [buffer=size] [gzip[=level]] [flush=time] [if=condition]]*;  *access_log off*;
+* **Syntax:** *access_log path [format [buffer=size] [gzip[=level]] [flush=time] [if=condition] [sample=number]]*;  *access_log off*;
 
 * **Default:** *access_log logs/access.log combined;*
 
@@ -1497,7 +1497,7 @@ Defines conditions under which the response will not be gzipped. If at least one
 refer to [access_log](https://nginx.org/en/docs/http/ngx_http_log_module.html#access_log)
 
 Define conditions with `ngx_expr_module` and put conditional log entries
-in `when` blocks. Every matching `access_log` entry is written in configuration
+in `when` blocks. Matching `access_log` entries are processed in configuration
 order. Use `when !condition_name` for the inverse case.
 
 The `if=` parameter remains available with or without `ngx_expr_module`.
@@ -1511,10 +1511,35 @@ the nearest parent level with active entries is used. All active entries on
 the selected level are processed in order; parent and child lists are not
 combined. Inherited conditions use the current expression definitions.
 
-The `if=` parameter filters entries after selecting the configuration level.
-A false `if=` value, a matching `off`, or a write failure does not cause
-fallback to a parent level. `upstream_log` and `stat_log` use the same level
-selection rules, independently of `access_log`.
+The `if=` and `sample=` parameters filter entries after selecting the
+configuration level. A false `if=` value, a sampling miss, a matching `off`, or
+a write failure does not cause fallback to a parent level. `upstream_log` and
+`stat_log` use the same level selection rules, independently of `access_log`.
+
+For HTTP and Stream `access_log`, `sample=` accepts an integer from `0` to
+`2147483647`, including variables and complex values. Omission or `sample=1`
+logs every eligible request/session; `sample=0` skips this destination.
+`sample=N` with `N > 1` independently retains each eligible entry with
+probability `1/N`, rather than selecting every Nth entry. Separate log
+destinations are sampled independently. The same parameter is supported by
+`upstream_log`, where each upstream contact, including a retry, is sampled
+independently.
+
+```nginx
+map $host $access_sample {
+    default 20;
+    important.example.com 1;
+}
+
+access_log logs/access.log combined sample=$access_sample;
+upstream_log logs/upstream.log upstream sample=20;
+```
+
+Sampling is evaluated after `when` and `if=` and does not require
+`ngx_expr_module`. Invalid literal values and duplicate `sample=` parameters
+are configuration errors. An empty, non-integer, negative, or out-of-range
+variable result logs an error and skips only that entry; other log entries
+continue to be processed.
 
 ```nginx
 expr loggable !str_eq $status 204;

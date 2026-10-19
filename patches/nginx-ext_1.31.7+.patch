@@ -5068,7 +5068,7 @@ index f72044097..39cfa011e 100644
              *expires = NGX_HTTP_EXPIRES_OFF;
              return NGX_OK;
 diff --git a/src/http/modules/ngx_http_log_module.c b/src/http/modules/ngx_http_log_module.c
-index 9e398cd71..18585ecec 100644
+index 9e398cd71..928e4cb22 100644
 --- a/src/http/modules/ngx_http_log_module.c
 +++ b/src/http/modules/ngx_http_log_module.c
 @@ -9,6 +9,10 @@
@@ -5082,7 +5082,7 @@ index 9e398cd71..18585ecec 100644
  #if (NGX_ZLIB)
  #include <zlib.h>
  #endif
-@@ -68,11 +72,19 @@ typedef struct {
+@@ -68,11 +72,22 @@ typedef struct {
      time_t                      error_log_time;
      ngx_syslog_peer_t          *syslog_peer;
      ngx_http_log_fmt_t         *format;
@@ -5091,6 +5091,9 @@ index 9e398cd71..18585ecec 100644
 +    ngx_expr_when_id_t          expr_id;
 +#endif
      ngx_http_complex_value_t   *filter;
++#if (NGX_RESTY_EXT)
++    ngx_http_complex_value_t   *sample;
++#endif
  } ngx_http_log_t;
 
 
@@ -5102,7 +5105,7 @@ index 9e398cd71..18585ecec 100644
      ngx_array_t                *logs;       /* array of ngx_http_log_t */
 
      ngx_open_file_cache_t      *open_file_cache;
-@@ -81,7 +93,11 @@ typedef struct {
+@@ -81,7 +96,11 @@ typedef struct {
 
      ngx_flag_t                  escape_non_ascii;
 
@@ -5114,7 +5117,19 @@ index 9e398cd71..18585ecec 100644
  } ngx_http_log_loc_conf_t;
 
 
-@@ -179,6 +195,10 @@ static ngx_command_t  ngx_http_log_commands[] = {
+@@ -97,6 +116,11 @@ typedef struct {
+ #define NGX_HTTP_LOG_ESCAPE_NONE     2
+
+
++#if (NGX_RESTY_EXT)
++static ngx_int_t ngx_http_log_sample(ngx_http_request_t *r,
++    ngx_http_complex_value_t *cv);
++
++#endif
+ static void ngx_http_log_write(ngx_http_request_t *r, ngx_http_log_t *log,
+     u_char *buf, size_t len);
+ static ssize_t ngx_http_log_script_write(ngx_http_request_t *r,
+@@ -179,6 +203,10 @@ static ngx_command_t  ngx_http_log_commands[] = {
 
      { ngx_string("access_log"),
        NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF
@@ -5125,7 +5140,7 @@ index 9e398cd71..18585ecec 100644
                          |NGX_HTTP_LMT_CONF|NGX_CONF_1MORE,
        ngx_http_log_set_log,
        NGX_HTTP_LOC_CONF_OFFSET,
-@@ -275,19 +295,50 @@ ngx_http_log_handler(ngx_http_request_t *r)
+@@ -275,19 +303,50 @@ ngx_http_log_handler(ngx_http_request_t *r)
      ngx_http_log_op_t        *op;
      ngx_http_log_buf_t       *buffer;
      ngx_http_log_loc_conf_t  *lcf;
@@ -5165,7 +5180,7 @@ index 9e398cd71..18585ecec 100644
 +            continue;
 +        }
 +
-+        /* A matching entry selects this level even if if= skips it. */
++        /* Filters and sampling do not change the selected level. */
 +        matched = 1;
 +
 +        if (log[l].off) {
@@ -5176,7 +5191,20 @@ index 9e398cd71..18585ecec 100644
          if (log[l].filter) {
              if (ngx_http_complex_value(r, log[l].filter, &val) != NGX_OK) {
                  return NGX_ERROR;
-@@ -421,6 +472,13 @@ ngx_http_log_handler(ngx_http_request_t *r)
+@@ -298,6 +357,12 @@ ngx_http_log_handler(ngx_http_request_t *r)
+             }
+         }
+
++#if (NGX_RESTY_EXT)
++        if (log[l].sample && !ngx_http_log_sample(r, log[l].sample)) {
++            continue;
++        }
++
++#endif
+         if (ngx_time() == log[l].disk_full_time) {
+
+             /*
+@@ -421,10 +486,60 @@ ngx_http_log_handler(ngx_http_request_t *r)
          ngx_http_log_write(r, &log[l], line, p - line);
      }
 
@@ -5190,7 +5218,54 @@ index 9e398cd71..18585ecec 100644
      return NGX_OK;
  }
 
-@@ -1322,6 +1380,10 @@ ngx_http_log_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+
++#if (NGX_RESTY_EXT)
++static ngx_int_t
++ngx_http_log_sample(ngx_http_request_t *r, ngx_http_complex_value_t *cv)
++{
++    uint32_t   draw, limit;
++    ngx_int_t  sample;
++    ngx_str_t  value;
++
++    if (cv->lengths == NULL) {
++        sample = (ngx_int_t) cv->u.size;
++
++    } else {
++        if (ngx_http_complex_value(r, cv, &value) != NGX_OK) {
++            return 0;
++        }
++
++        sample = ngx_atoi(value.data, value.len);
++
++        if (sample == NGX_ERROR || sample > 2147483647) {
++            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
++                          "invalid access_log sample value \"%V\": "
++                          "expected an integer between 0 and 2147483647",
++                          &value);
++            return 0;
++        }
++    }
++
++    if (sample <= 1) {
++        return sample;
++    }
++
++    /* Reject the incomplete range to avoid modulo bias. */
++    limit = 0x80000000u - (0x80000000u % (uint32_t) sample);
++
++    do {
++        draw = (uint32_t) ngx_random();
++    } while (draw >= limit);
++
++    return draw % (uint32_t) sample == 0;
++}
++
++
++#endif
+ static void
+ ngx_http_log_write(ngx_http_request_t *r, ngx_http_log_t *log, u_char *buf,
+     size_t len)
+@@ -1322,6 +1437,10 @@ ngx_http_log_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      ngx_http_log_t            *log;
      ngx_http_log_fmt_t        *fmt;
      ngx_http_log_main_conf_t  *lmcf;
@@ -5201,7 +5276,7 @@ index 9e398cd71..18585ecec 100644
 
      ngx_conf_merge_value(conf->escape_non_ascii, prev->escape_non_ascii, 1);
 
-@@ -1336,6 +1398,37 @@ ngx_http_log_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -1336,6 +1455,37 @@ ngx_http_log_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
          }
      }
 
@@ -5239,7 +5314,7 @@ index 9e398cd71..18585ecec 100644
      if (conf->logs || conf->off) {
          return NGX_CONF_OK;
      }
-@@ -1346,6 +1439,7 @@ ngx_http_log_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -1346,6 +1496,7 @@ ngx_http_log_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      if (conf->logs || conf->off) {
          return NGX_CONF_OK;
      }
@@ -5247,7 +5322,7 @@ index 9e398cd71..18585ecec 100644
 
      conf->logs = ngx_array_create(cf->pool, 2, sizeof(ngx_http_log_t));
      if (conf->logs == NULL) {
-@@ -1359,6 +1453,10 @@ ngx_http_log_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -1359,6 +1510,10 @@ ngx_http_log_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
 
      ngx_memzero(log, sizeof(ngx_http_log_t));
 
@@ -5258,7 +5333,7 @@ index 9e398cd71..18585ecec 100644
      log->file = ngx_conf_open_file(cf->cycle, &ngx_http_access_log);
      if (log->file == NULL) {
          return NGX_CONF_ERROR;
-@@ -1396,6 +1494,32 @@ ngx_http_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+@@ -1396,6 +1551,32 @@ ngx_http_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
      value = cf->args->elts;
 
      if (ngx_strcmp(value[1].data, "off") == 0) {
@@ -5291,7 +5366,7 @@ index 9e398cd71..18585ecec 100644
          llcf->off = 1;
          if (cf->args->nelts == 2) {
              return NGX_CONF_OK;
-@@ -1404,6 +1528,7 @@ ngx_http_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+@@ -1404,6 +1585,7 @@ ngx_http_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
          ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
                             "invalid parameter \"%V\"", &value[2]);
          return NGX_CONF_ERROR;
@@ -5299,7 +5374,7 @@ index 9e398cd71..18585ecec 100644
      }
 
      if (llcf->logs == NULL) {
-@@ -1421,6 +1546,9 @@ ngx_http_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+@@ -1421,6 +1603,9 @@ ngx_http_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
      }
 
      ngx_memzero(log, sizeof(ngx_http_log_t));
@@ -5309,6 +5384,59 @@ index 9e398cd71..18585ecec 100644
 
 
      if (ngx_strncmp(value[1].data, "syslog:", 7) == 0) {
+@@ -1571,6 +1756,52 @@ process_formats:
+ #endif
+         }
+
++#if (NGX_RESTY_EXT)
++        if (ngx_strncmp(value[i].data, "sample=", 7) == 0) {
++            if (log->sample) {
++                ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
++                                   "duplicate sample parameter \"%V\"",
++                                   &value[i]);
++                return NGX_CONF_ERROR;
++            }
++
++            s.len = value[i].len - 7;
++            s.data = value[i].data + 7;
++
++            ngx_memzero(&ccv, sizeof(ngx_http_compile_complex_value_t));
++
++            ccv.cf = cf;
++            ccv.value = &s;
++            ccv.complex_value = ngx_palloc(cf->pool,
++                                           sizeof(ngx_http_complex_value_t));
++            if (ccv.complex_value == NULL) {
++                return NGX_CONF_ERROR;
++            }
++
++            if (ngx_http_compile_complex_value(&ccv) != NGX_OK) {
++                return NGX_CONF_ERROR;
++            }
++
++            if (ccv.complex_value->lengths == NULL) {
++                n = ngx_atoi(s.data, s.len);
++
++                if (n == (ngx_uint_t) NGX_ERROR || n > 2147483647) {
++                    ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
++                                       "invalid access_log sample value \"%V\": "
++                                       "expected an integer between 0 and "
++                                       "2147483647", &s);
++                    return NGX_CONF_ERROR;
++                }
++
++                ccv.complex_value->u.size = n;
++            }
++
++            log->sample = ccv.complex_value;
++
++            continue;
++        }
++
++#endif
+         if (ngx_strncmp(value[i].data, "if=", 3) == 0) {
+             s.len = value[i].len - 3;
+             s.data = value[i].data + 3;
 diff --git a/src/http/modules/ngx_http_memcached_module.c b/src/http/modules/ngx_http_memcached_module.c
 index e7e8871ae..0097e7084 100644
 --- a/src/http/modules/ngx_http_memcached_module.c
@@ -24783,7 +24911,7 @@ index 6b487289a..b3862e797 100644
              ngx_http_close_request(r, NGX_HTTP_CLOSE);
              break;
 diff --git a/src/stream/ngx_stream_log_module.c b/src/stream/ngx_stream_log_module.c
-index 774bc7e93..da18f30e6 100644
+index 774bc7e93..723d3c517 100644
 --- a/src/stream/ngx_stream_log_module.c
 +++ b/src/stream/ngx_stream_log_module.c
 @@ -9,6 +9,10 @@
@@ -24797,7 +24925,7 @@ index 774bc7e93..da18f30e6 100644
  #if (NGX_ZLIB)
  #include <zlib.h>
  #endif
-@@ -67,18 +71,30 @@ typedef struct {
+@@ -67,18 +71,33 @@ typedef struct {
      time_t                       error_log_time;
      ngx_syslog_peer_t           *syslog_peer;
      ngx_stream_log_fmt_t        *format;
@@ -24806,6 +24934,9 @@ index 774bc7e93..da18f30e6 100644
 +    ngx_expr_when_id_t           expr_id;
 +#endif
      ngx_stream_complex_value_t  *filter;
++#if (NGX_RESTY_EXT)
++    ngx_stream_complex_value_t  *sample;
++#endif
  } ngx_stream_log_t;
 
 
@@ -24828,7 +24959,19 @@ index 774bc7e93..da18f30e6 100644
  } ngx_stream_log_srv_conf_t;
 
 
-@@ -155,7 +171,13 @@ static ngx_command_t  ngx_stream_log_commands[] = {
+@@ -94,6 +113,11 @@ typedef struct {
+ #define NGX_STREAM_LOG_ESCAPE_NONE     2
+
+
++#if (NGX_RESTY_EXT)
++static ngx_int_t ngx_stream_log_sample(ngx_stream_session_t *s,
++    ngx_stream_complex_value_t *cv);
++
++#endif
+ static void ngx_stream_log_write(ngx_stream_session_t *s, ngx_stream_log_t *log,
+     u_char *buf, size_t len);
+ static ssize_t ngx_stream_log_script_write(ngx_stream_session_t *s,
+@@ -155,7 +179,13 @@ static ngx_command_t  ngx_stream_log_commands[] = {
        NULL },
 
      { ngx_string("access_log"),
@@ -24842,7 +24985,7 @@ index 774bc7e93..da18f30e6 100644
        ngx_stream_log_set_log,
        NGX_STREAM_SRV_CONF_OFFSET,
        0,
-@@ -212,19 +234,50 @@ ngx_stream_log_handler(ngx_stream_session_t *s)
+@@ -212,19 +242,50 @@ ngx_stream_log_handler(ngx_stream_session_t *s)
      ngx_stream_log_op_t        *op;
      ngx_stream_log_buf_t       *buffer;
      ngx_stream_log_srv_conf_t  *lscf;
@@ -24882,7 +25025,7 @@ index 774bc7e93..da18f30e6 100644
 +            continue;
 +        }
 +
-+        /* A matching entry selects this level even if if= skips it. */
++        /* Filters and sampling do not change the selected level. */
 +        matched = 1;
 +
 +        if (log[l].off) {
@@ -24893,7 +25036,20 @@ index 774bc7e93..da18f30e6 100644
          if (log[l].filter) {
              if (ngx_stream_complex_value(s, log[l].filter, &val) != NGX_OK) {
                  return NGX_ERROR;
-@@ -359,6 +412,13 @@ ngx_stream_log_handler(ngx_stream_session_t *s)
+@@ -235,6 +296,12 @@ ngx_stream_log_handler(ngx_stream_session_t *s)
+             }
+         }
+
++#if (NGX_RESTY_EXT)
++        if (log[l].sample && !ngx_stream_log_sample(s, log[l].sample)) {
++            continue;
++        }
++
++#endif
+         if (ngx_time() == log[l].disk_full_time) {
+
+             /*
+@@ -359,10 +426,60 @@ ngx_stream_log_handler(ngx_stream_session_t *s)
          ngx_stream_log_write(s, &log[l], line, p - line);
      }
 
@@ -24907,7 +25063,54 @@ index 774bc7e93..da18f30e6 100644
      return NGX_OK;
  }
 
-@@ -1024,12 +1084,16 @@ ngx_stream_log_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
+
++#if (NGX_RESTY_EXT)
++static ngx_int_t
++ngx_stream_log_sample(ngx_stream_session_t *s, ngx_stream_complex_value_t *cv)
++{
++    uint32_t   draw, limit;
++    ngx_int_t  sample;
++    ngx_str_t  value;
++
++    if (cv->lengths == NULL) {
++        sample = (ngx_int_t) cv->u.size;
++
++    } else {
++        if (ngx_stream_complex_value(s, cv, &value) != NGX_OK) {
++            return 0;
++        }
++
++        sample = ngx_atoi(value.data, value.len);
++
++        if (sample == NGX_ERROR || sample > 2147483647) {
++            ngx_log_error(NGX_LOG_ERR, s->connection->log, 0,
++                          "invalid access_log sample value \"%V\": "
++                          "expected an integer between 0 and 2147483647",
++                          &value);
++            return 0;
++        }
++    }
++
++    if (sample <= 1) {
++        return sample;
++    }
++
++    /* Reject the incomplete range to avoid modulo bias. */
++    limit = 0x80000000u - (0x80000000u % (uint32_t) sample);
++
++    do {
++        draw = (uint32_t) ngx_random();
++    } while (draw >= limit);
++
++    return draw % (uint32_t) sample == 0;
++}
++
++
++#endif
+ static void
+ ngx_stream_log_write(ngx_stream_session_t *s, ngx_stream_log_t *log,
+     u_char *buf, size_t len)
+@@ -1024,12 +1141,16 @@ ngx_stream_log_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
          }
      }
 
@@ -24924,7 +25127,7 @@ index 774bc7e93..da18f30e6 100644
 
      return NGX_CONF_OK;
  }
-@@ -1056,6 +1120,32 @@ ngx_stream_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+@@ -1056,6 +1177,32 @@ ngx_stream_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
      value = cf->args->elts;
 
      if (ngx_strcmp(value[1].data, "off") == 0) {
@@ -24957,7 +25160,7 @@ index 774bc7e93..da18f30e6 100644
          lscf->off = 1;
          if (cf->args->nelts == 2) {
              return NGX_CONF_OK;
-@@ -1064,6 +1154,7 @@ ngx_stream_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+@@ -1064,6 +1211,7 @@ ngx_stream_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
          ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
                             "invalid parameter \"%V\"", &value[2]);
          return NGX_CONF_ERROR;
@@ -24965,7 +25168,7 @@ index 774bc7e93..da18f30e6 100644
      }
 
      if (lscf->logs == NULL) {
-@@ -1081,6 +1172,9 @@ ngx_stream_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+@@ -1081,6 +1229,9 @@ ngx_stream_log_set_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
      }
 
      ngx_memzero(log, sizeof(ngx_stream_log_t));
@@ -24975,6 +25178,59 @@ index 774bc7e93..da18f30e6 100644
 
 
      if (ngx_strncmp(value[1].data, "syslog:", 7) == 0) {
+@@ -1228,6 +1379,52 @@ process_formats:
+ #endif
+         }
+
++#if (NGX_RESTY_EXT)
++        if (ngx_strncmp(value[i].data, "sample=", 7) == 0) {
++            if (log->sample) {
++                ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
++                                   "duplicate sample parameter \"%V\"",
++                                   &value[i]);
++                return NGX_CONF_ERROR;
++            }
++
++            s.len = value[i].len - 7;
++            s.data = value[i].data + 7;
++
++            ngx_memzero(&ccv, sizeof(ngx_stream_compile_complex_value_t));
++
++            ccv.cf = cf;
++            ccv.value = &s;
++            ccv.complex_value = ngx_palloc(cf->pool,
++                                           sizeof(ngx_stream_complex_value_t));
++            if (ccv.complex_value == NULL) {
++                return NGX_CONF_ERROR;
++            }
++
++            if (ngx_stream_compile_complex_value(&ccv) != NGX_OK) {
++                return NGX_CONF_ERROR;
++            }
++
++            if (ccv.complex_value->lengths == NULL) {
++                n = ngx_atoi(s.data, s.len);
++
++                if (n == (ngx_uint_t) NGX_ERROR || n > 2147483647) {
++                    ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
++                                       "invalid access_log sample value \"%V\": "
++                                       "expected an integer between 0 and "
++                                       "2147483647", &s);
++                    return NGX_CONF_ERROR;
++                }
++
++                ccv.complex_value->u.size = n;
++            }
++
++            log->sample = ccv.complex_value;
++
++            continue;
++        }
++
++#endif
+         if (ngx_strncmp(value[i].data, "if=", 3) == 0) {
+             s.len = value[i].len - 3;
+             s.data = value[i].data + 3;
 diff --git a/src/stream/ngx_stream_proxy_module.c b/src/stream/ngx_stream_proxy_module.c
 index 746656910..a6bc49fdc 100644
 --- a/src/stream/ngx_stream_proxy_module.c
