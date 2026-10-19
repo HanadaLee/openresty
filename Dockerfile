@@ -361,7 +361,7 @@ RUN mkdir -p /build/modules \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_lua_upstream_state_module.git ngx_lua_upstream_state_module \
     && git clone --depth=1 --recurse-submodules https://${RESTY_GIT_MIRROR}/Kong/lua-resty-lmdb.git ngx_lua_resty_lmdb_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_stream_lua_upstream_module.git ngx_stream_lua_upstream_module \
-    && git clone --depth=1 --branch 3.1.2 https://${RESTY_GIT_REPO}/hanada/ngx_http_trim_filter_module.git ngx_http_trim_filter_module \
+    && git clone --depth=1 --branch 3.1.3 https://${RESTY_GIT_REPO}/hanada/ngx_http_trim_filter_module.git ngx_http_trim_filter_module \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/owasp-modsecurity/ModSecurity-nginx.git ngx_http_modsecurity_module
 
 # Fetch Lua libraries that are not included in the OpenResty bundle.

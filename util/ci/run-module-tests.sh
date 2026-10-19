@@ -38,7 +38,7 @@ run_test_phase module-regressions docker run --rm --init \
         (cd /input && sha256sum -c /results/inputs.sha256) > /results/input-verification.log
         apt-get -o APT::Update::Error-Mode=any update
         DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-            perl brotli zstd meson ninja-build libev-dev libcryptx-perl \
+            perl python3 brotli zstd meson ninja-build libev-dev libcryptx-perl \
             libtest-base-perl libtext-diff-perl libtest-longstring-perl \
             libwww-perl libipc-run-perl libio-socket-ssl-perl liburi-perl \
             liblist-moreutils-perl libnet-dns-perl \
