@@ -350,7 +350,7 @@ RUN mkdir -p /build/modules \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_headers_control_module.git ngx_http_headers_control_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_ua_parser_module.git ngx_http_ua_parser_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_backtrace_module.git ngx_backtrace_module \
-    && git clone --depth=1 https://${RESTY_GIT_MIRROR}/vozlt/nginx-module-sysguard.git ngx_http_sysguard_module \
+    && git clone --depth=1 --branch 0.2.0 https://${RESTY_GIT_REPO}/hanada/ngx_http_sysguard_module.git ngx_http_sysguard_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_qrcode_module.git ngx_http_qrcode_module \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/Kong/lua-resty-events.git ngx_lua_events_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_stream_access_control_module.git ngx_stream_access_control_module \
