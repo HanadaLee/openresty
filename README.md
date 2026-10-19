@@ -800,8 +800,7 @@ instead of falling back.
 
 `trim_js` and `trim_css` use the same syntax, contexts, and selection rules;
 both default to `off` and take effect only when `trim` is enabled. Each switch
-is selected independently. `trim_types` and the `http_trim=off` request
-parameter retain their original behavior.
+is selected independently. `trim_types` retains its original behavior.
 
 [Back to TOC](#table-of-contents)
 
