@@ -361,8 +361,7 @@ RUN mkdir -p /build/modules \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_lua_upstream_state_module.git ngx_lua_upstream_state_module \
     && git clone --depth=1 --recurse-submodules https://${RESTY_GIT_MIRROR}/Kong/lua-resty-lmdb.git ngx_lua_resty_lmdb_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_stream_lua_upstream_module.git ngx_stream_lua_upstream_module \
-    && git clone --depth=1 https://${RESTY_GIT_MIRROR}/alibaba/tengine.git tengine \
-    && mv tengine/modules/ngx_http_trim_filter_module ngx_http_trim_filter_module \
+    && git clone --depth=1 --branch 3.1.1 https://${RESTY_GIT_REPO}/hanada/ngx_http_trim_filter_module.git ngx_http_trim_filter_module \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/owasp-modsecurity/ModSecurity-nginx.git ngx_http_modsecurity_module
 
 # Fetch Lua libraries that are not included in the OpenResty bundle.
@@ -474,9 +473,6 @@ RUN RESTY_VERSION="$(cat /build/openresty-version)" \
     && cd /build/modules/ngx_http_cache_purge_module \
     && echo 'patching ngx_http_cache_purge_module for conditional proxy settings' \
     && patch -p1 < /build/patches/ngx_http_cache_purge_module-ext.patch \
-    && cd /build/modules/ngx_http_trim_filter_module \
-    && echo 'patching ngx_http_trim_filter_module for conditional flags' \
-    && patch -p1 < /build/patches/ngx_http_trim_filter_module-when.patch \
     && cd /build/modules/ngx_http_modsecurity_module \
     && echo 'patching ngx_http_modsecurity_module' \
     && patch -p1 < /build/patches/ngx_http_modsecurity_module-ext.patch \
