@@ -26,6 +26,7 @@ ARG RESTY_OWSAP_CRS_VERSION="4.30.0"
 
 # LuaRocks packages.
 ARG RESTY_LUA_LOLHTML_VERSION="1.0.1-1"
+ARG RESTY_LUA_RESTY_MULTIPART_PARSER_VERSION="1.1.0-1"
 ARG RESTY_BINARYHEAP_VERSION="0.4-1"
 ARG RESTY_LUAFILESYSTEM_VERSION="1.9.0-1"
 ARG RESTY_PENLIGHT_VERSION="1.15.0-1"
@@ -212,6 +213,7 @@ ARG RESTY_OWSAP_CRS_VERSION
 
 # LuaRocks packages.
 ARG RESTY_LUA_LOLHTML_VERSION
+ARG RESTY_LUA_RESTY_MULTIPART_PARSER_VERSION
 ARG RESTY_BINARYHEAP_VERSION
 ARG RESTY_LUAFILESYSTEM_VERSION
 ARG RESTY_PENLIGHT_VERSION
@@ -603,7 +605,6 @@ RUN mkdir -p /build/modules \
 # Fetch Lua libraries that are not included in the OpenResty bundle.
 RUN mkdir -p /build/lualib \
     && cd /build/lualib \
-    && git clone --depth=1 https://${RESTY_GIT_MIRROR}/agentzh/lua-resty-multipart-parser.git lua-resty-multipart-parser \
     && git clone --depth=1 --branch v${RESTY_LUA_RESTY_BALANCER_VERSION} https://${RESTY_GIT_MIRROR}/openresty/lua-resty-balancer.git lua-resty-balancer \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/api7/jsonschema.git jsonschema \
     && git clone --depth=1 --branch supported_semaphore_wait_phases https://${RESTY_GIT_MIRROR}/HanadaLee/lua-resty-dns-client.git lua-resty-dns-client \
@@ -804,7 +805,6 @@ RUN mkdir -p /usr/local/openresty/share \
     && cp -r ngx_lua_config_module/lualib/* /usr/local/openresty/lualib/ \
     && cp -r ngx_lua_resty_lmdb_module/lib/* /usr/local/openresty/lualib/ \
     && cd /build/lualib \
-    && cp -r lua-resty-multipart-parser/lib/* /usr/local/openresty/lualib/ \
     && cp -r lua-resty-balancer/lib/* /usr/local/openresty/lualib/ \
     && install -m 755 lua-resty-balancer/librestychash.so /usr/local/openresty/lualib/ \
     && cp -r jsonschema/lib/* /usr/local/openresty/lualib/ \
@@ -813,6 +813,7 @@ RUN mkdir -p /usr/local/openresty/share \
 
 # Install LuaRocks packages and runtime data, then trim the assembled tree.
 RUN /usr/local/openresty/luajit/bin/luarocks install lua-lolhtml "${RESTY_LUA_LOLHTML_VERSION}" \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-multipart-parser "${RESTY_LUA_RESTY_MULTIPART_PARSER_VERSION}" \
     && /usr/local/openresty/luajit/bin/luarocks install binaryheap "${RESTY_BINARYHEAP_VERSION}" \
     && /usr/local/openresty/luajit/bin/luarocks install luafilesystem "${RESTY_LUAFILESYSTEM_VERSION}" \
     && /usr/local/openresty/luajit/bin/luarocks install penlight "${RESTY_PENLIGHT_VERSION}" \
