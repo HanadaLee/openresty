@@ -264,6 +264,7 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_stream_log_set_module](https://git.hanada.info/hanada/ngx_stream_log_set_module)
 * [ngx_stream_label_module](https://git.hanada.info/hanada/ngx_stream_label_module)
 * [ngx_stream_extra_variables_module](https://git.hanada.info/hanada/ngx_stream_extra_variables_module)
+* [ngx_tcp_fingerprint_module](https://github.com/HanadaLee/ngx_tcp_fingerprint_module/tree/stream_support)
 * [ngx_var_module](https://git.hanada.info/hanada/ngx_var_module)
 * [coreruleset](https://github.com/coreruleset/coreruleset)
 * [uap-core](https://github.com/ua-parser/uap-core)

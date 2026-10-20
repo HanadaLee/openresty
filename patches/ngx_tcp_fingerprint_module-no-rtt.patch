@@ -1,0 +1,720 @@
+diff --git a/.github/workflows/test.yml b/.github/workflows/test.yml
+--- a/.github/workflows/test.yml
++++ b/.github/workflows/test.yml
+@@ -25,9 +25,6 @@
+           sudo apt-get install -y -qq --no-install-recommends \
+             build-essential libpcre2-dev libssl-dev zlib1g-dev \
+             iproute2 util-linux curl openssl python3
+-          # netem for the RTT cases: not always in the runner's base kernel
+-          sudo apt-get install -y -qq "linux-modules-extra-$(uname -r)" || true
+-          sudo modprobe sch_netem
+ 
+       - name: njs command line (examples)
+         run: |
+diff --git a/examples/nginx.conf b/examples/nginx.conf
+--- a/examples/nginx.conf
++++ b/examples/nginx.conf
+@@ -13,7 +13,6 @@
+     js_set $tcpfp_hints tcpfp.hints;
+ 
+     log_format fp '$remote_addr "$http_user_agent" sig=$tcpfp_signature '
+-                  'tls_rtt=$tcpfp_tls_rtt tcp_rtt=$tcpfp_tcp_rtt '
+                   'hints=$tcpfp_hints';
+ 
+     server {
+diff --git a/examples/tcpfp.js b/examples/tcpfp.js
+--- a/examples/tcpfp.js
++++ b/examples/tcpfp.js
+@@ -115,20 +115,6 @@
+ }
+ 
+ /*
+- * TLS 1.3 round trip well above the TCP one: TCP ends at a relay close to
+- * the server, TLS goes on to the real client farther away (CONNECT or SOCKS
+- * proxy, residential proxy networks). Microseconds in, both from the module.
+- * Mobile networks' transparent TCP proxies and slow devices (the client
+- * checks the certificate inside that round trip) widen the gap too: keep the
+- * margins wide.
+- */
+-function tunnelled(tlsRtt, tcpRtt, ratio, gap) {
+-	const tls = parseInt(tlsRtt, 10), tcp = parseInt(tcpRtt, 10);
+-	if (!(tls > 0) || !(tcp > 0)) return false;
+-	return tls > tcp * (ratio || 3) && tls - tcp > (gap || 80000);
+-}
+-
+-/*
+  * Several stacks behind one address within a while: a NAT, a proxy pool or
+  * a farm. Needs "js_shared_dict_zone zone=tcpfp:1m timeout=10m;" in http.
+  * Returns how many operating system families the address showed.
+@@ -156,9 +142,8 @@
+ 	const l = link(fp);
+ 	if (l !== "ethernet" && l !== "pppoe") out.push("link-" + l);
+ 	crafted(fp).forEach(w => out.push("crafted-" + w));
+-	if (tunnelled(v.tcpfp_tls_rtt, v.tcpfp_tcp_rtt)) out.push("rtt-gap");
+ 	if (stacksBehind(r, fp) > 1) out.push("shared-address");
+ 	return out.join(",");
+ }
+ 
+-export default { parse, stackOs, uaOs, osMismatch, link, crafted, tunnelled, stacksBehind, hints };
++export default { parse, stackOs, uaOs, osMismatch, link, crafted, stacksBehind, hints };
+diff --git a/ngx_http_tcp_fingerprint_module.c b/ngx_http_tcp_fingerprint_module.c
+--- a/ngx_http_tcp_fingerprint_module.c
++++ b/ngx_http_tcp_fingerprint_module.c
+@@ -11,14 +11,6 @@
+  * variables on a connection fetches them; the result stays in the connection
+  * pool for the following requests (keepalive, HTTP/2 streams). HTTP/3 has no
+  * TCP SYN.
+- *
+- * TLS 1.3 also gives one round trip to time: the server waits for the
+- * client's Finished right after sending its own. That round trip ends at the
+- * holder of the TLS keys, the kernel's TCP RTT at whoever acknowledges the
+- * segments: the same machine for a direct client, but the exit node of a
+- * tunnel (CONNECT or SOCKS proxy) for a proxied one. A message callback on
+- * the server's SSL contexts timestamps both Finished and reads TCP_INFO when
+- * the client's arrives, then removes itself from the connection.
+  *
+  * Variables:
+  *   $tcpfp_signature  ver:ttl+hops:olen:mss:wsize,scale:options:quirks:pclass,
+@@ -35,9 +27,6 @@
+  *   $tcpfp_quirks     oddities of the headers, in this order: df, id+, id-,
+  *                     ecn, 0+, flow, seq-, ack+, ack-, uptr+, urgf+, pushf+,
+  *                     ts1-, ts2+, opt+, exws, bad
+- *   $tcpfp_tls_rtt    TLS 1.3 handshake round trip, server Finished sent to
+- *                     client Finished read, in microseconds
+- *   $tcpfp_tcp_rtt    kernel smoothed TCP RTT at that moment, in microseconds
+  */
+ 
+ 
+@@ -55,7 +44,6 @@
+ static ngx_int_t ngx_http_tcp_fingerprint_variable(ngx_http_request_t *r,
+     ngx_http_variable_value_t *v, uintptr_t data);
+ static ngx_int_t ngx_http_tcp_fingerprint_add_variables(ngx_conf_t *cf);
+-static ngx_int_t ngx_http_tcp_fingerprint_init(ngx_conf_t *cf);
+ static void *ngx_http_tcp_fingerprint_create_main_conf(ngx_conf_t *cf);
+ static char *ngx_http_tcp_fingerprint_init_main_conf(ngx_conf_t *cf,
+     void *conf);
+@@ -77,7 +65,7 @@
+ 
+ static ngx_http_module_t  ngx_http_tcp_fingerprint_module_ctx = {
+     ngx_http_tcp_fingerprint_add_variables,    /* preconfiguration */
+-    ngx_http_tcp_fingerprint_init,             /* postconfiguration */
++    NULL,                                      /* postconfiguration */
+ 
+     ngx_http_tcp_fingerprint_create_main_conf, /* create main configuration */
+     ngx_http_tcp_fingerprint_init_main_conf,   /* init main configuration */
+@@ -135,12 +123,6 @@
+     { ngx_string("tcpfp_quirks"), NULL, ngx_http_tcp_fingerprint_variable,
+       offsetof(ngx_tcp_fingerprint_ctx_t, quirks), 0, 0 },
+ 
+-    { ngx_string("tcpfp_tls_rtt"), NULL, ngx_http_tcp_fingerprint_variable,
+-      offsetof(ngx_tcp_fingerprint_ctx_t, tls_rtt), 0, 0 },
+-
+-    { ngx_string("tcpfp_tcp_rtt"), NULL, ngx_http_tcp_fingerprint_variable,
+-      offsetof(ngx_tcp_fingerprint_ctx_t, tcp_rtt), 0, 0 },
+-
+       ngx_http_null_variable
+ };
+ 
+@@ -208,37 +190,6 @@
+  * copy it at creation, and keep it when SNI switches them to another
+  * server's context.
+  */
+-
+-static ngx_int_t
+-ngx_http_tcp_fingerprint_init(ngx_conf_t *cf)
+-{
+-#if (NGX_HTTP_SSL)
+-    ngx_uint_t                             s;
+-    ngx_http_ssl_srv_conf_t               *sscf;
+-    ngx_http_core_srv_conf_t             **cscfp;
+-    ngx_http_core_main_conf_t             *cmcf;
+-    ngx_http_tcp_fingerprint_main_conf_t  *tmcf;
+-
+-    tmcf = ngx_http_conf_get_module_main_conf(cf,
+-                                              ngx_http_tcp_fingerprint_module);
+-
+-    if (!tmcf->enable) {
+-        return NGX_OK;
+-    }
+-
+-    cmcf = ngx_http_conf_get_module_main_conf(cf, ngx_http_core_module);
+-    cscfp = cmcf->servers.elts;
+-
+-    for (s = 0; s < cmcf->servers.nelts; s++) {
+-        sscf = cscfp[s]->ctx->srv_conf[ngx_http_ssl_module.ctx_index];
+-
+-        ngx_tcp_fingerprint_ssl_init(&sscf->ssl);
+-    }
+-#endif
+-
+-    return NGX_OK;
+-}
+-
+ 
+ static void *
+ ngx_http_tcp_fingerprint_create_main_conf(ngx_conf_t *cf)
+diff --git a/ngx_stream_tcp_fingerprint_module.c b/ngx_stream_tcp_fingerprint_module.c
+--- a/ngx_stream_tcp_fingerprint_module.c
++++ b/ngx_stream_tcp_fingerprint_module.c
+@@ -10,14 +10,6 @@
+  * TCP_SAVED_SYN hands them over once. The first variable read in a session
+  * fetches them; the result stays in the connection pool for subsequent reads.
+  * UDP has no TCP SYN.
+- *
+- * TLS 1.3 also gives one round trip to time: the server waits for the
+- * client's Finished right after sending its own. That round trip ends at the
+- * holder of the TLS keys, the kernel's TCP RTT at whoever acknowledges the
+- * segments: the same machine for a direct client, but the exit node of a
+- * tunnel (CONNECT or SOCKS proxy) for a proxied one. A message callback on
+- * the server's SSL contexts timestamps both Finished and reads TCP_INFO when
+- * the client's arrives, then removes itself from the connection.
+  *
+  * Variables:
+  *   $tcpfp_signature  ver:ttl+hops:olen:mss:wsize,scale:options:quirks:pclass,
+@@ -34,9 +26,6 @@
+  *   $tcpfp_quirks     oddities of the headers, in this order: df, id+, id-,
+  *                     ecn, 0+, flow, seq-, ack+, ack-, uptr+, urgf+, pushf+,
+  *                     ts1-, ts2+, opt+, exws, bad
+- *   $tcpfp_tls_rtt    TLS 1.3 handshake round trip, server Finished sent to
+- *                     client Finished read, in microseconds
+- *   $tcpfp_tcp_rtt    kernel smoothed TCP RTT at that moment, in microseconds
+  */
+ 
+ 
+@@ -54,7 +43,6 @@
+ static ngx_int_t ngx_stream_tcp_fingerprint_variable(ngx_stream_session_t *s,
+     ngx_stream_variable_value_t *v, uintptr_t data);
+ static ngx_int_t ngx_stream_tcp_fingerprint_add_variables(ngx_conf_t *cf);
+-static ngx_int_t ngx_stream_tcp_fingerprint_init(ngx_conf_t *cf);
+ static void *ngx_stream_tcp_fingerprint_create_main_conf(ngx_conf_t *cf);
+ static char *ngx_stream_tcp_fingerprint_init_main_conf(ngx_conf_t *cf,
+     void *conf);
+@@ -76,7 +64,7 @@
+ 
+ static ngx_stream_module_t  ngx_stream_tcp_fingerprint_module_ctx = {
+     ngx_stream_tcp_fingerprint_add_variables,     /* preconfiguration */
+-    ngx_stream_tcp_fingerprint_init,              /* postconfiguration */
++    NULL,                                         /* postconfiguration */
+ 
+     ngx_stream_tcp_fingerprint_create_main_conf,  /* create main conf */
+     ngx_stream_tcp_fingerprint_init_main_conf,    /* init main conf */
+@@ -131,12 +119,6 @@
+     { ngx_string("tcpfp_quirks"), NULL, ngx_stream_tcp_fingerprint_variable,
+       offsetof(ngx_tcp_fingerprint_ctx_t, quirks), 0, 0 },
+ 
+-    { ngx_string("tcpfp_tls_rtt"), NULL, ngx_stream_tcp_fingerprint_variable,
+-      offsetof(ngx_tcp_fingerprint_ctx_t, tls_rtt), 0, 0 },
+-
+-    { ngx_string("tcpfp_tcp_rtt"), NULL, ngx_stream_tcp_fingerprint_variable,
+-      offsetof(ngx_tcp_fingerprint_ctx_t, tcp_rtt), 0, 0 },
+-
+       ngx_stream_null_variable
+ };
+ 
+@@ -206,37 +188,6 @@
+  * server's context.
+  */
+ 
+-static ngx_int_t
+-ngx_stream_tcp_fingerprint_init(ngx_conf_t *cf)
+-{
+-#if (NGX_STREAM_SSL)
+-    ngx_uint_t                               s;
+-    ngx_stream_ssl_srv_conf_t               *sscf;
+-    ngx_stream_core_srv_conf_t             **cscfp;
+-    ngx_stream_core_main_conf_t             *cmcf;
+-    ngx_stream_tcp_fingerprint_main_conf_t  *tmcf;
+-
+-    tmcf = ngx_stream_conf_get_module_main_conf(
+-               cf, ngx_stream_tcp_fingerprint_module);
+-
+-    if (!tmcf->enable) {
+-        return NGX_OK;
+-    }
+-
+-    cmcf = ngx_stream_conf_get_module_main_conf(cf, ngx_stream_core_module);
+-    cscfp = cmcf->servers.elts;
+-
+-    for (s = 0; s < cmcf->servers.nelts; s++) {
+-        sscf = cscfp[s]->ctx->srv_conf[ngx_stream_ssl_module.ctx_index];
+-
+-        ngx_tcp_fingerprint_ssl_init(&sscf->ssl);
+-    }
+-#endif
+-
+-    return NGX_OK;
+-}
+-
+-
+ static void *
+ ngx_stream_tcp_fingerprint_create_main_conf(ngx_conf_t *cf)
+ {
+diff --git a/ngx_tcp_fingerprint.c b/ngx_tcp_fingerprint.c
+--- a/ngx_tcp_fingerprint.c
++++ b/ngx_tcp_fingerprint.c
+@@ -8,7 +8,6 @@
+ #include "ngx_tcp_fingerprint.h"
+ 
+ #include <netinet/tcp.h>
+-#include <time.h>
+ 
+ 
+ #ifndef TCP_SAVE_SYN
+@@ -97,12 +96,6 @@
+ static ngx_int_t ngx_tcp_fingerprint_set(ngx_pool_t *pool, ngx_str_t *s,
+     size_t size, const char *fmt, ...);
+ static void ngx_tcp_fingerprint_cleanup(void *data);
+-#if (NGX_HTTP_SSL || NGX_STREAM_SSL)
+-static void ngx_tcp_fingerprint_ssl_msg(int write_p, int version,
+-    int content_type, const void *buf, size_t len, SSL *ssl, void *arg);
+-static ngx_int_t ngx_tcp_fingerprint_tls_rtt(ngx_connection_t *c,
+-    ngx_tcp_fingerprint_ctx_t *ctx, uint64_t now);
+-#endif
+ 
+ 
+ ngx_tcp_fingerprint_ctx_t *
+@@ -164,9 +157,8 @@
+ 
+ /*
+  * Everything is kept once per TCP connection, in a pool cleanup found by
+- * its handler: TCP_SAVED_SYN answers only once, the TLS handshake happens
+- * once. An HTTP/2 stream works on a copy of the TCP connection (same fd,
+- * same pool).
++ * its handler: TCP_SAVED_SYN answers only once. An HTTP/2 stream works
++ * on a copy of the TCP connection (same fd, same pool).
+  */
+ 
+ static ngx_tcp_fingerprint_ctx_t *
+@@ -559,109 +551,6 @@
+ }
+ 
+ 
+-#if (NGX_HTTP_SSL || NGX_STREAM_SSL)
+-
+-/*
+- * Called by OpenSSL for every message and record of the connection until it
+- * removes itself. Only the two TLS 1.3 Finished matter; TLS 1.2 waits on the
+- * client's key exchange (its computation would count) and is left out.
+- */
+-
+-static void
+-ngx_tcp_fingerprint_ssl_msg(int write_p, int version, int content_type,
+-    const void *buf, size_t len, SSL *ssl, void *arg)
+-{
+-    uint64_t                    now;
+-    struct timespec             ts;
+-    ngx_connection_t           *c;
+-    ngx_tcp_fingerprint_ctx_t  *ctx;
+-
+-    if (content_type != SSL3_RT_HANDSHAKE
+-        || len < 1
+-        || ((const u_char *) buf)[0] != SSL3_MT_FINISHED)
+-    {
+-        return;
+-    }
+-
+-    c = ngx_ssl_get_connection(ssl);
+-
+-    if (c == NULL
+-        || c->type != SOCK_STREAM
+-        || SSL_version(ssl) != TLS1_3_VERSION)
+-    {
+-        SSL_set_msg_callback(ssl, NULL);
+-        return;
+-    }
+-
+-    if (clock_gettime(CLOCK_MONOTONIC, &ts) == -1) {
+-        SSL_set_msg_callback(ssl, NULL);
+-        return;
+-    }
+-
+-    now = (uint64_t) ts.tv_sec * 1000000 + ts.tv_nsec / 1000;
+-
+-    ctx = ngx_tcp_fingerprint_connection_ctx(c);
+-
+-    if (ctx == NULL) {
+-        SSL_set_msg_callback(ssl, NULL);
+-        return;
+-    }
+-
+-    if (write_p) {
+-        ctx->finished = now;
+-        return;
+-    }
+-
+-    if (ctx->finished
+-        && ngx_tcp_fingerprint_tls_rtt(c, ctx, now) != NGX_OK)
+-    {
+-        ngx_str_null(&ctx->tls_rtt);
+-        ngx_str_null(&ctx->tcp_rtt);
+-    }
+-
+-    SSL_set_msg_callback(ssl, NULL);
+-}
+-
+-
+-static ngx_int_t
+-ngx_tcp_fingerprint_tls_rtt(ngx_connection_t *c,
+-    ngx_tcp_fingerprint_ctx_t *ctx, uint64_t now)
+-{
+-    socklen_t        len;
+-    struct tcp_info  ti;
+-
+-    len = sizeof(struct tcp_info);
+-
+-    if (getsockopt(c->fd, IPPROTO_TCP, TCP_INFO, &ti, &len) == -1) {
+-        ngx_log_debug0(NGX_LOG_DEBUG_EVENT, c->log, ngx_socket_errno,
+-                       "tcp_fingerprint: getsockopt(TCP_INFO) failed");
+-        return NGX_ERROR;
+-    }
+-
+-    if (ngx_tcp_fingerprint_set(c->pool, &ctx->tls_rtt, NGX_INT64_LEN,
+-                                "%uL", now - ctx->finished)
+-        != NGX_OK)
+-    {
+-        return NGX_ERROR;
+-    }
+-
+-    return ngx_tcp_fingerprint_set(c->pool, &ctx->tcp_rtt,
+-                                   NGX_INT32_LEN, "%uD",
+-                                   (uint32_t) ti.tcpi_rtt);
+-}
+-
+-
+-void
+-ngx_tcp_fingerprint_ssl_init(ngx_ssl_t *ssl)
+-{
+-    if (ssl->ctx) {
+-        SSL_CTX_set_msg_callback(ssl->ctx, ngx_tcp_fingerprint_ssl_msg);
+-    }
+-}
+-
+-#endif
+-
+-
+ /* Enable SYN capture only on listeners belonging to this subsystem. */
+ 
+ ngx_int_t
+diff --git a/ngx_tcp_fingerprint.h b/ngx_tcp_fingerprint.h
+--- a/ngx_tcp_fingerprint.h
++++ b/ngx_tcp_fingerprint.h
+@@ -21,9 +21,6 @@
+     ngx_str_t   wscale;
+     ngx_str_t   options;
+     ngx_str_t   quirks;
+-    ngx_str_t   tls_rtt;
+-    ngx_str_t   tcp_rtt;
+-    uint64_t    finished;           /* server Finished sent, microseconds */
+     unsigned    syn_read:1;
+ } ngx_tcp_fingerprint_ctx_t;
+ 
+@@ -32,9 +29,5 @@
+ ngx_int_t ngx_tcp_fingerprint_init_listening(ngx_cycle_t *cycle,
+     ngx_connection_handler_pt handler);
+ 
+-#if (NGX_HTTP_SSL || NGX_STREAM_SSL)
+-void ngx_tcp_fingerprint_ssl_init(ngx_ssl_t *ssl);
+-#endif
+-
+ 
+ #endif /* _NGX_TCP_FINGERPRINT_H_INCLUDED_ */
+diff --git a/README.md b/README.md
+--- a/README.md
++++ b/README.md
+@@ -3,8 +3,7 @@
+ An nginx module that exposes a passive fingerprint of the client's TCP/IP
+ stack, read from the SYN that opened the connection, in the tradition of
+ [p0f](https://lcamtuf.coredump.cx/p0f3/): TTL, window, MSS, window scale,
+-option layout and header quirks. It also times the TLS 1.3 handshake's round
+-trip next to the kernel's TCP RTT.
++option layout and header quirks.
+ 
+ A browser's User-Agent says which operating system it runs on, but the SYN
+ comes from the network stack that actually sent it. Residential proxies and
+@@ -13,13 +12,6 @@
+ `mss,sok,ts,nop,ws` options instead of `mss,nop,ws,nop,nop,sok`. The MSS tells
+ the link the client sits behind (Ethernet, PPPoE, a tunnel), the quirks tell a
+ SYN built by hand.
+-
+-The TCP round trip ends at whoever acknowledges the segments, the TLS one at
+-whoever holds the session keys: the same machine for a direct client, but
+-through a tunnel (CONNECT or SOCKS proxy, residential proxy networks) TCP stops
+-at the exit node and TLS goes on to the real client, often far away. A direct
+-client shows two close values, a tunnelled one a TLS RTT well above the TCP
+-one.
+ 
+ The module only reports. What to do with it (logging, scoring, challenging) is
+ up to the configuration; [`examples/`](examples) shows a few readings in njs.
+@@ -42,8 +34,6 @@
+ | `$tcpfp_wscale` | window scale option, empty without one |
+ | `$tcpfp_options` | option layout, in order: `mss`, `ws`, `sok` (SACK permitted), `sack`, `ts`, `nop`, `eol+N` (end of options and N padding bytes), `?K` (unknown kind K) |
+ | `$tcpfp_quirks` | oddities of the headers, empty when none (below) |
+-| `$tcpfp_tls_rtt` | TLS 1.3 handshake round trip in microseconds: from the server's Finished sent to the client's Finished read |
+-| `$tcpfp_tcp_rtt` | the kernel's smoothed TCP RTT (`tcpi_rtt`) in microseconds, read when the client's Finished arrived |
+ 
+ In the signature, `olen` is the length of the IPv4 options, `wsize` the window
+ written as a multiple of the MSS (`mss*44`) or of the MTU (`mtu*4`) when it is
+@@ -88,17 +78,6 @@
+ `tcp_fingerprint off`, connections accepted before `tcp_fingerprint on` was
+ loaded, non-TCP listeners.
+ 
+-`$tcpfp_tls_rtt` and `$tcpfp_tcp_rtt` are empty without TLS 1.3 (plain HTTP,
+-TLS 1.2: the server waits there for the client's key exchange, whose
+-computation would count), on HTTP/3 and with `tcp_fingerprint off`. The TLS
+-RTT also counts the client's work on the server's flight (certificate check, a
+-few milliseconds) and the time the worker takes to read the Finished; a server
+-flight larger than the initial congestion window (big certificate chain), or a
+-loss, adds round trips. Compare the two values with a wide margin (ratio and
+-absolute gap), never for equality. Tunnels that terminate TLS (corporate
+-gateways that inspect it) show no gap; relays that cut TCP close to a slow last
+-mile do (mobile networks' transparent TCP proxies, iCloud Private Relay).
+-
+ ## Directive
+ 
+ ```
+@@ -123,8 +102,7 @@
+ http {
+     tcp_fingerprint on;
+ 
+-    log_format fp '$remote_addr "$http_user_agent" sig=$tcpfp_signature '
+-                  'tls_rtt=$tcpfp_tls_rtt tcp_rtt=$tcpfp_tcp_rtt';
++    log_format fp '$remote_addr "$http_user_agent" sig=$tcpfp_signature';
+ 
+     server {
+         listen 443 ssl;
+@@ -140,8 +118,7 @@
+ }
+ stream {
+     tcp_fingerprint on;
+-    log_format fp '$remote_addr sig=$tcpfp_signature '
+-                  'tls_rtt=$tcpfp_tls_rtt tcp_rtt=$tcpfp_tcp_rtt';
++    log_format fp '$remote_addr sig=$tcpfp_signature';
+     access_log /var/log/nginx/stream-fp.log fp;
+ 
+     server {
+@@ -153,8 +130,7 @@
+ }
+ ```
+ 
+-The SYN variables also work on plain TCP listeners. RTT measurements require
+-local TLS 1.3 termination; TLS passthrough with `ssl_preread` has no RTT sample.
++The SYN variables also work on plain TCP listeners and TLS passthrough.
+ UDP and Unix-domain listeners return empty variables.
+ 
+ ## njs examples
+@@ -168,7 +144,6 @@
+   GRE, WireGuard, jumbo frames (datacenter hosts), or reduced (VPNs, mobile
+   carriers' clamping).
+ - `crafted`: a SYN no ordinary stack sends (raw socket scanners).
+-- `tunnelled`: TLS round trip well above the TCP one.
+ - `stacksBehind`: several systems behind one address (NAT, proxy pool), in a
+   shared dictionary.
+ 
+@@ -190,17 +165,10 @@
+   pool. Keepalive requests and HTTP/2 streams reuse it.
+ - After that, a request costs no system call and no allocation. Parsing is
+   bounds-checked against the length the kernel returns.
+-- With `tcp_fingerprint on`, the module sets an OpenSSL message callback on
+-  the SSL context of every `server` (SSL connections keep it when SNI switches
+-  context). It notes the time the server's Finished is written, and when the
+-  client's is read, computes the TLS RTT, reads `getsockopt(TCP_INFO)`, keeps
+-  both in the connection's pool and removes itself from the connection: no
+-  cost once the handshake is over.
+ 
+ ## Requirements
+ 
+ - Linux 4.2 or later (`TCP_SAVE_SYN`).
+-- OpenSSL 1.1.1 or later for the TLS RTT (TLS 1.3).
+ - nginx built with `--with-compat` for a dynamic module. Tested with nginx
+   1.31.7.
+ - The client's SYN must reach nginx unchanged: behind a load balancer, a
+@@ -231,12 +199,8 @@
+ Builds nginx with the module (`-Werror`), then checks the variables against
+ real SYNs in throwaway network namespaces, where TCP sysctls change the
+ client's SYN: Linux defaults, no timestamps, MSS only, TTL 100 and 128, ECN,
+-IPv6 hop limit and flow label, keepalive, HTTP/2, `tcp_fingerprint off`. For
+-the RTTs, netem delays the loopback: a direct client at 20 ms (both values
+-close), a client behind a TCP relay with the delay on its side only (TLS RTT
+-60 ms, TCP RTT near zero), one handshake for HTTP/2 streams, nothing on
+-TLS 1.2 or plain HTTP. With the `njs` command line, it also runs
+-`t/examples.js` on the examples.
++IPv6 hop limit and flow label, keepalive, HTTP/2, `tcp_fingerprint off`.
++With the `njs` command line, it also runs `t/examples.js` on the examples.
+ 
+ ## Versions
+ 
+diff --git a/t/examples.js b/t/examples.js
+--- a/t/examples.js
++++ b/t/examples.js
+@@ -58,9 +58,4 @@
+ eq("crafted: scanner", fp.crafted(scanner), ["tiny-window", "ttl-255"]);
+ eq("crafted: quirks", fp.crafted(fp.parse("4:64+0:0:1460:1024,0::seq-,ts1-:0")), ["seq-", "ts1-", "no-options"]);
+ 
+-eq("rtt: direct", fp.tunnelled("21000", "20000"), false);
+-eq("rtt: tunnel", fp.tunnelled("180000", "9000"), true);
+-eq("rtt: small gap", fp.tunnelled("12000", "2000"), false);
+-eq("rtt: missing", fp.tunnelled("", "9000"), false);
+-
+ if (fail) throw new Error("examples: failures");
+diff --git a/t/test.sh b/t/test.sh
+--- a/t/test.sh
++++ b/t/test.sh
+@@ -6,7 +6,7 @@
+ #
+ # Usage, as root on Linux:  t/test.sh [nginx version]
+ # Needs: cc, make, curl (with HTTP/2), openssl, libpcre2-dev, zlib1g-dev,
+-# libssl-dev, util-linux (unshare), iproute2 (tc, netem), python3.
++# libssl-dev, util-linux (unshare), iproute2, python3.
+ 
+ set -eu
+ 
+@@ -56,9 +56,6 @@
+         location /vars {
+             return 200 "ttl=\$tcpfp_ttl ittl=\$tcpfp_ittl hops=\$tcpfp_hops win=\$tcpfp_win mss=\$tcpfp_mss ws=\$tcpfp_wscale opts=\$tcpfp_options quirks=\$tcpfp_quirks\n";
+         }
+-        location /rtt {
+-            return 200 "\$tcpfp_tls_rtt \$tcpfp_tcp_rtt\n";
+-        }
+     }
+ }
+ stream {
+@@ -76,11 +73,6 @@
+     server {
+         listen 127.0.0.1:9001;
+         return "ttl=\$tcpfp_ttl ittl=\$tcpfp_ittl hops=\$tcpfp_hops win=\$tcpfp_win mss=\$tcpfp_mss ws=\$tcpfp_wscale opts=\$tcpfp_options quirks=\$tcpfp_quirks\n";
+-    }
+-    server {
+-        listen 127.0.0.1:9002;
+-        listen 127.0.0.1:9445 ssl;
+-        return "\$tcpfp_tls_rtt \$tcpfp_tcp_rtt\n";
+     }
+     server {
+         listen 127.0.0.1:9003 udp;
+@@ -163,84 +155,11 @@
+     "--http2 https://127.0.0.1:8443/a https://127.0.0.1:8443/b" \
+     '(4:64\+0:[^|]+)\|\1\|'
+ 
+-# TCP relay for the tunnel case: the client's TCP ends here, its TLS goes
+-# on to nginx, as through a CONNECT proxy
+-cat > "$WORK/relay.py" <<'PY'
+-import socket, threading
+-def pipe(a, b):
+-    while True:
+-        d = a.recv(65536)
+-        if not d:
+-            break
+-        b.sendall(d)
+-    b.shutdown(socket.SHUT_WR)
+-s = socket.socket()
+-s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+-s.bind(("127.0.0.1", 9443))
+-s.listen()
+-while True:
+-    c, _ = s.accept()
+-    u = socket.create_connection(("127.0.0.1", 8443))
+-    threading.Thread(target=pipe, args=(c, u), daemon=True).start()
+-    threading.Thread(target=pipe, args=(u, c), daemon=True).start()
+-PY
+-
+-# rtt NAME 'setup commands' 'client arguments' 'awk condition on the output
+-# fields: TLS RTT, TCP RTT (microseconds), then the next request's'
+-rtt() {
+-    out=$(unshare -n sh -c "
+-        ip link set lo up
+-        $2
+-        $NGINX -p $WORK -c $WORK/nginx.conf
+-        sleep 0.3
+-        $CLIENT $3
+-        $NGINX -p $WORK -c $WORK/nginx.conf -s stop
+-        [ -z \"\${RELAY:-}\" ] || kill \$RELAY
+-        sleep 0.2
+-    " 2>&1 | tr '\n' ' ')
+-    if printf '%s\n' "$out" | awk "{ exit !($4) }"; then
+-        echo "ok    $1: $out"
+-    else
+-        echo "FAIL  $1: got '$out', expected $4"
+-        FAIL=1
+-    fi
+-}
+-
+-rtt "TLS 1.3 direct, 20 ms RTT: both close" \
+-    "tc qdisc add dev lo root netem delay 10ms" \
+-    "https://127.0.0.1:8443/rtt" \
+-    '$1 >= 19000 && $1 < 40000 && $2 >= 19000 && $2 < 40000'
+-
+-rtt "TLS 1.3 through a relay, 60 ms behind it: TLS only" \
+-    "tc qdisc add dev lo root handle 1: prio
+-     tc qdisc add dev lo parent 1:3 handle 30: netem delay 30ms
+-     tc filter add dev lo parent 1: protocol ip u32 match ip dport 9443 0xffff flowid 1:3
+-     tc filter add dev lo parent 1: protocol ip u32 match ip sport 9443 0xffff flowid 1:3
+-     python3 $WORK/relay.py >/dev/null 2>&1 & RELAY=\$! ; sleep 0.3" \
+-    "https://127.0.0.1:9443/rtt" \
+-    '$1 >= 59000 && $2 < 10000'
+-
+-rtt "HTTP/2 streams: one handshake" "" \
+-    "--http2 https://127.0.0.1:8443/rtt https://127.0.0.1:8443/rtt" \
+-    'NF == 4 && $1 > 0 && $2 > 0 && $1 == $3 && $2 == $4'
+-
+-check "TLS 1.2: no TLS RTT" "" \
+-    "--tls-max 1.2 https://127.0.0.1:8443/rtt" \
+-    ' \|'
+-
+-check "plain HTTP: no TLS RTT" "" \
+-    "http://127.0.0.1:8080/rtt" \
+-    ' \|'
+-
+ conf off
+ 
+ check "tcp_fingerprint off" "" \
+     "http://127.0.0.1:8080/" \
+     '\|'
+-
+-check "tcp_fingerprint off: no TLS RTT" "" \
+-    "https://127.0.0.1:8443/rtt" \
+-    ' \|'
+ 
+ # A client for the same checks against Stream listeners.
+ cat > "$WORK/client.py" <<'PY'
+@@ -318,12 +237,9 @@
+ check "Stream: TLS 1.3 SYN" "" "--tls 9444" \
+     '4:64\+0:0:65495:[^,]+,[0-9]+:mss,sok,ts,nop,ws:df(,id\+)?:0\|'
+ 
+-rtt "Stream: TLS 1.3 direct, 20 ms RTT" \
+-    "tc qdisc add dev lo root netem delay 10ms" "--tls 9445" \
+-    '$1 >= 19000 && $1 < 40000 && $2 >= 19000 && $2 < 40000'
+-
+-check "Stream: TLS 1.2 has no RTT sample" "" "--tls12 9445" ' \|'
+-check "Stream: plain TCP has no RTT sample" "" "9002" ' \|'
++check "Stream: TLS 1.2 SYN" "" "--tls12 9444" \
++    '4:64\+0:0:65495:[^,]+,[0-9]+:mss,sok,ts,nop,ws:df(,id\+)?:0\|'
++
+ check "Stream: UDP has no SYN" "" "--udp 9003" '\|'
+ check "Stream: Unix socket has no SYN" "" "--unix" '\|'
+ check "Stream: access-log-only variable" "" "--log 9004" \
+@@ -332,26 +248,19 @@
+ CLIENT='curl -sk'
+ check "HTTP stays disabled with Stream enabled" "" \
+     "https://127.0.0.1:8443/" '\|'
+-check "HTTP RTT stays disabled with Stream enabled" "" \
+-    "https://127.0.0.1:8443/rtt" ' \|'
+ 
+ conf on off
+ check "HTTP stays enabled with Stream disabled" "" \
+     "http://127.0.0.1:8080/" \
+     '4:64\+0:0:65495:[^,]+,[0-9]+:mss,sok,ts,nop,ws:df(,id\+)?:0\|'
+-rtt "HTTP RTT stays enabled with Stream disabled" "" \
+-    "https://127.0.0.1:8443/rtt" 'NF == 2 && $1 > 0 && $2 > 0'
+ 
+ CLIENT="python3 $WORK/client.py"
+ check "Stream stays disabled with HTTP enabled" "" "9000" '\|'
+-check "Stream RTT stays disabled with HTTP enabled" "" "--tls 9445" ' \|'
+ check "Stream: disabled access-log-only variable" "" "--log 9004" '-\|'
+ 
+ conf on
+ check "Stream: SYN with both switches enabled" "" "9000" \
+     '4:64\+0:0:65495:[^,]+,[0-9]+:mss,sok,ts,nop,ws:df(,id\+)?:0\|'
+-rtt "Stream: RTT with both switches enabled" "" "--tls 9445" \
+-    'NF == 2 && $1 > 0 && $2 > 0'
+ 
+ if grep -E '\[(alert|crit|emerg)\]' "$WORK/logs/error.log"; then
+     FAIL=1

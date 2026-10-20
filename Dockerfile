@@ -87,6 +87,8 @@ ARG RESTY_NGX_STREAM_EXTRA_VARIABLES_MODULE_VERSION="1.0.0"
 ARG RESTY_NGX_STREAM_LABEL_MODULE_VERSION="1.0.0"
 ARG RESTY_NGX_STREAM_LOG_SET_MODULE_VERSION="1.0.0"
 ARG RESTY_NGX_STREAM_LUA_UPSTREAM_MODULE_VERSION="1.0.0"
+# ngx_tcp_fingerprint_module stream_support.
+ARG RESTY_NGX_TCP_FINGERPRINT_MODULE_COMMIT="b96e30939a79b2970cfc01756c04e3b0167cb7c8"
 ARG RESTY_NGX_VAR_MODULE_VERSION="1.0.0"
 
 FROM dockerhub.hanada.info/${RESTY_IMAGE_BASE}:${RESTY_IMAGE_TAG} AS openresty-bundle
@@ -233,6 +235,7 @@ ARG RESTY_NGX_STREAM_EXTRA_VARIABLES_MODULE_VERSION
 ARG RESTY_NGX_STREAM_LABEL_MODULE_VERSION
 ARG RESTY_NGX_STREAM_LOG_SET_MODULE_VERSION
 ARG RESTY_NGX_STREAM_LUA_UPSTREAM_MODULE_VERSION
+ARG RESTY_NGX_TCP_FINGERPRINT_MODULE_COMMIT
 ARG RESTY_NGX_VAR_MODULE_VERSION
 
 ARG RESTY_PATH_OPTIONS="\
@@ -337,6 +340,7 @@ ARG RESTY_CONFIG_OPTIONS="\
     --add-module=/build/modules/ngx_stream_label_module \
     --add-module=/build/modules/ngx_stream_log_set_module \
     --add-module=/build/modules/ngx_stream_lua_upstream_module \
+    --add-module=/build/modules/ngx_tcp_fingerprint_module \
     --add-module=/build/modules/ngx_var_module \
 "
 ARG RESTY_LUAJIT_OPTIONS="--with-luajit-xcflags='-DLUAJIT_NUMMODE=2 -DLUAJIT_ENABLE_LUA52COMPAT'"
@@ -437,6 +441,11 @@ RUN mkdir -p /build/modules \
     && git clone --depth=1 --branch "${RESTY_NGX_STAT_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_stat_module.git ngx_stat_module \
     && git clone --depth=1 --recurse-submodules --branch "${RESTY_NGX_HTTP_BROTLI_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_brotli_module.git ngx_http_brotli_module \
     && git clone --depth=1 --branch "${RESTY_NGX_SSL_FINGERPRINT_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_ssl_fingerprint_module.git ngx_ssl_fingerprint_module \
+    && git init ngx_tcp_fingerprint_module \
+    && git -C ngx_tcp_fingerprint_module remote add origin https://${RESTY_GIT_MIRROR}/HanadaLee/ngx_tcp_fingerprint_module.git \
+    && git -C ngx_tcp_fingerprint_module fetch --depth=1 origin "${RESTY_NGX_TCP_FINGERPRINT_MODULE_COMMIT}" \
+    && test "$(git -C ngx_tcp_fingerprint_module rev-parse FETCH_HEAD)" = "${RESTY_NGX_TCP_FINGERPRINT_MODULE_COMMIT}" \
+    && git -C ngx_tcp_fingerprint_module checkout --detach FETCH_HEAD \
     && git init ngx_http_weserv_module \
     && git -C ngx_http_weserv_module remote add origin https://${RESTY_GIT_MIRROR}/weserv/images.git \
     && git -C ngx_http_weserv_module fetch --depth=1 origin "${RESTY_NGX_HTTP_WESERV_MODULE_COMMIT}" \
@@ -622,6 +631,9 @@ RUN RESTY_VERSION="$(cat /build/openresty-version)" \
     && NGINX_VERSION="${RESTY_VERSION%.*}" \
     && OPENRESTY_DIR="/build/openresty-${RESTY_VERSION}" \
     && NGINX_DIR="${OPENRESTY_DIR}/bundle/nginx-${NGINX_VERSION}" \
+    && cd /build/modules/ngx_tcp_fingerprint_module \
+    && echo 'patching ngx_tcp_fingerprint_module to remove RTT collection' \
+    && patch --batch --forward --fuzz=0 -p1 < /build/patches/ngx_tcp_fingerprint_module-no-rtt.patch \
     && cd /build/modules/ngx_http_cache_purge_module \
     && echo 'patching ngx_http_cache_purge_module for conditional proxy settings' \
     && patch -p1 < /build/patches/ngx_http_cache_purge_module-ext.patch \
