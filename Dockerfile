@@ -14,6 +14,7 @@ ARG RESTY_RUST_VERSION="1.89.0"
 ARG RESTY_LUAROCKS_VERSION="3.13.0"
 ARG RESTY_LUA_RESTY_BALANCER_VERSION="0.05"
 ARG RESTY_LUA_RESTY_MLCACHE_VERSION="2.7.1"
+ARG RESTY_JSONSCHEMA_VERSION="0.9.13"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.14.1"
 ARG RESTY_OPENSSL_VERSION="3.5.9"
 ARG RESTY_OPENSSL_PATCH_VERSION="3.5.5"
@@ -180,6 +181,7 @@ ARG RESTY_J
 ARG RESTY_LUAROCKS_VERSION
 ARG RESTY_LUA_RESTY_BALANCER_VERSION
 ARG RESTY_LUA_RESTY_MLCACHE_VERSION
+ARG RESTY_JSONSCHEMA_VERSION
 ARG RESTY_LIBMAXMINDDB_VERSION
 ARG RESTY_OPENSSL_VERSION
 ARG RESTY_OPENSSL_PATCH_VERSION
@@ -606,7 +608,7 @@ RUN mkdir -p /build/modules \
 RUN mkdir -p /build/lualib \
     && cd /build/lualib \
     && git clone --depth=1 --branch v${RESTY_LUA_RESTY_BALANCER_VERSION} https://${RESTY_GIT_MIRROR}/openresty/lua-resty-balancer.git lua-resty-balancer \
-    && git clone --depth=1 https://${RESTY_GIT_MIRROR}/api7/jsonschema.git jsonschema \
+    && git clone --depth=1 --branch v${RESTY_JSONSCHEMA_VERSION} https://${RESTY_GIT_MIRROR}/api7/jsonschema.git jsonschema \
     && git clone --depth=1 --branch supported_semaphore_wait_phases https://${RESTY_GIT_MIRROR}/HanadaLee/lua-resty-dns-client.git lua-resty-dns-client \
     && git clone --depth=1 --branch ${RESTY_LUA_RESTY_MLCACHE_VERSION} https://${RESTY_GIT_REPO}/hanada/lua-resty-mlcache.git lua-resty-mlcache
 
