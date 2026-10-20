@@ -126,7 +126,6 @@ ARG RESTY_NGX_STREAM_EXTRA_VARIABLES_MODULE_VERSION="1.0.0"
 ARG RESTY_NGX_STREAM_LABEL_MODULE_VERSION="1.0.0"
 ARG RESTY_NGX_STREAM_LOG_SET_MODULE_VERSION="1.0.0"
 ARG RESTY_NGX_STREAM_LUA_UPSTREAM_MODULE_VERSION="1.0.0"
-# ngx_tcp_fingerprint_module stream_support.
 ARG RESTY_NGX_TCP_FINGERPRINT_MODULE_COMMIT="b96e30939a79b2970cfc01756c04e3b0167cb7c8"
 ARG RESTY_NGX_VAR_MODULE_VERSION="1.0.0"
 
@@ -813,7 +812,7 @@ RUN mkdir -p /usr/local/openresty/share \
     && cp -r lua-resty-dns-client/src/* /usr/local/openresty/lualib/ \
     && cp -r lua-resty-mlcache/lib/* /usr/local/openresty/lualib/
 
-# Install LuaRocks packages and runtime data, then trim the assembled tree.
+# Install LuaRocks packages and runtime data.
 RUN /usr/local/openresty/luajit/bin/luarocks install lua-lolhtml "${RESTY_LUA_LOLHTML_VERSION}" \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-multipart-parser "${RESTY_LUA_RESTY_MULTIPART_PARSER_VERSION}" \
     && /usr/local/openresty/luajit/bin/luarocks install binaryheap "${RESTY_BINARYHEAP_VERSION}" \
@@ -864,9 +863,7 @@ RUN /usr/local/openresty/luajit/bin/luarocks install lua-lolhtml "${RESTY_LUA_LO
               -o -path '/usr/local/openresty/sbin/nginx' \
               -o -path '/usr/local/openresty/luajit/bin/luajit-*' \) \
            -exec strip --strip-debug {} +; \
-       fi \
-    && cd /usr/local/openresty \
-    && rm -rf pod site resty.index bin/md2pod.pl bin/nginx-xml2pod bin/restydoc bin/restydoc-index
+        fi
 
 FROM dockerhub.hanada.info/${RESTY_IMAGE_BASE}:${RESTY_IMAGE_TAG} AS runtime
 
@@ -874,14 +871,6 @@ ARG RESTY_IMAGE_BASE
 ARG RESTY_IMAGE_TAG
 ARG RESTY_VERSION
 ARG RESTY_RELEASE
-ARG RESTY_LUAROCKS_VERSION
-ARG RESTY_LIBMAXMINDDB_VERSION
-ARG RESTY_OPENSSL_VERSION
-ARG RESTY_OPENSSL_PATCH_VERSION
-ARG RESTY_PCRE_VERSION
-ARG RESTY_ZLIB_VERSION
-ARG RESTY_ZSTD_VERSION
-ARG RESTY_MODSECURITY_VERSION
 
 RUN groupmod -n nginx www-data \
     && usermod -l nginx www-data \
@@ -932,14 +921,6 @@ LABEL resty_image_base="${RESTY_IMAGE_BASE}"
 LABEL resty_image_tag="${RESTY_IMAGE_TAG}"
 LABEL resty_version="${RESTY_VERSION}"
 LABEL resty_release="${RESTY_RELEASE}"
-LABEL resty_luarocks_version="${RESTY_LUAROCKS_VERSION}"
-LABEL resty_openssl_patch_version="${RESTY_OPENSSL_PATCH_VERSION}"
-LABEL resty_openssl_version="${RESTY_OPENSSL_VERSION}"
-LABEL resty_pcre_version="${RESTY_PCRE_VERSION}"
-LABEL resty_zlib_version="${RESTY_ZLIB_VERSION}"
-LABEL resty_zstd_version="${RESTY_ZSTD_VERSION}"
-LABEL resty_libmaxminddb_version="${RESTY_LIBMAXMINDDB_VERSION}"
-LABEL resty_modsecurity_version="${RESTY_MODSECURITY_VERSION}"
 
 WORKDIR /usr/local/openresty
 
