@@ -33,7 +33,7 @@ ARG RESTY_NGX_HTTP_AUTH_HMAC_MODULE_VERSION="0.3.1"
 ARG RESTY_NGX_HTTP_AUTH_INTERNAL_MODULE_VERSION="1.0.0"
 ARG RESTY_NGX_HTTP_BROTLI_MODULE_VERSION="1.0.0"
 ARG RESTY_NGX_HTTP_CACHE_DECHUNK_FILTER_MODULE_VERSION="1.0.1"
-ARG RESTY_NGX_HTTP_CACHE_PURGE_MODULE_COMMIT="9c6c6d7ad2f30a208f686594650426da172534eb"
+ARG RESTY_NGX_HTTP_CACHE_PURGE_MODULE_VERSION="4.0.0-rc2"
 ARG RESTY_NGX_HTTP_COMPRESSION_NORMALIZE_MODULE_VERSION="1.0.0"
 ARG RESTY_NGX_HTTP_COMPRESSION_VARY_FILTER_MODULE_VERSION="1.0.0"
 ARG RESTY_NGX_HTTP_CORS_MODULE_VERSION="0.1.1"
@@ -181,7 +181,7 @@ ARG RESTY_NGX_HTTP_AUTH_HMAC_MODULE_VERSION
 ARG RESTY_NGX_HTTP_AUTH_INTERNAL_MODULE_VERSION
 ARG RESTY_NGX_HTTP_BROTLI_MODULE_VERSION
 ARG RESTY_NGX_HTTP_CACHE_DECHUNK_FILTER_MODULE_VERSION
-ARG RESTY_NGX_HTTP_CACHE_PURGE_MODULE_COMMIT
+ARG RESTY_NGX_HTTP_CACHE_PURGE_MODULE_VERSION
 ARG RESTY_NGX_HTTP_COMPRESSION_NORMALIZE_MODULE_VERSION
 ARG RESTY_NGX_HTTP_COMPRESSION_VARY_FILTER_MODULE_VERSION
 ARG RESTY_NGX_HTTP_CORS_MODULE_VERSION
@@ -452,11 +452,7 @@ RUN mkdir -p /build/modules \
     && test "$(git -C ngx_http_weserv_module rev-parse FETCH_HEAD)" = "${RESTY_NGX_HTTP_WESERV_MODULE_COMMIT}" \
     && git -C ngx_http_weserv_module checkout --detach FETCH_HEAD \
     && git -C ngx_http_weserv_module submodule update --init --recursive \
-    && git init ngx_http_cache_purge_module \
-    && git -C ngx_http_cache_purge_module remote add origin https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_cache_purge.git \
-    && git -C ngx_http_cache_purge_module fetch --depth=1 origin "${RESTY_NGX_HTTP_CACHE_PURGE_MODULE_COMMIT}" \
-    && test "$(git -C ngx_http_cache_purge_module rev-parse FETCH_HEAD)" = "${RESTY_NGX_HTTP_CACHE_PURGE_MODULE_COMMIT}" \
-    && git -C ngx_http_cache_purge_module checkout --detach FETCH_HEAD \
+    && git clone --depth=1 --branch "${RESTY_NGX_HTTP_CACHE_PURGE_MODULE_VERSION}" https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_cache_purge.git ngx_http_cache_purge_module \
     && git clone --depth=1 --branch "${RESTY_NGX_HTTP_LIMIT_TRAFFIC_RATE_FILTER_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_limit_traffic_rate_filter_module.git ngx_http_limit_traffic_rate_filter_module \
     && git clone --depth=1 --branch "${RESTY_NGX_HTTP_ACCESS_CONTROL_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_access_control_module.git ngx_http_access_control_module \
     && git clone --depth=1 --branch "${RESTY_NGX_HTTP_AUTH_AKAMAI_G2O_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_auth_akamai_g2o_module.git ngx_http_auth_akamai_g2o_module \
