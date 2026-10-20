@@ -45,6 +45,7 @@ build-amd64:
       test_image="openresty-patch-test:${VERSION}-amd64"
 
       bash t/ci/release-state.sh
+      python3 t/ci/release-notes.py
       bash t/ci/module-tests.sh
       bash t/ci/test-run.sh
       docker build --target openresty-build \
@@ -96,6 +97,7 @@ build-arm64:
       test_image="openresty-patch-test:${VERSION}-arm64"
 
       bash t/ci/release-state.sh
+      python3 t/ci/release-notes.py
       bash t/ci/module-tests.sh
       bash t/ci/test-run.sh
       docker build --target openresty-build \

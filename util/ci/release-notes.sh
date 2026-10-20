@@ -17,10 +17,20 @@ fi
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repository_root="$(cd "$script_dir/../.." && pwd)"
-previous_tag="$(
-    git -C "$repository_root" tag --merged "$commit" --sort=-version:refname |
-        grep -Fvx "$version" | head -n 1 || true
-)"
+commit="$(git -C "$repository_root" rev-parse --verify "${commit}^{commit}")"
+tags="$(git -C "$repository_root" tag --merged "$commit" --sort=-version:refname)"
+previous_tag=""
+while IFS= read -r tag; do
+    [[ "$tag" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || continue
+    [[ "$tag" != "$version" ]] || continue
+    if [[ "$(printf '%s\n%s\n' "$tag" "$version" | sort -V | tail -n 1)" == "$version" ]]; then
+        previous_tag="$tag"
+        break
+    fi
+done <<< "$tags"
+
+module_changes="$(python3 "$script_dir/module-versions.py" \
+    "$repository_root" "$previous_tag" "$commit")"
 
 {
     echo "## What's Changed"
@@ -41,6 +51,9 @@ previous_tag="$(
     fi
 
     echo
+    if [[ -n "$module_changes" ]]; then
+        printf '%s\n\n' "$module_changes"
+    fi
     echo "## Container Images"
     echo
     echo "- \`${harbor_image}:${version}\`"

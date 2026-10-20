@@ -37,6 +37,9 @@ jobs:
         shell: bash
         run: bash t/ci/release-state.sh
 
+      - name: Check release module changes
+        run: python3 t/ci/release-notes.py
+
       - name: Check module test discovery
         shell: bash
         run: bash t/ci/module-tests.sh
