@@ -12,7 +12,6 @@ ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_REPOSITORY="https://${RESTY_GIT_MIRROR}/openresty/openresty.git"
 ARG RESTY_RUST_VERSION="1.89.0"
 ARG RESTY_LUAROCKS_VERSION="3.13.0"
-ARG RESTY_LUA_LOLHTML_VERSION="1.0.1-1"
 ARG RESTY_LUA_RESTY_BALANCER_VERSION="0.05"
 ARG RESTY_LUA_RESTY_MLCACHE_VERSION="2.7.1"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.14.1"
@@ -24,6 +23,41 @@ ARG RESTY_ZSTD_VERSION="1.5.7"
 ARG RESTY_LIBVIPS_VERSION="8.18.7"
 ARG RESTY_MODSECURITY_VERSION="3.0.17"
 ARG RESTY_OWSAP_CRS_VERSION="4.30.0"
+
+# LuaRocks packages.
+ARG RESTY_LUA_LOLHTML_VERSION="1.0.1-1"
+ARG RESTY_BINARYHEAP_VERSION="0.4-1"
+ARG RESTY_LUAFILESYSTEM_VERSION="1.9.0-1"
+ARG RESTY_PENLIGHT_VERSION="1.15.0-1"
+ARG RESTY_NET_URL_VERSION="1.2-1"
+ARG RESTY_API7_DKJSON_VERSION="0.1.1-0"
+ARG RESTY_LYAML_VERSION="6.2.9-2"
+ARG RESTY_LRANDOM_VERSION="20180729-1"
+ARG RESTY_LUAXXHASH_VERSION="1.0.0-1"
+ARG RESTY_XML2LUA_VERSION="1.6-2"
+ARG RESTY_LUA_FFI_ZLIB_VERSION="0.6-0"
+ARG RESTY_LUA_RESTY_OPENSSL_VERSION="1.9.0-1"
+ARG RESTY_LUA_RESTY_HTTP_VERSION="0.18.0-0"
+ARG RESTY_LUA_RESTY_HMAC_FFI_VERSION="0.06-1"
+ARG RESTY_LUA_RESTY_JWT_VERSION="0.4.0-1"
+ARG RESTY_LUA_RESTY_SESSION_VERSION="4.2.0-1"
+ARG RESTY_LUA_RESTY_OPENIDC_VERSION="1.9.2-1"
+ARG RESTY_LUA_RESTY_TIMER_VERSION="1.1.0-1"
+ARG RESTY_LUA_RESTY_KAFKA_VERSION="0.23-0"
+ARG RESTY_LUA_RESTY_TEMPLATE_VERSION="2.0-1"
+ARG RESTY_LUA_RESTY_COOKIE_VERSION="0.4.1-1"
+ARG RESTY_LUA_RESTY_WORKER_EVENTS_VERSION="2.0.1-1"
+ARG RESTY_LUA_RESTY_HEALTHCHECK_VERSION="3.1.2-1"
+ARG RESTY_LUA_RESTY_IPMATCHER_VERSION="0.6.1-0"
+ARG RESTY_LUA_RESTY_EXPR_VERSION="1.3.2-0"
+ARG RESTY_API7_LUA_RESTY_REDIS_CONNECTOR_VERSION="0.13.0-0"
+ARG RESTY_LUA_RESTY_REDIS_CLUSTER_VERSION="1.3.3-0"
+ARG RESTY_LUA_RESTY_TIMER_NG_VERSION="0.2.7-1"
+ARG RESTY_LUA_RESTY_MAXMINDDB_VERSION="1.3.7-1"
+ARG RESTY_LUA_RESTY_M3U8_VERSION="0.2-0"
+ARG RESTY_LUA_RESTY_CTX_VERSION="1.0-0"
+ARG RESTY_LUA_RESTY_GD_VERSION="2.3.3.4-1"
+ARG RESTY_LUA_RESTY_CAPTCHA_VERSION="1.0.2-1"
 
 # nginx modules.
 ARG RESTY_NGX_BACKTRACE_MODULE_VERSION="0.1.1"
@@ -143,7 +177,6 @@ ARG RESTY_VERSION
 ARG RESTY_RELEASE
 ARG RESTY_J
 ARG RESTY_LUAROCKS_VERSION
-ARG RESTY_LUA_LOLHTML_VERSION
 ARG RESTY_LUA_RESTY_BALANCER_VERSION
 ARG RESTY_LUA_RESTY_MLCACHE_VERSION
 ARG RESTY_LIBMAXMINDDB_VERSION
@@ -176,6 +209,41 @@ ARG RESTY_ZSTD_VERSION
 ARG RESTY_LIBVIPS_VERSION
 ARG RESTY_MODSECURITY_VERSION
 ARG RESTY_OWSAP_CRS_VERSION
+
+# LuaRocks packages.
+ARG RESTY_LUA_LOLHTML_VERSION
+ARG RESTY_BINARYHEAP_VERSION
+ARG RESTY_LUAFILESYSTEM_VERSION
+ARG RESTY_PENLIGHT_VERSION
+ARG RESTY_NET_URL_VERSION
+ARG RESTY_API7_DKJSON_VERSION
+ARG RESTY_LYAML_VERSION
+ARG RESTY_LRANDOM_VERSION
+ARG RESTY_LUAXXHASH_VERSION
+ARG RESTY_XML2LUA_VERSION
+ARG RESTY_LUA_FFI_ZLIB_VERSION
+ARG RESTY_LUA_RESTY_OPENSSL_VERSION
+ARG RESTY_LUA_RESTY_HTTP_VERSION
+ARG RESTY_LUA_RESTY_HMAC_FFI_VERSION
+ARG RESTY_LUA_RESTY_JWT_VERSION
+ARG RESTY_LUA_RESTY_SESSION_VERSION
+ARG RESTY_LUA_RESTY_OPENIDC_VERSION
+ARG RESTY_LUA_RESTY_TIMER_VERSION
+ARG RESTY_LUA_RESTY_KAFKA_VERSION
+ARG RESTY_LUA_RESTY_TEMPLATE_VERSION
+ARG RESTY_LUA_RESTY_COOKIE_VERSION
+ARG RESTY_LUA_RESTY_WORKER_EVENTS_VERSION
+ARG RESTY_LUA_RESTY_HEALTHCHECK_VERSION
+ARG RESTY_LUA_RESTY_IPMATCHER_VERSION
+ARG RESTY_LUA_RESTY_EXPR_VERSION
+ARG RESTY_API7_LUA_RESTY_REDIS_CONNECTOR_VERSION
+ARG RESTY_LUA_RESTY_REDIS_CLUSTER_VERSION
+ARG RESTY_LUA_RESTY_TIMER_NG_VERSION
+ARG RESTY_LUA_RESTY_MAXMINDDB_VERSION
+ARG RESTY_LUA_RESTY_M3U8_VERSION
+ARG RESTY_LUA_RESTY_CTX_VERSION
+ARG RESTY_LUA_RESTY_GD_VERSION
+ARG RESTY_LUA_RESTY_CAPTCHA_VERSION
 
 # nginx modules.
 ARG RESTY_NGX_BACKTRACE_MODULE_VERSION
@@ -745,38 +813,38 @@ RUN mkdir -p /usr/local/openresty/share \
 
 # Install LuaRocks packages and runtime data, then trim the assembled tree.
 RUN /usr/local/openresty/luajit/bin/luarocks install lua-lolhtml "${RESTY_LUA_LOLHTML_VERSION}" \
-    && /usr/local/openresty/luajit/bin/luarocks install binaryheap \
-    && /usr/local/openresty/luajit/bin/luarocks install luafilesystem \
-    && /usr/local/openresty/luajit/bin/luarocks install penlight \
-    && /usr/local/openresty/luajit/bin/luarocks install net-url \
-    && /usr/local/openresty/luajit/bin/luarocks install api7-dkjson \
-    && /usr/local/openresty/luajit/bin/luarocks install lyaml \
-    && /usr/local/openresty/luajit/bin/luarocks install lrandom \
-    && /usr/local/openresty/luajit/bin/luarocks install luaxxhash \
-    && /usr/local/openresty/luajit/bin/luarocks install xml2lua \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-ffi-zlib \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-openssl \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-http \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-hmac-ffi \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-jwt \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-session \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-openidc \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-timer \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-kafka \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-template \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-cookie \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-worker-events \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-healthcheck \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-ipmatcher \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-expr \
-    && /usr/local/openresty/luajit/bin/luarocks install api7-lua-resty-redis-connector \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-redis-cluster \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-timer-ng \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-maxminddb \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-m3u8 \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-ctx \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-gd \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-captcha \
+    && /usr/local/openresty/luajit/bin/luarocks install binaryheap "${RESTY_BINARYHEAP_VERSION}" \
+    && /usr/local/openresty/luajit/bin/luarocks install luafilesystem "${RESTY_LUAFILESYSTEM_VERSION}" \
+    && /usr/local/openresty/luajit/bin/luarocks install penlight "${RESTY_PENLIGHT_VERSION}" \
+    && /usr/local/openresty/luajit/bin/luarocks install net-url "${RESTY_NET_URL_VERSION}" \
+    && /usr/local/openresty/luajit/bin/luarocks install api7-dkjson "${RESTY_API7_DKJSON_VERSION}" \
+    && /usr/local/openresty/luajit/bin/luarocks install lyaml "${RESTY_LYAML_VERSION}" \
+    && /usr/local/openresty/luajit/bin/luarocks install lrandom "${RESTY_LRANDOM_VERSION}" \
+    && /usr/local/openresty/luajit/bin/luarocks install luaxxhash "${RESTY_LUAXXHASH_VERSION}" \
+    && /usr/local/openresty/luajit/bin/luarocks install xml2lua "${RESTY_XML2LUA_VERSION}" \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-ffi-zlib "${RESTY_LUA_FFI_ZLIB_VERSION}" \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-openssl "${RESTY_LUA_RESTY_OPENSSL_VERSION}" \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-http "${RESTY_LUA_RESTY_HTTP_VERSION}" \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-hmac-ffi "${RESTY_LUA_RESTY_HMAC_FFI_VERSION}" \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-jwt "${RESTY_LUA_RESTY_JWT_VERSION}" \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-session "${RESTY_LUA_RESTY_SESSION_VERSION}" \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-openidc "${RESTY_LUA_RESTY_OPENIDC_VERSION}" \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-timer "${RESTY_LUA_RESTY_TIMER_VERSION}" \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-kafka "${RESTY_LUA_RESTY_KAFKA_VERSION}" \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-template "${RESTY_LUA_RESTY_TEMPLATE_VERSION}" \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-cookie "${RESTY_LUA_RESTY_COOKIE_VERSION}" \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-worker-events "${RESTY_LUA_RESTY_WORKER_EVENTS_VERSION}" \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-healthcheck "${RESTY_LUA_RESTY_HEALTHCHECK_VERSION}" \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-ipmatcher "${RESTY_LUA_RESTY_IPMATCHER_VERSION}" \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-expr "${RESTY_LUA_RESTY_EXPR_VERSION}" \
+    && /usr/local/openresty/luajit/bin/luarocks install api7-lua-resty-redis-connector "${RESTY_API7_LUA_RESTY_REDIS_CONNECTOR_VERSION}" \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-redis-cluster "${RESTY_LUA_RESTY_REDIS_CLUSTER_VERSION}" \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-timer-ng "${RESTY_LUA_RESTY_TIMER_NG_VERSION}" \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-maxminddb "${RESTY_LUA_RESTY_MAXMINDDB_VERSION}" \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-m3u8 "${RESTY_LUA_RESTY_M3U8_VERSION}" \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-ctx "${RESTY_LUA_RESTY_CTX_VERSION}" \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-gd "${RESTY_LUA_RESTY_GD_VERSION}" \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-captcha "${RESTY_LUA_RESTY_CAPTCHA_VERSION}" \
     && mkdir -p /usr/local/openresty/share/uap-core \
     && cp /build/lib/uap-cpp/uap-core/regexes.yaml /usr/local/openresty/share/uap-core \
     && cd /usr/local/openresty/share \
