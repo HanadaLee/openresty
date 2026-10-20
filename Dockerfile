@@ -12,7 +12,7 @@ ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_REPOSITORY="https://${RESTY_GIT_MIRROR}/openresty/openresty.git"
 ARG RESTY_RUST_VERSION="1.89.0"
 ARG RESTY_LUAROCKS_VERSION="3.13.0"
-ARG RESTY_LUA_LOLHTML_VERSION="1.0.0"
+ARG RESTY_LUA_LOLHTML_VERSION="1.0.1-1"
 ARG RESTY_LUA_RESTY_BALANCER_VERSION="0.05"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.14.1"
 ARG RESTY_OPENSSL_VERSION="3.5.9"
@@ -537,8 +537,7 @@ RUN mkdir -p /build/lualib \
     && git clone --depth=1 --branch v${RESTY_LUA_RESTY_BALANCER_VERSION} https://${RESTY_GIT_MIRROR}/openresty/lua-resty-balancer.git lua-resty-balancer \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/api7/jsonschema.git jsonschema \
     && git clone --depth=1 --branch supported_semaphore_wait_phases https://${RESTY_GIT_MIRROR}/HanadaLee/lua-resty-dns-client.git lua-resty-dns-client \
-    && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/lua-resty-mlcache.git lua-resty-mlcache \
-    && git clone --depth=1 --recurse-submodules --branch "${RESTY_LUA_LOLHTML_VERSION}" https://${RESTY_GIT_MIRROR}/HanadaLee/lua-lolhtml.git
+    && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/lua-resty-mlcache.git lua-resty-mlcache
 
 # Build foundational native libraries.
 RUN cd /build/lib/libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION} \
@@ -740,13 +739,11 @@ RUN mkdir -p /usr/local/openresty/share \
     && install -m 755 lua-resty-balancer/librestychash.so /usr/local/openresty/lualib/ \
     && cp -r jsonschema/lib/* /usr/local/openresty/lualib/ \
     && cp -r lua-resty-dns-client/src/* /usr/local/openresty/lualib/ \
-    && cp -r lua-resty-mlcache/lib/* /usr/local/openresty/lualib/ \
-    && cd /build/lualib/lua-lolhtml \
-    && make -j${RESTY_J} CFLAGS="-O3 -fPIC -I/usr/local/openresty/luajit/include/luajit-2.1" \
-    && cp lolhtml.so /usr/local/openresty/lualib
+    && cp -r lua-resty-mlcache/lib/* /usr/local/openresty/lualib/
 
 # Install LuaRocks packages and runtime data, then trim the assembled tree.
-RUN /usr/local/openresty/luajit/bin/luarocks install binaryheap \
+RUN /usr/local/openresty/luajit/bin/luarocks install lua-lolhtml "${RESTY_LUA_LOLHTML_VERSION}" \
+    && /usr/local/openresty/luajit/bin/luarocks install binaryheap \
     && /usr/local/openresty/luajit/bin/luarocks install luafilesystem \
     && /usr/local/openresty/luajit/bin/luarocks install penlight \
     && /usr/local/openresty/luajit/bin/luarocks install net-url \
