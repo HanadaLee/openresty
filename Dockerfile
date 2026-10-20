@@ -10,7 +10,9 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_REPOSITORY="https://${RESTY_GIT_MIRROR}/openresty/openresty.git"
+ARG RESTY_RUST_VERSION="1.89.0"
 ARG RESTY_LUAROCKS_VERSION="3.13.0"
+ARG RESTY_LUA_LOLHTML_VERSION="1.0.0"
 ARG RESTY_LUA_RESTY_BALANCER_VERSION="0.05"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.14.1"
 ARG RESTY_OPENSSL_VERSION="3.5.9"
@@ -91,6 +93,8 @@ ARG RESTY_NGX_STREAM_LUA_UPSTREAM_MODULE_VERSION="1.0.0"
 ARG RESTY_NGX_TCP_FINGERPRINT_MODULE_COMMIT="b96e30939a79b2970cfc01756c04e3b0167cb7c8"
 ARG RESTY_NGX_VAR_MODULE_VERSION="1.0.0"
 
+FROM dockerhub.hanada.info/rust:${RESTY_RUST_VERSION}-slim-trixie AS rust-toolchain
+
 FROM dockerhub.hanada.info/${RESTY_IMAGE_BASE}:${RESTY_IMAGE_TAG} AS openresty-bundle
 
 ARG RESTY_GIT_MIRROR
@@ -138,6 +142,7 @@ ARG RESTY_VERSION
 ARG RESTY_RELEASE
 ARG RESTY_J
 ARG RESTY_LUAROCKS_VERSION
+ARG RESTY_LUA_LOLHTML_VERSION
 ARG RESTY_LUA_RESTY_BALANCER_VERSION
 ARG RESTY_LIBMAXMINDDB_VERSION
 ARG RESTY_OPENSSL_VERSION
@@ -349,6 +354,12 @@ ARG RESTY_CONFIG_DEPS="--with-pcre --with-pcre-jit \
     --with-ld-opt='-Wl,-rpath,/usr/local/openresty/lib -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--gc-sections -pie -ljemalloc' \
 "
 
+ENV RUSTUP_HOME=/usr/local/rustup \
+    CARGO_HOME=/usr/local/cargo \
+    PATH=/usr/local/cargo/bin:${PATH}
+
+COPY --from=rust-toolchain /usr/local/rustup /usr/local/rustup
+COPY --from=rust-toolchain /usr/local/cargo /usr/local/cargo
 COPY --from=openresty-bundle /openresty.tar.gz /build/openresty.tar.gz
 COPY --from=openresty-bundle /openresty-version /build/openresty-version
 
@@ -367,7 +378,6 @@ RUN BUNDLE_RESTY_VERSION="$(cat /build/openresty-version)" \
         bison \
         build-essential \
         ca-certificates \
-        cargo \
         cmake \
         curl \
         flex \
@@ -402,7 +412,6 @@ RUN BUNDLE_RESTY_VERSION="$(cat /build/openresty-version)" \
         meson \
         perl \
         pkgconf \
-        rustc \
         unzip \
         wget \
     && if [ "${RESTY_GIT_MIRROR}" != "github.com" ]; then \
@@ -529,7 +538,7 @@ RUN mkdir -p /build/lualib \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/api7/jsonschema.git jsonschema \
     && git clone --depth=1 --branch supported_semaphore_wait_phases https://${RESTY_GIT_MIRROR}/HanadaLee/lua-resty-dns-client.git lua-resty-dns-client \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/lua-resty-mlcache.git lua-resty-mlcache \
-    && git clone --depth=1 --recurse-submodules https://${RESTY_GIT_MIRROR}/HanadaLee/lua-lolhtml.git
+    && git clone --depth=1 --recurse-submodules --branch "${RESTY_LUA_LOLHTML_VERSION}" https://${RESTY_GIT_MIRROR}/HanadaLee/lua-lolhtml.git
 
 # Build foundational native libraries.
 RUN cd /build/lib/libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION} \
