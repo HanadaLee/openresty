@@ -1,7 +1,7 @@
 # Intentionally empty: the version is read from util/ver at RESTY_COMMIT so it
 # is not pinned separately from the upstream source revision.
 ARG RESTY_VERSION
-ARG RESTY_RELEASE="385"
+ARG RESTY_RELEASE="386"
 ARG RESTY_COMMIT="f4fa4de37a3408f624e1a33f69e1d8817e2a99b5"
 ARG RESTY_J="4"
 ARG RESTY_IMAGE_BASE="debian"
