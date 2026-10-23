@@ -21,6 +21,7 @@ ARG RESTY_OPENSSL_PATCH_VERSION="3.5.5"
 ARG RESTY_PCRE_VERSION="10.49"
 ARG RESTY_ZLIB_VERSION="1.3.2"
 ARG RESTY_ZSTD_VERSION="1.5.7"
+ARG RESTY_BROTLI_VERSION="1.2.1"
 ARG RESTY_LIBVIPS_VERSION="8.18.7"
 ARG RESTY_MODSECURITY_VERSION="3.0.17"
 ARG RESTY_OWSAP_CRS_VERSION="4.30.0"
@@ -208,6 +209,7 @@ ARG RESTY_PCRE_BUILD_OPTIONS="\
 "
 ARG RESTY_ZLIB_VERSION
 ARG RESTY_ZSTD_VERSION
+ARG RESTY_BROTLI_VERSION
 ARG RESTY_LIBVIPS_VERSION
 ARG RESTY_MODSECURITY_VERSION
 ARG RESTY_OWSAP_CRS_VERSION
@@ -511,6 +513,7 @@ RUN mkdir -p /build/lib \
     && tar xzf pcre2-${RESTY_PCRE_VERSION}.tar.gz \
     && curl -fSLv https://${RESTY_GIT_MIRROR}/facebook/zstd/releases/download/v${RESTY_ZSTD_VERSION}/zstd-${RESTY_ZSTD_VERSION}.tar.gz -o zstd-${RESTY_ZSTD_VERSION}.tar.gz \
     && tar xzf zstd-${RESTY_ZSTD_VERSION}.tar.gz \
+    && git clone --depth=1 --branch "v${RESTY_BROTLI_VERSION}" https://${RESTY_GIT_MIRROR}/google/brotli.git brotli \
     && curl -fSLv https://${RESTY_GIT_MIRROR}/libvips/libvips/releases/download/v${RESTY_LIBVIPS_VERSION}/vips-${RESTY_LIBVIPS_VERSION}.tar.xz -o vips-${RESTY_LIBVIPS_VERSION}.tar.xz \
     && tar xf vips-${RESTY_LIBVIPS_VERSION}.tar.xz \
     && git clone --depth=1 --recurse-submodules https://${RESTY_GIT_MIRROR}/ua-parser/uap-cpp.git uap-cpp \
@@ -521,7 +524,7 @@ RUN mkdir -p /build/modules \
     && cd /build/modules \
     && git clone --depth=1 --branch "${RESTY_NGX_EXPR_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_expr_module.git ngx_expr_module \
     && git clone --depth=1 --branch "${RESTY_NGX_STAT_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_stat_module.git ngx_stat_module \
-    && git clone --depth=1 --recurse-submodules --branch "${RESTY_NGX_HTTP_BROTLI_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_brotli_module.git ngx_http_brotli_module \
+    && git clone --depth=1 --branch "${RESTY_NGX_HTTP_BROTLI_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_brotli_module.git ngx_http_brotli_module \
     && git clone --depth=1 --branch "${RESTY_NGX_SSL_FINGERPRINT_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_ssl_fingerprint_module.git ngx_ssl_fingerprint_module \
     && git init ngx_tcp_fingerprint_module \
     && git -C ngx_tcp_fingerprint_module remote add origin https://${RESTY_GIT_MIRROR}/HanadaLee/ngx_tcp_fingerprint_module.git \
@@ -683,9 +686,9 @@ RUN cd /build/lib/vips-${RESTY_LIBVIPS_VERSION} \
     && make -j${RESTY_J} \
     && make install \
     && ldconfig \
-    && cd /build/modules/ngx_http_brotli_module \
-    && mkdir -p deps/brotli/out \
-    && cd deps/brotli/out \
+    && cd /build/lib/brotli \
+    && mkdir -p out \
+    && cd out \
     && cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON \
         -DCMAKE_C_FLAGS="-O3 -flto -funroll-loops -ffunction-sections -fdata-sections -Wl,--gc-sections" \
         -DCMAKE_CXX_FLAGS="-O3 -flto -funroll-loops -ffunction-sections -fdata-sections -Wl,--gc-sections" .. \
