@@ -14,6 +14,7 @@ ARG RESTY_RUST_VERSION="1.89.0"
 ARG RESTY_LUAROCKS_VERSION="3.13.0"
 ARG RESTY_LUA_RESTY_BALANCER_VERSION="0.05"
 ARG RESTY_LUA_RESTY_MLCACHE_VERSION="2.7.1"
+ARG RESTY_LUA_RESTY_COOKIE_VERSION="0.5.0"
 ARG RESTY_JSONSCHEMA_VERSION="0.9.13"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.14.1"
 ARG RESTY_OPENSSL_VERSION="3.5.9"
@@ -48,7 +49,6 @@ ARG RESTY_LUA_RESTY_OPENIDC_VERSION="1.9.2-1"
 ARG RESTY_LUA_RESTY_TIMER_VERSION="1.1.0-1"
 ARG RESTY_LUA_RESTY_KAFKA_VERSION="0.23-0"
 ARG RESTY_LUA_RESTY_TEMPLATE_VERSION="2.0-1"
-ARG RESTY_LUA_RESTY_COOKIE_VERSION="0.4.1-1"
 ARG RESTY_LUA_RESTY_WORKER_EVENTS_VERSION="2.0.1-1"
 ARG RESTY_LUA_RESTY_HEALTHCHECK_VERSION="3.1.2-1"
 ARG RESTY_LUA_RESTY_IPMATCHER_VERSION="0.6.1-0"
@@ -181,6 +181,7 @@ ARG RESTY_J
 ARG RESTY_LUAROCKS_VERSION
 ARG RESTY_LUA_RESTY_BALANCER_VERSION
 ARG RESTY_LUA_RESTY_MLCACHE_VERSION
+ARG RESTY_LUA_RESTY_COOKIE_VERSION
 ARG RESTY_JSONSCHEMA_VERSION
 ARG RESTY_LIBMAXMINDDB_VERSION
 ARG RESTY_OPENSSL_VERSION
@@ -236,7 +237,6 @@ ARG RESTY_LUA_RESTY_OPENIDC_VERSION
 ARG RESTY_LUA_RESTY_TIMER_VERSION
 ARG RESTY_LUA_RESTY_KAFKA_VERSION
 ARG RESTY_LUA_RESTY_TEMPLATE_VERSION
-ARG RESTY_LUA_RESTY_COOKIE_VERSION
 ARG RESTY_LUA_RESTY_WORKER_EVENTS_VERSION
 ARG RESTY_LUA_RESTY_HEALTHCHECK_VERSION
 ARG RESTY_LUA_RESTY_IPMATCHER_VERSION
@@ -612,7 +612,8 @@ RUN mkdir -p /build/lualib \
     && git clone --depth=1 --branch v${RESTY_LUA_RESTY_BALANCER_VERSION} https://${RESTY_GIT_MIRROR}/openresty/lua-resty-balancer.git lua-resty-balancer \
     && git clone --depth=1 --branch v${RESTY_JSONSCHEMA_VERSION} https://${RESTY_GIT_MIRROR}/api7/jsonschema.git jsonschema \
     && git clone --depth=1 --branch supported_semaphore_wait_phases https://${RESTY_GIT_MIRROR}/HanadaLee/lua-resty-dns-client.git lua-resty-dns-client \
-    && git clone --depth=1 --branch ${RESTY_LUA_RESTY_MLCACHE_VERSION} https://${RESTY_GIT_REPO}/hanada/lua-resty-mlcache.git lua-resty-mlcache
+    && git clone --depth=1 --branch ${RESTY_LUA_RESTY_MLCACHE_VERSION} https://${RESTY_GIT_REPO}/hanada/lua-resty-mlcache.git lua-resty-mlcache \
+    && git clone --depth=1 --branch "${RESTY_LUA_RESTY_COOKIE_VERSION}" https://${RESTY_GIT_REPO}/hanada/lua-resty-cookie.git lua-resty-cookie
 
 # Build foundational native libraries.
 RUN cd /build/lib/libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION} \
@@ -837,7 +838,8 @@ RUN /usr/local/openresty/luajit/bin/luarocks install lua-lolhtml "${RESTY_LUA_LO
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-timer "${RESTY_LUA_RESTY_TIMER_VERSION}" \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-kafka "${RESTY_LUA_RESTY_KAFKA_VERSION}" \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-template "${RESTY_LUA_RESTY_TEMPLATE_VERSION}" \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-cookie "${RESTY_LUA_RESTY_COOKIE_VERSION}" \
+    && (cd /build/lualib/lua-resty-cookie \
+        && /usr/local/openresty/luajit/bin/luarocks make "rockspecs/lua-resty-cookie-${RESTY_LUA_RESTY_COOKIE_VERSION}-1.rockspec") \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-worker-events "${RESTY_LUA_RESTY_WORKER_EVENTS_VERSION}" \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-healthcheck "${RESTY_LUA_RESTY_HEALTHCHECK_VERSION}" \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-ipmatcher "${RESTY_LUA_RESTY_IPMATCHER_VERSION}" \
