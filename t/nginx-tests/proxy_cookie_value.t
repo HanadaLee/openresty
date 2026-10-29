@@ -34,39 +34,39 @@ EOF
 
 my @cases = (
     [ 'plain_empty', 'proxy_cookie_value sid "" filled;', '',
-        [ 'sid=filled', 'sid=filled', 'sid=filledx' ] ],
+        [ 'sid', 'sid=filled', 'sid=filledx' ] ],
     [ 'plain_nonempty', 'proxy_cookie_value sid x new;', '',
         [ 'sid', 'sid=', 'sid=new' ] ],
     [ 'regex_empty', 'proxy_cookie_value sid ~^$ filled;', '',
-        [ 'sid=filled', 'sid=filled', 'sid=x' ] ],
+        [ 'sid', 'sid=filled', 'sid=x' ] ],
     [ 'regex_nonempty', 'proxy_cookie_value sid ~^x$ new;', '',
         [ 'sid', 'sid=', 'sid=new' ] ],
     [ 'capture', 'proxy_cookie_value sid ~^(.*)$ pre-$1-post;', '',
-        [ 'sid=pre--post', 'sid=pre--post', 'sid=pre-x-post' ] ],
+        [ 'sid', 'sid=pre--post', 'sid=pre-x-post' ] ],
     [ 'named_capture',
         'proxy_cookie_value sid ~^(?<cookie_value>.*)$ pre-$cookie_value-post;',
-        '', [ 'sid=pre--post', 'sid=pre--post', 'sid=pre-x-post' ] ],
+        '', [ 'sid', 'sid=pre--post', 'sid=pre-x-post' ] ],
     [ 'plain_remove', 'proxy_cookie_value sid "" "";', '',
-        [ 'sid=', 'sid=', 'sid=x' ] ],
+        [ 'sid', 'sid=', 'sid=x' ] ],
     [ 'regex_remove', 'proxy_cookie_value sid ~^$ "";', '',
-        [ 'sid=', 'sid=', 'sid=x' ] ],
+        [ 'sid', 'sid=', 'sid=x' ] ],
     [ 'variable_empty',
         'proxy_cookie_value sid $arg_match $arg_replacement;',
-        '?replacement=filled', [ 'sid=filled', 'sid=filled', 'sid=filledx' ] ],
+        '?replacement=filled', [ 'sid', 'sid=filled', 'sid=filledx' ] ],
     [ 'variable_nonempty',
         'proxy_cookie_value sid $arg_match $arg_replacement;',
         '?match=x&replacement=new', [ 'sid', 'sid=', 'sid=new' ] ],
     [ 'name_regex', 'proxy_cookie_value ~^sid$ ~^$ filled;', '',
-        [ 'sid=filled', 'sid=filled', 'sid=x' ] ],
+        [ 'sid', 'sid=filled', 'sid=x' ] ],
     [ 'name_miss', 'proxy_cookie_value other ~^$ filled;', '',
         [ 'sid', 'sid=', 'sid=x' ] ],
     [ 'first_name_and_value',
         'proxy_cookie_value sid ~^x$ first; proxy_cookie_value sid ~^$ second;',
-        '', [ 'sid=second', 'sid=second', 'sid=first' ] ],
+        '', [ 'sid', 'sid=second', 'sid=first' ] ],
     [ 'attrs_miss', 'proxy_cookie_value sid ~^x$ new;' . $attr_rules, '',
         [ 'sid', 'sid=', 'sid=new' ], $changed ],
     [ 'attrs_fill', 'proxy_cookie_value sid ~^$ filled;' . $attr_rules, '',
-        [ 'sid=filled', 'sid=filled', 'sid=x' ], $changed ],
+        [ 'sid', 'sid=filled', 'sid=x' ], $changed ],
     [ 'attrs_only', $attr_rules, '',
         [ 'sid', 'sid=', 'sid=x' ], $changed ],
 );
@@ -166,7 +166,9 @@ for my $backend ([ 8080, 'HTTP/1.1' ], [ 8082, 'HTTP/2' ]) {
 
             like($response, qr/^HTTP\/1\.[01] 200 /, "$label response");
             my @cookies = $response =~ /^Set-Cookie:[ \t]*(.*?)\r?$/gmi;
-            is_deeply(\@cookies, [ $expected->[$i] . $suffix ], $label);
+            my $tail = $i == 0 && defined $case->[4]
+                ? '; Domain=new.example; Path=/new' : $suffix;
+            is_deeply(\@cookies, [ $expected->[$i] . $tail ], $label);
         }
     }
 
@@ -175,7 +177,7 @@ for my $backend ([ 8080, 'HTTP/1.1' ], [ 8082, 'HTTP/2' ]) {
 
     like($response, qr/^HTTP\/1\.[01] 200 /, "$protocol multiple response");
     my @cookies = $response =~ /^Set-Cookie:[ \t]*(.*?)\r?$/gmi;
-    is_deeply(\@cookies, [ 'sid=filled', 'sid=filled', 'sid=x', 'other' ],
+    is_deeply(\@cookies, [ 'sid', 'sid=filled', 'sid=x', 'other' ],
         "$protocol independent cookie values");
 }
 
