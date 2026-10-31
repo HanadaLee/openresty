@@ -90,6 +90,7 @@ ARG RESTY_NGX_HTTP_LIMIT_TRAFFIC_RATE_FILTER_MODULE_VERSION="1.0.0"
 ARG RESTY_NGX_HTTP_LOG_SET_MODULE_VERSION="1.0.0"
 ARG RESTY_NGX_HTTP_LOOP_DETECT_MODULE_VERSION="1.0.0"
 ARG RESTY_NGX_HTTP_MODSECURITY_MODULE_COMMIT="b7cf44e57bc386bc5c15e5c9319e6b6b719357f2"
+ARG RESTY_NGX_HTTP_PHASE_CONTROL_MODULE_VERSION="1.0.0"
 ARG RESTY_NGX_HTTP_PROXY_ARGS_CONTROL_MODULE_VERSION="1.0.0"
 ARG RESTY_NGX_HTTP_PROXY_AUTH_AWS_MODULE_VERSION="2.1.2"
 ARG RESTY_NGX_HTTP_PROXY_AUTH_BASIC_MODULE_VERSION="1.0.0"
@@ -278,6 +279,7 @@ ARG RESTY_NGX_HTTP_LIMIT_TRAFFIC_RATE_FILTER_MODULE_VERSION
 ARG RESTY_NGX_HTTP_LOG_SET_MODULE_VERSION
 ARG RESTY_NGX_HTTP_LOOP_DETECT_MODULE_VERSION
 ARG RESTY_NGX_HTTP_MODSECURITY_MODULE_COMMIT
+ARG RESTY_NGX_HTTP_PHASE_CONTROL_MODULE_VERSION
 ARG RESTY_NGX_HTTP_PROXY_ARGS_CONTROL_MODULE_VERSION
 ARG RESTY_NGX_HTTP_PROXY_AUTH_AWS_MODULE_VERSION
 ARG RESTY_NGX_HTTP_PROXY_AUTH_BASIC_MODULE_VERSION
@@ -382,6 +384,7 @@ ARG RESTY_CONFIG_OPTIONS="\
     --add-module=/build/modules/ngx_http_grpc_filter_module \
     --add-module=/build/modules/ngx_http_grpc_headers_control_module \
     --add-module=/build/modules/ngx_http_grpc_set_module \
+    --add-module=/build/modules/ngx_http_phase_control_module \
     --add-module=/build/modules/ngx_http_proxy_filter_module \
     --add-module=/build/modules/ngx_http_proxy_auth_netstorage_module \
     --add-module=/build/modules/ngx_http_proxy_auth_aws_module \
@@ -547,6 +550,7 @@ RUN mkdir -p /build/modules \
     && git clone --depth=1 --branch "${RESTY_NGX_HTTP_GRPC_FILTER_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_grpc_filter_module.git ngx_http_grpc_filter_module \
     && git clone --depth=1 --branch "${RESTY_NGX_HTTP_GRPC_HEADERS_CONTROL_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_grpc_headers_control_module.git ngx_http_grpc_headers_control_module \
     && git clone --depth=1 --branch "${RESTY_NGX_HTTP_GRPC_SET_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_grpc_set_module.git ngx_http_grpc_set_module \
+    && git clone --depth=1 --branch "${RESTY_NGX_HTTP_PHASE_CONTROL_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_phase_control_module.git ngx_http_phase_control_module \
     && git clone --depth=1 --branch "${RESTY_NGX_HTTP_PROXY_FILTER_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_proxy_filter_module.git ngx_http_proxy_filter_module \
     && git clone --depth=1 --branch "${RESTY_NGX_HTTP_PROXY_ARGS_CONTROL_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_proxy_args_control_module.git ngx_http_proxy_args_control_module \
     && git clone --depth=1 --branch "${RESTY_NGX_HTTP_PROXY_REQUEST_COOKIES_CONTROL_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_proxy_request_cookies_control_module.git ngx_http_proxy_request_cookies_control_module \
