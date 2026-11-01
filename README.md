@@ -681,6 +681,10 @@ New variables are introduced to get the start timestamp, end timestamp, and time
 
 Enables or disables response slicing. When `ngx_expr_module` is compiled, this directive can be placed in a `when` block. Slicing is performed only when this directive is enabled, `slice_size` is nonzero, and no `slice_bypass` expression evaluates to a nonempty value other than `0`.
 
+Active slicing also supports multipart byte-range requests, including
+reordered and overlapping ranges. Requests with slicing disabled or
+bypassed retain the standard nginx range behavior.
+
 ### slice_size
 
 * **Syntax:** *slice_size size;*
