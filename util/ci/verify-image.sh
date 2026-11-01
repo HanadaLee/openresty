@@ -21,7 +21,17 @@ run_test_phase runtime-libraries docker run --rm "$image" \
     sh -c 'ldd /usr/local/openresty/lib/libvips.so.42'
 vips_dependencies="$(cat "$test_output/runtime-libraries.log")"
 
+run_test_phase nginx-libraries docker run --rm "$image" \
+    sh -c 'ldd /usr/local/openresty/sbin/nginx'
+nginx_dependencies="$(cat "$test_output/nginx-libraries.log")"
+
 validate_image() {
+    if grep -Fq 'not found' <<< "$nginx_dependencies" \
+        || ! grep -Fq 'librocksdb.so' <<< "$nginx_dependencies"; then
+        echo "nginx has missing cache-index runtime dependencies" >&2
+        return 1
+    fi
+
     if grep -Fq 'not found' <<< "$vips_dependencies"; then
         echo "libvips has unresolved runtime dependencies" >&2
         return 1

@@ -1,147 +1,145 @@
 #!/usr/bin/perl
 
-# cache-purge's private FastCGI layout must match the nginx-ext layout.
+# Indexed FastCGI purge with inherited conditional parameter configuration.
 
 use warnings;
 use strict;
-
 use Test::More;
 use IO::Socket::INET;
+use JSON::PP qw/decode_json/;
+use Time::HiRes qw/time sleep/;
 
 BEGIN { use FindBin; chdir($FindBin::Bin); }
-
-use lib 'lib';
 use Test::Nginx;
+
+my $t = Test::Nginx->new()->has(qw/http fastcgi cache rewrite
+    ngx_http_cache_purge_module/);
+plan 'no_plan';
 
 my @cases;
 my $locations = '';
-for my $strict (0, 1) {
-    for my $syntax ('same', 'separate') {
-        for my $inherit ('default', 'on', 'off') {
-            my $name = "c$strict-$syntax-$inherit";
-            my $key = $strict ? '$cache_purge_key' : '$uri';
-            my $params = $inherit eq 'default' ? ''
-                : "fastcgi_param_inherit $inherit;";
-            my $purge = $syntax eq 'same'
-                ? 'fastcgi_cache_purge PURGE from 127.0.0.1;'
-                : 'fastcgi_cache_purge off;';
-            my $namespace = $strict ? 'cache_purge_key objects $uri;' : '';
-            push @cases, { name => $name, strict => $strict, syntax => $syntax };
-
-            $locations .= <<EOF;
+for my $syntax ('same', 'separate') {
+    for my $inherit ('default', 'on', 'off') {
+        my $name = "$syntax-$inherit";
+        my $params = $inherit eq 'default' ? '' : "fastcgi_param_inherit $inherit;";
+        push @cases, { name => $name, syntax => $syntax };
+        $locations .= <<EOF;
         location /$name/ {
             $params
-            $namespace
             fastcgi_pass 127.0.0.1:8081;
             fastcgi_param REQUEST_URI \$uri;
             fastcgi_cache NAME;
-            fastcgi_cache_key $key;
+            fastcgi_cache_key \$cache_key_full;
             fastcgi_cache_valid 200 1h;
-            $purge
+            fastcgi_cache_purge on;
             add_header X-Cache \$upstream_cache_status always;
         }
 EOF
-            if ($syntax eq 'separate') {
-                my $purge_key = $strict ? '$cache_purge_key' : "/$name\$1";
-                my $purge_namespace = $strict
-                    ? "cache_purge_key objects /$name\$1;" : '';
-                $locations .= <<EOF;
+        if ($syntax eq 'separate') {
+            $locations .= <<EOF;
         location ~ ^/purge/$name(/.*)\$ {
             $params
-            $purge_namespace
-            fastcgi_cache_purge NAME $purge_key;
+            fastcgi_cache_purge on;
+            cache_purge_key_url http://cache.test/$name\$1;
         }
 EOF
-            }
         }
     }
 }
 
-my $t = Test::Nginx->new()->has(qw/http fastcgi cache rewrite
-    ngx_http_cache_purge_module/)->plan(25 * scalar(@cases) + 1);
-
 my $config = <<'EOF';
 %%TEST_GLOBALS%%
-
 daemon off;
-
-events {
-}
-
+master_process on;
+worker_processes 1;
+events {}
 http {
     %%TEST_GLOBALS_HTTP%%
-
-    fastcgi_cache_path %%TESTDIR%%/cache levels=1:2 keys_zone=NAME:2m;
-    cache_purge_namespace objects 1m %%TESTDIR%%/purge-state;
-    cache_purge_background_queue off;
-
+    fastcgi_cache_path %%TESTDIR%%/cache keys_zone=NAME:2m;
+    cache_purge_index_store %%TESTDIR%%/index;
+    cache_purge_state_zone zone=purge:1m;
+    cache_key_host cache.test;
+    cache_purge_key_url $cache_key_url;
+    cache_purge_key_misc $cache_key_misc;
+    cache_purge_key_namespace $cache_key_namespace;
     server {
         listen 127.0.0.1:8080;
         server_name localhost;
-
-        location = /health { return 200 "ready\n"; }
+        location /management/ { cache_purge_api; }
         %%LOCATIONS%%
     }
 }
 EOF
-
 $config =~ s/%%LOCATIONS%%/$locations/;
 $t->write_file_expand('nginx.conf', $config);
 $t->run_daemon(\&fastcgi_daemon);
 $t->run()->waitforsocket('127.0.0.1:' . port(8081));
+wait_for(sub { json_get('/management/capabilities')->{ready} }, 'index ready');
 
+my $id = 0;
 for my $case (@cases) {
     my $name = $case->{name};
     my $purge_uri = $case->{syntax} eq 'same' ? "/$name" : "/purge/$name";
-    my $code = $case->{strict} ? 'invalidated' : 'purged';
-    my $empty_code = $case->{strict} ? 'invalidated' : 'no_match';
-
-    # This exercises the misaligned complex value before any cache is warmed.
-    my $response = purge("$purge_uri/missing");
-    like($response, qr/200 OK/, "$name: empty cache PURGE completes")
-        or BAIL_OUT('FastCGI PURGE failed before cache warmup');
-    like($response, qr/^Cache-Purge-Code: $empty_code\r?$/mi,
-        "$name: empty cache outcome");
-
     for my $key ('items/first', 'items/second', 'other') {
-        $response = http_get("/$name/$key");
+        my $response = http_get("/$name/$key");
         like($response, qr/200 OK/, "$name $key: upstream responds");
-        like($response, qr/\r\n\r\nfastcgi body\n\z/,
-            "$name $key: FastCGI response decoded");
-        like($response, qr/^X-Cache: MISS\r?$/mi, "$name $key: cache filled");
-        like(http_get("/$name/$key"), qr/^X-Cache: HIT\r?$/mi,
-            "$name $key: native cache hit");
+        like($response, qr/\r\n\r\nfastcgi body\n\z/, "$name $key: response decoded");
+        wait_for(sub { http_get("/$name/$key") =~ /^X-Cache: HIT\r?$/mi },
+            "$name $key: cache fill settled");
     }
-
-    $response = purge("$purge_uri/items/first");
-    like($response, qr/200 OK/, "$name: exact PURGE completes");
-    like($response, qr/^Cache-Purge-Code: $code\r?$/mi, "$name: exact outcome");
+    # Native timestamps deliberately use one-second precision.
+    sleep 1.05;
+    submit("$purge_uri/items/first", 'url', "fastcgi-" . ++$id);
     like(http_get("/$name/items/first"), qr/^X-Cache: MISS\r?$/mi,
-        "$name: exact entry invalidated");
+        "$name: exact entry deleted");
     like(http_get("/$name/items/second"), qr/^X-Cache: HIT\r?$/mi,
         "$name: exact purge preserves sibling");
     like(http_get("/$name/other"), qr/^X-Cache: HIT\r?$/mi,
         "$name: exact purge preserves unrelated entry");
-
-    $response = purge("$purge_uri/items/*");
-    like($response, qr/200 OK/, "$name: prefix PURGE completes");
-    like($response, qr/^Cache-Purge-Code: $code\r?$/mi, "$name: prefix outcome");
-    like(http_get("/$name/items/first"), qr/^X-Cache: MISS\r?$/mi,
-        "$name: prefix invalidates first entry");
-    like(http_get("/$name/items/second"), qr/^X-Cache: MISS\r?$/mi,
-        "$name: prefix invalidates second entry");
+    wait_for(sub { http_get("/$name/items/first") =~ /^X-Cache: HIT\r?$/mi },
+        "$name: replacement fill settled");
+    sleep 1.05;
+    submit("$purge_uri/items/", 'prefix', "fastcgi-" . ++$id);
+    for my $key ('first', 'second') {
+        like(http_get("/$name/items/$key"), qr/^X-Cache: MISS\r?$/mi,
+            "$name: prefix deletes $key");
+    }
     like(http_get("/$name/other"), qr/^X-Cache: HIT\r?$/mi,
         "$name: prefix preserves unrelated entry");
-    like(http_get('/health'), qr/200 OK/, "$name: server remains available");
 }
 
 $t->stop();
 unlike($t->read_file('error.log'), qr/\[(?:alert|emerg)\]|exited on signal/,
-    'no worker crashes or critical configuration errors');
+    'no worker crashes or critical errors');
 
-sub purge {
+sub json_get {
     my ($uri) = @_;
-    return http("PURGE $uri HTTP/1.0\r\nHost: localhost\r\n\r\n");
+    my $response = http_get($uri);
+    return {} unless $response =~ /200 OK/;
+    return decode_json((split /\r\n\r\n/, $response, 2)[1]);
+}
+
+sub wait_for {
+    my ($check, $description) = @_;
+    my $deadline = time() + 10;
+    while (time() < $deadline) {
+        if ($check->()) { pass($description); return; }
+        sleep 0.02;
+    }
+    BAIL_OUT($description . ' timed out');
+}
+
+sub submit {
+    my ($uri, $type, $identifier) = @_;
+    my $response = http("PURGE $uri HTTP/1.0\r\nHost: localhost\r\n"
+        . "X-Cache-Purge-Type: $type\r\nX-Cache-Purge-Action: delete\r\n"
+        . "X-Cache-Purge-Operation-Id: $identifier\r\n"
+        . 'X-Cache-Purge-Issued-At: ' . int(time() * 1000) . "\r\n\r\n");
+    like($response, qr/202 Accepted/, "$identifier: task accepted");
+    wait_for(sub {
+        my $status = json_get("/management/operations/$identifier");
+        return $status->{cleanup} && $status->{cleanup}->{state} eq 'done';
+    }, "$identifier: cleanup complete");
 }
 
 # A minimal responder keeps this regression independent of the FCGI Perl module.

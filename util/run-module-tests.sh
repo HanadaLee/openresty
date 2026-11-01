@@ -80,6 +80,38 @@ while IFS= read -r module_dir; do
         continue
     fi
 
+    if [[ "$name" == ngx_http_cache_purge_module ]]; then
+        suites=$((suites + 1))
+        files=$((files + 3))
+        results="$output/$name-python"
+        mkdir -p "$results"
+        flags=()
+        if [[ "$TEST_NGINX_EXPR" == 1 ]]; then flags+=(--expr); fi
+        if (
+            set -e
+            python3 "$module_dir/t/key_runtime.py" \
+                --binary "$TEST_NGINX_BINARY" "${flags[@]}" \
+                --output "$results/key.json" || exit $?
+            python3 "$module_dir/t/native_propagation_runtime.py" \
+                --binary "$TEST_NGINX_BINARY" "${flags[@]}" --framework --state \
+                --output "$results/propagation.json" || exit $?
+            python3 "$module_dir/t/native_propagation_runtime.py" \
+                --binary "$TEST_NGINX_BINARY" "${flags[@]}" --framework \
+                --tls --streaming --custom-headers \
+                --output "$results/streaming.json" || exit $?
+        ) > "$results/runtime.log" 2>&1; then
+            printf '%s\tpython\t3\t0\n' "$name" >> "$output/results.tsv"
+            echo "PASS: $name (python)"
+        else
+            suite_rc=$?
+            cat "$results/runtime.log" >&2
+            printf '%s\tpython\t3\t%s\n' "$name" "$suite_rc" >> "$output/results.tsv"
+            echo "FAIL: $name (python)" >&2
+            status=1
+        fi
+        continue
+    fi
+
     official=()
     openresty=()
     while IFS= read -r -d '' test; do

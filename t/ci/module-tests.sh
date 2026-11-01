@@ -131,3 +131,32 @@ printf 'ALL_INCS = -I src/core \\\n\t-I "%s"\n\n' "$work/extension headers" \
 export MOCK_EXPECT_INCLUDES="$NGINX_SOURCE/src/core:$work/extension headers"
 run
 echo 'PASS: native fixtures use the configured build header paths'
+
+module=ngx_http_cache_purge_module
+mkdir -p "$MOCK_MODULE_ROOT/$module/t"
+for script in key_runtime native_propagation_runtime; do
+    cat > "$MOCK_MODULE_ROOT/$module/t/$script.py" <<'PYTHON'
+import os
+from pathlib import Path
+import sys
+
+name = Path(sys.argv[0]).name
+with open(os.environ['MOCK_MODULE_CALLS'], 'a') as log:
+    log.write(name + '\n')
+if os.environ.get('MOCK_FAIL_SCRIPT') == name:
+    raise SystemExit(19)
+PYTHON
+done
+export MOCK_CACHE_MODULE=1
+run
+grep -Fxq $'ngx_http_cache_purge_module\tpython\t3\t0' "$TEST_MODULE_OUTPUT/results.tsv"
+[[ "$(grep -c '^native_propagation_runtime.py$' "$MOCK_MODULE_CALLS")" -eq 2 ]]
+export MOCK_FAIL_SCRIPT=key_runtime.py
+if run; then
+    echo 'FAIL: a failed cache key check was accepted' >&2
+    exit 1
+fi
+grep -Fxq $'ngx_http_cache_purge_module\tpython\t3\t19' "$TEST_MODULE_OUTPUT/results.tsv"
+! grep -q '^native_propagation_runtime.py$' "$MOCK_MODULE_CALLS"
+unset MOCK_CACHE_MODULE MOCK_FAIL_SCRIPT
+echo 'PASS: cache module checks fail immediately and preserve their exit status'

@@ -7,6 +7,9 @@ if [[ "${MOCK_NO_MODULES:-0}" != 1 ]]; then
     printf -- "--add-module='%s/a' --add-dynamic-module='%s/b' " \
         "$MOCK_MODULE_ROOT" "$MOCK_MODULE_ROOT"
     printf -- "--add-module='%s/empty' " "$MOCK_MODULE_ROOT"
+    if [[ "${MOCK_CACHE_MODULE:-0}" == 1 ]]; then
+        printf -- "--add-module='%s/ngx_http_cache_purge_module' " "$MOCK_MODULE_ROOT"
+    fi
     if [[ "${MOCK_FILTER_MODULES:-0}" == 1 ]]; then
         printf -- "--add-module='%s/ngx_http_grpc_filter_module' " "$MOCK_MODULE_ROOT"
         printf -- "--add-module='%s/ngx_http_proxy_filter_module' " "$MOCK_MODULE_ROOT"

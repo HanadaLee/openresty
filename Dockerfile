@@ -1,7 +1,7 @@
 # Intentionally empty: the version is read from util/ver at RESTY_COMMIT so it
 # is not pinned separately from the upstream source revision.
 ARG RESTY_VERSION
-ARG RESTY_RELEASE="387"
+ARG RESTY_RELEASE="388"
 ARG RESTY_COMMIT="265baf62de60397452f306d61b168ab2c1809d41"
 ARG RESTY_J="4"
 ARG RESTY_IMAGE_BASE="debian"
@@ -73,7 +73,7 @@ ARG RESTY_NGX_HTTP_AUTH_HMAC_MODULE_VERSION="0.3.1"
 ARG RESTY_NGX_HTTP_AUTH_INTERNAL_MODULE_VERSION="1.0.0"
 ARG RESTY_NGX_HTTP_BROTLI_MODULE_VERSION="1.0.0"
 ARG RESTY_NGX_HTTP_CACHE_DECHUNK_FILTER_MODULE_VERSION="1.0.1"
-ARG RESTY_NGX_HTTP_CACHE_PURGE_MODULE_VERSION="4.0.0-rc2"
+ARG RESTY_NGX_HTTP_CACHE_PURGE_MODULE_VERSION="5.0.0"
 ARG RESTY_NGX_HTTP_COMPRESSION_NORMALIZE_MODULE_VERSION="1.0.0"
 ARG RESTY_NGX_HTTP_COMPRESSION_VARY_FILTER_MODULE_VERSION="1.0.0"
 ARG RESTY_NGX_HTTP_CORS_MODULE_VERSION="0.1.1"
@@ -478,6 +478,7 @@ RUN BUNDLE_RESTY_VERSION="$(cat /build/openresty-version)" \
         libpoppler-glib-dev \
         libqrencode-dev \
         libre2-dev \
+        librocksdb-dev \
         librsvg2-dev \
         libspng-dev \
         libtiff-dev \
@@ -540,7 +541,7 @@ RUN mkdir -p /build/modules \
     && test "$(git -C ngx_http_weserv_module rev-parse FETCH_HEAD)" = "${RESTY_NGX_HTTP_WESERV_MODULE_COMMIT}" \
     && git -C ngx_http_weserv_module checkout --detach FETCH_HEAD \
     && git -C ngx_http_weserv_module submodule update --init --recursive \
-    && git clone --depth=1 --branch "${RESTY_NGX_HTTP_CACHE_PURGE_MODULE_VERSION}" https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_cache_purge.git ngx_http_cache_purge_module \
+    && git clone --depth=1 --branch "${RESTY_NGX_HTTP_CACHE_PURGE_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_cache_purge_module.git ngx_http_cache_purge_module \
     && git clone --depth=1 --branch "${RESTY_NGX_HTTP_LIMIT_TRAFFIC_RATE_FILTER_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_limit_traffic_rate_filter_module.git ngx_http_limit_traffic_rate_filter_module \
     && git clone --depth=1 --branch "${RESTY_NGX_HTTP_ACCESS_CONTROL_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_access_control_module.git ngx_http_access_control_module \
     && git clone --depth=1 --branch "${RESTY_NGX_HTTP_AUTH_AKAMAI_G2O_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_auth_akamai_g2o_module.git ngx_http_auth_akamai_g2o_module \
@@ -718,9 +719,6 @@ RUN RESTY_VERSION="$(cat /build/openresty-version)" \
     && cd /build/modules/ngx_tcp_fingerprint_module \
     && echo 'patching ngx_tcp_fingerprint_module to remove RTT collection' \
     && patch --batch --forward --fuzz=0 -p1 < /build/patches/ngx_tcp_fingerprint_module-no-rtt.patch \
-    && cd /build/modules/ngx_http_cache_purge_module \
-    && echo 'patching ngx_http_cache_purge_module for conditional proxy settings' \
-    && patch -p1 < /build/patches/ngx_http_cache_purge_module-ext.patch \
     && cd /build/modules/ngx_http_modsecurity_module \
     && echo 'patching ngx_http_modsecurity_module' \
     && patch -p1 < /build/patches/ngx_http_modsecurity_module-ext.patch \
@@ -774,6 +772,12 @@ RUN RESTY_VERSION="$(cat /build/openresty-version)" \
     && patch -p1 < /build/modules/ngx_ssl_fingerprint_module/patches/nginx-1.29.3+.patch \
     && echo "resetting openresty release version" \
     && sed -i "s/\(openresty\/.*\)\"/\1.${RESTY_RELEASE}\"/" src/core/nginx.h
+
+# Build the persistent cache index backend before configuring the nginx addon.
+ENV CACHE_PURGE_ROCKSDB_LIB_DIR=/build/cache-purge-backend
+RUN cmake -S /build/modules/ngx_http_cache_purge_module \
+        -B "${CACHE_PURGE_ROCKSDB_LIB_DIR}" -DCMAKE_BUILD_TYPE=Release \
+    && cmake --build "${CACHE_PURGE_ROCKSDB_LIB_DIR}" --parallel "${RESTY_J}"
 
 # Configure and install OpenResty.
 RUN RESTY_VERSION="$(cat /build/openresty-version)" \
@@ -906,6 +910,7 @@ RUN groupmod -n nginx www-data \
         libpoppler-glib8t64 \
         libqrencode4 \
         libre2-11 \
+        librocksdb9.10 \
         librsvg2-2 \
         libspng0 \
         libtiff6 \
