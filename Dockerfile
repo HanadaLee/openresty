@@ -118,7 +118,6 @@ ARG RESTY_NGX_HTTP_ZSTD_MODULE_VERSION="0.1.2"
 ARG RESTY_NGX_LUA_CONFIG_MODULE_VERSION="1.0.0"
 ARG RESTY_NGX_LUA_EVENTS_MODULE_VERSION="0.3.1"
 ARG RESTY_NGX_LUA_LOAD_VAR_INDEX_MODULE_VERSION="1.0.0"
-ARG RESTY_NGX_LUA_RESTY_LMDB_MODULE_VERSION="1.7.1"
 ARG RESTY_NGX_LUA_UPSTREAM_STATE_MODULE_VERSION="1.0.0"
 ARG RESTY_NGX_SSL_FINGERPRINT_MODULE_VERSION="1.0.0"
 ARG RESTY_NGX_STAT_MODULE_VERSION="1.0.0"
@@ -307,7 +306,6 @@ ARG RESTY_NGX_HTTP_ZSTD_MODULE_VERSION
 ARG RESTY_NGX_LUA_CONFIG_MODULE_VERSION
 ARG RESTY_NGX_LUA_EVENTS_MODULE_VERSION
 ARG RESTY_NGX_LUA_LOAD_VAR_INDEX_MODULE_VERSION
-ARG RESTY_NGX_LUA_RESTY_LMDB_MODULE_VERSION
 ARG RESTY_NGX_LUA_UPSTREAM_STATE_MODULE_VERSION
 ARG RESTY_NGX_SSL_FINGERPRINT_MODULE_VERSION
 ARG RESTY_NGX_STAT_MODULE_VERSION
@@ -414,7 +412,6 @@ ARG RESTY_CONFIG_OPTIONS="\
     --add-module=/build/modules/ngx_lua_config_module \
     --add-module=/build/modules/ngx_lua_events_module \
     --add-module=/build/modules/ngx_lua_load_var_index_module \
-    --add-module=/build/modules/ngx_lua_resty_lmdb_module \
     --add-module=/build/modules/ngx_lua_upstream_state_module \
     --add-module=/build/modules/ngx_ssl_fingerprint_module \
     --add-module=/build/modules/ngx_stream_access_control_module \
@@ -602,7 +599,6 @@ RUN mkdir -p /build/modules \
     && git clone --depth=1 --branch "${RESTY_NGX_STREAM_LABEL_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_stream_label_module.git ngx_stream_label_module \
     && git clone --depth=1 --branch "${RESTY_NGX_STREAM_EXTRA_VARIABLES_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_stream_extra_variables_module.git ngx_stream_extra_variables_module \
     && git clone --depth=1 --branch "${RESTY_NGX_LUA_UPSTREAM_STATE_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_lua_upstream_state_module.git ngx_lua_upstream_state_module \
-    && git clone --depth=1 --recurse-submodules --branch "v${RESTY_NGX_LUA_RESTY_LMDB_MODULE_VERSION}" https://${RESTY_GIT_MIRROR}/Kong/lua-resty-lmdb.git ngx_lua_resty_lmdb_module \
     && git clone --depth=1 --branch "${RESTY_NGX_STREAM_LUA_UPSTREAM_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_stream_lua_upstream_module.git ngx_stream_lua_upstream_module \
     && git clone --depth=1 --branch "${RESTY_NGX_HTTP_TRIM_FILTER_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_trim_filter_module.git ngx_http_trim_filter_module \
     && git init ngx_http_modsecurity_module \
@@ -725,9 +721,6 @@ RUN RESTY_VERSION="$(cat /build/openresty-version)" \
     && cd /build/modules/ngx_http_loop_detect_module \
     && echo 'patching ngx_http_loop_detect_module' \
     && patch -p1 < /build/patches/ngx_http_loop_detect_module-cdn_id.patch \
-    && cd /build/modules/ngx_lua_resty_lmdb_module \
-    && echo 'patching lua-resty-lmdb for preaccess_by_lua' \
-    && patch -p1 < /build/patches/lua-resty-lmdb-preaccess_by_lua.patch \
     && cd /build/lualib/lua-resty-dns-client \
     && echo 'patching lua-resty-dns-client for preaccess_by_lua' \
     && patch -p1 < /build/patches/lua-resty-dns-client-preaccess_by_lua.patch \
@@ -816,7 +809,6 @@ RUN mkdir -p /usr/local/openresty/share \
     && cp -r ngx_lua_events_module/lualib/* /usr/local/openresty/lualib/ \
     && cp -r ngx_lua_upstream_state_module/lualib/* /usr/local/openresty/lualib/ \
     && cp -r ngx_lua_config_module/lualib/* /usr/local/openresty/lualib/ \
-    && cp -r ngx_lua_resty_lmdb_module/lib/* /usr/local/openresty/lualib/ \
     && cd /build/lualib \
     && cp -r lua-resty-balancer/lib/* /usr/local/openresty/lualib/ \
     && install -m 755 lua-resty-balancer/librestychash.so /usr/local/openresty/lualib/ \

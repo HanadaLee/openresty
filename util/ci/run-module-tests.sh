@@ -10,7 +10,6 @@ init_test_run modules
 
 # A read-only bind does not freeze files being edited on the host.
 cp "$repository_root/util/run-module-tests.sh" "$test_snapshot/"
-cp -a "$repository_root/t/patches" "$test_snapshot/test-patches"
 mkdir -p "$test_snapshot/harnesses"
 git_mirror="${RESTY_GIT_MIRROR:-github.com}"
 weighttp_revision=7eb9b9cd125eaf505bfbc1c8ba1c5dafed1092e0
@@ -59,8 +58,6 @@ run_test_phase module-regressions docker run --rm --init \
                 printf "%s %s\n" "${module##*/}" "$(git -C "$module" rev-parse HEAD)"
             fi
         done > /results/module-revisions.txt
-        patch --batch --forward --fuzz=0 -p1 -d /build/modules/ngx_lua_resty_lmdb_module \
-            < /input/test-patches/lua-resty-lmdb-prefix-tests.patch
         unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
         export NO_PROXY="*" no_proxy="*"
         export TEST_MODULE_OUTPUT=/results/suites

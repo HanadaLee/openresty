@@ -258,7 +258,6 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_lua_config_module](https://git.hanada.info/hanada/ngx_http_lua_config_module)
 * [ngx_lua_events_module](https://github.com/Kong/lua-resty-events)
 * [ngx_lua_load_var_index_module](https://git.hanada.info/hanada/ngx_lua_load_var_index_module)
-* [ngx_lua_resty_lmdb_module](https://github.com/Kong/lua-resty-lmdb)
 * [ngx_lua_upstream_state_module](https://git.hanada.info/hanada/ngx_lua_upstream_state_module)
 * [ngx_ssl_fingerprint_module](https://git.hanada.info/hanada/ngx_ssl_fingerprint_module)
 * [ngx_stat_module](https://git.hanada.info/hanada/ngx_stat_module)
