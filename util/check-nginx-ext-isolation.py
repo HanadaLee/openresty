@@ -169,7 +169,7 @@ def tree(repo, ref):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("repository", type=Path)
-    parser.add_argument("--base", default="base/1.31.7")
+    parser.add_argument("--base", default="base/1.31.8")
     parser.add_argument("--history", action="store_true")
     parser.add_argument("--undefined", action="store_true")
     parser.add_argument("--output", type=Path, required=True)

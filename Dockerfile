@@ -1,8 +1,8 @@
 # Intentionally empty: the version is read from util/ver at RESTY_COMMIT so it
 # is not pinned separately from the upstream source revision.
 ARG RESTY_VERSION
-ARG RESTY_RELEASE="386"
-ARG RESTY_COMMIT="f4fa4de37a3408f624e1a33f69e1d8817e2a99b5"
+ARG RESTY_RELEASE="387"
+ARG RESTY_COMMIT="265baf62de60397452f306d61b168ab2c1809d41"
 ARG RESTY_J="4"
 ARG RESTY_IMAGE_BASE="debian"
 ARG RESTY_IMAGE_TAG="trixie-slim"
@@ -751,7 +751,7 @@ RUN RESTY_VERSION="$(cat /build/openresty-version)" \
     && patch -p1 < /build/patches/ngx_http_lua_module-preaccess_by_lua.patch \
     && cd "${NGINX_DIR}" \
     && echo "patching nginx-${NGINX_VERSION} ext" \
-    && patch -p1 < /build/patches/nginx-ext_1.31.7+.patch \
+    && patch -p1 < /build/patches/nginx-ext_1.31.8+.patch \
     && cd "${OPENRESTY_DIR}"/bundle/redis-nginx-module-* \
     && echo "patching ngx_http_redis_module" \
     && patch -p1 < /build/patches/ngx_http_redis_module-conditional_upstream.patch \
