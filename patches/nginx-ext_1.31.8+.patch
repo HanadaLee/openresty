@@ -17,6 +17,126 @@ index 99e7b4f3b..402d3138b 100644
  END
 +
 +have=NGX_RESTY_EXT . auto/have
+diff --git a/auto/os/conf b/auto/os/conf
+index f241d8199..e040a8b2c 100644
+--- a/auto/os/conf
++++ b/auto/os/conf
+@@ -1,8 +1,14 @@
+ 
++# Copyright (C) 2025 Web Server LLC
+ # Copyright (C) Igor Sysoev
+ # Copyright (C) Nginx, Inc.
+ 
+ 
++MAP_ANON_FOUND=NO
++MAP_DEVZERO_FOUND=NO
++MAP_FIXED_NOREPLACE_FOUND=NO
++MAP_FIXED_EXCL_FOUND=NO
++
+ echo "checking for $NGX_SYSTEM specific features"
+ 
+ case "$NGX_PLATFORM" in
+diff --git a/auto/os/freebsd b/auto/os/freebsd
+index 870bac4b3..e47a26246 100644
+--- a/auto/os/freebsd
++++ b/auto/os/freebsd
+@@ -103,3 +103,18 @@ if [ $version -ge 701000 ]; then
+     echo " + cpuset_setaffinity() found"
+     have=NGX_HAVE_CPUSET_SETAFFINITY . auto/have
+ fi
++
++
++ngx_feature="mmap(MAP_FIXED|MAP_EXCL)"
++ngx_feature_name="NGX_HAVE_MAP_FIXED_EXCL"
++ngx_feature_run=no
++ngx_feature_incs="#include <sys/mman.h>"
++ngx_feature_path=
++ngx_feature_libs=
++ngx_feature_test="(void) mmap(NULL, 4096, PROT_READ|PROT_WRITE,
++                              MAP_FIXED|MAP_EXCL, -1, 0);"
++. auto/feature
++
++if [ $ngx_found = yes ]; then
++    MAP_FIXED_EXCL_FOUND=YES
++fi
+diff --git a/auto/os/linux b/auto/os/linux
+index df8d03451..d229ad7ee 100644
+--- a/auto/os/linux
++++ b/auto/os/linux
+@@ -282,3 +282,19 @@ ngx_feature_test="socklen_t optlen = sizeof(int);
+ 
+ 
+ CC_AUX_FLAGS="$cc_aux_flags -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64"
++
++
++# Linux 4.17+
++ngx_feature="mmap(MAP_FIXED_NOREPLACE)"
++ngx_feature_name="NGX_HAVE_MAP_FIXED_NOREPLACE"
++ngx_feature_run=no
++ngx_feature_incs="#include <sys/mman.h>"
++ngx_feature_path=
++ngx_feature_libs=
++ngx_feature_test="(void) mmap(NULL, 4096, PROT_READ|PROT_WRITE,
++                              MAP_FIXED_NOREPLACE, -1, 0);"
++. auto/feature
++
++if [ $ngx_found = yes ]; then
++    MAP_FIXED_NOREPLACE_FOUND=YES
++fi
+diff --git a/auto/unix b/auto/unix
+index b3ad4ff66..0190b6afe 100644
+--- a/auto/unix
++++ b/auto/unix
+@@ -845,6 +845,10 @@ ngx_feature_test="void *p;
+                   if (p == MAP_FAILED) return 1;"
+ . auto/feature
+ 
++if [ $ngx_found = yes ]; then
++    MAP_ANON_FOUND=YES
++fi
++
+ 
+ ngx_feature='mmap("/dev/zero", MAP_SHARED)'
+ ngx_feature_name="NGX_HAVE_MAP_DEVZERO"
+@@ -860,6 +864,10 @@ ngx_feature_test='void *p; int  fd;
+                   if (p == MAP_FAILED) return 1;'
+ . auto/feature
+ 
++if [ $ngx_found = yes ]; then
++    MAP_DEVZERO_FOUND=YES
++fi
++
+ 
+ ngx_feature="System V shared memory"
+ ngx_feature_name="NGX_HAVE_SYSVSHM"
+@@ -874,6 +882,10 @@ ngx_feature_test="int  id;
+                   shmctl(id, IPC_RMID, NULL);"
+ . auto/feature
+ 
++if [ $ngx_found = yes ]; then
++    NGX_HAVE_SYSVSHM=YES
++fi
++
+ 
+ ngx_feature="POSIX semaphores"
+ ngx_feature_name="NGX_HAVE_POSIX_SEM"
+@@ -1056,3 +1068,16 @@ ngx_feature_test="int fd;
+                   fd = socket(AF_INET, SOCK_STREAM, 0);
+                   fcntl(fd, F_SETFD, FD_CLOEXEC);"
+ . auto/feature
++
++if [ "$MAP_ANON_FOUND" = "YES" ] || [ "$MAP_DEVZERO_FOUND" = "YES" ]
++    then
++
++    if [ "$MAP_FIXED_NOREPLACE_FOUND" = "YES" ] \
++       || [ "$MAP_FIXED_EXCL_FOUND" = "YES" ]
++    then
++        have=NGX_HAVE_PERSISTENT_SHM . auto/have
++    fi
++
++elif [ "$NGX_HAVE_SYSVSHM" = "YES" ]; then
++    have=NGX_HAVE_PERSISTENT_SHM . auto/have
++fi
 diff --git a/conf/fastcgi.conf b/conf/fastcgi.conf
 index 091738c60..2283ffb97 100644
 --- a/conf/fastcgi.conf
@@ -65,11 +185,656 @@ index 09c732cd6..b92f7d984 100644
  uwsgi_param  CONTENT_TYPE       $content_type;
  uwsgi_param  CONTENT_LENGTH     $content_length;
  
+diff --git a/src/core/ngx_cycle.c b/src/core/ngx_cycle.c
+index 0d591a4aa..daa65f660 100644
+--- a/src/core/ngx_cycle.c
++++ b/src/core/ngx_cycle.c
+@@ -1,5 +1,6 @@
+ 
+ /*
++ * Copyright (C) 2025 Web Server LLC
+  * Copyright (C) Igor Sysoev
+  * Copyright (C) Nginx, Inc.
+  */
+@@ -18,6 +19,18 @@ static void ngx_clean_old_cycles(ngx_event_t *ev);
+ static void ngx_shutdown_timer_handler(ngx_event_t *ev);
+ 
+ 
++#if (NGX_RESTY_EXT)
++static ngx_inline ngx_int_t ngx_fn_extend(ngx_pool_t *pool, ngx_str_t *fn,
++    ngx_str_t *base, const char *ext);
++static ngx_int_t ngx_shm_zone_restore(ngx_shm_zone_t *zone);
++static ngx_int_t ngx_consume_zones(ngx_cycle_t *cycle);
++static ngx_int_t ngx_shm_zone_file_acquire(ngx_shm_zone_state_t *zstate,
++    ngx_uint_t wr);
++static void ngx_shm_zone_file_release(ngx_shm_zone_state_t *zstate,
++    ngx_uint_t discard);
++#endif
++
++
+ volatile ngx_cycle_t  *ngx_cycle;
+ ngx_array_t            ngx_old_cycles;
+ 
+@@ -440,6 +453,13 @@ ngx_init_cycle(ngx_cycle_t *old_cycle)
+ 
+         shm_zone[i].shm.log = cycle->log;
+ 
++#if (NGX_RESTY_EXT)
++        if (shm_zone[i].state) {
++            shm_zone[i].state->file.log = cycle->log;
++            shm_zone[i].state->lock.log = cycle->log;
++        }
++#endif
++
+         opart = &old_cycle->shared_memory.part;
+         oshm_zone = opart->elts;
+ 
+@@ -501,6 +521,14 @@ ngx_init_cycle(ngx_cycle_t *old_cycle)
+             goto failed;
+         }
+ 
++#if (NGX_RESTY_EXT)
++        if (shm_zone[i].restore
++            && ngx_shm_zone_restore(&shm_zone[i]) != NGX_OK)
++        {
++            goto failed;
++        }
++#endif
++
+         if (shm_zone[i].init(&shm_zone[i], data) != NGX_OK) {
+             goto failed;
+         }
+@@ -654,6 +682,12 @@ ngx_init_cycle(ngx_cycle_t *old_cycle)
+         exit(1);
+     }
+ 
++#if (NGX_RESTY_EXT)
++    if (!ngx_test_config && ngx_consume_zones(cycle) != NGX_OK) {
++        exit(1);
++    }
++#endif
++
+ 
+     /* close and delete stuff that lefts from an old cycle */
+ 
+@@ -1369,6 +1403,10 @@ ngx_shared_memory_add(ngx_conf_t *cf, ngx_str_t *name, size_t size, void *tag)
+         return NULL;
+     }
+ 
++#if (NGX_RESTY_EXT)
++    ngx_memzero(shm_zone, sizeof(ngx_shm_zone_t));
++#endif
++
+     shm_zone->data = NULL;
+     shm_zone->shm.log = cf->cycle->log;
+     shm_zone->shm.addr = NULL;
+@@ -1489,3 +1527,488 @@ ngx_shutdown_timer_handler(ngx_event_t *ev)
+         c[i].read->handler(c[i].read);
+     }
+ }
++
++
++#if (NGX_RESTY_EXT)
++
++ngx_shm_zone_t *
++ngx_shared_memory_add_ext(ngx_conf_t *cf, ngx_shm_zone_params_t *zp)
++{
++    u_char                   *addr;
++    ngx_int_t                 rc;
++    ngx_str_t                *sign;
++    ngx_file_t               *file, *lock;
++    ngx_shm_zone_t           *shm_zone;
++    ngx_shm_zone_state_t     *zstate;
++    ngx_slab_state_header_t   hdr;
++
++    addr = NULL;
++    zstate = NULL;
++    sign = NULL;
++
++    shm_zone = ngx_shared_memory_add(cf, &zp->name, zp->size, zp->tag);
++    if (shm_zone == NULL) {
++        return NULL;
++    }
++
++    if (shm_zone->state != NULL) {
++        if (shm_zone->state->file.name.len != zp->file.len
++            || ngx_strncmp(shm_zone->state->file.name.data, zp->file.data,
++                           zp->file.len) != 0)
++        {
++            ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
++                               "conflicting state files for zone \"%V\"",
++                               &zp->name);
++            return NULL;
++        }
++
++        return shm_zone;
++    }
++
++    if (zp->file.len == 0) {
++        goto done;
++    }
++
++    if (zp->signature.len == 0) {
++        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
++                       "attempt to create restorable zone without signature");
++        return NULL;
++    }
++
++    sign = ngx_palloc(cf->pool, sizeof(ngx_str_t));
++    if (sign == NULL) {
++        return NULL;
++    }
++
++    sign->data = ngx_pnalloc(cf->pool, zp->signature.len);
++    if (sign->data == NULL) {
++        return NULL;
++    }
++
++    sign->len = zp->signature.len;
++    ngx_memcpy(sign->data, zp->signature.data, zp->signature.len);
++
++#if !(NGX_HAVE_PERSISTENT_SHM)
++
++    ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
++                       "the file= parameter is specified, but "
++                       "nginx was built without support for "
++                       "the persistent shared memory");
++    return NULL;
++
++#endif
++
++    zstate = ngx_pcalloc(cf->pool, sizeof(ngx_shm_zone_state_t));
++    if (zstate == NULL) {
++        return NULL;
++    }
++
++    file = &zstate->file;
++
++    file->fd = NGX_INVALID_FILE;
++    file->log = cf->cycle->log;
++
++    file->name = zp->file;
++    file->name.data[file->name.len] = 0;
++
++    lock = &zstate->lock;
++
++    lock->log = cf->cycle->log;
++    lock->fd = NGX_INVALID_FILE;
++
++    if (ngx_fn_extend(cf->pool, &lock->name, &file->name, ".lock") != NGX_OK) {
++        return NULL;
++    }
++
++    if (ngx_fn_extend(cf->pool, &zstate->tmp, &file->name, ".tmp") != NGX_OK) {
++        return NULL;
++    }
++
++    if (ngx_fn_extend(cf->pool, &zstate->old, &file->name, ".old") != NGX_OK) {
++        return NULL;
++    }
++
++    /*
++     * check the state file and obtain mmap address
++     * file is RW to be able to hold lock
++     */
++
++    rc = ngx_shm_zone_file_acquire(zstate, 0);
++    if (rc == NGX_ERROR) {
++        return NULL;
++    }
++
++    if (rc == NGX_OK) {
++        ngx_memzero(&hdr, sizeof(ngx_slab_state_header_t));
++        hdr.signature = zp->signature;
++
++        rc = ngx_slab_read_header(&hdr, file);
++
++        ngx_shm_zone_file_release(zstate, rc != NGX_OK);
++
++        if (rc != NGX_OK) {
++            ngx_conf_log_error(NGX_LOG_WARN, cf, 0,
++                               "the zone state file \"%V\" was discarded "
++                               "due to incompatible content. It is renamed "
++                               "to \"%V\".old and need to be handled manually",
++                               &file->name, &file->name);
++
++            goto done;
++        }
++
++        addr = hdr.addr;
++
++        if (hdr.size != (size_t) zp->size) {
++            ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
++                               "on-disk size of restorable memory zone \"%V\" "
++                               "is %ui bytes and does not match specified "
++                               "%ui bytes in the configuration file",
++                               &zp->name, zp->size, hdr.size);
++            return NULL;
++        }
++
++    } /* else: zone file does not exists, lock is not held */
++
++done:
++
++    shm_zone->state = zstate;
++    shm_zone->signature = sign;
++
++    if (!ngx_test_config) {
++        shm_zone->shm.addr = addr;
++        /* additional step needed: read shm pages from file */
++        shm_zone->restore = addr ? 1 : 0;
++    }
++
++    return shm_zone;
++}
++
++
++static ngx_inline ngx_int_t
++ngx_fn_extend(ngx_pool_t *pool, ngx_str_t *fn, ngx_str_t *base,
++    const char *ext)
++{
++    u_char  *p;
++    size_t   len;
++
++    len = ngx_strlen(ext);
++
++    fn->data = ngx_pnalloc(pool, base->len + len + 1);
++    if (fn->data == NULL) {
++        return NGX_ERROR;
++    }
++
++    fn->len = base->len + len;
++
++    p = ngx_cpymem(fn->data, base->data, base->len);
++    p = ngx_cpymem(p, ext, len);
++    *p = 0;
++
++    return NGX_OK;
++}
++
++
++static ngx_int_t
++ngx_shm_zone_restore(ngx_shm_zone_t *zone)
++{
++    ngx_int_t                 rc;
++    ngx_file_t               *file;
++    ngx_slab_state_header_t   hdr;
++
++    file = &zone->state->file;
++
++    ngx_log_debug2(NGX_LOG_DEBUG_CORE, file->log, 0,
++                   "restoring zone state from \"%V\" at %p",
++                   &file->name, zone->shm.addr);
++
++    if (ngx_shm_zone_file_acquire(zone->state, 0) != NGX_OK) {
++        return NGX_ERROR;
++    }
++
++    ngx_memzero(&hdr, sizeof(ngx_slab_state_header_t));
++
++    hdr.addr = zone->shm.addr;
++    hdr.signature = *zone->signature;
++
++    rc = ngx_slab_restore_pool(&hdr, file);
++
++    /* A failed restore must not publish a partially restored zone. */
++    ngx_shm_zone_file_release(zone->state, 0);
++
++    if (rc != NGX_OK) {
++        ngx_log_error(NGX_LOG_CRIT, file->log, 0,
++                      "failed to restore zone from \"%V\"", &file->name);
++        return rc;
++    }
++
++    /* The module restores its own pointers from the existing shared memory. */
++    zone->shm.exists = 1;
++
++    return NGX_OK;
++}
++
++
++static ngx_int_t
++ngx_consume_zones(ngx_cycle_t *cycle)
++{
++    ngx_uint_t        i;
++    ngx_shm_zone_t   *zones;
++    ngx_list_part_t  *part;
++
++    for (part = &cycle->shared_memory.part; part; part = part->next) {
++        zones = part->elts;
++
++        for (i = 0; i < part->nelts; i++) {
++            if (!zones[i].restore || zones[i].state == NULL) {
++                continue;
++            }
++
++            if (ngx_delete_file(zones[i].state->file.name.data)
++                == NGX_FILE_ERROR)
++            {
++                ngx_log_error(NGX_LOG_CRIT, cycle->log, ngx_errno,
++                              ngx_delete_file_n " \"%V\" failed",
++                              &zones[i].state->file.name);
++                return NGX_ERROR;
++            }
++        }
++    }
++
++    return NGX_OK;
++}
++
++
++void
++ngx_save_zones(ngx_cycle_t *cycle)
++{
++    ngx_file_t                tmpfile, *file;
++    ngx_int_t                 rc;
++    ngx_uint_t                i;
++    ngx_shm_zone_t           *shm_zone, *zone;
++    ngx_list_part_t          *part;
++    ngx_slab_state_header_t   hdr;
++
++    ngx_log_debug0(NGX_LOG_DEBUG_CORE, cycle->log, 0, "ngx_save_zones()");
++
++    part = &cycle->shared_memory.part;
++    shm_zone = part->elts;
++
++    for (i = 0; /* void */ ; i++) {
++
++        if (i >= part->nelts) {
++            if (part->next == NULL) {
++                break;
++            }
++            part = part->next;
++            shm_zone = part->elts;
++            i = 0;
++        }
++
++        zone = &shm_zone[i];
++
++        if (zone->state == NULL) {
++            continue;
++        }
++
++        file = &zone->state->file;
++
++        ngx_log_debug1(NGX_LOG_DEBUG_CORE, cycle->log, 0,
++                       "saving zone state to \"%V\"", &file->name);
++
++        ngx_memzero(&tmpfile, sizeof(ngx_file_t));
++
++        tmpfile.name = zone->state->tmp;
++        tmpfile.log = cycle->log;
++
++        if (ngx_shm_zone_file_acquire(zone->state, 1) == NGX_OK) {
++
++            tmpfile.fd = ngx_open_file(tmpfile.name.data, NGX_FILE_WRONLY,
++                                       NGX_FILE_TRUNCATE,
++                                       NGX_FILE_DEFAULT_ACCESS);
++
++            if (tmpfile.fd == NGX_INVALID_FILE) {
++                ngx_log_error(NGX_LOG_ALERT, cycle->log, ngx_errno,
++                              "unable to save zone to \"%V\": "
++                              ngx_open_file_n " \"%s\" failed",
++                              &file->name, tmpfile.name.data);
++                goto next;
++            }
++
++            ngx_memzero(&hdr, sizeof(ngx_slab_state_header_t));
++
++            hdr.addr = zone->shm.addr;
++            hdr.signature = *zone->signature;
++
++            rc = ngx_slab_save_pool(&hdr, &tmpfile);
++
++#if (NGX_HAVE_PERSISTENT_SHM)
++            if (rc == NGX_OK && fsync(tmpfile.fd) == -1) {
++                ngx_log_error(NGX_LOG_ALERT, cycle->log, ngx_errno,
++                              "fsync() \"%V\" failed", &tmpfile.name);
++                rc = NGX_ERROR;
++            }
++#endif
++
++            if (ngx_close_file(tmpfile.fd) == NGX_FILE_ERROR) {
++                ngx_log_error(NGX_LOG_ERR, cycle->log, ngx_errno,
++                              ngx_close_file_n " \"%s\" failed",
++                              tmpfile.name.data);
++            }
++
++            if (rc != NGX_OK) {
++                ngx_log_error(NGX_LOG_ALERT, cycle->log, 0,
++                              "unable to save zone to \"%V\"", &file->name);
++
++                if (ngx_delete_file(tmpfile.name.data) == NGX_FILE_ERROR) {
++                    ngx_log_error(NGX_LOG_ALERT, cycle->log, ngx_errno,
++                                  ngx_delete_file_n " %s failed",
++                                  tmpfile.name.data);
++                }
++
++                goto next;
++            }
++
++            if (ngx_rename_file(tmpfile.name.data, file->name.data)
++                == NGX_FILE_ERROR)
++            {
++                ngx_log_error(NGX_LOG_ALERT, cycle->log, ngx_errno,
++                              "unable to save zone to \"%V\": "
++                              ngx_rename_file_n " %s to %s failed",
++                              &file->name, tmpfile.name.data, file->name.data);
++
++                /* fall through */
++            }
++
++    next:
++            ngx_shm_zone_file_release(zone->state, 0);
++        }
++    }
++
++    ngx_log_debug0(NGX_LOG_DEBUG_CORE, cycle->log, 0, "ngx_save_zones() done");
++}
++
++
++static ngx_int_t
++ngx_shm_zone_file_acquire(ngx_shm_zone_state_t *zstate, ngx_uint_t wr)
++{
++    ngx_err_t    err;
++    ngx_file_t  *file, *lock;
++
++    file = &zstate->file;
++    lock = &zstate->lock;
++
++    if (lock->fd != NGX_INVALID_FILE) {
++        ngx_log_error(NGX_LOG_WARN, lock->log, 0,
++                      "attempt to acquire lock \"%V\" that is already held",
++                      &lock->name);
++        return NGX_OK;
++    }
++
++    lock->fd = ngx_open_file(lock->name.data, (O_CREAT|O_EXCL),
++                             NGX_FILE_OPEN, NGX_FILE_DEFAULT_ACCESS);
++
++    if (lock->fd == NGX_INVALID_FILE) {
++        /* TODO: perform some retries ? */
++
++        ngx_log_error(NGX_LOG_ERR, lock->log, 0,
++                      ngx_open_file_n" \"%V\" failed, cannot lock zone",
++                      &lock->name);
++        return NGX_ERROR;
++    }
++
++    /* lock is held */
++
++    ngx_log_debug2(NGX_LOG_DEBUG_CORE, lock->log, 0,
++                   "acquired lock on \"%V\" write:%d", &lock->name, wr);
++
++    if (wr) {
++        /* got lock, write will happen to temp file */
++        return NGX_OK;
++    }
++
++    file->fd = ngx_open_file(file->name.data, NGX_FILE_RDONLY,
++                             NGX_FILE_OPEN, NGX_FILE_DEFAULT_ACCESS);
++
++    if (file->fd == NGX_INVALID_FILE) {
++        err = ngx_errno;
++
++        if (err == NGX_ENOENT) {
++
++            ngx_log_debug1(NGX_LOG_DEBUG_CORE, lock->log, 0,
++                           "zone state file \"%V\" does not exist, "
++                           "releasing lock",
++                           &file->name);
++
++            /* no state file, release lock */
++            ngx_shm_zone_file_release(zstate, 0);
++            return NGX_DECLINED;
++        }
++
++        ngx_log_error(NGX_LOG_ERR, file->log, err,
++                      ngx_open_file_n" \"%V\" failed", &file->name);
++
++        ngx_shm_zone_file_release(zstate, 0);
++        return NGX_ERROR;
++    }
++
++    /* got lock, file is open */
++
++    return NGX_OK;
++}
++
++
++static void
++ngx_shm_zone_file_release(ngx_shm_zone_state_t *zstate, ngx_uint_t discard)
++{
++    ngx_file_t  *file, *lock;
++
++    file = &zstate->file;
++    lock = &zstate->lock;
++
++    if (file->fd != NGX_INVALID_FILE) {
++        if (ngx_close_file(file->fd) == NGX_FILE_ERROR) {
++            ngx_log_error(NGX_LOG_ERR, file->log, ngx_errno,
++                          ngx_close_file_n " \"%V\" failed", &file->name);
++        }
++
++        file->fd = NGX_INVALID_FILE;
++
++        if (discard) {
++
++            /*
++             * the file is bad due to some reasons and we need to rename it
++             * so that user can decide what to do with data
++             */
++
++            if (ngx_rename_file(file->name.data, zstate->old.data)
++                == NGX_FILE_ERROR)
++            {
++                ngx_log_error(NGX_LOG_ERR, file->log, ngx_errno,
++                              ngx_rename_file_n " \"%V\" to \"%V\" failed",
++                              &file->name, &zstate->old);
++            }
++        }
++    }
++
++    if (lock->fd == NGX_INVALID_FILE) {
++        return;
++    }
++
++    if (ngx_delete_file(lock->name.data) == NGX_FILE_ERROR) {
++        ngx_log_error(NGX_LOG_CRIT, lock->log, ngx_errno,
++                      ngx_delete_file_n " \"%V\" failed", &lock->name);
++    }
++
++    if (ngx_close_file(lock->fd) == NGX_FILE_ERROR) {
++        ngx_log_error(NGX_LOG_ERR, lock->log, ngx_errno,
++                      ngx_close_file_n " \"%V\" failed", &lock->name);
++    }
++
++    lock->fd = NGX_INVALID_FILE;
++
++    ngx_log_debug1(NGX_LOG_DEBUG_CORE, lock->log, 0,
++                   "released lock on \"%V\"", &lock->name);
++}
++
++
++#endif
+diff --git a/src/core/ngx_cycle.h b/src/core/ngx_cycle.h
+index 4ec9d556b..96d3224cc 100644
+--- a/src/core/ngx_cycle.h
++++ b/src/core/ngx_cycle.h
+@@ -1,5 +1,6 @@
+ 
+ /*
++ * Copyright (C) 2025 Web Server LLC
+  * Copyright (C) Igor Sysoev
+  * Copyright (C) Nginx, Inc.
+  */
+@@ -28,6 +29,35 @@
+ #define HAVE_INTERCEPT_ERROR_LOG_PATCH
+ 
+ 
++#if (NGX_RESTY_EXT)
++
++#define NGX_RESTY_SHM_PERSISTENCE  1
++
++
++typedef struct {
++    ngx_str_t                 name;
++    ngx_str_t                 file;
++    ssize_t                   size;
++    void                     *tag;
++    ngx_str_t                 signature;
++
++    size_t                    min_size;
++    unsigned                  is_count:1;
++    unsigned                  restorable:1;
++} ngx_shm_zone_params_t;
++
++
++typedef struct {
++    ngx_file_t                file;
++    ngx_file_t                lock;
++    ngx_str_t                 tmp;
++    ngx_str_t                 old;
++} ngx_shm_zone_state_t;
++
++
++#endif
++
++
+ typedef struct ngx_shm_zone_s  ngx_shm_zone_t;
+ 
+ typedef ngx_int_t (*ngx_shm_zone_init_pt) (ngx_shm_zone_t *zone, void *data);
+@@ -41,6 +71,12 @@ struct ngx_shm_zone_s {
+     void                     *tag;
+     void                     *sync;
+     ngx_uint_t                noreuse;  /* unsigned  noreuse:1; */
++
++#if (NGX_RESTY_EXT)
++    ngx_shm_zone_state_t     *state;
++    ngx_str_t                *signature;
++    unsigned                  restore:1;
++#endif
+ };
+ 
+ 
+@@ -151,6 +187,12 @@ ngx_shm_zone_t *ngx_shared_memory_add(ngx_conf_t *cf, ngx_str_t *name,
+     size_t size, void *tag);
+ void ngx_set_shutdown_timer(ngx_cycle_t *cycle);
+ 
++#if (NGX_RESTY_EXT)
++ngx_shm_zone_t *ngx_shared_memory_add_ext(ngx_conf_t *cf,
++    ngx_shm_zone_params_t *zp);
++void ngx_save_zones(ngx_cycle_t *cycle);
++#endif
++
+ 
+ extern volatile ngx_cycle_t  *ngx_cycle;
+ extern ngx_array_t            ngx_old_cycles;
 diff --git a/src/core/ngx_module.h b/src/core/ngx_module.h
-index 13acfa6a1..e8009a38d 100644
+index 13acfa6a1..0679a9624 100644
 --- a/src/core/ngx_module.h
 +++ b/src/core/ngx_module.h
-@@ -198,6 +198,58 @@
+@@ -198,6 +198,61 @@
  #define NGX_MODULE_SIGNATURE_34  "0"
  #endif
  
@@ -103,10 +868,13 @@ index 13acfa6a1..e8009a38d 100644
 +#define NGX_MODULE_SIGNATURE_RESTY_HTTP_SSL  "0"
 +#endif
 +
++#define NGX_MODULE_SIGNATURE_RESTY_SHM  "1"
++
 +#define NGX_MODULE_SIGNATURE_RESTY                                            \
 +    ",resty," ngx_value(NGX_RESTY_ABI_VERSION) ","                            \
 +    NGX_MODULE_SIGNATURE_RESTY_EXPR NGX_MODULE_SIGNATURE_RESTY_PROXY_FILTER   \
-+    NGX_MODULE_SIGNATURE_RESTY_GRPC_FILTER NGX_MODULE_SIGNATURE_RESTY_HTTP_SSL
++    NGX_MODULE_SIGNATURE_RESTY_GRPC_FILTER NGX_MODULE_SIGNATURE_RESTY_HTTP_SSL \
++    NGX_MODULE_SIGNATURE_RESTY_SHM
 +
 +#endif
 +
@@ -128,7 +896,7 @@ index 13acfa6a1..e8009a38d 100644
  #define NGX_MODULE_SIGNATURE                                                  \
      NGX_MODULE_SIGNATURE_0 NGX_MODULE_SIGNATURE_1 NGX_MODULE_SIGNATURE_2      \
      NGX_MODULE_SIGNATURE_3 NGX_MODULE_SIGNATURE_4 NGX_MODULE_SIGNATURE_5      \
-@@ -211,6 +263,7 @@
+@@ -211,6 +266,7 @@
      NGX_MODULE_SIGNATURE_27 NGX_MODULE_SIGNATURE_28 NGX_MODULE_SIGNATURE_29   \
      NGX_MODULE_SIGNATURE_30 NGX_MODULE_SIGNATURE_31 NGX_MODULE_SIGNATURE_32   \
      NGX_MODULE_SIGNATURE_33 NGX_MODULE_SIGNATURE_34
@@ -136,6 +904,605 @@ index 13acfa6a1..e8009a38d 100644
  
  
  #define NGX_MODULE_V1                                                         \
+diff --git a/src/core/ngx_slab.c b/src/core/ngx_slab.c
+index b8577ce75..b4eca3448 100644
+--- a/src/core/ngx_slab.c
++++ b/src/core/ngx_slab.c
+@@ -1,5 +1,6 @@
+ 
+ /*
++ * Copyright (C) 2025 Web Server LLC
+  * Copyright (C) Igor Sysoev
+  * Copyright (C) Nginx, Inc.
+  */
+@@ -69,6 +70,36 @@
+ 
+ #endif
+ 
++#if (NGX_RESTY_EXT)
++
++#define NGX_SLAB_SIGN                                                        \
++    ngx_value(NGX_PTR_SIZE) ":"                                               \
++    ngx_value(NGX_SIG_ATOMIC_T_SIZE) ":"                                      \
++    NGX_MODULE_SIGNATURE_20 ":" NGX_MODULE_SIGNATURE_21
++
++#define NGX_SLAB_MAGICK_TXT  "nginx-shm-001:" NGX_SLAB_SIGN
++#define NGX_SLAB_MAGICK      ((u_char *) NGX_SLAB_MAGICK_TXT)
++#define NGX_SLAB_MAGICK_LEN  (sizeof(NGX_SLAB_MAGICK_TXT) - 1)
++#define NGX_SLAB_HEADER_LEN  (NGX_SLAB_MAGICK_LEN + NGX_INT64_LEN * 4 + 5)
++
++#define ngx_slab_addr_to_u64(ptr)     ((uint64_t) (uintptr_t) ptr)
++#define ngx_slab_u64_to_addr(val)     ((void *) (uintptr_t) val)
++
++
++static ngx_int_t ngx_slab_write_header(ngx_slab_state_header_t *hdr,
++    ngx_file_t *file);
++static ngx_inline ngx_int_t ngx_slab_header_next_token(ngx_str_t *token,
++    u_char **p, u_char *end);
++static ngx_inline ngx_int_t ngx_slab_header_next_hexnum(uint64_t *res,
++    u_char **p, u_char *end, ngx_log_t *log);
++static ngx_int_t ngx_slab_save_pages(ngx_slab_pool_t *pool, off_t header_off,
++    ngx_file_t *file);
++static ngx_int_t ngx_slab_read_pages(ngx_slab_pool_t *pool, ngx_file_t *file,
++    off_t meta_offset);
++
++#endif
++
++
+ static ngx_slab_page_t *ngx_slab_alloc_pages(ngx_slab_pool_t *pool,
+     ngx_uint_t pages);
+ static void ngx_slab_free_pages(ngx_slab_pool_t *pool, ngx_slab_page_t *page,
+@@ -815,3 +846,485 @@ ngx_slab_error(ngx_slab_pool_t *pool, ngx_uint_t level, char *text)
+ {
+     ngx_log_error(level, ngx_cycle->log, 0, "%s%s", text, pool->log_ctx);
+ }
++
++
++#if (NGX_RESTY_EXT)
++
++static ngx_int_t
++ngx_slab_write_header(ngx_slab_state_header_t *hdr, ngx_file_t *file)
++{
++    size_t            len, size;
++    ssize_t           n;
++    ngx_str_t        *sign;
++    ngx_slab_pool_t  *pool;
++
++    u_char            buf[NGX_SLAB_HEADER_LEN];
++
++    pool = (ngx_slab_pool_t *) hdr->addr;
++    sign = &hdr->signature;
++
++    size = (u_char *) pool->end - (u_char *) pool;
++
++    /*
++     * header format (ASCII):
++     *  "magic_id;<hex_addr>;<hex_size>;<data_offset>;<sign_len>;[fill]"
++     * Example:
++     *  "angie-shm-001;7cdef54;16384;42;33;***"
++     *
++     * Signature is written right after header, then data
++     */
++
++    /* offset to slab data from file start */
++    hdr->offset = NGX_SLAB_HEADER_LEN + sign->len;
++
++    len = ngx_sprintf(buf, "%s;%xL;%xL;%xL;%xL;", NGX_SLAB_MAGICK,
++                      ngx_slab_addr_to_u64(pool), size, hdr->offset, sign->len)
++          - buf;
++
++    /* fill in the rest of buf with asterisks, so we always have full header */
++    if (len < sizeof(buf)) {
++        ngx_memset(buf + len, '*', sizeof(buf) - len);
++    }
++
++    n = ngx_write_file(file, buf, sizeof(buf), 0);
++    if (n < 0) {
++        ngx_log_error(NGX_LOG_ERR, file->log, ngx_errno,
++                      "failed to write slab header into \"%V\"", &file->name);
++
++        return NGX_ERROR;
++    }
++
++    n = ngx_write_file(file, sign->data, sign->len, NGX_SLAB_HEADER_LEN);
++    if (n < 0) {
++        ngx_log_error(NGX_LOG_ERR, file->log, ngx_errno,
++                      "failed to write zone signature into \"%V\"",
++                      &file->name);
++
++        return NGX_ERROR;
++    }
++
++    return NGX_OK;
++}
++
++
++ngx_int_t
++ngx_slab_read_header(ngx_slab_state_header_t *hdr, ngx_file_t *file)
++{
++    u_char     *p, *end;
++    ssize_t     n;
++    ngx_str_t   token, sign;
++    uint64_t    addr, size, off;
++
++    u_char      buf[NGX_SLAB_HEADER_LEN];
++
++    n = ngx_read_file(file, buf, sizeof(buf), 0);
++    if (n == NGX_ERROR) {
++        return NGX_ERROR;
++    }
++
++    if ((size_t) n < NGX_SLAB_HEADER_LEN) {
++        ngx_log_error(NGX_LOG_ERR, file->log, 0,
++                      "zone file \"%V\" is too small", &file->name);
++        return NGX_ERROR;
++    }
++
++    p = buf;
++    end = buf + n;
++
++    if (ngx_slab_header_next_token(&token, &p, end) != NGX_OK) {
++        ngx_log_error(NGX_LOG_ERR, file->log, 0,
++                      "failed to get magick from zone file \"%V\"",
++                      &file->name);
++        return NGX_ERROR;
++    }
++
++    if (token.len != NGX_SLAB_MAGICK_LEN
++        || ngx_strncmp(token.data, NGX_SLAB_MAGICK, NGX_SLAB_MAGICK_LEN) != 0)
++    {
++        ngx_log_error(NGX_LOG_ERR, file->log, 0,
++                      "bad magick in zone file \"%V\"", &file->name);
++        return NGX_ERROR;
++    }
++
++    /* zone address */
++
++    if (ngx_slab_header_next_hexnum(&addr, &p, end, file->log) != NGX_OK) {
++        ngx_log_error(NGX_LOG_ERR, file->log, 0,
++                      "failed to get addr from zone file \"%V\"", &file->name);
++        return NGX_ERROR;
++    }
++
++    hdr->addr = ngx_slab_u64_to_addr(addr);
++
++    /* zone size */
++
++    if (ngx_slab_header_next_hexnum(&size, &p, end, file->log) != NGX_OK) {
++        ngx_log_error(NGX_LOG_ERR, file->log, 0,
++                      "failed to get size from zone file \"%V\"", &file->name);
++        return NGX_ERROR;
++    }
++
++    hdr->size = size;
++
++    /* data offset in file */
++
++    if (ngx_slab_header_next_hexnum(&off, &p, end, file->log) != NGX_OK) {
++        ngx_log_error(NGX_LOG_ERR, file->log, 0,
++                      "failed to get offset from zone file \"%V\"",
++                      &file->name);
++        return NGX_ERROR;
++    }
++
++    hdr->offset = off;
++
++    /* signature len */
++    if (ngx_slab_header_next_hexnum(&size, &p, end, file->log) != NGX_OK) {
++        ngx_log_error(NGX_LOG_ERR, file->log, 0,
++                      "failed to get signature length from zone file \"%V\"",
++                      &file->name);
++        return NGX_ERROR;
++    }
++
++    if (hdr->signature.len != size) {
++        ngx_log_error(NGX_LOG_ERR, file->log, 0,
++                      "signature differs in size: expected %ui found %ui "
++                      "in zone file \"%V\"",
++                      hdr->signature.len, size, &file->name);
++        return NGX_ERROR;
++    }
++
++    /* reuse header buf which is big enough for any practical signature */
++    if (size > sizeof(buf)) {
++        ngx_log_error(NGX_LOG_ERR, file->log, 0,
++                      "signature length is too big in zone file \"%V\"",
++                      &file->name);
++        return NGX_ERROR;
++    }
++
++    sign.len = size;
++    sign.data = buf;
++
++    n = ngx_read_file(file, buf, sign.len, NGX_SLAB_HEADER_LEN);
++    if (n == NGX_ERROR) {
++        return NGX_ERROR;
++    }
++
++    if ((size_t) n != sign.len) {
++        ngx_log_error(NGX_LOG_ERR, file->log, 0,
++                      "failed to read full signature from zone file \"%V\"",
++                      &file->name);
++        return NGX_ERROR;
++    }
++
++    if (ngx_strncmp(hdr->signature.data, sign.data, sign.len) != 0) {
++        ngx_log_error(NGX_LOG_ERR, file->log, 0,
++                      "the signature differs: expected: \"%V\" found \"%V\" "
++                      "in zone file \"%V\"",
++                      &hdr->signature, &sign, &file->name);
++        return NGX_DECLINED;
++    }
++
++    ngx_log_debug5(NGX_LOG_DEBUG_CORE, file->log, 0,
++                   "restored zone addr:%p size:%ui off:%O sign:\"%V\" "
++                   "from header of zone file \"%V\"",
++                   hdr->addr, hdr->size, hdr->offset, &sign, &file->name);
++
++    return NGX_OK;
++}
++
++
++static ngx_inline ngx_int_t
++ngx_slab_header_next_token(ngx_str_t *token, u_char **p, u_char *end)
++{
++    token->data = *p;
++
++    *p = ngx_strlchr(*p, end, ';');
++
++    if (*p == NULL) {
++        return NGX_ERROR;
++    }
++
++    token->len = *p - token->data;
++
++    (*p)++;
++
++    return NGX_OK;
++}
++
++
++static ngx_inline ngx_int_t
++ngx_slab_header_next_hexnum(uint64_t *res, u_char **p, u_char *end,
++    ngx_log_t *log)
++{
++    ngx_int_t  num;
++    ngx_str_t  token;
++
++    if (ngx_slab_header_next_token(&token, p, end) != NGX_OK) {
++        return NGX_ERROR;
++    }
++
++    num = ngx_hextoi(token.data, token.len);
++    if (num == NGX_ERROR) {
++        ngx_log_error(NGX_LOG_ALERT, log, 0,
++                      "shm zone file header number conversion failed");
++        return NGX_ERROR;
++    }
++
++    if (num == 0) {
++        ngx_log_error(NGX_LOG_ALERT, log, 0,
++                      "shm zone zero number in file");
++        return NGX_ERROR;
++    }
++
++    *res = (uint64_t) num;
++
++    return NGX_OK;
++}
++
++
++ngx_int_t
++ngx_slab_save_pool(ngx_slab_state_header_t *hdr, ngx_file_t *file)
++{
++    ssize_t           len, n;
++    ngx_slab_pool_t  *pool;
++
++    pool = hdr->addr;
++
++    ngx_shmtx_lock(&pool->mutex);
++
++    /* file start with a magic and base address */
++    if (ngx_slab_write_header(hdr, file) != NGX_OK) {
++        goto failed;
++    }
++
++    /* to keep it simple, dump all pool metadata; read will use needed */
++    len = (u_char *) pool->start - (u_char *) pool;
++
++    /* next is slab metadata */
++    n = ngx_write_file(file, (u_char *) pool, len, hdr->offset);
++    if (n < 0) {
++        goto failed;
++    }
++
++    ngx_log_debug3(NGX_LOG_DEBUG_CORE, file->log, 0,
++                   "saved %z bytes metadata at offset %O to zone file \"%V\"",
++                   n, hdr->offset, &file->name);
++
++    /* next are slab pages, each at page offset from metadata start */
++
++    if (ngx_slab_save_pages(pool, hdr->offset, file) != NGX_OK) {
++        goto failed;
++    }
++
++    ngx_shmtx_unlock(&pool->mutex);
++
++    return NGX_OK;
++
++failed:
++
++    ngx_shmtx_unlock(&pool->mutex);
++
++    return NGX_ERROR;
++}
++
++
++static ngx_int_t
++ngx_slab_save_pages(ngx_slab_pool_t *pool, off_t header_off, ngx_file_t *file)
++{
++    off_t             off;
++    ssize_t           n;
++    void             *page_addr;
++    ngx_uint_t        i, npages;
++    ngx_slab_page_t  *page;
++#if (NGX_DEBUG)
++    ngx_uint_t        pages_saved;
++
++    pages_saved = 0;
++#endif
++
++    npages = ((char *) pool->end - (char *) pool->start) / ngx_pagesize;
++
++    for (i = 0; i < npages; i++) {
++
++        page = &pool->pages[i];
++
++        if (page->slab == 0) {
++            continue;
++        }
++
++#if (NGX_DEBUG)
++        pages_saved++;
++#endif
++
++        page_addr = (void *) ngx_slab_page_addr(pool, page);
++
++        off = (u_char *) page_addr - (u_char *) pool;
++        off += header_off;
++
++        n = ngx_write_file(file, (u_char *) page_addr, ngx_pagesize, off);
++        if (n != (ssize_t) ngx_pagesize) {
++            return NGX_ERROR;
++        }
++    }
++
++    ngx_log_debug2(NGX_LOG_DEBUG_CORE, file->log, 0,
++                   "saved %ui slab pages to zone file \"%V\"",
++                   pages_saved, &file->name);
++
++    return NGX_OK;
++}
++
++
++ngx_int_t
++ngx_slab_restore_pool(ngx_slab_state_header_t *hdr, ngx_file_t *file)
++{
++    size_t            ns;
++    ssize_t           n;
++    ngx_uint_t        i;
++    ngx_slab_pool_t   fpool, *pool;
++
++    struct {
++        u_char       *data;
++        size_t        size;
++    } parts[3];
++
++    /*
++     * we are restoring from file:
++     *
++     * metadata (at hdr.offset):
++     * +---------------------------------------------+
++     * |- head of free page list and free page count |
++     * |- pointers to users' data and log context    |
++     * |- array of slots                             |
++     * |- array of stats                             |
++     * |- array of pages metadata                    |
++     * +---------------------------------------------+
++     *
++     * - pages itself (at offset from pool start + metadata offset)
++     */
++
++    pool = (ngx_slab_pool_t *) hdr->addr;
++
++    if (ngx_slab_read_header(hdr, file) != NGX_OK) {
++        return NGX_ERROR;
++    }
++
++    if ((u_char *) pool != hdr->addr) {
++        ngx_log_error(NGX_LOG_ALERT, file->log, 0,
++                      "attempt to restore pool into incorrect address, file "
++                      "\"%V\"", &file->name);
++
++        return NGX_ERROR;
++    }
++
++    n = ngx_read_file(file, (u_char *) &fpool, sizeof(ngx_slab_pool_t),
++                      hdr->offset);
++    if (n != sizeof(ngx_slab_pool_t)) {
++        ngx_log_error(NGX_LOG_ERR, file->log, 0,
++                      "failed to read metadata from zone file \"%V\"",
++                      &file->name);
++        return NGX_ERROR;
++    }
++
++    ngx_shmtx_lock(&pool->mutex);
++
++    /* head of list of pages */
++    pool->free = fpool.free;
++    pool->pages = fpool.pages;
++    pool->last = fpool.last;
++
++    /* number of free pages */
++    pool->pfree = fpool.pfree;
++
++    /* allocated by pool users from pool */
++    pool->data = fpool.data;
++    pool->log_ctx = fpool.log_ctx;
++
++    ns = ngx_pagesize_shift - pool->min_shift;
++
++    parts[0].data = (u_char *) ngx_slab_slots(pool);
++    parts[0].size = sizeof(ngx_slab_page_t) * ns;
++    parts[1].data = (u_char *) pool->stats;
++    parts[1].size = sizeof(ngx_slab_stat_t) * ns;
++    parts[2].data = (u_char *) pool->pages;
++    parts[2].size = sizeof(ngx_slab_page_t) * pool->pages->slab;
++
++    for (i = 0; i < sizeof(parts) / sizeof(parts[0]); i++) {
++        n = ngx_read_file(file, parts[i].data, parts[i].size,
++                          parts[i].data - (u_char *) pool + hdr->offset);
++        if (n != (ssize_t) parts[i].size) {
++            ngx_log_error(NGX_LOG_ERR, file->log, 0,
++                          "failed to read %uz slab bytes from zone file "
++                          "\"%V\"", parts[i].size, &file->name);
++            goto failed;
++        }
++    }
++
++    if (ngx_slab_read_pages(pool, file, hdr->offset) != NGX_OK) {
++        goto failed;
++    }
++
++    ngx_shmtx_unlock(&pool->mutex);
++
++    return NGX_OK;
++
++failed:
++
++    ngx_shmtx_unlock(&pool->mutex);
++
++    return NGX_ERROR;
++}
++
++
++static ngx_int_t
++ngx_slab_read_pages(ngx_slab_pool_t *pool, ngx_file_t *file, off_t meta_offset)
++{
++    off_t             off;
++    void             *page_addr;
++    ssize_t           n;
++    ngx_uint_t        i, npages;
++    ngx_slab_page_t  *page;
++#if (NGX_DEBUG)
++    ngx_uint_t        pages_read;
++
++    pages_read = 0;
++#endif
++
++    npages = ((char *) pool->end - (char *) pool->start) / ngx_pagesize;
++
++    for (i = 0; i < npages; i++) {
++
++        page = &pool->pages[i];
++
++        if (page->slab == 0) {
++            continue;
++        }
++
++        page_addr = (void *) ngx_slab_page_addr(pool, page);
++
++        off = (u_char *) page_addr - (u_char *) pool;
++        off += meta_offset;
++
++        n = ngx_read_file(file, (u_char *) page_addr, ngx_pagesize, off);
++        if (n != (ssize_t) ngx_pagesize) {
++            ngx_log_error(NGX_LOG_ALERT, file->log, 0,
++                          "failed to read page at offset %O "
++                          "from zone file \"%V\"", off, &file->name);
++
++            return NGX_ERROR;
++        }
++
++#if (NGX_DEBUG)
++        pages_read++;
++#endif
++    }
++
++    ngx_log_debug2(NGX_LOG_DEBUG_CORE, file->log, 0,
++                   "restored %ui slab pages from zone file \"%V\"",
++                   pages_read, &file->name);
++
++    return NGX_OK;
++}
++
++
++#endif
+diff --git a/src/core/ngx_slab.h b/src/core/ngx_slab.h
+index d1876bbec..db8f491ec 100644
+--- a/src/core/ngx_slab.h
++++ b/src/core/ngx_slab.h
+@@ -1,5 +1,6 @@
+ 
+ /*
++ * Copyright (C) 2025 Web Server LLC
+  * Copyright (C) Igor Sysoev
+  * Copyright (C) Nginx, Inc.
+  */
+@@ -59,6 +60,19 @@ typedef struct {
+ } ngx_slab_pool_t;
+ 
+ 
++#if (NGX_RESTY_EXT)
++
++typedef struct {
++    void             *addr;
++    size_t            size;
++    off_t             offset;
++    ngx_str_t         signature;
++} ngx_slab_state_header_t;
++
++
++#endif
++
++
+ void ngx_slab_sizes_init(void);
+ void ngx_slab_init(ngx_slab_pool_t *pool);
+ void *ngx_slab_alloc(ngx_slab_pool_t *pool, size_t size);
+@@ -69,4 +83,11 @@ void ngx_slab_free(ngx_slab_pool_t *pool, void *p);
+ void ngx_slab_free_locked(ngx_slab_pool_t *pool, void *p);
+ 
+ 
++#if (NGX_RESTY_EXT)
++ngx_int_t ngx_slab_save_pool(ngx_slab_state_header_t *hdr, ngx_file_t *file);
++ngx_int_t ngx_slab_read_header(ngx_slab_state_header_t *hdr, ngx_file_t *file);
++ngx_int_t ngx_slab_restore_pool(ngx_slab_state_header_t *hdr, ngx_file_t *file);
++#endif
++
++
+ #endif /* _NGX_SLAB_H_INCLUDED_ */
+diff --git a/src/event/ngx_event.c b/src/event/ngx_event.c
+index 4d4997d5c..0e1bf482f 100644
+--- a/src/event/ngx_event.c
++++ b/src/event/ngx_event.c
+@@ -1,5 +1,6 @@
+ 
+ /*
++ * Copyright (C) 2025 Web Server LLC
+  * Copyright (C) Igor Sysoev
+  * Copyright (C) Nginx, Inc.
+  */
+@@ -602,6 +603,10 @@ ngx_event_module_init(ngx_cycle_t *cycle)
+ 
+ #endif
+ 
++#if (NGX_RESTY_EXT)
++    ngx_memzero(&shm, sizeof(ngx_shm_t));
++#endif
++
+     shm.size = size;
+     ngx_str_set(&shm.name, "nginx_shared_zone");
+     shm.log = cycle->log;
 diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
 index c637fca32..048646c51 100644
 --- a/src/event/ngx_event_openssl.c
@@ -19354,13 +20721,29 @@ index 8bc2c6861..f218c12bb 100644
                  != NGX_OK)
              {
 diff --git a/src/http/ngx_http_cache.h b/src/http/ngx_http_cache.h
-index bb936c5fe..65d024de0 100644
+index bb936c5fe..725d38115 100644
 --- a/src/http/ngx_http_cache.h
 +++ b/src/http/ngx_http_cache.h
-@@ -29,10 +29,26 @@
+@@ -1,5 +1,6 @@
+ 
+ /*
++ * Copyright (C) 2025 Web Server LLC
+  * Copyright (C) Igor Sysoev
+  * Copyright (C) Nginx, Inc.
+  */
+@@ -29,10 +30,35 @@
  
  #define NGX_HTTP_CACHE_VERSION       5
  
++#if (NGX_RESTY_EXT)
++#define NGX_HTTP_CACHE_SH_SIGNATURE                                           \
++    "http-proxy-cache:1:"                                                    \
++    ngx_value(NGX_PTR_SIZE) ":"                                               \
++    ngx_value(NGX_SIG_ATOMIC_T_SIZE) ":"                                      \
++    ngx_value(NGX_TIME_T_SIZE) ":"                                            \
++    ngx_value(NGX_HTTP_CACHE_KEY_LEN)
++#endif
++
 +#if (NGX_RESTY_EXT)
 +/*
 + * Cache header version 5 has no dedicated flags field for response
@@ -19384,7 +20767,7 @@ index bb936c5fe..65d024de0 100644
  } ngx_http_cache_valid_t;
  
  
-@@ -122,6 +138,9 @@ struct ngx_http_cache_s {
+@@ -122,6 +148,9 @@ struct ngx_http_cache_s {
  
      unsigned                         stale_updating:1;
      unsigned                         stale_error:1;
@@ -19394,7 +20777,7 @@ index bb936c5fe..65d024de0 100644
  };
  
  
-@@ -196,7 +215,12 @@ void ngx_http_file_cache_update(ngx_http_request_t *r, ngx_temp_file_t *tf);
+@@ -196,7 +225,12 @@ void ngx_http_file_cache_update(ngx_http_request_t *r, ngx_temp_file_t *tf);
  void ngx_http_file_cache_update_header(ngx_http_request_t *r);
  ngx_int_t ngx_http_cache_send(ngx_http_request_t *);
  void ngx_http_file_cache_free(ngx_http_cache_t *c, ngx_temp_file_t *tf);
@@ -20169,10 +21552,29 @@ index 21af1eb52..936e9c3fc 100644
  
  ngx_int_t ngx_http_subrequest(ngx_http_request_t *r,
 diff --git a/src/http/ngx_http_file_cache.c b/src/http/ngx_http_file_cache.c
-index d3d0f039c..7356ab6b4 100644
+index d3d0f039c..53d2cb380 100644
 --- a/src/http/ngx_http_file_cache.c
 +++ b/src/http/ngx_http_file_cache.c
-@@ -312,7 +312,15 @@ ngx_http_file_cache_open(ngx_http_request_t *r)
+@@ -1,5 +1,6 @@
+ 
+ /*
++ * Copyright (C) 2025 Web Server LLC
+  * Copyright (C) Igor Sysoev
+  * Copyright (C) Nginx, Inc.
+  */
+@@ -131,6 +132,11 @@ ngx_http_file_cache_init(ngx_shm_zone_t *shm_zone, void *data)
+         cache->bsize = ngx_fs_bsize(cache->path->name.data);
+         cache->max_size /= cache->bsize;
+ 
++#if (NGX_RESTY_EXT)
++        cache->sh->rbtree.insert = ngx_http_file_cache_rbtree_insert_value;
++        cache->shpool->log_nomem = 0;
++#endif
++
+         return NGX_OK;
+     }
+ 
+@@ -312,7 +318,15 @@ ngx_http_file_cache_open(ngx_http_request_t *r)
      if (rc == NGX_OK) {
  
          if (c->error) {
@@ -20188,7 +21590,7 @@ index d3d0f039c..7356ab6b4 100644
          }
  
          c->temp_file = 1;
-@@ -627,7 +635,19 @@ ngx_http_file_cache_read(ngx_http_request_t *r, ngx_http_cache_t *c)
+@@ -627,7 +641,19 @@ ngx_http_file_cache_read(ngx_http_request_t *r, ngx_http_cache_t *c)
      c->error_sec = h->error_sec;
      c->last_modified = h->last_modified;
      c->date = h->date;
@@ -20208,7 +21610,7 @@ index d3d0f039c..7356ab6b4 100644
      c->body_start = h->body_start;
      c->etag.len = h->etag_len;
      c->etag.data = h->etag;
-@@ -655,7 +675,11 @@ ngx_http_file_cache_read(ngx_http_request_t *r, ngx_http_cache_t *c)
+@@ -655,7 +681,11 @@ ngx_http_file_cache_read(ngx_http_request_t *r, ngx_http_cache_t *c)
  
      now = ngx_time();
  
@@ -20220,7 +21622,7 @@ index d3d0f039c..7356ab6b4 100644
          c->stale_updating = c->valid_sec + c->updating_sec >= now;
          c->stale_error = c->valid_sec + c->error_sec >= now;
  
-@@ -1332,6 +1356,21 @@ ngx_http_file_cache_set_header(ngx_http_request_t *r, u_char *buf)
+@@ -1332,6 +1362,21 @@ ngx_http_file_cache_set_header(ngx_http_request_t *r, u_char *buf)
      h->date = c->date;
      h->crc32 = c->crc32;
      h->valid_msec = (u_short) c->valid_msec;
@@ -20242,7 +21644,7 @@ index d3d0f039c..7356ab6b4 100644
      h->header_start = (u_short) c->header_start;
      h->body_start = (u_short) c->body_start;
  
-@@ -1596,6 +1635,18 @@ ngx_http_file_cache_update_header(ngx_http_request_t *r)
+@@ -1596,6 +1641,18 @@ ngx_http_file_cache_update_header(ngx_http_request_t *r)
      h.date = c->date;
      h.crc32 = c->crc32;
      h.valid_msec = (u_short) c->valid_msec;
@@ -20261,7 +21663,7 @@ index d3d0f039c..7356ab6b4 100644
      h.header_start = (u_short) c->header_start;
      h.body_start = (u_short) c->body_start;
  
-@@ -2357,8 +2408,11 @@ ngx_http_file_cache_set_watermark(ngx_http_file_cache_t *cache)
+@@ -2357,8 +2414,11 @@ ngx_http_file_cache_set_watermark(ngx_http_file_cache_t *cache)
  }
  
  
@@ -20274,7 +21676,7 @@ index d3d0f039c..7356ab6b4 100644
  {
      ngx_uint_t               i;
      ngx_http_cache_valid_t  *valid;
-@@ -2369,7 +2423,28 @@ ngx_http_file_cache_valid(ngx_array_t *cache_valid, ngx_uint_t status)
+@@ -2369,7 +2429,28 @@ ngx_http_file_cache_valid(ngx_array_t *cache_valid, ngx_uint_t status)
  
      valid = cache_valid->elts;
      for (i = 0; i < cache_valid->nelts; i++) {
@@ -20303,7 +21705,7 @@ index d3d0f039c..7356ab6b4 100644
          if (valid[i].status == 0) {
              return valid[i].valid;
          }
-@@ -2382,6 +2457,8 @@ ngx_http_file_cache_valid(ngx_array_t *cache_valid, ngx_uint_t status)
+@@ -2382,6 +2463,8 @@ ngx_http_file_cache_valid(ngx_array_t *cache_valid, ngx_uint_t status)
      return 0;
  }
  
@@ -20312,7 +21714,89 @@ index d3d0f039c..7356ab6b4 100644
  
  char *
  ngx_http_file_cache_set_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
-@@ -2736,6 +2813,16 @@ ngx_http_file_cache_valid_set_slot(ngx_conf_t *cf, ngx_command_t *cmd,
+@@ -2399,6 +2482,9 @@ ngx_http_file_cache_set_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+     ngx_uint_t              i, n, use_temp_path;
+     ngx_array_t            *caches;
+     ngx_http_file_cache_t  *cache, **ce;
++#if (NGX_RESTY_EXT)
++    ngx_shm_zone_params_t   zp;
++#endif
+ 
+     cache = ngx_pcalloc(cf->pool, sizeof(ngx_http_file_cache_t));
+     if (cache == NULL) {
+@@ -2422,6 +2508,12 @@ ngx_http_file_cache_set_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+     manager_sleep = 50;
+     manager_threshold = 200;
+ 
++#if (NGX_RESTY_EXT)
++    ngx_memzero(&zp, sizeof(ngx_shm_zone_params_t));
++    zp.tag = cmd->post;
++    zp.restorable = 1;
++#endif
++
+     name.len = 0;
+     size = 0;
+     max_size = NGX_MAX_OFF_T_VALUE;
+@@ -2531,6 +2623,31 @@ ngx_http_file_cache_set_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+             continue;
+         }
+ 
++#if (NGX_RESTY_EXT)
++        if (ngx_strncmp(value[i].data, "keys_state=", 11) == 0) {
++            if (zp.file.data != NULL) {
++                ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
++                                   "duplicate keys_state parameter");
++                return NGX_CONF_ERROR;
++            }
++
++            if (value[i].len == 11) {
++                ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
++                                   "keys_state requires a file name");
++                return NGX_CONF_ERROR;
++            }
++
++            zp.file.data = value[i].data + 11;
++            zp.file.len = value[i].len - 11;
++
++            if (ngx_conf_full_name(cf->cycle, &zp.file, 0) != NGX_OK) {
++                return NGX_CONF_ERROR;
++            }
++
++            continue;
++        }
++#endif
++
+         if (ngx_strncmp(value[i].data, "inactive=", 9) == 0) {
+ 
+             s.len = value[i].len - 9;
+@@ -2696,7 +2813,26 @@ ngx_http_file_cache_set_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+         return NGX_CONF_ERROR;
+     }
+ 
++#if (NGX_RESTY_EXT)
++    zp.name = name;
++    zp.size = size;
++    zp.signature.len = sizeof(NGX_HTTP_CACHE_SH_SIGNATURE)
++                       + 2 * NGX_INT64_LEN + 3;
++    zp.signature.data = ngx_pnalloc(cf->pool, zp.signature.len);
++    if (zp.signature.data == NULL) {
++        return NGX_CONF_ERROR;
++    }
++
++    zp.signature.len = ngx_sprintf(zp.signature.data, "%s:%z:%z;",
++                                   NGX_HTTP_CACHE_SH_SIGNATURE,
++                                   sizeof(ngx_http_file_cache_node_t),
++                                   sizeof(ngx_http_file_cache_sh_t))
++                       - zp.signature.data;
++
++    cache->shm_zone = ngx_shared_memory_add_ext(cf, &zp);
++#else
+     cache->shm_zone = ngx_shared_memory_add(cf, &name, size, cmd->post);
++#endif
+     if (cache->shm_zone == NULL) {
+         return NGX_CONF_ERROR;
+     }
+@@ -2736,6 +2872,16 @@ ngx_http_file_cache_valid_set_slot(ngx_conf_t *cf, ngx_command_t *cmd,
  {
      char  *p = conf;
  
@@ -20329,7 +21813,7 @@ index d3d0f039c..7356ab6b4 100644
      time_t                    valid;
      ngx_str_t                *value;
      ngx_int_t                 status;
-@@ -2743,6 +2830,7 @@ ngx_http_file_cache_valid_set_slot(ngx_conf_t *cf, ngx_command_t *cmd,
+@@ -2743,6 +2889,7 @@ ngx_http_file_cache_valid_set_slot(ngx_conf_t *cf, ngx_command_t *cmd,
      ngx_array_t             **a;
      ngx_http_cache_valid_t   *v;
      static ngx_uint_t         statuses[] = { 200, 301, 302 };
@@ -20337,7 +21821,7 @@ index d3d0f039c..7356ab6b4 100644
  
      a = (ngx_array_t **) (p + cmd->offset);
  
-@@ -2756,12 +2844,37 @@ ngx_http_file_cache_valid_set_slot(ngx_conf_t *cf, ngx_command_t *cmd,
+@@ -2756,12 +2903,37 @@ ngx_http_file_cache_valid_set_slot(ngx_conf_t *cf, ngx_command_t *cmd,
      value = cf->args->elts;
      n = cf->args->nelts - 1;
  
@@ -20375,7 +21859,7 @@ index d3d0f039c..7356ab6b4 100644
  
      if (n == 1) {
  
-@@ -2772,7 +2885,12 @@ ngx_http_file_cache_valid_set_slot(ngx_conf_t *cf, ngx_command_t *cmd,
+@@ -2772,7 +2944,12 @@ ngx_http_file_cache_valid_set_slot(ngx_conf_t *cf, ngx_command_t *cmd,
              }
  
              v->status = statuses[i];
@@ -20388,7 +21872,7 @@ index d3d0f039c..7356ab6b4 100644
          }
  
          return NGX_CONF_OK;
-@@ -2800,7 +2918,12 @@ ngx_http_file_cache_valid_set_slot(ngx_conf_t *cf, ngx_command_t *cmd,
+@@ -2800,7 +2977,12 @@ ngx_http_file_cache_valid_set_slot(ngx_conf_t *cf, ngx_command_t *cmd,
          }
  
          v->status = status;
@@ -26064,6 +27548,255 @@ index 6b487289a..b3862e797 100644
          if (ngx_http_v3_check_flood(c) != NGX_OK) {
              ngx_http_close_request(r, NGX_HTTP_CLOSE);
              break;
+diff --git a/src/os/unix/ngx_process_cycle.c b/src/os/unix/ngx_process_cycle.c
+index ff8b919f8..0287b10dc 100644
+--- a/src/os/unix/ngx_process_cycle.c
++++ b/src/os/unix/ngx_process_cycle.c
+@@ -1,5 +1,6 @@
+ 
+ /*
++ * Copyright (C) 2025 Web Server LLC
+  * Copyright (C) Igor Sysoev
+  * Copyright (C) Nginx, Inc.
+  */
+@@ -293,6 +294,10 @@ ngx_master_process_cycle(ngx_cycle_t *cycle)
+         if (ngx_change_binary) {
+             ngx_change_binary = 0;
+             ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0, "changing binary");
++#if (NGX_RESTY_EXT)
++            ngx_save_zones(cycle);
++#endif
++
+             ngx_new_binary = ngx_exec_new_binary(cycle, ngx_argv);
+         }
+ 
+@@ -762,6 +767,10 @@ ngx_master_process_exit(ngx_cycle_t *cycle)
+ 
+     ngx_close_listening_sockets(cycle);
+ 
++#if (NGX_RESTY_EXT)
++    ngx_save_zones(cycle);
++#endif
++
+ #if (NGX_CONTROL_API)
+     ngx_control_uninit();
+ #endif
+diff --git a/src/os/unix/ngx_shmem.c b/src/os/unix/ngx_shmem.c
+index 3ec7cbf1f..a3e0457d6 100644
+--- a/src/os/unix/ngx_shmem.c
++++ b/src/os/unix/ngx_shmem.c
+@@ -1,5 +1,6 @@
+ 
+ /*
++ * Copyright (C) 2025 Web Server LLC
+  * Copyright (C) Igor Sysoev
+  * Copyright (C) Nginx, Inc.
+  */
+@@ -9,6 +10,198 @@
+ #include <ngx_core.h>
+ 
+ 
++#if (NGX_RESTY_EXT)
++
++#if (NGX_HAVE_MAP_ANON)
++
++ngx_int_t
++ngx_shm_alloc(ngx_shm_t *shm)
++{
++    int    flags;
++    void  *addr;
++
++    addr = shm->addr;
++    flags = MAP_ANON|MAP_SHARED;
++
++    if (addr) {
++#if (NGX_HAVE_MAP_FIXED_NOREPLACE)
++        flags |= MAP_FIXED_NOREPLACE;
++#elif (NGX_HAVE_MAP_FIXED_EXCL)
++        flags |= MAP_FIXED|MAP_EXCL;
++#else
++        ngx_log_error(NGX_LOG_ALERT, shm->log, 0,
++                      "Angie was built without support for  "
++                      "allocations at fixed address");
++        return NGX_ERROR;
++#endif
++    }
++
++    shm->addr = (u_char *) mmap(addr, shm->size,
++                                PROT_READ|PROT_WRITE, flags, -1, 0);
++
++    if (shm->addr == MAP_FAILED) {
++        ngx_log_error(NGX_LOG_ALERT, shm->log, ngx_errno,
++                      "mmap(MAP_ANON|MAP_SHARED, %uz) failed", shm->size);
++        return NGX_ERROR;
++    }
++
++    if (addr && shm->addr != addr) {
++        ngx_log_error(NGX_LOG_ALERT, shm->log, 0,
++                      "failed to restore zone at address %p, size %uz",
++                      addr, shm->size);
++        return NGX_ERROR;
++    }
++
++    return NGX_OK;
++}
++
++
++void
++ngx_shm_free(ngx_shm_t *shm)
++{
++    if (shm->addr == MAP_FAILED) {
++        return;
++    }
++
++    if (munmap((void *) shm->addr, shm->size) == -1) {
++        ngx_log_error(NGX_LOG_ALERT, shm->log, ngx_errno,
++                      "munmap(%p, %uz) failed", shm->addr, shm->size);
++    }
++}
++
++#elif (NGX_HAVE_MAP_DEVZERO)
++
++ngx_int_t
++ngx_shm_alloc(ngx_shm_t *shm)
++{
++    int        flags;
++    void      *addr;
++    ngx_fd_t   fd;
++
++    fd = open("/dev/zero", O_RDWR);
++
++    if (fd == -1) {
++        ngx_log_error(NGX_LOG_ALERT, shm->log, ngx_errno,
++                      "open(\"/dev/zero\") failed");
++        return NGX_ERROR;
++    }
++
++    addr = shm->addr;
++    flags = MAP_ANON|MAP_SHARED;
++
++    if (addr) {
++#if (NGX_HAVE_MAP_FIXED_NOREPLACE)
++        flags |= MAP_FIXED_NOREPLACE;
++#elif (NGX_HAVE_MAP_FIXED_EXCL)
++        flags |= MAP_FIXED|MAP_EXCL;
++#else
++        ngx_log_error(NGX_LOG_ALERT, shm->log, 0,
++                      "Angie was built without support for  "
++                      "allocations at fixed address");
++        return NGX_ERROR;
++#endif
++    }
++
++    shm->addr = (u_char *) mmap(addr, shm->size, PROT_READ|PROT_WRITE,
++                                flags, fd, 0);
++
++    if (shm->addr == MAP_FAILED) {
++        ngx_log_error(NGX_LOG_ALERT, shm->log, ngx_errno,
++                      "mmap(/dev/zero, MAP_SHARED, %uz) failed", shm->size);
++    }
++
++    if (close(fd) == -1) {
++        ngx_log_error(NGX_LOG_ALERT, shm->log, ngx_errno,
++                      "close(\"/dev/zero\") failed");
++    }
++
++    if (addr && shm->addr != addr) {
++        ngx_log_error(NGX_LOG_ALERT, shm->log, 0,
++                      "failed to restore zone at address %p, size %uz",
++                      addr, shm->size);
++        return NGX_ERROR;
++    }
++
++    return (shm->addr == MAP_FAILED) ? NGX_ERROR : NGX_OK;
++}
++
++
++void
++ngx_shm_free(ngx_shm_t *shm)
++{
++    if (shm->addr == MAP_FAILED) {
++        return;
++    }
++
++    if (munmap((void *) shm->addr, shm->size) == -1) {
++        ngx_log_error(NGX_LOG_ALERT, shm->log, ngx_errno,
++                      "munmap(%p, %uz) failed", shm->addr, shm->size);
++    }
++}
++
++#elif (NGX_HAVE_SYSVSHM)
++
++#include <sys/ipc.h>
++#include <sys/shm.h>
++
++
++ngx_int_t
++ngx_shm_alloc(ngx_shm_t *shm)
++{
++    int    id;
++    void  *addr;
++
++    addr = shm->addr;
++
++    id = shmget(IPC_PRIVATE, shm->size, (SHM_R|SHM_W|IPC_CREAT));
++
++    if (id == -1) {
++        ngx_log_error(NGX_LOG_ALERT, shm->log, ngx_errno,
++                      "shmget(%uz) failed", shm->size);
++        return NGX_ERROR;
++    }
++
++    ngx_log_debug1(NGX_LOG_DEBUG_CORE, shm->log, 0, "shmget id: %d", id);
++
++    shm->addr = shmat(id, addr, 0);
++
++    if (shm->addr == (void *) -1) {
++        ngx_log_error(NGX_LOG_ALERT, shm->log, ngx_errno, "shmat() failed");
++    }
++
++    if (addr && shm->addr != addr) {
++        ngx_log_error(NGX_LOG_ALERT, shm->log, 0,
++                      "failed to restore zone at address %p, size %uz",
++                      addr, shm->size);
++        return NGX_ERROR;
++    }
++
++    if (shmctl(id, IPC_RMID, NULL) == -1) {
++        ngx_log_error(NGX_LOG_ALERT, shm->log, ngx_errno,
++                      "shmctl(IPC_RMID) failed");
++    }
++
++    return (shm->addr == (void *) -1) ? NGX_ERROR : NGX_OK;
++}
++
++
++void
++ngx_shm_free(ngx_shm_t *shm)
++{
++    if (shm->addr == (void *) -1) {
++        return;
++    }
++
++    if (shmdt(shm->addr) == -1) {
++        ngx_log_error(NGX_LOG_ALERT, shm->log, ngx_errno,
++                      "shmdt(%p) failed", shm->addr);
++    }
++}
++
++#endif
++
++#else
++
+ #if (NGX_HAVE_MAP_ANON)
+ 
+ ngx_int_t
+@@ -124,3 +317,5 @@ ngx_shm_free(ngx_shm_t *shm)
+ }
+ 
+ #endif
++
++#endif
 diff --git a/src/stream/ngx_stream_log_module.c b/src/stream/ngx_stream_log_module.c
 index 774bc7e93..707a33ce5 100644
 --- a/src/stream/ngx_stream_log_module.c

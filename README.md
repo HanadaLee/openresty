@@ -54,6 +54,7 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [Conditional upstream directives](#conditional-upstream-directives)
     - [Support for inheritance in "proxy\_set\_header" and its friends](#support-for-inheritance-in-proxy_set_header-and-its-friends)
     - [Enhancement of upstream cookie handler](#enhancement-of-upstream-cookie-handler)
+    - [Persistent cache zones](#persistent-cache-zones)
     - [Enhancement of upstream cache control](#enhancement-of-upstream-cache-control)
   - [ngx\_http\_upstream\_module](#ngx_http_upstream_module)
     - [Extra variables for upstream information](#extra-variables-for-upstream-information)
@@ -151,8 +152,8 @@ the mirror also applies to the pinned OpenResty source checkout.
 
 Dynamic modules must be rebuilt using the same patched source revision and
 configuration headers as the server. The module signature includes an extension
-ABI revision and the expression, proxy-filter, gRPC-filter and HTTP SSL feature
-flags.
+ABI revision and the expression, proxy-filter, gRPC-filter, HTTP SSL and
+shared-memory persistence feature flags.
 Modules built for unpatched nginx, earlier extension ABIs or incompatible
 feature configurations are rejected with `is not binary compatible`.
 `--with-compat` does not bypass these extension checks; existing `.so` files
@@ -1068,6 +1069,25 @@ See also the [proxy_hide_header](https://nginx.org/en/docs/http/ngx_http_proxy_m
 Prevents Set-Cookie headers from being passed when the response is served from cache.
 
 > fastcgi_cache_hide_cookies, scgi_cache_hide_cookies and uwsgi_cache_hide_cookies directives are also available.
+
+### Persistent cache zones
+
+The `keys_state=file` parameter of `proxy_cache_path` saves the cache keys
+zone on graceful shutdown and restores it on the next startup:
+
+```nginx
+proxy_cache_path /var/cache/nginx/content
+                 keys_zone=content:10m
+                 keys_state=/var/lib/nginx/content.zone;
+```
+
+Use a separate state file for each zone and keep its configured size
+unchanged when restoring it. The state directory must exist and be writable
+by the nginx master process. A reload keeps the live zone; a graceful stop
+such as `nginx -s quit` saves it. `SIGKILL` does not save a snapshot.
+
+`fastcgi_cache_path`, `scgi_cache_path`, and `uwsgi_cache_path` support
+the same parameter.
 
 ### Enhancement of upstream cache control
 
