@@ -58,6 +58,24 @@ files=0
 output="${TEST_MODULE_OUTPUT:-$(mktemp -d)}"
 mkdir -p "$output"
 printf 'module\tframework\tfiles\texit_code\n' > "$output/results.tsv"
+
+# The integrated image registers more variables than an individual module.
+cat > "$output/RestyModuleTestConfig.pm" <<'PERL'
+package RestyModuleTestConfig;
+
+use strict;
+use warnings;
+use Test::Nginx::Util ();
+
+$Test::Nginx::Util::FilterHttpConfig = sub {
+    my ($config) = @_;
+    return $config if $config =~ /^\s*variables_hash_max_size\s/m;
+    return "variables_hash_max_size 8192;\n$config";
+};
+
+1;
+PERL
+
 while IFS= read -r module_dir; do
     # Bundled OpenResty modules and dependency submodules are not standalone
     # repositories under this root. Only test modules compiled into this image.
@@ -162,6 +180,9 @@ while IFS= read -r module_dir; do
             fi
             if [[ "$framework" == official ]]; then
                 export NGINX_TESTS="$NGINX_TESTS_ROOT"
+            else
+                export PERL5LIB="$PERL5LIB:$output"
+                export PERL5OPT="${PERL5OPT:+$PERL5OPT }-MRestyModuleTestConfig"
             fi
             timeout "${TEST_MODULE_TIMEOUT:-600}" prove -v "${tests[@]}"
         ) 2>&1 | tee "$output/$name-$framework/prove.log"; then

@@ -15,9 +15,11 @@ for test in "$@"; do
     if grep -q 'Test::Nginx::Socket' "$test"; then
         [[ "$PERL5LIB" == "$TEST_NGINX_ROOT/lib:"* ]]
         [[ "$PERL5LIB" != *"$NGINX_TESTS_ROOT/lib"* ]]
+        [[ "$PERL5OPT" == *-MRestyModuleTestConfig* ]]
     else
         [[ "$PERL5LIB" == "$NGINX_TESTS_ROOT/lib:"* ]]
         [[ "$PERL5LIB" != *"$TEST_NGINX_ROOT/lib"* ]]
+        [[ "${PERL5OPT:-}" != *-MRestyModuleTestConfig* ]]
     fi
     printf '%s|%s\n' "$(basename "$PWD")" "$(basename "$test")" >> "$MOCK_MODULE_CALLS"
 done

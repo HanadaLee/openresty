@@ -37,6 +37,18 @@ grep -Fxq 'Module tests: 3 suites, 3 files' "$work/output"
 ! grep -q '^unbuilt|' "$MOCK_MODULE_CALLS"
 echo 'PASS: built modules, nested tests, fixtures and separate Perl harnesses'
 
+mkdir -p "$TEST_NGINX_ROOT/lib/Test/Nginx"
+printf 'package Test::Nginx::Util; 1;\n' > "$TEST_NGINX_ROOT/lib/Test/Nginx/Util.pm"
+PERL5LIB="$TEST_NGINX_ROOT/lib:$TEST_MODULE_OUTPUT" \
+    perl -MRestyModuleTestConfig -e '
+        my $filter = $Test::Nginx::Util::FilterHttpConfig;
+        die "missing hash capacity\n" unless
+            $filter->("server {}\n") eq "variables_hash_max_size 8192;\nserver {}\n";
+        my $config = "  variables_hash_max_size 16384;\nserver {}\n";
+        die "explicit hash capacity changed\n" unless $filter->($config) eq $config;
+    '
+echo 'PASS: integrated HTTP variable hash capacity preserves explicit settings'
+
 for module in ngx_http_grpc_filter_module ngx_http_proxy_filter_module; do
     mkdir -p "$MOCK_MODULE_ROOT/$module/t/fixtures"
     touch "$MOCK_MODULE_ROOT/$module/t/fixtures/marker"
