@@ -89,6 +89,7 @@ while IFS= read -r module_dir; do
         if [[ "$TEST_NGINX_EXPR" == 1 ]]; then flags+=(--expr); fi
         if (
             set -e
+            export OPENSSL_CONF="${OPENSSL_CONF:-/etc/ssl/openssl.cnf}"
             python3 "$module_dir/t/key_runtime.py" \
                 --binary "$TEST_NGINX_BINARY" "${flags[@]}" \
                 --output "$results/key.json" || exit $?

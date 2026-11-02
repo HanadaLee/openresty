@@ -40,7 +40,7 @@ EOF
         location ~ ^/purge/$name(/.*)\$ {
             $params
             fastcgi_cache_purge on;
-            cache_purge_key_url http://cache.test/$name\$1;
+            cache_key_uri /$name\$1;
         }
 EOF
         }
@@ -59,9 +59,6 @@ http {
     cache_purge_index_store %%TESTDIR%%/index;
     cache_purge_state_zone zone=purge:1m;
     cache_key_host cache.test;
-    cache_purge_key_url $cache_key_url;
-    cache_purge_key_misc $cache_key_misc;
-    cache_purge_key_namespace $cache_key_namespace;
     server {
         listen 127.0.0.1:8080;
         server_name localhost;
