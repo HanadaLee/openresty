@@ -67,7 +67,6 @@ ARG RESTY_NGX_BACKTRACE_MODULE_VERSION="0.1.1"
 ARG RESTY_NGX_EXPR_MODULE_VERSION="1.0.0"
 ARG RESTY_NGX_GEOIP2_MODULE_VERSION="3.5.0"
 ARG RESTY_NGX_HTTP_ACCESS_CONTROL_MODULE_VERSION="1.0.0"
-ARG RESTY_NGX_HTTP_AUTH_AKAMAI_G2O_MODULE_VERSION="1.0.1"
 ARG RESTY_NGX_HTTP_SECURE_LINK_HASH_MODULE_VERSION="2.0.0"
 ARG RESTY_NGX_HTTP_SECURE_LINK_HMAC_MODULE_VERSION="0.4.0"
 ARG RESTY_NGX_HTTP_AUTH_INTERNAL_MODULE_VERSION="1.0.0"
@@ -255,7 +254,6 @@ ARG RESTY_NGX_BACKTRACE_MODULE_VERSION
 ARG RESTY_NGX_EXPR_MODULE_VERSION
 ARG RESTY_NGX_GEOIP2_MODULE_VERSION
 ARG RESTY_NGX_HTTP_ACCESS_CONTROL_MODULE_VERSION
-ARG RESTY_NGX_HTTP_AUTH_AKAMAI_G2O_MODULE_VERSION
 ARG RESTY_NGX_HTTP_SECURE_LINK_HASH_MODULE_VERSION
 ARG RESTY_NGX_HTTP_SECURE_LINK_HMAC_MODULE_VERSION
 ARG RESTY_NGX_HTTP_AUTH_INTERNAL_MODULE_VERSION
@@ -361,7 +359,6 @@ ARG RESTY_CONFIG_OPTIONS="\
     --add-module=/build/modules/ngx_stat_module \
     --add-module=/build/modules/ngx_geoip2_module \
     --add-module=/build/modules/ngx_http_access_control_module \
-    --add-module=/build/modules/ngx_http_auth_akamai_g2o_module \
     --add-module=/build/modules/ngx_http_secure_link_hash_module \
     --add-module=/build/modules/ngx_http_secure_link_hmac_module \
     --add-module=/build/modules/ngx_http_auth_internal_module \
@@ -541,7 +538,6 @@ RUN mkdir -p /build/modules \
     && git clone --depth=1 --branch "${RESTY_NGX_HTTP_CACHE_PURGE_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_cache_purge_module.git ngx_http_cache_purge_module \
     && git clone --depth=1 --branch "${RESTY_NGX_HTTP_LIMIT_TRAFFIC_RATE_FILTER_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_limit_traffic_rate_filter_module.git ngx_http_limit_traffic_rate_filter_module \
     && git clone --depth=1 --branch "${RESTY_NGX_HTTP_ACCESS_CONTROL_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_access_control_module.git ngx_http_access_control_module \
-    && git clone --depth=1 --branch "${RESTY_NGX_HTTP_AUTH_AKAMAI_G2O_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_auth_akamai_g2o_module.git ngx_http_auth_akamai_g2o_module \
     && git clone --depth=1 --branch "${RESTY_NGX_HTTP_AUTH_INTERNAL_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_auth_internal_module.git ngx_http_auth_internal_module \
     && git clone --depth=1 --branch "${RESTY_NGX_HTTP_SECURE_LINK_HASH_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_secure_link_hash_module.git ngx_http_secure_link_hash_module \
     && git clone --depth=1 --branch "${RESTY_NGX_HTTP_SECURE_LINK_HMAC_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_secure_link_hmac_module.git ngx_http_secure_link_hmac_module \

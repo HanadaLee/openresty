@@ -205,7 +205,6 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_expr_module](https://git.hanada.info/hanada/ngx_expr_module)
 * [ngx_geoip2_module](https://git.hanada.info/hanada/ngx_geoip2_module)
 * [ngx_http_access_control_module](https://git.hanada.info/hanada/ngx_http_access_control_module)
-* [ngx_http_auth_akamai_g2o_module](https://git.hanada.info/hanada/ngx_http_auth_akamai_g2o_module)
 * [ngx_http_secure_link_hash_module](https://git.hanada.info/hanada/ngx_http_secure_link_hash_module)
 * [ngx_http_secure_link_hmac_module](https://git.hanada.info/hanada/ngx_http_secure_link_hmac_module)
 * [ngx_http_auth_internal_module](https://git.hanada.info/hanada/ngx_http_auth_internal_module)
