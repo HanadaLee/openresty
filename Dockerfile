@@ -736,6 +736,8 @@ RUN RESTY_VERSION="$(cat /build/openresty-version)" \
     && cd "${OPENRESTY_DIR}"/bundle/ngx_lua-* \
     && echo "patching ngx_http_lua_module for preaccess_by_lua" \
     && patch -p1 < /build/patches/ngx_http_lua_module-preaccess_by_lua.patch \
+    && echo "patching ngx_http_lua_module for native ClientHello retry" \
+    && patch -p1 < /build/patches/ngx_http_lua_module-client_hello_retry.patch \
     && cd "${NGINX_DIR}" \
     && echo "patching nginx-${NGINX_VERSION} ext" \
     && patch -p1 < /build/patches/nginx-ext_1.31.8+.patch \

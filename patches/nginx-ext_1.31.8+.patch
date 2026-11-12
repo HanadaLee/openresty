@@ -1504,24 +1504,215 @@ index 4d4997d5c..0e1bf482f 100644
      ngx_str_set(&shm.name, "nginx_shared_zone");
      shm.log = cycle->log;
 diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
-index c637fca32..048646c51 100644
+index c637fca32..5ae368228 100644
 --- a/src/event/ngx_event_openssl.c
 +++ b/src/event/ngx_event_openssl.c
-@@ -2116,6 +2116,10 @@ ngx_ssl_create_connection(ngx_ssl_t *ssl, ngx_connection_t *c, ngx_uint_t flags)
+@@ -23,6 +23,13 @@ typedef struct {
+
+
+ static ngx_inline ngx_int_t ngx_ssl_cert_already_in_hash(void);
++
++#if (NGX_RESTY_EXT                                                            \
++     && (defined OPENSSL_IS_BORINGSSL || defined OPENSSL_IS_AWSLC))
++static enum ssl_select_cert_result_t ngx_ssl_select_certificate_callback(
++    const SSL_CLIENT_HELLO *client_hello);
++#endif
++
+ #if (NGX_ZLIB && defined TLSEXT_cert_compression_zlib)
+ static int ngx_ssl_cert_compression_callback(ngx_ssl_conn_t *ssl_conn,
+     CBB *out, const uint8_t *in, size_t in_len);
+@@ -42,6 +49,12 @@ static int ngx_ssl_new_client_session(ngx_ssl_conn_t *ssl_conn,
+ static ngx_int_t ngx_ssl_try_early_data(ngx_connection_t *c);
+ #endif
+ static void ngx_ssl_handshake_handler(ngx_event_t *ev);
++
++#if (NGX_RESTY_EXT)
++static void ngx_ssl_handshake_delay_handler(ngx_event_t *ev);
++static void ngx_ssl_handshake_delay_cleanup(void *data);
++#endif
++
+ #ifdef SSL_READ_EARLY_DATA_SUCCESS
+ static ssize_t ngx_ssl_recv_early(ngx_connection_t *c, u_char *buf,
+     size_t size);
+@@ -1981,6 +1994,21 @@ ngx_ssl_new_client_session(ngx_ssl_conn_t *ssl_conn, ngx_ssl_session_t *sess)
+ ngx_int_t
+ ngx_ssl_set_client_hello_callback(ngx_ssl_t *ssl, ngx_ssl_client_hello_arg *cb)
+ {
++#if (NGX_RESTY_EXT                                                            \
++     && (defined OPENSSL_IS_BORINGSSL || defined OPENSSL_IS_AWSLC))
++
++    SSL_CTX_set_select_certificate_cb(ssl->ctx,
++                                      ngx_ssl_select_certificate_callback);
++
++    if (SSL_CTX_set_ex_data(ssl->ctx, ngx_ssl_client_hello_arg_index, cb) == 0)
++    {
++        ngx_ssl_error(NGX_LOG_EMERG, ssl->log, 0,
++                      "SSL_CTX_set_ex_data() failed");
++        return NGX_ERROR;
++    }
++
++#else
++
+ #ifdef SSL_CLIENT_HELLO_SUCCESS
+
+     SSL_CTX_set_client_hello_cb(ssl->ctx, ngx_ssl_client_hello_callback, NULL);
+@@ -2003,12 +2031,49 @@ ngx_ssl_set_client_hello_callback(ngx_ssl_t *ssl, ngx_ssl_client_hello_arg *cb)
+         return NGX_ERROR;
+     }
+
++#endif
++
+ #endif
+
+     return NGX_OK;
+ }
+
+
++#if (NGX_RESTY_EXT                                                            \
++     && (defined OPENSSL_IS_BORINGSSL || defined OPENSSL_IS_AWSLC))
++
++static enum ssl_select_cert_result_t
++ngx_ssl_select_certificate_callback(const SSL_CLIENT_HELLO *client_hello)
++{
++    int                        ad;
++    ngx_int_t                  rc;
++    ngx_ssl_conn_t            *ssl_conn;
++    ngx_connection_t          *c;
++    ngx_ssl_client_hello_arg  *cb;
++
++    ssl_conn = client_hello->ssl;
++    c = ngx_ssl_get_connection(ssl_conn);
++    cb = SSL_CTX_get_ex_data(c->ssl->session_ctx,
++                             ngx_ssl_client_hello_arg_index);
++
++    rc = cb->servername(ssl_conn, &ad, NULL);
++
++    if (rc == NGX_AGAIN) {
++        return ssl_select_cert_retry;
++    }
++
++    /* Preserve rejection alerts in the subsequent servername callback. */
++
++    if (rc == SSL_TLSEXT_ERR_ALERT_FATAL && ad == SSL_AD_INTERNAL_ERROR) {
++        return ssl_select_cert_error;
++    }
++
++    return ssl_select_cert_success;
++}
++
++#endif
++
++
+ #ifdef SSL_CLIENT_HELLO_SUCCESS
+
+ int
+@@ -2062,6 +2127,12 @@ done:
+
+     rc = cb->servername(ssl_conn, ad, &host);
+
++#if (NGX_RESTY_EXT)
++    if (rc == NGX_AGAIN) {
++        return SSL_CLIENT_HELLO_RETRY;
++    }
++#endif
++
+     if (rc == SSL_TLSEXT_ERR_ALERT_FATAL) {
+         return SSL_CLIENT_HELLO_ERROR;
+     }
+@@ -2116,6 +2187,10 @@ ngx_ssl_create_connection(ngx_ssl_t *ssl, ngx_connection_t *c, ngx_uint_t flags)
      sc->buffer = ((flags & NGX_SSL_BUFFER) != 0);
      sc->buffer_size = ssl->buffer_size;
- 
+
 +#if (NGX_RESTY_EXT)
 +    sc->dynamic_record = ssl->dynamic_record;
 +#endif
 +
      sc->session_ctx = ssl->ctx;
- 
+
  #ifdef SSL_READ_EARLY_DATA_SUCCESS
-@@ -2204,6 +2208,10 @@ ngx_ssl_handshake(ngx_connection_t *c)
+@@ -2197,6 +2272,78 @@ ngx_ssl_set_session(ngx_connection_t *c, ngx_ssl_session_t *session)
+ }
+
+
++#if (NGX_RESTY_EXT)
++
++ngx_int_t
++ngx_ssl_delay_handshake(ngx_connection_t *c, ngx_msec_t delay)
++{
++    ngx_event_t         *ev;
++    ngx_pool_cleanup_t  *cln;
++
++    ev = c->ssl->handshake_delay;
++
++    if (ev != NULL) {
++        return ev->timer_set ? NGX_AGAIN : NGX_OK;
++    }
++
++    if (delay == 0) {
++        return NGX_OK;
++    }
++
++    cln = ngx_pool_cleanup_add(c->pool, sizeof(ngx_event_t));
++    if (cln == NULL) {
++        return NGX_ERROR;
++    }
++
++    ev = cln->data;
++    ngx_memzero(ev, sizeof(ngx_event_t));
++    ev->data = c;
++    ev->log = c->log;
++    ev->handler = ngx_ssl_handshake_delay_handler;
++
++    cln->handler = ngx_ssl_handshake_delay_cleanup;
++    c->ssl->handshake_delay = ev;
++
++    ngx_log_debug1(NGX_LOG_DEBUG_EVENT, c->log, 0,
++                   "SSL handshake delayed for %M ms", delay);
++
++    ngx_add_timer(ev, delay);
++
++    return NGX_AGAIN;
++}
++
++
++static void
++ngx_ssl_handshake_delay_handler(ngx_event_t *ev)
++{
++    ngx_connection_t  *c;
++
++    c = ev->data;
++
++#if (NGX_QUIC)
++    if (c->listening->quic) {
++        ngx_quic_resume_handshake(c);
++        return;
++    }
++#endif
++
++    ngx_ssl_handshake_handler(c->write);
++}
++
++
++static void
++ngx_ssl_handshake_delay_cleanup(void *data)
++{
++    ngx_event_t  *ev = data;
++
++    if (ev->timer_set) {
++        ngx_del_timer(ev);
++    }
++}
++
++#endif
++
++
+ ngx_int_t
+ ngx_ssl_handshake(ngx_connection_t *c)
+ {
+@@ -2204,6 +2351,10 @@ ngx_ssl_handshake(ngx_connection_t *c)
      ngx_err_t  err;
      ngx_int_t  rc;
- 
+
 +#if (NGX_RESTY_EXT)
 +    ngx_time_t *tp;
 +#endif
@@ -1529,10 +1720,10 @@ index c637fca32..048646c51 100644
  #ifdef SSL_READ_EARLY_DATA_SUCCESS
      if (c->ssl->try_early_data) {
          return ngx_ssl_try_early_data(c);
-@@ -2278,6 +2286,11 @@ ngx_ssl_handshake(ngx_connection_t *c)
- 
+@@ -2278,6 +2429,11 @@ ngx_ssl_handshake(ngx_connection_t *c)
+
          c->ssl->handshaked = 1;
- 
+
 +#if (NGX_RESTY_EXT)
 +        tp = ngx_timeofday();
 +        c->ssl->handshake_end_msec = tp->sec * 1000 + tp->msec;
@@ -1540,11 +1731,23 @@ index c637fca32..048646c51 100644
 +
          return NGX_OK;
      }
- 
-@@ -3213,6 +3226,43 @@ ngx_ssl_send_chain(ngx_connection_t *c, ngx_chain_t *in, off_t limit)
- 
+
+@@ -2325,6 +2481,11 @@ ngx_ssl_handshake(ngx_connection_t *c)
+ #   ifdef SSL_ERROR_WANT_CLIENT_HELLO_CB
+         || sslerr == SSL_ERROR_WANT_CLIENT_HELLO_CB
+ #   endif
++
++#if (NGX_RESTY_EXT && defined SSL_ERROR_PENDING_CERTIFICATE)
++        || sslerr == SSL_ERROR_PENDING_CERTIFICATE
++#endif
++
+ #   ifdef SSL_ERROR_WANT_RETRY_VERIFY
+         || sslerr == SSL_ERROR_WANT_RETRY_VERIFY
+ #   endif
+@@ -3213,6 +3374,43 @@ ngx_ssl_send_chain(ngx_connection_t *c, ngx_chain_t *in, off_t limit)
+
      for ( ;; ) {
- 
+
 +#if (NGX_RESTY_EXT)
 +        /* Dynamic record resizing:
 +           We want the initial records to fit into one TCP segment
@@ -1585,22 +1788,55 @@ index c637fca32..048646c51 100644
          while (in && buf->last < buf->end && send < limit) {
              if (in->buf->last_buf || in->buf->flush) {
                  flush = 1;
-@@ -3358,6 +3408,11 @@ ngx_ssl_write(ngx_connection_t *c, u_char *data, size_t size)
- 
+@@ -3358,6 +3556,11 @@ ngx_ssl_write(ngx_connection_t *c, u_char *data, size_t size)
+
      if (n > 0) {
- 
+
 +#if (NGX_RESTY_EXT)
 +        c->ssl->dynamic_record_records_sent++;
 +        c->ssl->dynamic_record_last_write = ngx_current_msec;
 +#endif
 +
          if (c->ssl->saved_read_handler) {
- 
+
              c->read->handler = c->ssl->saved_read_handler;
-@@ -6819,6 +6874,100 @@ ngx_ssl_get_client_v_remain(ngx_connection_t *c, ngx_pool_t *pool, ngx_str_t *s)
+@@ -6100,8 +6303,32 @@ ngx_ssl_get_server_name(ngx_connection_t *c, ngx_pool_t *pool, ngx_str_t *s)
+     size_t       len;
+     const char  *name;
+
++#if (NGX_RESTY_EXT && defined SSL_CLIENT_HELLO_SUCCESS)
++    const u_char  *p;
++#endif
++
+     name = SSL_get_servername(c->ssl->connection, TLSEXT_NAMETYPE_host_name);
+
++#if (NGX_RESTY_EXT && defined SSL_CLIENT_HELLO_SUCCESS)
++    if (name == NULL
++        && SSL_client_hello_get0_ext(c->ssl->connection,
++                                     TLSEXT_TYPE_server_name, &p, &len)
++        && len >= 5
++        && (size_t) (p[0] << 8) + p[1] + 2 == len
++        && p[2] == TLSEXT_NAMETYPE_host_name
++        && (size_t) (p[3] << 8) + p[4] + 5 == len)
++    {
++        s->len = len - 5;
++        s->data = ngx_pnalloc(pool, s->len);
++        if (s->data == NULL) {
++            return NGX_ERROR;
++        }
++
++        ngx_memcpy(s->data, p + 5, s->len);
++        return NGX_OK;
++    }
++#endif
++
+     if (name) {
+         len = ngx_strlen(name);
+
+@@ -6819,6 +7046,100 @@ ngx_ssl_get_client_v_remain(ngx_connection_t *c, ngx_pool_t *pool, ngx_str_t *s)
  }
- 
- 
+
+
 +#if (NGX_RESTY_EXT)
 +
 +ngx_int_t
@@ -1699,13 +1935,13 @@ index c637fca32..048646c51 100644
  ngx_ssl_parse_time(
  #if OPENSSL_VERSION_NUMBER > 0x10100000L
 diff --git a/src/event/ngx_event_openssl.h b/src/event/ngx_event_openssl.h
-index bf9e7b12e..416fc5e59 100644
+index bf9e7b12e..2b27fdc17 100644
 --- a/src/event/ngx_event_openssl.h
 +++ b/src/event/ngx_event_openssl.h
 @@ -105,6 +105,16 @@
  typedef struct ngx_ssl_ocsp_s   ngx_ssl_ocsp_t;
- 
- 
+
+
 +#if (NGX_RESTY_EXT)
 +typedef struct {
 +    ngx_msec_t                  timeout;
@@ -1720,7 +1956,7 @@ index bf9e7b12e..416fc5e59 100644
      SSL_CTX                    *ctx;
      ngx_log_t                  *log;
 @@ -114,6 +124,11 @@ struct ngx_ssl_s {
- 
+
      ngx_rbtree_t                staple_rbtree;
      ngx_rbtree_node_t           staple_sentinel;
 +
@@ -1729,15 +1965,16 @@ index bf9e7b12e..416fc5e59 100644
 +#endif
 +
  };
- 
- 
-@@ -133,6 +148,15 @@ struct ngx_ssl_connection_s {
+
+
+@@ -133,6 +148,16 @@ struct ngx_ssl_connection_s {
      ngx_event_handler_pt        saved_read_handler;
      ngx_event_handler_pt        saved_write_handler;
- 
+
 +#if (NGX_RESTY_EXT)
 +    ngx_msec_t                  handshake_start_msec;
 +    ngx_msec_t                  handshake_end_msec;
++    ngx_event_t                *handshake_delay;
 +
 +    ngx_ssl_dynamic_record_t    dynamic_record;
 +    ngx_msec_t                  dynamic_record_last_write;
@@ -1745,24 +1982,36 @@ index bf9e7b12e..416fc5e59 100644
 +#endif
 +
      ngx_ssl_ocsp_t             *ocsp;
- 
+
      u_char                      early_buf;
-@@ -162,7 +186,11 @@ struct ngx_ssl_connection_s {
+@@ -153,6 +178,11 @@ struct ngx_ssl_connection_s {
+     unsigned                    early_preread:1;
+     unsigned                    write_blocked:1;
+     unsigned                    sni_accepted:1;
++
++#if (NGX_RESTY_EXT)
++    unsigned                    handshake_checked:1;
++    unsigned                    reject_handshake:1;
++#endif
+ };
+
+
+@@ -162,7 +192,11 @@ struct ngx_ssl_connection_s {
  #define NGX_SSL_DFLT_BUILTIN_SCACHE  -5
- 
- 
+
+
 +#if (NGX_RESTY_EXT)
 +#define NGX_SSL_MAX_SESSION_SIZE  16384
 +#else
  #define NGX_SSL_MAX_SESSION_SIZE  8192
 +#endif
- 
+
  typedef struct ngx_ssl_sess_id_s  ngx_ssl_sess_id_t;
- 
-@@ -235,6 +263,12 @@ typedef struct {
+
+@@ -235,6 +269,12 @@ typedef struct {
  #define NGX_SSL_CACHE_INVALIDATE  0x80000000
- 
- 
+
+
 +#if (NGX_RESTY_EXT)
 +#define NGX_SSL_CERTIFICATE_DEFAULT  0
 +#define NGX_SSL_CERTIFICATE_RUNTIME  1
@@ -1771,11 +2020,11 @@ index bf9e7b12e..416fc5e59 100644
 +
  ngx_int_t ngx_ssl_init(ngx_log_t *log);
  ngx_int_t ngx_ssl_create(ngx_ssl_t *ssl, ngx_uint_t protocols, void *data);
- 
-@@ -386,6 +420,15 @@ ngx_int_t ngx_ssl_get_client_v_remain(ngx_connection_t *c, ngx_pool_t *pool,
+
+@@ -386,6 +426,19 @@ ngx_int_t ngx_ssl_get_client_v_remain(ngx_connection_t *c, ngx_pool_t *pool,
  ngx_int_t ngx_ssl_get_client_sigalg(ngx_connection_t *c, ngx_pool_t *pool,
      ngx_str_t *s);
- 
+
 +#if (NGX_RESTY_EXT)
 +ngx_int_t ngx_ssl_get_handshake_time(ngx_connection_t *c, ngx_pool_t *pool,
 +    ngx_str_t *s);
@@ -1785,9 +2034,76 @@ index bf9e7b12e..416fc5e59 100644
 +    ngx_str_t *s);
 +#endif
 +
- 
++
++#if (NGX_RESTY_EXT)
++ngx_int_t ngx_ssl_delay_handshake(ngx_connection_t *c, ngx_msec_t delay);
++#endif
+
  ngx_int_t ngx_ssl_handshake(ngx_connection_t *c);
  #if (NGX_DEBUG)
+diff --git a/src/event/quic/ngx_event_quic.h b/src/event/quic/ngx_event_quic.h
+index 86f7a0d0c..cf30bb5db 100644
+--- a/src/event/quic/ngx_event_quic.h
++++ b/src/event/quic/ngx_event_quic.h
+@@ -141,6 +141,11 @@ ngx_int_t ngx_quic_get_packet_dcid(ngx_log_t *log, u_char *data, size_t len,
+     ngx_str_t *dcid);
+ ngx_int_t ngx_quic_derive_key(ngx_log_t *log, const char *label,
+     ngx_str_t *secret, ngx_str_t *salt, u_char *out, size_t len);
++
++#if (NGX_RESTY_EXT)
++void ngx_quic_resume_handshake(ngx_connection_t *c);
++#endif
++
+ void ngx_quic_input_handler(ngx_event_t *rev);
+
+ #if (NGX_QUIC_BPF)
+diff --git a/src/event/quic/ngx_event_quic_ssl.c b/src/event/quic/ngx_event_quic_ssl.c
+index 3035fa77b..f9b90ce41 100644
+--- a/src/event/quic/ngx_event_quic_ssl.c
++++ b/src/event/quic/ngx_event_quic_ssl.c
+@@ -690,6 +690,30 @@ ngx_quic_handle_crypto_frame(ngx_connection_t *c, ngx_quic_header_t *pkt,
+ }
+
+
++#if (NGX_RESTY_EXT)
++
++void
++ngx_quic_resume_handshake(ngx_connection_t *c)
++{
++    ngx_quic_connection_t  *qc;
++
++    qc = ngx_quic_get_connection(c);
++
++    if (qc->closing || qc->draining) {
++        return;
++    }
++
++    if (ngx_quic_handshake(c) != NGX_OK) {
++        ngx_quic_close_connection(c, NGX_ERROR);
++        return;
++    }
++
++    ngx_post_event(&qc->push, &ngx_posted_events);
++}
++
++#endif
++
++
+ static ngx_int_t
+ ngx_quic_handshake(ngx_connection_t *c)
+ {
+@@ -731,6 +755,11 @@ ngx_quic_handshake(ngx_connection_t *c)
+ #ifdef SSL_ERROR_WANT_CLIENT_HELLO_CB
+             && sslerr != SSL_ERROR_WANT_CLIENT_HELLO_CB
+ #endif
++
++#if (NGX_RESTY_EXT && defined SSL_ERROR_PENDING_CERTIFICATE)
++            && sslerr != SSL_ERROR_PENDING_CERTIFICATE
++#endif
++
+         ) {
+             ngx_ssl_connection_error(c, sslerr, 0, "SSL_do_handshake() failed");
+             return NGX_ERROR;
 diff --git a/src/http/modules/ngx_http_auth_basic_module.c b/src/http/modules/ngx_http_auth_basic_module.c
 index fd95e2ead..22584544e 100644
 --- a/src/http/modules/ngx_http_auth_basic_module.c
@@ -18056,13 +18372,43 @@ index 97f808ee5..662afc38a 100644
  }
  
 diff --git a/src/http/modules/ngx_http_ssl_module.c b/src/http/modules/ngx_http_ssl_module.c
-index f4cb6765d..1d6a8cc0f 100644
+index f4cb6765d..90fae9c93 100644
 --- a/src/http/modules/ngx_http_ssl_module.c
 +++ b/src/http/modules/ngx_http_ssl_module.c
-@@ -90,10 +90,29 @@ static ngx_conf_enum_t  ngx_http_ssl_ocsp[] = {
+@@ -9,6 +9,10 @@
+ #include <ngx_core.h>
+ #include <ngx_http.h>
+
++#if (NGX_RESTY_EXT && NGX_EXPR)
++#include <ngx_http_expr_module.h>
++#endif
++
+ #if (NGX_QUIC_OPENSSL_COMPAT)
+ #include <ngx_event_quic_openssl_compat.h>
+ #endif
+@@ -35,8 +39,18 @@ static ngx_int_t ngx_http_ssl_static_variable(ngx_http_request_t *r,
+ static ngx_int_t ngx_http_ssl_variable(ngx_http_request_t *r,
+     ngx_http_variable_value_t *v, uintptr_t data);
+
++#if (NGX_RESTY_EXT && NGX_EXPR)
++static ngx_flag_t ngx_http_ssl_is_reject_only(ngx_http_ssl_srv_conf_t *conf);
++#endif
++
+ static ngx_int_t ngx_http_ssl_add_variables(ngx_conf_t *cf);
+ static void *ngx_http_ssl_create_srv_conf(ngx_conf_t *cf);
++
++#if (NGX_RESTY_EXT)
++static ngx_int_t ngx_http_ssl_merge_handshake_conf(ngx_conf_t *cf,
++    ngx_http_ssl_srv_conf_t *conf, ngx_http_ssl_srv_conf_t *prev);
++#endif
++
+ static char *ngx_http_ssl_merge_srv_conf(ngx_conf_t *cf,
+     void *parent, void *child);
+
+@@ -90,10 +104,29 @@ static ngx_conf_enum_t  ngx_http_ssl_ocsp[] = {
  };
- 
- 
+
+
 +#if (NGX_RESTY_EXT)
 +static ngx_conf_enum_t  ngx_http_ssl_strict_server_name[] = {
 +    { ngx_string("off"), 0 },
@@ -18075,8 +18421,8 @@ index f4cb6765d..1d6a8cc0f 100644
 +
  static ngx_conf_post_t  ngx_http_ssl_conf_command_post =
      { ngx_http_ssl_conf_command_check };
- 
- 
+
+
 +#if (NGX_RESTY_EXT)
 +static ngx_conf_enum_t  ngx_http_ssl_certificate_load_modes[] = {
 +    { ngx_string("default"), NGX_SSL_CERTIFICATE_DEFAULT },
@@ -18087,12 +18433,12 @@ index f4cb6765d..1d6a8cc0f 100644
 +
 +
  static ngx_command_t  ngx_http_ssl_commands[] = {
- 
+
      { ngx_string("ssl_certificate"),
-@@ -110,6 +129,15 @@ static ngx_command_t  ngx_http_ssl_commands[] = {
+@@ -110,6 +143,15 @@ static ngx_command_t  ngx_http_ssl_commands[] = {
        offsetof(ngx_http_ssl_srv_conf_t, certificate_keys),
        NULL },
- 
+
 +#if (NGX_RESTY_EXT)
 +    { ngx_string("ssl_certificate_load"),
 +      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_CONF_TAKE1,
@@ -18105,10 +18451,42 @@ index f4cb6765d..1d6a8cc0f 100644
      { ngx_string("ssl_certificate_cache"),
        NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_CONF_TAKE123,
        ngx_http_ssl_certificate_cache,
-@@ -313,6 +341,50 @@ static ngx_command_t  ngx_http_ssl_commands[] = {
+@@ -306,12 +348,81 @@ static ngx_command_t  ngx_http_ssl_commands[] = {
+       offsetof(ngx_http_ssl_srv_conf_t, conf_commands),
+       &ngx_http_ssl_conf_command_post },
+
++#if (NGX_RESTY_EXT && NGX_EXPR)
++    { ngx_string("ssl_reject_handshake"),
++      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF
++      |NGX_HTTP_MAIN_WHEN_CONF|NGX_HTTP_SRV_WHEN_CONF|NGX_CONF_FLAG,
++      ngx_conf_set_conditional_flag_slot,
++      NGX_HTTP_SRV_CONF_OFFSET,
++      offsetof(ngx_http_ssl_srv_conf_t, reject_handshake),
++      NULL },
++#else
+     { ngx_string("ssl_reject_handshake"),
+       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_CONF_FLAG,
+       ngx_conf_set_flag_slot,
+       NGX_HTTP_SRV_CONF_OFFSET,
        offsetof(ngx_http_ssl_srv_conf_t, reject_handshake),
        NULL },
- 
++#endif
++
++#if (NGX_RESTY_EXT)
++    { ngx_string("ssl_delay_handshake"),
++#if (NGX_EXPR)
++      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF
++      |NGX_HTTP_MAIN_WHEN_CONF|NGX_HTTP_SRV_WHEN_CONF|NGX_CONF_TAKE1,
++      ngx_http_set_expr_complex_value_msec_slot,
++#else
++      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_CONF_TAKE1,
++      ngx_http_set_complex_value_msec_slot,
++#endif
++      NGX_HTTP_SRV_CONF_OFFSET,
++      offsetof(ngx_http_ssl_srv_conf_t, delay_handshake),
++      NULL },
++#endif
++
 +#if (NGX_RESTY_EXT)
 +    { ngx_string("ssl_dynamic_record"),
 +      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_CONF_FLAG,
@@ -18152,14 +18530,13 @@ index f4cb6765d..1d6a8cc0f 100644
 +      offsetof(ngx_http_ssl_srv_conf_t, strict_server_name),
 +      &ngx_http_ssl_strict_server_name },
 +#endif
-+
+
        ngx_null_command
  };
- 
-@@ -438,6 +510,18 @@ static ngx_http_variable_t  ngx_http_ssl_vars[] = {
+@@ -438,6 +549,18 @@ static ngx_http_variable_t  ngx_http_ssl_vars[] = {
      { ngx_string("ssl_client_sigalg"), NULL, ngx_http_ssl_variable,
        (uintptr_t) ngx_ssl_get_client_sigalg, NGX_HTTP_VAR_CHANGEABLE, 0 },
- 
+
 +#if (NGX_RESTY_EXT)
 +    { ngx_string("ssl_handshake_time"), NULL, ngx_http_ssl_variable,
 +      (uintptr_t) ngx_ssl_get_handshake_time, NGX_HTTP_VAR_CHANGEABLE, 0 },
@@ -18174,8 +18551,60 @@ index f4cb6765d..1d6a8cc0f 100644
 +
        ngx_http_null_variable
  };
- 
-@@ -660,6 +744,11 @@ ngx_http_ssl_create_srv_conf(ngx_conf_t *cf)
+
+@@ -623,6 +746,34 @@ ngx_http_ssl_add_variables(ngx_conf_t *cf)
+ }
+
+
++#if (NGX_RESTY_EXT && NGX_EXPR)
++
++static ngx_flag_t
++ngx_http_ssl_is_reject_only(ngx_http_ssl_srv_conf_t *conf)
++{
++    ngx_uint_t                 i;
++    ngx_conf_expr_flag_ctx_t  *values;
++
++    /* Only a configuration which always rejects may omit certificates. */
++
++    values = conf->reject_handshake->elts;
++
++    for (i = 0; i < conf->reject_handshake->nelts; i++) {
++        if (!values[i].value) {
++            return 0;
++        }
++
++        if (values[i].expr_id == NGX_EXPR_NO_WHEN_ID) {
++            return 1;
++        }
++    }
++
++    return 0;
++}
++
++#endif
++
++
+ static void *
+ ngx_http_ssl_create_srv_conf(ngx_conf_t *cf)
+ {
+@@ -653,13 +804,28 @@ ngx_http_ssl_create_srv_conf(ngx_conf_t *cf)
+     sscf->prefer_server_ciphers = NGX_CONF_UNSET;
+     sscf->certificate_compression = NGX_CONF_UNSET;
+     sscf->early_data = NGX_CONF_UNSET;
++
++#if (NGX_RESTY_EXT && NGX_EXPR)
++    sscf->reject_handshake = NGX_CONF_UNSET_PTR;
++#else
+     sscf->reject_handshake = NGX_CONF_UNSET;
++#endif
++
++#if (NGX_RESTY_EXT)
++    sscf->delay_handshake = NGX_CONF_UNSET_PTR;
++#endif
++
+     sscf->buffer_size = NGX_CONF_UNSET_SIZE;
+     sscf->verify = NGX_CONF_UNSET_UINT;
+     sscf->verify_depth = NGX_CONF_UNSET_UINT;
      sscf->certificates = NGX_CONF_UNSET_PTR;
      sscf->certificate_keys = NGX_CONF_UNSET_PTR;
      sscf->certificate_cache = NGX_CONF_UNSET_PTR;
@@ -18187,10 +18616,10 @@ index f4cb6765d..1d6a8cc0f 100644
      sscf->ech_files = NGX_CONF_UNSET_PTR;
      sscf->passwords = NGX_CONF_UNSET_PTR;
      sscf->conf_commands = NGX_CONF_UNSET_PTR;
-@@ -672,6 +761,15 @@ ngx_http_ssl_create_srv_conf(ngx_conf_t *cf)
+@@ -672,10 +838,76 @@ ngx_http_ssl_create_srv_conf(ngx_conf_t *cf)
      sscf->stapling = NGX_CONF_UNSET;
      sscf->stapling_verify = NGX_CONF_UNSET;
- 
+
 +#if (NGX_RESTY_EXT)
 +    sscf->dynamic_record_enable = NGX_CONF_UNSET;
 +    sscf->dynamic_record_timeout = NGX_CONF_UNSET_MSEC;
@@ -18202,11 +18631,87 @@ index f4cb6765d..1d6a8cc0f 100644
 +
      return sscf;
  }
- 
-@@ -709,6 +807,11 @@ ngx_http_ssl_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
+
+
++#if (NGX_RESTY_EXT)
++
++static ngx_int_t
++ngx_http_ssl_merge_handshake_conf(ngx_conf_t *cf,
++    ngx_http_ssl_srv_conf_t *conf, ngx_http_ssl_srv_conf_t *prev)
++{
++#if (NGX_EXPR && !defined SSL_CLIENT_HELLO_SUCCESS                            \
++     && !defined OPENSSL_IS_BORINGSSL && !defined OPENSSL_IS_AWSLC)
++    ngx_uint_t                          i;
++    ngx_http_expr_complex_value_ctx_t  *delay;
++#endif
++
++#if (NGX_EXPR)
++    if (ngx_conf_merge_expr_flag_value(cf, &conf->reject_handshake,
++                                       prev->reject_handshake, 0)
++        != NGX_OK
++        || ngx_conf_merge_expr_ptr_value(cf, &conf->delay_handshake,
++                                         prev->delay_handshake, NULL)
++           != NGX_OK)
++    {
++        return NGX_ERROR;
++    }
++
++#else
++    ngx_conf_merge_value(conf->reject_handshake, prev->reject_handshake, 0);
++    ngx_conf_merge_ptr_value(conf->delay_handshake,
++                            prev->delay_handshake, NULL);
++#endif
++
++#if (!defined SSL_CLIENT_HELLO_SUCCESS                                        \
++     && !defined OPENSSL_IS_BORINGSSL && !defined OPENSSL_IS_AWSLC)
++#if (NGX_EXPR)
++    delay = conf->delay_handshake->elts;
++    for (i = 0; i < conf->delay_handshake->nelts; i++) {
++        if (delay[i].value != NULL) {
++            ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
++                               "\"ssl_delay_handshake\" is not supported "
++                               "by this SSL library");
++            return NGX_ERROR;
++        }
++    }
++#else
++    if (conf->delay_handshake != NULL) {
++        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
++                           "\"ssl_delay_handshake\" is not supported "
++                           "by this SSL library");
++        return NGX_ERROR;
++    }
++#endif
++#endif
++
++    return NGX_OK;
++}
++
++#endif
++
++
+ static char *
+ ngx_http_ssl_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
+ {
+@@ -694,7 +926,14 @@ ngx_http_ssl_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
+                          prev->certificate_compression, 0);
+
+     ngx_conf_merge_value(conf->early_data, prev->early_data, 0);
++
++#if (NGX_RESTY_EXT)
++    if (ngx_http_ssl_merge_handshake_conf(cf, conf, prev) != NGX_OK) {
++        return NGX_CONF_ERROR;
++    }
++#else
+     ngx_conf_merge_value(conf->reject_handshake, prev->reject_handshake, 0);
++#endif
+
+     ngx_conf_merge_bitmask_value(conf->protocols, prev->protocols,
+                          (NGX_CONF_BITMASK_SET|NGX_SSL_DEFAULT_PROTOCOLS));
+@@ -709,6 +948,11 @@ ngx_http_ssl_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
      ngx_conf_merge_ptr_value(conf->certificate_keys, prev->certificate_keys,
                           NULL);
- 
+
 +#if (NGX_RESTY_EXT)
 +    ngx_conf_merge_uint_value(conf->certificate_load, prev->certificate_load,
 +                              NGX_SSL_CERTIFICATE_DEFAULT);
@@ -18214,11 +18719,11 @@ index f4cb6765d..1d6a8cc0f 100644
 +
      ngx_conf_merge_ptr_value(conf->certificate_cache, prev->certificate_cache,
                           NULL);
- 
-@@ -742,6 +845,32 @@ ngx_http_ssl_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
+
+@@ -742,6 +986,32 @@ ngx_http_ssl_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
      ngx_conf_merge_str_value(conf->stapling_responder,
                           prev->stapling_responder, "");
- 
+
 +#if (NGX_RESTY_EXT)
 +    ngx_conf_merge_value(conf->dynamic_record_enable,
 +                         prev->dynamic_record_enable, 0);
@@ -18246,10 +18751,22 @@ index f4cb6765d..1d6a8cc0f 100644
 +#endif
 +
      conf->ssl.log = cf->log;
- 
+
      if (conf->certificates) {
-@@ -819,7 +948,11 @@ ngx_http_ssl_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
- 
+@@ -757,7 +1027,11 @@ ngx_http_ssl_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
+             return NGX_CONF_ERROR;
+         }
+
++#if (NGX_RESTY_EXT && NGX_EXPR)
++    } else if (!ngx_http_ssl_is_reject_only(conf)) {
++#else
+     } else if (!conf->reject_handshake) {
++#endif
+         return NGX_CONF_OK;
+     }
+
+@@ -819,7 +1093,11 @@ ngx_http_ssl_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
+
  #else
          ngx_log_error(NGX_LOG_EMERG, cf->log, 0,
 +#if (NGX_RESTY_EXT)
@@ -18260,10 +18777,10 @@ index f4cb6765d..1d6a8cc0f 100644
                        "\"ssl_certificate\" and \"ssl_certificate_key\" "
                        "directives are not supported on this platform");
          return NGX_CONF_ERROR;
-@@ -965,6 +1098,30 @@ ngx_http_ssl_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -965,6 +1243,30 @@ ngx_http_ssl_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
          return NGX_CONF_ERROR;
      }
- 
+
 +#if (NGX_RESTY_EXT)
 +    if (conf->dynamic_record_enable) {
 +        conf->ssl.dynamic_record.timeout = conf->dynamic_record_timeout;
@@ -18290,11 +18807,11 @@ index f4cb6765d..1d6a8cc0f 100644
 +
      return NGX_CONF_OK;
  }
- 
-@@ -986,6 +1143,12 @@ ngx_http_ssl_compile_certificates(ngx_conf_t *cf,
+
+@@ -986,6 +1288,12 @@ ngx_http_ssl_compile_certificates(ngx_conf_t *cf,
      key = conf->certificate_keys->elts;
      nelts = conf->certificates->nelts;
- 
+
 +#if (NGX_RESTY_EXT)
 +    if (conf->certificate_load == NGX_SSL_CERTIFICATE_RUNTIME) {
 +        goto found;
@@ -18302,24 +18819,85 @@ index f4cb6765d..1d6a8cc0f 100644
 +#endif
 +
      for (i = 0; i < nelts; i++) {
- 
+
          if (ngx_http_script_variables_count(&cert[i])) {
+@@ -1486,7 +1794,11 @@ ngx_http_ssl_init(ngx_conf_t *cf)
+                 continue;
+             }
+
++#if (NGX_RESTY_EXT && NGX_EXPR)
++            if (!ngx_http_ssl_is_reject_only(sscf)) {
++#else
+             if (!sscf->reject_handshake) {
++#endif
+                 ngx_log_error(NGX_LOG_EMERG, cf->log, 0,
+                               "no \"ssl_certificate\" is defined for "
+                               "the \"listen ... %s\" directive in %s:%ui",
+@@ -1505,7 +1817,13 @@ ngx_http_ssl_init(ngx_conf_t *cf)
+                 cscf = cscfp[s];
+                 sscf = cscf->ctx->srv_conf[ngx_http_ssl_module.ctx_index];
+
++#if (NGX_RESTY_EXT && NGX_EXPR)
++                if (sscf->certificates
++                    || ngx_http_ssl_is_reject_only(sscf))
++                {
++#else
+                 if (sscf->certificates || sscf->reject_handshake) {
++#endif
+                     continue;
+                 }
+
+@@ -1537,7 +1855,13 @@ ngx_http_ssl_quic_compat_init(ngx_conf_t *cf, ngx_http_conf_addr_t *addr)
+         cscf = cscfp[s];
+         sscf = cscf->ctx->srv_conf[ngx_http_ssl_module.ctx_index];
+
++#if (NGX_RESTY_EXT && NGX_EXPR)
++        if (sscf->certificates
++            || ngx_http_ssl_is_reject_only(sscf))
++        {
++#else
+         if (sscf->certificates || sscf->reject_handshake) {
++#endif
+             if (ngx_quic_compat_ext_init(cf, sscf->ssl.ctx) != NGX_OK) {
+                 return NGX_ERROR;
+             }
 diff --git a/src/http/modules/ngx_http_ssl_module.h b/src/http/modules/ngx_http_ssl_module.h
-index a078d44f8..df823e686 100644
+index a078d44f8..6fa5276ac 100644
 --- a/src/http/modules/ngx_http_ssl_module.h
 +++ b/src/http/modules/ngx_http_ssl_module.h
-@@ -33,6 +33,10 @@ typedef struct {
- 
+@@ -20,7 +20,20 @@ typedef struct {
+     ngx_flag_t                      prefer_server_ciphers;
+     ngx_flag_t                      certificate_compression;
+     ngx_flag_t                      early_data;
++
++#if (NGX_RESTY_EXT && NGX_EXPR)
++    ngx_array_t                    *reject_handshake;
++#else
+     ngx_flag_t                      reject_handshake;
++#endif
++
++#if (NGX_RESTY_EXT)
++#if (NGX_EXPR)
++    ngx_array_t                    *delay_handshake;
++#else
++    ngx_http_complex_value_t       *delay_handshake;
++#endif
++#endif
+
+     ngx_uint_t                      protocols;
+
+@@ -33,6 +46,10 @@ typedef struct {
+
      time_t                          session_timeout;
- 
+
 +#if (NGX_RESTY_EXT)
 +    ngx_uint_t                      certificate_load;
 +#endif
 +
      ngx_array_t                    *certificates;
      ngx_array_t                    *certificate_keys;
- 
-@@ -66,6 +70,17 @@ typedef struct {
+
+@@ -66,6 +83,17 @@ typedef struct {
      ngx_flag_t                      stapling_verify;
      ngx_str_t                       stapling_file;
      ngx_str_t                       stapling_responder;
@@ -18335,8 +18913,8 @@ index a078d44f8..df823e686 100644
 +#endif
 +
  } ngx_http_ssl_srv_conf_t;
- 
- 
+
+
 diff --git a/src/http/modules/ngx_http_sub_filter_module.c b/src/http/modules/ngx_http_sub_filter_module.c
 index b50a25235..c4a3e15ad 100644
 --- a/src/http/modules/ngx_http_sub_filter_module.c
@@ -21975,10 +22553,33 @@ index fb63a207e..821ebddfb 100644
          return NGX_OK;
      }
 diff --git a/src/http/ngx_http_request.c b/src/http/ngx_http_request.c
-index 71d431f37..767080dc7 100644
+index 71d431f37..6967eee01 100644
 --- a/src/http/ngx_http_request.c
 +++ b/src/http/ngx_http_request.c
-@@ -679,6 +679,9 @@ ngx_http_ssl_handshake(ngx_event_t *rev)
+@@ -9,6 +9,10 @@
+ #include <ngx_core.h>
+ #include <ngx_http.h>
+
++#if (NGX_RESTY_EXT && NGX_EXPR)
++#include <ngx_http_expr_module.h>
++#endif
++
+
+ static void ngx_http_wait_request_handler(ngx_event_t *ev);
+ static ngx_http_request_t *ngx_http_alloc_request(ngx_connection_t *c);
+@@ -59,6 +63,11 @@ static u_char *ngx_http_log_error_handler(ngx_http_request_t *r,
+ #if (NGX_HTTP_SSL)
+ static void ngx_http_ssl_handshake(ngx_event_t *rev);
+ static void ngx_http_ssl_handshake_handler(ngx_connection_t *c);
++
++#if (NGX_RESTY_EXT && defined SSL_CTRL_SET_TLSEXT_HOSTNAME)
++static int ngx_http_ssl_check_handshake(ngx_connection_t *c, int *ad);
++#endif
++
+ #endif
+
+
+@@ -679,6 +688,9 @@ ngx_http_ssl_handshake(ngx_event_t *rev)
      ssize_t                    n;
      ngx_err_t                  err;
      ngx_int_t                  rc;
@@ -21988,22 +22589,22 @@ index 71d431f37..767080dc7 100644
      ngx_connection_t          *c;
      ngx_http_connection_t     *hc;
      ngx_http_ssl_srv_conf_t   *sscf;
-@@ -785,6 +788,11 @@ ngx_http_ssl_handshake(ngx_event_t *rev)
+@@ -785,6 +797,11 @@ ngx_http_ssl_handshake(ngx_event_t *rev)
                  return;
              }
- 
+
 +#if (NGX_RESTY_EXT)
 +            tp = ngx_timeofday();
 +            c->ssl->handshake_start_msec = tp->sec * 1000 + tp->msec;
 +#endif
 +
              ngx_reusable_connection(c, 0);
- 
+
              rc = ngx_ssl_handshake(c);
-@@ -810,6 +818,12 @@ ngx_http_ssl_handshake(ngx_event_t *rev)
- 
+@@ -810,6 +827,12 @@ ngx_http_ssl_handshake(ngx_event_t *rev)
+
          c->log->action = "waiting for request";
- 
+
 +#if (NGX_RESTY_EXT && NGX_HTTP_SSL)
 +        if (hc->addr_conf->https_allow_http) {
 +            hc->ssl = 0;
@@ -22012,22 +22613,190 @@ index 71d431f37..767080dc7 100644
 +
          rev->handler = ngx_http_wait_request_handler;
          ngx_http_wait_request_handler(rev);
- 
-@@ -1561,6 +1575,10 @@ ngx_http_process_request_headers(ngx_event_t *rev)
- 
+
+@@ -902,7 +925,11 @@ ngx_http_ssl_servername(ngx_ssl_conn_t *ssl_conn, int *ad, void *arg)
+     }
+
+     if (c->ssl->sni_accepted) {
++#if (NGX_RESTY_EXT)
++        return ngx_http_ssl_check_handshake(c, ad);
++#else
+         return SSL_TLSEXT_ERR_OK;
++#endif
+     }
+
+     if (c->ssl->handshake_rejected) {
+@@ -1019,6 +1046,10 @@ done:
+
+     sscf = ngx_http_get_module_srv_conf(hc->conf_ctx, ngx_http_ssl_module);
+
++#if (NGX_RESTY_EXT)
++    c->ssl->sni_accepted = 1;
++    return ngx_http_ssl_check_handshake(c, ad);
++#else
+     if (sscf->reject_handshake) {
+         c->ssl->handshake_rejected = 1;
+         *ad = SSL_AD_UNRECOGNIZED_NAME;
+@@ -1027,6 +1058,135 @@ done:
+
+     c->ssl->sni_accepted = 1;
+     return SSL_TLSEXT_ERR_OK;
++#endif
++
++error:
++
++    *ad = SSL_AD_INTERNAL_ERROR;
++    return SSL_TLSEXT_ERR_ALERT_FATAL;
++}
++
++
++#if (NGX_RESTY_EXT)
++
++static int
++ngx_http_ssl_check_handshake(ngx_connection_t *c, int *ad)
++{
++    char                      *action;
++    ngx_str_t                  value;
++    ngx_int_t                  rc;
++    ngx_uint_t                 complex;
++    ngx_flag_t                 reject;
++    ngx_msec_t                 delay;
++    ngx_http_request_t        *r;
++    ngx_http_connection_t     *hc;
++    ngx_http_ssl_srv_conf_t   *sscf;
++    ngx_http_complex_value_t  *cv;
++
++#if (NGX_EXPR)
++    ngx_conf_expr_flag_ctx_t           *reject_values;
++    ngx_http_expr_complex_value_ctx_t  *delay_values;
++#endif
++
++    if (c->ssl->handshake_checked) {
++        rc = ngx_ssl_delay_handshake(c, 0);
++        goto apply;
++    }
++
++    hc = c->data;
++    sscf = ngx_http_get_module_srv_conf(hc->conf_ctx, ngx_http_ssl_module);
++
++    complex = 0;
++
++#if (NGX_EXPR)
++    reject_values = sscf->reject_handshake->elts;
++    delay_values = sscf->delay_handshake->elts;
++    reject = reject_values[0].value;
++    cv = delay_values[0].value;
++
++    complex = reject_values[0].expr_id != NGX_EXPR_NO_WHEN_ID
++              || delay_values[0].expr_id != NGX_EXPR_NO_WHEN_ID;
++#else
++    reject = sscf->reject_handshake;
++    cv = sscf->delay_handshake;
++#endif
++
++    if (complex || (cv != NULL && cv->lengths != NULL)) {
++        action = c->log->action;
++
++        r = ngx_http_alloc_request(c);
++        if (r == NULL) {
++            goto error;
++        }
++
++        r->logged = 1;
++
++#if (NGX_PCRE)
++        if (hc->ssl_servername_regex
++            && ngx_http_regex_exec(r, hc->ssl_servername_regex,
++                                   hc->ssl_servername) != NGX_OK)
++        {
++            ngx_http_free_request(r, 0);
++            c->log->action = action;
++            c->destroyed = 0;
++            goto error;
++        }
++#endif
++
++#if (NGX_EXPR)
++        reject = ngx_http_get_expr_flag_value(r, sscf->reject_handshake);
++        rc = ngx_http_get_expr_complex_value(r, sscf->delay_handshake,
++                                             &value);
++#else
++        rc = ngx_http_complex_value(r, cv, &value);
++#endif
++
++        delay = 0;
++
++        if (rc == NGX_OK) {
++            delay = ngx_parse_time(&value, 0);
++            if (delay == (ngx_msec_t) NGX_ERROR) {
++                ngx_log_error(NGX_LOG_ERR, c->log, 0,
++                              "invalid \"ssl_delay_handshake\" value \"%V\"",
++                              &value);
++                rc = NGX_ERROR;
++            }
++        }
++
++        ngx_http_free_request(r, 0);
++        c->log->action = action;
++        c->destroyed = 0;
++
++        if (rc != NGX_OK && rc != NGX_DECLINED) {
++            goto error;
++        }
++
++    } else {
++        delay = cv ? cv->u.msec : 0;
++    }
++
++    c->ssl->handshake_checked = 1;
++    c->ssl->reject_handshake = (reject == 1);
++
++    rc = ngx_ssl_delay_handshake(c, delay);
++
++apply:
++
++    if (rc == NGX_ERROR) {
++        goto error;
++    }
++
++    if (rc == NGX_AGAIN) {
++        return NGX_AGAIN;
++    }
++
++    if (c->ssl->reject_handshake) {
++        c->ssl->handshake_rejected = 1;
++        *ad = SSL_AD_UNRECOGNIZED_NAME;
++        return SSL_TLSEXT_ERR_ALERT_FATAL;
++    }
++
++    return SSL_TLSEXT_ERR_OK;
+
+ error:
+
+@@ -1036,6 +1196,8 @@ error:
+
+ #endif
+
++#endif
++
+
+ #ifdef SSL_R_CERT_CB_ERROR
+
+@@ -1561,6 +1723,10 @@ ngx_http_process_request_headers(ngx_event_t *rev)
+
              r->request_length += r->header_in->pos - r->header_name_start;
- 
+
 +#if (NGX_RESTY_EXT)
 +            r->request_header_length = r->request_length;
 +#endif
 +
              r->http_state = NGX_HTTP_PROCESS_REQUEST_STATE;
- 
+
              rc = ngx_http_process_request_header(r);
-@@ -2528,7 +2546,13 @@ ngx_http_set_virtual_server(ngx_http_request_t *r, ngx_str_t *host)
- 
+@@ -2528,7 +2694,13 @@ ngx_http_set_virtual_server(ngx_http_request_t *r, ngx_str_t *host)
+
          sscf = ngx_http_get_module_srv_conf(cscf->ctx, ngx_http_ssl_module);
- 
+
 +#if (NGX_RESTY_EXT)
 +        if ((sscf->strict_server_name == 2 && sscf->verify)
 +            || sscf->strict_server_name == 1)
@@ -22038,10 +22807,10 @@ index 71d431f37..767080dc7 100644
              ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
                            "client attempted to request the server name "
                            "different from the one that was negotiated");
-@@ -4149,6 +4173,10 @@ ngx_http_log_error(ngx_log_t *log, u_char *buf, size_t len)
+@@ -4149,6 +4321,10 @@ ngx_http_log_error(ngx_log_t *log, u_char *buf, size_t len)
      ngx_http_request_t  *r;
      ngx_http_log_ctx_t  *ctx;
- 
+
 +#if (NGX_RESTY_EXT)
 +    ngx_str_t            request_id;
 +#endif
@@ -22049,9 +22818,9 @@ index 71d431f37..767080dc7 100644
      if (log->action) {
          p = ngx_snprintf(buf, len, " while %s", log->action);
          len -= p - buf;
-@@ -4163,6 +4191,19 @@ ngx_http_log_error(ngx_log_t *log, u_char *buf, size_t len)
+@@ -4163,6 +4339,19 @@ ngx_http_log_error(ngx_log_t *log, u_char *buf, size_t len)
      r = ctx->request;
- 
+
      if (r) {
 +
 +#if (NGX_RESTY_EXT)
@@ -22067,7 +22836,7 @@ index 71d431f37..767080dc7 100644
 +#endif
 +
          return r->log_handler(r, ctx->current_request, p, len);
- 
+
      } else {
 diff --git a/src/http/ngx_http_request.h b/src/http/ngx_http_request.h
 index 6b62b21a4..5b71b0c5f 100644
@@ -28743,13 +29512,58 @@ index 746656910..4bc65dd50 100644
 +#endif
  }
 diff --git a/src/stream/ngx_stream_ssl_module.c b/src/stream/ngx_stream_ssl_module.c
-index c68333a1c..53b0507a9 100644
+index c68333a1c..ae05695af 100644
 --- a/src/stream/ngx_stream_ssl_module.c
 +++ b/src/stream/ngx_stream_ssl_module.c
-@@ -96,6 +96,15 @@ static ngx_conf_post_t  ngx_stream_ssl_conf_command_post =
+@@ -9,6 +9,10 @@
+ #include <ngx_core.h>
+ #include <ngx_stream.h>
+
++#if (NGX_RESTY_EXT && NGX_EXPR)
++#include <ngx_stream_expr_module.h>
++#endif
++
+
+ typedef ngx_int_t (*ngx_ssl_variable_handler_pt)(ngx_connection_t *c,
+     ngx_pool_t *pool, ngx_str_t *s);
+@@ -22,6 +26,11 @@ static ngx_int_t ngx_stream_ssl_handler(ngx_stream_session_t *s);
+ static ngx_int_t ngx_stream_ssl_init_connection(ngx_ssl_t *ssl,
+     ngx_connection_t *c);
+ static void ngx_stream_ssl_handshake_handler(ngx_connection_t *c);
++
++#if (NGX_RESTY_EXT && defined SSL_CTRL_SET_TLSEXT_HOSTNAME)
++static int ngx_stream_ssl_check_handshake(ngx_connection_t *c, int *ad);
++#endif
++
+ #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
+ static int ngx_stream_ssl_servername(ngx_ssl_conn_t *ssl_conn, int *ad,
+     void *arg);
+@@ -39,8 +48,21 @@ static ngx_int_t ngx_stream_ssl_static_variable(ngx_stream_session_t *s,
+ static ngx_int_t ngx_stream_ssl_variable(ngx_stream_session_t *s,
+     ngx_stream_variable_value_t *v, uintptr_t data);
+
++#if (NGX_RESTY_EXT && NGX_EXPR)
++static ngx_flag_t ngx_stream_ssl_is_reject_only(
++    ngx_stream_ssl_srv_conf_t *conf);
++#endif
++
+ static ngx_int_t ngx_stream_ssl_add_variables(ngx_conf_t *cf);
+ static void *ngx_stream_ssl_create_srv_conf(ngx_conf_t *cf);
++
++#if (NGX_RESTY_EXT)
++static ngx_int_t ngx_stream_ssl_merge_handshake_conf(ngx_conf_t *cf,
++    ngx_stream_ssl_srv_conf_t *conf, ngx_stream_ssl_srv_conf_t *prev);
++static char *ngx_stream_ssl_delay_handshake(ngx_conf_t *cf,
++    ngx_command_t *cmd, void *conf);
++#endif
++
+ static char *ngx_stream_ssl_merge_srv_conf(ngx_conf_t *cf, void *parent,
+     void *child);
+
+@@ -96,6 +118,15 @@ static ngx_conf_post_t  ngx_stream_ssl_conf_command_post =
      { ngx_stream_ssl_conf_command_check };
- 
- 
+
+
 +#if (NGX_RESTY_EXT)
 +static ngx_conf_enum_t  ngx_stream_ssl_certificate_load_modes[] = {
 +    { ngx_string("default"), NGX_SSL_CERTIFICATE_DEFAULT },
@@ -28760,12 +29574,12 @@ index c68333a1c..53b0507a9 100644
 +
 +
  static ngx_command_t  ngx_stream_ssl_commands[] = {
- 
+
      { ngx_string("ssl_handshake_timeout"),
-@@ -119,6 +128,15 @@ static ngx_command_t  ngx_stream_ssl_commands[] = {
+@@ -119,6 +150,15 @@ static ngx_command_t  ngx_stream_ssl_commands[] = {
        offsetof(ngx_stream_ssl_srv_conf_t, certificate_keys),
        NULL },
- 
+
 +#if (NGX_RESTY_EXT)
 +    { ngx_string("ssl_certificate_load"),
 +      NGX_STREAM_MAIN_CONF|NGX_STREAM_SRV_CONF|NGX_CONF_TAKE1,
@@ -28778,10 +29592,47 @@ index c68333a1c..53b0507a9 100644
      { ngx_string("ssl_certificate_cache"),
        NGX_STREAM_MAIN_CONF|NGX_STREAM_SRV_CONF|NGX_CONF_TAKE123,
        ngx_stream_ssl_certificate_cache,
-@@ -427,6 +445,19 @@ static ngx_stream_variable_t  ngx_stream_ssl_vars[] = {
+@@ -301,12 +341,36 @@ static ngx_command_t  ngx_stream_ssl_commands[] = {
+       offsetof(ngx_stream_ssl_srv_conf_t, conf_commands),
+       &ngx_stream_ssl_conf_command_post },
+
++#if (NGX_RESTY_EXT && NGX_EXPR)
++    { ngx_string("ssl_reject_handshake"),
++      NGX_STREAM_MAIN_CONF|NGX_STREAM_SRV_CONF
++      |NGX_STREAM_MAIN_WHEN_CONF|NGX_STREAM_SRV_WHEN_CONF|NGX_CONF_FLAG,
++      ngx_conf_set_conditional_flag_slot,
++      NGX_STREAM_SRV_CONF_OFFSET,
++      offsetof(ngx_stream_ssl_srv_conf_t, reject_handshake),
++      NULL },
++#else
+     { ngx_string("ssl_reject_handshake"),
+       NGX_STREAM_MAIN_CONF|NGX_STREAM_SRV_CONF|NGX_CONF_FLAG,
+       ngx_conf_set_flag_slot,
+       NGX_STREAM_SRV_CONF_OFFSET,
+       offsetof(ngx_stream_ssl_srv_conf_t, reject_handshake),
+       NULL },
++#endif
++
++#if (NGX_RESTY_EXT)
++    { ngx_string("ssl_delay_handshake"),
++#if (NGX_EXPR)
++      NGX_STREAM_MAIN_CONF|NGX_STREAM_SRV_CONF
++      |NGX_STREAM_MAIN_WHEN_CONF|NGX_STREAM_SRV_WHEN_CONF|NGX_CONF_TAKE1,
++#else
++      NGX_STREAM_MAIN_CONF|NGX_STREAM_SRV_CONF|NGX_CONF_TAKE1,
++#endif
++      ngx_stream_ssl_delay_handshake,
++      NGX_STREAM_SRV_CONF_OFFSET,
++      offsetof(ngx_stream_ssl_srv_conf_t, delay_handshake),
++      NULL },
++#endif
+
+     { ngx_string("ssl_alpn"),
+       NGX_STREAM_MAIN_CONF|NGX_STREAM_SRV_CONF|NGX_CONF_1MORE,
+@@ -427,6 +491,19 @@ static ngx_stream_variable_t  ngx_stream_ssl_vars[] = {
      { ngx_string("ssl_client_sigalg"), NULL, ngx_stream_ssl_variable,
        (uintptr_t) ngx_ssl_get_client_sigalg, NGX_STREAM_VAR_CHANGEABLE, 0 },
- 
+
 +#if (NGX_RESTY_EXT)
 +    { ngx_string("ssl_handshake_time"), NULL, ngx_stream_ssl_variable,
 +      (uintptr_t) ngx_ssl_get_handshake_time, NGX_STREAM_VAR_CHANGEABLE, 0 },
@@ -28797,31 +29648,275 @@ index c68333a1c..53b0507a9 100644
 +
        ngx_stream_null_variable
  };
- 
-@@ -514,6 +545,10 @@ ngx_stream_ssl_init_connection(ngx_ssl_t *ssl, ngx_connection_t *c)
+
+@@ -514,6 +591,10 @@ ngx_stream_ssl_init_connection(ngx_ssl_t *ssl, ngx_connection_t *c)
      ngx_stream_ssl_srv_conf_t   *sscf;
      ngx_stream_core_srv_conf_t  *cscf;
- 
+
 +#if (NGX_RESTY_EXT)
 +    ngx_time_t                  *tp;
 +#endif
 +
      s = c->data;
- 
+
      cscf = ngx_stream_get_module_srv_conf(s, ngx_stream_core_module);
-@@ -526,6 +561,11 @@ ngx_stream_ssl_init_connection(ngx_ssl_t *ssl, ngx_connection_t *c)
+@@ -526,6 +607,11 @@ ngx_stream_ssl_init_connection(ngx_ssl_t *ssl, ngx_connection_t *c)
          return NGX_ERROR;
      }
- 
+
 +#if (NGX_RESTY_EXT)
 +    tp = ngx_timeofday();
 +    c->ssl->handshake_start_msec = tp->sec * 1000 + tp->msec;
 +#endif
 +
      rc = ngx_ssl_handshake(c);
- 
+
      if (rc == NGX_ERROR) {
-@@ -915,6 +955,11 @@ ngx_stream_ssl_create_srv_conf(ngx_conf_t *cf)
+@@ -589,7 +675,11 @@ ngx_stream_ssl_servername(ngx_ssl_conn_t *ssl_conn, int *ad, void *arg)
+     }
+
+     if (c->ssl->sni_accepted) {
++#if (NGX_RESTY_EXT)
++        return ngx_stream_ssl_check_handshake(c, ad);
++#else
+         return SSL_TLSEXT_ERR_OK;
++#endif
+     }
+
+     if (c->ssl->handshake_rejected) {
+@@ -686,6 +776,10 @@ done:
+
+     sscf = ngx_stream_get_module_srv_conf(s, ngx_stream_ssl_module);
+
++#if (NGX_RESTY_EXT)
++    c->ssl->sni_accepted = 1;
++    return ngx_stream_ssl_check_handshake(c, ad);
++#else
+     if (sscf->reject_handshake) {
+         c->ssl->handshake_rejected = 1;
+         *ad = SSL_AD_UNRECOGNIZED_NAME;
+@@ -694,6 +788,7 @@ done:
+
+     c->ssl->sni_accepted = 1;
+     return SSL_TLSEXT_ERR_OK;
++#endif
+
+ error:
+
+@@ -701,6 +796,177 @@ error:
+     return SSL_TLSEXT_ERR_ALERT_FATAL;
+ }
+
++
++#if (NGX_RESTY_EXT)
++
++static int
++ngx_stream_ssl_check_handshake(ngx_connection_t *c, int *ad)
++{
++    size_t                        size;
++    ngx_str_t                     value;
++    ngx_int_t                     rc;
++    ngx_uint_t                    complex;
++    ngx_flag_t                    reject;
++    ngx_msec_t                    delay;
++    ngx_pool_t                   *pool;
++    ngx_stream_session_t         *s;
++    ngx_stream_ssl_srv_conf_t    *sscf;
++    ngx_stream_complex_value_t   *cv;
++    ngx_stream_variable_value_t  *variables, *saved_variables;
++    ngx_stream_core_main_conf_t  *cmcf;
++
++#if (NGX_PCRE)
++    int         *captures, *saved_captures;
++    u_char      *saved_captures_data;
++    ngx_uint_t   saved_ncaptures;
++#endif
++
++#if (NGX_EXPR)
++    ngx_conf_expr_flag_ctx_t             *reject_values;
++    ngx_stream_expr_complex_value_ctx_t  *delay_values;
++#endif
++
++    if (c->ssl->handshake_checked) {
++        rc = ngx_ssl_delay_handshake(c, 0);
++        goto apply;
++    }
++
++    s = c->data;
++    sscf = ngx_stream_get_module_srv_conf(s, ngx_stream_ssl_module);
++
++    complex = 0;
++
++#if (NGX_EXPR)
++    reject_values = sscf->reject_handshake->elts;
++    delay_values = sscf->delay_handshake->elts;
++    reject = reject_values[0].value;
++    cv = delay_values[0].value;
++
++    complex = reject_values[0].expr_id != NGX_EXPR_NO_WHEN_ID
++              || delay_values[0].expr_id != NGX_EXPR_NO_WHEN_ID;
++#else
++    reject = sscf->reject_handshake;
++    cv = sscf->delay_handshake;
++#endif
++
++    if (complex || (cv != NULL && cv->lengths != NULL)) {
++        pool = ngx_create_pool(c->listening->pool_size, c->log);
++        if (pool == NULL) {
++            goto error;
++        }
++
++        cmcf = ngx_stream_get_module_main_conf(s, ngx_stream_core_module);
++        size = cmcf->variables.nelts * sizeof(ngx_stream_variable_value_t);
++
++        variables = ngx_palloc(pool, size);
++        if (variables == NULL) {
++            ngx_destroy_pool(pool);
++            goto error;
++        }
++
++        ngx_memcpy(variables, s->variables, size);
++
++#if (NGX_PCRE)
++        captures = NULL;
++
++        if (cmcf->ncaptures) {
++            captures = ngx_palloc(pool, cmcf->ncaptures * sizeof(int));
++            if (captures == NULL) {
++                ngx_destroy_pool(pool);
++                goto error;
++            }
++
++            if (s->ncaptures) {
++                ngx_memcpy(captures, s->captures, s->ncaptures * sizeof(int));
++            }
++        }
++#endif
++
++        /* Keep pre-handshake values out of the session variable cache. */
++
++        saved_variables = s->variables;
++        s->variables = variables;
++
++#if (NGX_PCRE)
++        saved_ncaptures = s->ncaptures;
++        saved_captures = s->captures;
++        saved_captures_data = s->captures_data;
++
++        s->captures = captures;
++#endif
++
++#if (NGX_EXPR)
++        reject = ngx_stream_get_expr_flag_value(s, sscf->reject_handshake);
++        rc = ngx_stream_get_expr_complex_value(s, sscf->delay_handshake,
++                                               &value);
++#else
++        rc = ngx_stream_complex_value(s, cv, &value);
++#endif
++
++        delay = 0;
++
++        if (rc == NGX_OK) {
++            delay = ngx_parse_time(&value, 0);
++            if (delay == (ngx_msec_t) NGX_ERROR) {
++                ngx_log_error(NGX_LOG_ERR, c->log, 0,
++                              "invalid \"ssl_delay_handshake\" value \"%V\"",
++                              &value);
++                rc = NGX_ERROR;
++            }
++        }
++
++        s->variables = saved_variables;
++
++#if (NGX_PCRE)
++        s->ncaptures = saved_ncaptures;
++        s->captures = saved_captures;
++        s->captures_data = saved_captures_data;
++#endif
++
++        ngx_destroy_pool(pool);
++
++        if (rc != NGX_OK && rc != NGX_DECLINED) {
++            goto error;
++        }
++
++    } else {
++        delay = cv ? ngx_parse_time(&cv->value, 0) : 0;
++        if (delay == (ngx_msec_t) NGX_ERROR) {
++            goto error;
++        }
++    }
++
++    c->ssl->handshake_checked = 1;
++    c->ssl->reject_handshake = (reject == 1);
++
++    rc = ngx_ssl_delay_handshake(c, delay);
++
++apply:
++
++    if (rc == NGX_ERROR) {
++        goto error;
++    }
++
++    if (rc == NGX_AGAIN) {
++        return NGX_AGAIN;
++    }
++
++    if (c->ssl->reject_handshake) {
++        c->ssl->handshake_rejected = 1;
++        *ad = SSL_AD_UNRECOGNIZED_NAME;
++        return SSL_TLSEXT_ERR_ALERT_FATAL;
++    }
++
++    return SSL_TLSEXT_ERR_OK;
++
++error:
++
++    *ad = SSL_AD_INTERNAL_ERROR;
++    return SSL_TLSEXT_ERR_ALERT_FATAL;
++}
++
++#endif
++
+ #endif
+
+
+@@ -883,6 +1149,34 @@ ngx_stream_ssl_add_variables(ngx_conf_t *cf)
+ }
+
+
++#if (NGX_RESTY_EXT && NGX_EXPR)
++
++static ngx_flag_t
++ngx_stream_ssl_is_reject_only(ngx_stream_ssl_srv_conf_t *conf)
++{
++    ngx_uint_t                 i;
++    ngx_conf_expr_flag_ctx_t  *values;
++
++    /* Only a configuration which always rejects may omit certificates. */
++
++    values = conf->reject_handshake->elts;
++
++    for (i = 0; i < conf->reject_handshake->nelts; i++) {
++        if (!values[i].value) {
++            return 0;
++        }
++
++        if (values[i].expr_id == NGX_EXPR_NO_WHEN_ID) {
++            return 1;
++        }
++    }
++
++    return 0;
++}
++
++#endif
++
++
+ static void *
+ ngx_stream_ssl_create_srv_conf(ngx_conf_t *cf)
+ {
+@@ -915,12 +1209,27 @@ ngx_stream_ssl_create_srv_conf(ngx_conf_t *cf)
      sscf->certificates = NGX_CONF_UNSET_PTR;
      sscf->certificate_keys = NGX_CONF_UNSET_PTR;
      sscf->certificate_cache = NGX_CONF_UNSET_PTR;
@@ -28833,10 +29928,125 @@ index c68333a1c..53b0507a9 100644
      sscf->ech_files = NGX_CONF_UNSET_PTR;
      sscf->passwords = NGX_CONF_UNSET_PTR;
      sscf->conf_commands = NGX_CONF_UNSET_PTR;
-@@ -968,6 +1013,11 @@ ngx_stream_ssl_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
+     sscf->prefer_server_ciphers = NGX_CONF_UNSET;
+     sscf->certificate_compression = NGX_CONF_UNSET;
++
++#if (NGX_RESTY_EXT && NGX_EXPR)
++    sscf->reject_handshake = NGX_CONF_UNSET_PTR;
++#else
+     sscf->reject_handshake = NGX_CONF_UNSET;
++#endif
++
++#if (NGX_RESTY_EXT)
++    sscf->delay_handshake = NGX_CONF_UNSET_PTR;
++#endif
++
+     sscf->verify = NGX_CONF_UNSET_UINT;
+     sscf->verify_depth = NGX_CONF_UNSET_UINT;
+     sscf->builtin_session_cache = NGX_CONF_UNSET;
+@@ -936,6 +1245,84 @@ ngx_stream_ssl_create_srv_conf(ngx_conf_t *cf)
+ }
+
+
++#if (NGX_RESTY_EXT)
++
++static char *
++ngx_stream_ssl_delay_handshake(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
++{
++    ngx_str_t  *value;
++
++    value = cf->args->elts;
++
++    if (ngx_stream_script_variables_count(&value[1]) == 0
++        && ngx_parse_time(&value[1], 0) == NGX_ERROR)
++    {
++        return "invalid value";
++    }
++
++#if (NGX_EXPR)
++    return ngx_stream_set_expr_complex_value_slot(cf, cmd, conf);
++#else
++    return ngx_stream_set_complex_value_slot(cf, cmd, conf);
++#endif
++}
++
++
++static ngx_int_t
++ngx_stream_ssl_merge_handshake_conf(ngx_conf_t *cf,
++    ngx_stream_ssl_srv_conf_t *conf, ngx_stream_ssl_srv_conf_t *prev)
++{
++#if (NGX_EXPR && !defined SSL_CLIENT_HELLO_SUCCESS                            \
++     && !defined OPENSSL_IS_BORINGSSL && !defined OPENSSL_IS_AWSLC)
++    ngx_uint_t                            i;
++    ngx_stream_expr_complex_value_ctx_t  *delay;
++#endif
++
++#if (NGX_EXPR)
++    if (ngx_conf_merge_expr_flag_value(cf, &conf->reject_handshake,
++                                       prev->reject_handshake, 0)
++        != NGX_OK
++        || ngx_conf_merge_expr_ptr_value(cf, &conf->delay_handshake,
++                                         prev->delay_handshake, NULL)
++           != NGX_OK)
++    {
++        return NGX_ERROR;
++    }
++
++#else
++    ngx_conf_merge_value(conf->reject_handshake, prev->reject_handshake, 0);
++    ngx_conf_merge_ptr_value(conf->delay_handshake,
++                            prev->delay_handshake, NULL);
++#endif
++
++#if (!defined SSL_CLIENT_HELLO_SUCCESS                                        \
++     && !defined OPENSSL_IS_BORINGSSL && !defined OPENSSL_IS_AWSLC)
++#if (NGX_EXPR)
++    delay = conf->delay_handshake->elts;
++    for (i = 0; i < conf->delay_handshake->nelts; i++) {
++        if (delay[i].value != NULL) {
++            ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
++                               "\"ssl_delay_handshake\" is not supported "
++                               "by this SSL library");
++            return NGX_ERROR;
++        }
++    }
++#else
++    if (conf->delay_handshake != NULL) {
++        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
++                           "\"ssl_delay_handshake\" is not supported "
++                           "by this SSL library");
++        return NGX_ERROR;
++    }
++#endif
++#endif
++
++    return NGX_OK;
++}
++
++#endif
++
++
+ static char *
+ ngx_stream_ssl_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
+ {
+@@ -956,7 +1343,13 @@ ngx_stream_ssl_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
+     ngx_conf_merge_value(conf->certificate_compression,
+                          prev->certificate_compression, 0);
+
++#if (NGX_RESTY_EXT)
++    if (ngx_stream_ssl_merge_handshake_conf(cf, conf, prev) != NGX_OK) {
++        return NGX_CONF_ERROR;
++    }
++#else
+     ngx_conf_merge_value(conf->reject_handshake, prev->reject_handshake, 0);
++#endif
+
+     ngx_conf_merge_bitmask_value(conf->protocols, prev->protocols,
+                          (NGX_CONF_BITMASK_SET|NGX_SSL_DEFAULT_PROTOCOLS));
+@@ -968,6 +1361,11 @@ ngx_stream_ssl_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
      ngx_conf_merge_ptr_value(conf->certificate_keys, prev->certificate_keys,
                           NULL);
- 
+
 +#if (NGX_RESTY_EXT)
 +    ngx_conf_merge_uint_value(conf->certificate_load, prev->certificate_load,
 +                              NGX_SSL_CERTIFICATE_DEFAULT);
@@ -28844,9 +30054,21 @@ index c68333a1c..53b0507a9 100644
 +
      ngx_conf_merge_ptr_value(conf->certificate_cache, prev->certificate_cache,
                           NULL);
- 
-@@ -1075,7 +1125,11 @@ ngx_stream_ssl_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
- 
+
+@@ -1017,7 +1415,11 @@ ngx_stream_ssl_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
+             return NGX_CONF_ERROR;
+         }
+
++#if (NGX_RESTY_EXT && NGX_EXPR)
++    } else if (!ngx_stream_ssl_is_reject_only(conf)) {
++#else
+     } else if (!conf->reject_handshake) {
++#endif
+         return NGX_CONF_OK;
+     }
+
+@@ -1075,7 +1477,11 @@ ngx_stream_ssl_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
+
  #else
          ngx_log_error(NGX_LOG_EMERG, cf->log, 0,
 +#if (NGX_RESTY_EXT)
@@ -28857,10 +30079,10 @@ index c68333a1c..53b0507a9 100644
                        "\"ssl_certificate\" and \"ssl_certificate_key\" "
                        "directives are not supported on this platform");
          return NGX_CONF_ERROR;
-@@ -1237,6 +1291,12 @@ ngx_stream_ssl_compile_certificates(ngx_conf_t *cf,
+@@ -1237,6 +1643,12 @@ ngx_stream_ssl_compile_certificates(ngx_conf_t *cf,
      key = conf->certificate_keys->elts;
      nelts = conf->certificates->nelts;
- 
+
 +#if (NGX_RESTY_EXT)
 +    if (conf->certificate_load == NGX_SSL_CERTIFICATE_RUNTIME) {
 +        goto found;
@@ -28868,23 +30090,70 @@ index c68333a1c..53b0507a9 100644
 +#endif
 +
      for (i = 0; i < nelts; i++) {
- 
+
          if (ngx_stream_script_variables_count(&cert[i])) {
+@@ -1751,7 +2163,11 @@ ngx_stream_ssl_init(ngx_conf_t *cf)
+                 continue;
+             }
+
++#if (NGX_RESTY_EXT && NGX_EXPR)
++            if (!ngx_stream_ssl_is_reject_only(sscf)) {
++#else
+             if (!sscf->reject_handshake) {
++#endif
+                 ngx_log_error(NGX_LOG_EMERG, cf->log, 0,
+                               "no \"ssl_certificate\" is defined for "
+                               "the \"listen ... ssl\" directive in %s:%ui",
+@@ -1770,7 +2186,13 @@ ngx_stream_ssl_init(ngx_conf_t *cf)
+                 cscf = cscfp[s];
+                 sscf = cscf->ctx->srv_conf[ngx_stream_ssl_module.ctx_index];
+
++#if (NGX_RESTY_EXT && NGX_EXPR)
++                if (sscf->certificates
++                    || ngx_stream_ssl_is_reject_only(sscf))
++                {
++#else
+                 if (sscf->certificates || sscf->reject_handshake) {
++#endif
+                     continue;
+                 }
+
 diff --git a/src/stream/ngx_stream_ssl_module.h b/src/stream/ngx_stream_ssl_module.h
-index 6fdd8f88c..14282801b 100644
+index 6fdd8f88c..68ea46c80 100644
 --- a/src/stream/ngx_stream_ssl_module.h
 +++ b/src/stream/ngx_stream_ssl_module.h
-@@ -32,6 +32,10 @@ typedef struct {
- 
+@@ -19,7 +19,20 @@ typedef struct {
+
+     ngx_flag_t        prefer_server_ciphers;
+     ngx_flag_t        certificate_compression;
++
++#if (NGX_RESTY_EXT && NGX_EXPR)
++    ngx_array_t      *reject_handshake;
++#else
+     ngx_flag_t        reject_handshake;
++#endif
++
++#if (NGX_RESTY_EXT)
++#if (NGX_EXPR)
++    ngx_array_t      *delay_handshake;
++#else
++    void             *delay_handshake;
++#endif
++#endif
+
+     ngx_ssl_t         ssl;
+
+@@ -32,6 +45,10 @@ typedef struct {
+
      time_t            session_timeout;
- 
+
 +#if (NGX_RESTY_EXT)
 +    ngx_uint_t        certificate_load;
 +#endif
 +
      ngx_array_t      *certificates;
      ngx_array_t      *certificate_keys;
- 
+
 diff --git a/src/stream/ngx_stream_upstream.c b/src/stream/ngx_stream_upstream.c
 index 006672cdf..2f9e80f19 100644
 --- a/src/stream/ngx_stream_upstream.c

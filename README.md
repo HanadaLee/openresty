@@ -30,6 +30,8 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [More directives for not modified checking](#more-directives-for-not-modified-checking)
   - [ngx\_http\_ssl\_module](#ngx_http_ssl_module)
     - [ssl\_certificate\_load](#ssl_certificate_load)
+    - [ssl\_reject\_handshake](#ssl_reject_handshake)
+    - [ssl\_delay\_handshake](#ssl_delay_handshake)
     - [Optimizing TLS over TCP to reduce latency](#optimizing-tls-over-tcp-to-reduce-latency)
     - [Strict SNI validation](#strict-sni-validation)
     - [Variables about SSL handshake timestamps and time spent](#variables-about-ssl-handshake-timestamps-and-time-spent)
@@ -85,6 +87,8 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [access\_by\_lua\_no\_postpone](#access_by_lua_no_postpone)
   - [ngx\_stream\_ssl\_module](#ngx_stream_ssl_module)
     - [ssl\_certificate\_load](#ssl_certificate_load-1)
+    - [ssl\_reject\_handshake](#ssl_reject_handshake-1)
+    - [ssl\_delay\_handshake](#ssl_delay_handshake-1)
     - [Variables about SSL handshake timestamps and time spent](#variables-about-ssl-handshake-timestamps-and-time-spent-1)
   - [ngx\_stream\_proxy\_module](#ngx_stream_proxy_module)
     - [proxy\_ssl\_certificate\_load](#proxy_ssl_certificate_load-1)
@@ -587,6 +591,44 @@ If either path contains variables, certificates and private keys are always
 loaded on demand at runtime, regardless of the selected mode.
 `ssl_certificate_cache` also applies to files loaded in `runtime` mode.
 The setting is inherited unless overridden.
+
+### ssl_reject_handshake
+
+* **Syntax:** *ssl_reject_handshake on | off;*
+
+* **Default:** *ssl_reject_handshake off;*
+
+* **Context:** *http, server, when*
+
+Rejects TLS handshakes. Conditions are evaluated during ClientHello processing, using the server selected by SNI or the default server if no name matches. They can use the peer address, SNI and fingerprints when `ssl_fingerprint` is enabled. HTTP request headers, URI and values obtained after the handshake are unavailable at this stage.
+
+The first matching entry for each directive applies. An unconditional entry acts as a fallback when placed after conditional entries. A server that can accept a handshake still requires a certificate; an unconditional rejection can be configured without one.
+
+### ssl_delay_handshake
+
+* **Syntax:** *ssl_delay_handshake time;*
+
+* **Default:** *ssl_delay_handshake 0;*
+
+* **Context:** *http, server, when*
+
+Delays TLS handshakes without blocking other connections. The value can contain variables and uses nginx time units, with milliseconds as the default. Zero disables the delay. An invalid variable value terminates the handshake with an error.
+
+The delay is evaluated once for each handshake, including resumed sessions, and is applied before rejection by `ssl_reject_handshake` or a subsequent Lua ClientHello handler. It applies to TLS over TCP and QUIC. The existing handshake timeout still limits the total time allowed.
+
+The native directive supports OpenSSL 1.1.1 or later, BoringSSL, and AWS-LC. The image uses OpenSSL; Lua ClientHello handlers depend on the SSL library support provided by ngx_lua.
+
+```nginx
+http {
+    expr restricted str_eq $ssl_server_name restricted.example.com;
+    var $handshake_delay set 250ms;
+
+    when restricted {
+        ssl_delay_handshake $handshake_delay;
+        ssl_reject_handshake on;
+    }
+}
+```
 
 ### Optimizing TLS over TCP to reduce latency
 
@@ -1697,6 +1739,26 @@ If either path contains variables, certificates and private keys are always
 loaded on demand at runtime, regardless of the selected mode.
 `ssl_certificate_cache` also applies to files loaded in `runtime` mode.
 The setting is inherited unless overridden.
+
+### ssl_reject_handshake
+
+* **Syntax:** *ssl_reject_handshake on | off;*
+
+* **Default:** *ssl_reject_handshake off;*
+
+* **Context:** *stream, server, when*
+
+Rejects TLS handshakes, with the same conditional configuration and SNI selection as the [HTTP directive](#ssl_reject_handshake).
+
+### ssl_delay_handshake
+
+* **Syntax:** *ssl_delay_handshake time;*
+
+* **Default:** *ssl_delay_handshake 0;*
+
+* **Context:** *stream, server, when*
+
+Delays TLS handshakes, with the same variable support and delay-before-rejection behavior as the [HTTP directive](#ssl_delay_handshake). The delay counts toward `ssl_handshake_timeout`.
 
 ### Variables about SSL handshake timestamps and time spent
 
