@@ -112,7 +112,7 @@ The bundled software components are copyrighted by the respective copyright hold
 
 # Building
 
-Independent core patches are maintained and applied by their module repositories. Dynamic modules must be built against the same patched source.
+Independent core patches are maintained and applied by their module repositories. Modules using these patches must be built statically.
 
 Docker is the supported build environment. The Dockerfile pins a full commit
 from the upstream [OpenResty repository](https://github.com/openresty/openresty)
@@ -155,7 +155,7 @@ commit and must be regenerated or revalidated whenever that commit changes.
 The default `RESTY_REPOSITORY` is derived from `RESTY_GIT_MIRROR`, so overriding
 the mirror also applies to the pinned OpenResty source checkout.
 
-Dynamic modules must be built against the same patched source and configuration headers as the server. Module signatures include the extension ABI and independent core capabilities. Incompatible modules are rejected with `is not binary compatible`; `--with-compat` does not bypass these checks.
+Dynamic modules must be built against the same patched source and configuration headers as the server. Module signatures include the extension ABI. Incompatible modules are rejected with `is not binary compatible`; `--with-compat` does not bypass these checks.
 
 [Back to TOC](#table-of-contents)
 
