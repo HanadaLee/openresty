@@ -841,7 +841,7 @@ index 13acfa6a1..50b98afd6 100644
 +#if (NGX_RESTY_EXT)
 +
 +/* Bump when an extension changes the public ABI without a version change. */
-+#define NGX_RESTY_ABI_VERSION  4
++#define NGX_RESTY_ABI_VERSION  2
 +
 +#if (NGX_EXPR)
 +#define NGX_MODULE_SIGNATURE_RESTY_EXPR  "1"

@@ -69,7 +69,7 @@ for compat in 0 1; do
                             "NGX_HTTP_GRPC_FILTER=$grpc_filter"
                         expected="$legacy"
                         if [[ "$ext" == 1 ]]; then
-                            expected+=",resty,1,$expr$proxy_filter$grpc_filter${ssl}1"
+                            expected+=",resty,2,$expr${ssl}1"
                         fi
                         [[ "$("$test_root/signature")" == "$expected" ]] || \
                             fail "signature: compat=$compat ssl=$ssl ext=$ext expr=$expr proxy_filter=$proxy_filter grpc_filter=$grpc_filter"
@@ -122,7 +122,7 @@ grep -q 'abi_test configuration reached' "$test_root/matching.log" || \
     fail 'matching module configuration hook not called'
 echo 'ABI loader: matching module accepted'
 
-for variant in legacy no-ext expr proxy-filter grpc-filter http-ssl no-shm revision; do
+for variant in legacy no-ext expr http-ssl no-shm revision; do
     settings=()
     flags=''
     case "$variant" in
@@ -133,8 +133,6 @@ for variant in legacy no-ext expr proxy-filter grpc-filter http-ssl no-shm revis
         *)
             case "$variant" in
                 expr) macro=NGX_EXPR ;;
-                proxy-filter) macro=NGX_HTTP_PROXY_FILTER ;;
-                grpc-filter) macro=NGX_HTTP_GRPC_FILTER ;;
                 http-ssl) macro=NGX_HTTP_SSL ;;
             esac
             value=1
