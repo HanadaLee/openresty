@@ -113,7 +113,7 @@ ARG RESTY_NGX_HTTP_UNBROTLI_FILTER_MODULE_VERSION="1.0.0"
 ARG RESTY_NGX_HTTP_UNDEFLATE_FILTER_MODULE_VERSION="1.0.0"
 ARG RESTY_NGX_HTTP_UNZSTD_FILTER_MODULE_VERSION="1.0.0"
 ARG RESTY_NGX_HTTP_UPSTREAM_LOG_MODULE_VERSION="1.0.2"
-ARG RESTY_NGX_HTTP_WESERV_MODULE_COMMIT="4a57b01f44e53ec6704782532dd5eb1e72be6404"
+ARG RESTY_NGX_HTTP_WESERV_MODULE_VERSION="v5.1.2"
 ARG RESTY_NGX_HTTP_ZSTD_MODULE_VERSION="0.1.2"
 ARG RESTY_NGX_LUA_CONFIG_MODULE_VERSION="1.0.0"
 ARG RESTY_NGX_LUA_EVENTS_MODULE_VERSION="0.3.1"
@@ -301,7 +301,7 @@ ARG RESTY_NGX_HTTP_UNBROTLI_FILTER_MODULE_VERSION
 ARG RESTY_NGX_HTTP_UNDEFLATE_FILTER_MODULE_VERSION
 ARG RESTY_NGX_HTTP_UNZSTD_FILTER_MODULE_VERSION
 ARG RESTY_NGX_HTTP_UPSTREAM_LOG_MODULE_VERSION
-ARG RESTY_NGX_HTTP_WESERV_MODULE_COMMIT
+ARG RESTY_NGX_HTTP_WESERV_MODULE_VERSION
 ARG RESTY_NGX_HTTP_ZSTD_MODULE_VERSION
 ARG RESTY_NGX_LUA_CONFIG_MODULE_VERSION
 ARG RESTY_NGX_LUA_EVENTS_MODULE_VERSION
@@ -532,11 +532,7 @@ RUN mkdir -p /build/modules \
     && git -C ngx_tcp_fingerprint_module fetch --depth=1 origin "${RESTY_NGX_TCP_FINGERPRINT_MODULE_COMMIT}" \
     && test "$(git -C ngx_tcp_fingerprint_module rev-parse FETCH_HEAD)" = "${RESTY_NGX_TCP_FINGERPRINT_MODULE_COMMIT}" \
     && git -C ngx_tcp_fingerprint_module checkout --detach FETCH_HEAD \
-    && git init ngx_http_weserv_module \
-    && git -C ngx_http_weserv_module remote add origin https://${RESTY_GIT_MIRROR}/weserv/images.git \
-    && git -C ngx_http_weserv_module fetch --depth=1 origin "${RESTY_NGX_HTTP_WESERV_MODULE_COMMIT}" \
-    && test "$(git -C ngx_http_weserv_module rev-parse FETCH_HEAD)" = "${RESTY_NGX_HTTP_WESERV_MODULE_COMMIT}" \
-    && git -C ngx_http_weserv_module checkout --detach FETCH_HEAD \
+    && git clone --depth=1 --branch "${RESTY_NGX_HTTP_WESERV_MODULE_VERSION}" https://${RESTY_GIT_MIRROR}/weserv/images.git ngx_http_weserv_module \
     && git -C ngx_http_weserv_module submodule update --init --recursive \
     && git clone --depth=1 --branch "${RESTY_NGX_HTTP_CACHE_PURGE_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_cache_purge_module.git ngx_http_cache_purge_module \
     && git clone --depth=1 --branch "${RESTY_NGX_HTTP_LIMIT_TRAFFIC_RATE_FILTER_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_limit_traffic_rate_filter_module.git ngx_http_limit_traffic_rate_filter_module \
