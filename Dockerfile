@@ -127,7 +127,7 @@ ARG RESTY_NGX_STREAM_EXTRA_VARIABLES_MODULE_VERSION="1.0.2"
 ARG RESTY_NGX_STREAM_LABEL_MODULE_VERSION="1.0.0"
 ARG RESTY_NGX_STREAM_LOG_SET_MODULE_VERSION="1.0.0"
 ARG RESTY_NGX_STREAM_LUA_UPSTREAM_MODULE_VERSION="1.0.0"
-ARG RESTY_NGX_TCP_FINGERPRINT_MODULE_COMMIT="b96e30939a79b2970cfc01756c04e3b0167cb7c8"
+ARG RESTY_NGX_TCP_FINGERPRINT_MODULE_VERSION="v0.2.0"
 ARG RESTY_NGX_VAR_MODULE_VERSION="1.0.2"
 
 FROM dockerhub.hanada.info/rust:${RESTY_RUST_VERSION}-slim-trixie AS rust-toolchain
@@ -315,7 +315,7 @@ ARG RESTY_NGX_STREAM_EXTRA_VARIABLES_MODULE_VERSION
 ARG RESTY_NGX_STREAM_LABEL_MODULE_VERSION
 ARG RESTY_NGX_STREAM_LOG_SET_MODULE_VERSION
 ARG RESTY_NGX_STREAM_LUA_UPSTREAM_MODULE_VERSION
-ARG RESTY_NGX_TCP_FINGERPRINT_MODULE_COMMIT
+ARG RESTY_NGX_TCP_FINGERPRINT_MODULE_VERSION
 ARG RESTY_NGX_VAR_MODULE_VERSION
 
 ARG RESTY_PATH_OPTIONS="\
@@ -527,11 +527,7 @@ RUN mkdir -p /build/modules \
     && git clone --depth=1 --branch "${RESTY_NGX_STAT_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_stat_module.git ngx_stat_module \
     && git clone --depth=1 --branch "${RESTY_NGX_HTTP_BROTLI_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_brotli_module.git ngx_http_brotli_module \
     && git clone --depth=1 --branch "${RESTY_NGX_SSL_FINGERPRINT_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_ssl_fingerprint_module.git ngx_ssl_fingerprint_module \
-    && git init ngx_tcp_fingerprint_module \
-    && git -C ngx_tcp_fingerprint_module remote add origin https://${RESTY_GIT_MIRROR}/HanadaLee/ngx_tcp_fingerprint_module.git \
-    && git -C ngx_tcp_fingerprint_module fetch --depth=1 origin "${RESTY_NGX_TCP_FINGERPRINT_MODULE_COMMIT}" \
-    && test "$(git -C ngx_tcp_fingerprint_module rev-parse FETCH_HEAD)" = "${RESTY_NGX_TCP_FINGERPRINT_MODULE_COMMIT}" \
-    && git -C ngx_tcp_fingerprint_module checkout --detach FETCH_HEAD \
+    && git clone --depth=1 --branch "${RESTY_NGX_TCP_FINGERPRINT_MODULE_VERSION}" https://${RESTY_GIT_MIRROR}/HanadaLee/ngx_tcp_fingerprint_module.git ngx_tcp_fingerprint_module \
     && git clone --depth=1 --branch "${RESTY_NGX_HTTP_WESERV_MODULE_VERSION}" https://${RESTY_GIT_MIRROR}/weserv/images.git ngx_http_weserv_module \
     && git -C ngx_http_weserv_module submodule update --init --recursive \
     && git clone --depth=1 --branch "${RESTY_NGX_HTTP_CACHE_PURGE_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_cache_purge_module.git ngx_http_cache_purge_module \
