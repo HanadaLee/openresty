@@ -62,6 +62,10 @@ run_test_phase module-regressions docker run --rm --init \
         export NO_PROXY="*" no_proxy="*"
         export TEST_MODULE_OUTPUT=/results/suites
         TEST_NGINX_BINARY=/usr/local/openresty/sbin/nginx \
+            TEST_NGINX_EXT=1 \
+            TEST_NGINX_SSL_STRICT_CORE=1 \
+            TEST_NGINX_UPSTREAM_EXPR=1 \
+            TEST_NGINX_TIMING=1 \
             TEST_NGINX_ROOT=/input/harnesses/test-nginx \
             NGINX_TESTS_ROOT=/input/harnesses/nginx-tests \
             bash /input/run-module-tests.sh /build/modules
