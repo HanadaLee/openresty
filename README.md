@@ -205,6 +205,7 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_http_access_control_module](https://git.hanada.info/hanada/ngx_http_access_control_module)
 * [ngx_http_secure_link_hash_module](https://git.hanada.info/hanada/ngx_http_secure_link_hash_module)
 * [ngx_http_secure_link_hmac_module](https://git.hanada.info/hanada/ngx_http_secure_link_hmac_module)
+* [ngx_http_secure_link_sign_module](https://git.hanada.info/hanada/ngx_http_secure_link_sign_module)
 * [ngx_http_auth_internal_module](https://git.hanada.info/hanada/ngx_http_auth_internal_module)
 * [ngx_http_brotli_module](https://git.hanada.info/hanada/ngx_http_brotli_module)
 * [ngx_http_cache_key_module](https://git.hanada.info/hanada/ngx_http_cache_purge_module#cache-key-components)
