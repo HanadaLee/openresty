@@ -38,7 +38,12 @@ grep -Fxq 'Module tests: 3 suites, 3 files' "$work/output"
 echo 'PASS: built modules, nested tests, fixtures and separate Perl harnesses'
 
 mkdir -p "$TEST_NGINX_ROOT/lib/Test/Nginx"
-printf 'package Test::Nginx::Util; 1;\n' > "$TEST_NGINX_ROOT/lib/Test/Nginx/Util.pm"
+cat > "$TEST_NGINX_ROOT/lib/Test/Nginx/Util.pm" <<'PERL'
+package Test::Nginx::Util;
+our @BlockPreprocessors;
+sub add_block_preprocessor (&) { push @BlockPreprocessors, shift; }
+1;
+PERL
 PERL5LIB="$TEST_NGINX_ROOT/lib:$TEST_MODULE_OUTPUT" \
     perl -MRestyModuleTestConfig -e '
         my $filter = $Test::Nginx::Util::FilterHttpConfig;
@@ -143,6 +148,47 @@ printf 'ALL_INCS = -I src/core \\\n\t-I "%s"\n\n' "$work/extension headers" \
 export MOCK_EXPECT_INCLUDES="$NGINX_SOURCE/src/core:$work/extension headers"
 run
 echo 'PASS: native fixtures use the configured build header paths'
+
+module=ngx_http_compression_module
+mkdir -p "$MOCK_MODULE_ROOT/$module/t/fixtures"
+touch "$MOCK_MODULE_ROOT/$module/t/fixtures/marker"
+printf 'use Test::Nginx;\n' > "$MOCK_MODULE_ROOT/$module/t/compression.t"
+cat > "$NGINX_SOURCE/objs/ngx_auto_config.h" <<'HEADER'
+#define NGX_HTTP_COMPRESSION_HAVE_BROTLI 1
+#define NGX_HTTP_COMPRESSION_HAVE_ZSTD 1
+#define NGX_HTTP_COMPRESSION_HAVE_BROTLI_DECODER 1
+#define NGX_HTTP_COMPRESSION_HAVE_ZSTD_DECODER 1
+#define NGX_HTTP_COMPRESSION_HAVE_ZSTD_TARGET_BLOCK_SIZE 1
+HEADER
+export MOCK_COMPRESSION_MODULE=1
+export MOCK_EXPECT_ENCODINGS='gzip deflate br zstd'
+export MOCK_EXPECT_DECODINGS='gzip deflate br zstd'
+export MOCK_EXPECT_BLOCK_SIZE=1
+run
+grep -Fxq "$module|compression.t" "$MOCK_MODULE_CALLS"
+TEST_NGINX_COMPRESSION=1 PERL5LIB="$TEST_NGINX_ROOT/lib:$TEST_MODULE_OUTPUT" \
+    perl -MRestyModuleTestConfig -e '
+        package Block;
+        sub config { $_[0]->{config} }
+        sub http_config { undef }
+        sub server_config { undef }
+        sub set_value { $_[0]->{$_[1]} = $_[2] }
+        package main;
+        my $block = bless { config => "gzip on;\ngzip_min_length 1;\ngzip_types text/plain;\n" }, "Block";
+        my $filter = $Test::Nginx::Util::BlockPreprocessors[0];
+        die "missing compression adapter\n" unless $filter;
+        $filter->($block);
+        die "legacy compression directives remain\n" unless $block->{config} eq
+            "compression on;\ncompression_min_length 1;\ncompression_types text/plain;\n";
+    '
+printf '#define NGX_HTTP_COMPRESSION_HAVE_BROTLI_DECODER 1\n' \
+    > "$NGINX_SOURCE/objs/ngx_auto_config.h"
+export MOCK_EXPECT_ENCODINGS='gzip deflate'
+export MOCK_EXPECT_DECODINGS='gzip deflate br'
+export MOCK_EXPECT_BLOCK_SIZE=0
+run
+echo 'PASS: compression tests follow the configured encoders, decoders and native gzip availability'
+unset MOCK_COMPRESSION_MODULE MOCK_EXPECT_ENCODINGS MOCK_EXPECT_DECODINGS MOCK_EXPECT_BLOCK_SIZE
 
 module=ngx_http_cache_purge_module
 mkdir -p "$MOCK_MODULE_ROOT/$module/t"

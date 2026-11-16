@@ -25,4 +25,5 @@ run_test_phase c-regressions docker run --rm --network none \
 
         bash /input/ci/test-module-abi.sh "$source_dir" /input/tests/module-abi
         bash /input/ci/test-complex-value.sh "$source_dir" /input/tests/complex-value
+        python3 /input/tests/module-order/compression.py "$source_dir/objs/ngx_modules.c"
     '

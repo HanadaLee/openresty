@@ -11,6 +11,12 @@ fi
 if [[ -n "${MOCK_EXPECT_INCLUDES:-}" ]]; then
     [[ "$C_INCLUDE_PATH" == "$MOCK_EXPECT_INCLUDES" ]]
 fi
+if [[ "$(basename "$PWD")" == ngx_http_compression_module ]]; then
+    [[ "$TEST_NGINX_GZIP" == 0 ]]
+    [[ "$TEST_NGINX_COMPRESSION_ENCODINGS" == "$MOCK_EXPECT_ENCODINGS" ]]
+    [[ "$TEST_NGINX_DECOMPRESSION_ENCODINGS" == "$MOCK_EXPECT_DECODINGS" ]]
+    [[ "$TEST_NGINX_ZSTD_TARGET_BLOCK_SIZE" == "$MOCK_EXPECT_BLOCK_SIZE" ]]
+fi
 for test in "$@"; do
     if grep -q 'Test::Nginx::Socket' "$test"; then
         [[ "$PERL5LIB" == "$TEST_NGINX_ROOT/lib:"* ]]

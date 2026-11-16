@@ -71,11 +71,9 @@ ARG RESTY_NGX_HTTP_SECURE_LINK_HASH_MODULE_VERSION="2.0.0"
 ARG RESTY_NGX_HTTP_SECURE_LINK_HMAC_MODULE_VERSION="0.4.0"
 ARG RESTY_NGX_HTTP_SECURE_LINK_SIGN_MODULE_VERSION="1.0.0"
 ARG RESTY_NGX_HTTP_AUTH_INTERNAL_MODULE_VERSION="1.0.0"
-ARG RESTY_NGX_HTTP_BROTLI_MODULE_VERSION="1.0.0"
 ARG RESTY_NGX_HTTP_CACHE_DECHUNK_FILTER_MODULE_VERSION="1.0.1"
 ARG RESTY_NGX_HTTP_CACHE_PURGE_MODULE_VERSION="5.1.4"
-ARG RESTY_NGX_HTTP_COMPRESSION_NORMALIZE_MODULE_VERSION="1.0.0"
-ARG RESTY_NGX_HTTP_COMPRESSION_VARY_FILTER_MODULE_VERSION="1.0.0"
+ARG RESTY_NGX_HTTP_COMPRESSION_MODULE_VERSION="1.0.0"
 ARG RESTY_NGX_HTTP_CORS_MODULE_VERSION="0.1.1"
 ARG RESTY_NGX_HTTP_DELAY_MODULE_VERSION="1.0.0"
 ARG RESTY_NGX_HTTP_ERROR_LOG_WRITE_MODULE_VERSION="1.0.0"
@@ -110,12 +108,8 @@ ARG RESTY_NGX_HTTP_SORTED_ARGS_MODULE_VERSION="0.3.1"
 ARG RESTY_NGX_HTTP_SYSGUARD_MODULE_VERSION="0.2.0"
 ARG RESTY_NGX_HTTP_TRIM_FILTER_MODULE_VERSION="3.1.5"
 ARG RESTY_NGX_HTTP_UA_PARSER_MODULE_VERSION="1.0.0"
-ARG RESTY_NGX_HTTP_UNBROTLI_FILTER_MODULE_VERSION="1.0.0"
-ARG RESTY_NGX_HTTP_UNDEFLATE_FILTER_MODULE_VERSION="1.0.0"
-ARG RESTY_NGX_HTTP_UNZSTD_FILTER_MODULE_VERSION="1.0.0"
 ARG RESTY_NGX_HTTP_UPSTREAM_LOG_MODULE_VERSION="1.0.2"
 ARG RESTY_NGX_HTTP_WESERV_MODULE_VERSION="v5.1.2"
-ARG RESTY_NGX_HTTP_ZSTD_MODULE_VERSION="0.1.2"
 ARG RESTY_NGX_LUA_CONFIG_MODULE_VERSION="1.0.0"
 ARG RESTY_NGX_LUA_EVENTS_MODULE_VERSION="0.3.1"
 ARG RESTY_NGX_LUA_LOAD_VAR_INDEX_MODULE_VERSION="1.0.0"
@@ -260,11 +254,9 @@ ARG RESTY_NGX_HTTP_SECURE_LINK_HASH_MODULE_VERSION
 ARG RESTY_NGX_HTTP_SECURE_LINK_HMAC_MODULE_VERSION
 ARG RESTY_NGX_HTTP_SECURE_LINK_SIGN_MODULE_VERSION
 ARG RESTY_NGX_HTTP_AUTH_INTERNAL_MODULE_VERSION
-ARG RESTY_NGX_HTTP_BROTLI_MODULE_VERSION
 ARG RESTY_NGX_HTTP_CACHE_DECHUNK_FILTER_MODULE_VERSION
 ARG RESTY_NGX_HTTP_CACHE_PURGE_MODULE_VERSION
-ARG RESTY_NGX_HTTP_COMPRESSION_NORMALIZE_MODULE_VERSION
-ARG RESTY_NGX_HTTP_COMPRESSION_VARY_FILTER_MODULE_VERSION
+ARG RESTY_NGX_HTTP_COMPRESSION_MODULE_VERSION
 ARG RESTY_NGX_HTTP_CORS_MODULE_VERSION
 ARG RESTY_NGX_HTTP_DELAY_MODULE_VERSION
 ARG RESTY_NGX_HTTP_ERROR_LOG_WRITE_MODULE_VERSION
@@ -299,12 +291,8 @@ ARG RESTY_NGX_HTTP_SORTED_ARGS_MODULE_VERSION
 ARG RESTY_NGX_HTTP_SYSGUARD_MODULE_VERSION
 ARG RESTY_NGX_HTTP_TRIM_FILTER_MODULE_VERSION
 ARG RESTY_NGX_HTTP_UA_PARSER_MODULE_VERSION
-ARG RESTY_NGX_HTTP_UNBROTLI_FILTER_MODULE_VERSION
-ARG RESTY_NGX_HTTP_UNDEFLATE_FILTER_MODULE_VERSION
-ARG RESTY_NGX_HTTP_UNZSTD_FILTER_MODULE_VERSION
 ARG RESTY_NGX_HTTP_UPSTREAM_LOG_MODULE_VERSION
 ARG RESTY_NGX_HTTP_WESERV_MODULE_VERSION
-ARG RESTY_NGX_HTTP_ZSTD_MODULE_VERSION
 ARG RESTY_NGX_LUA_CONFIG_MODULE_VERSION
 ARG RESTY_NGX_LUA_EVENTS_MODULE_VERSION
 ARG RESTY_NGX_LUA_LOAD_VAR_INDEX_MODULE_VERSION
@@ -346,8 +334,7 @@ ARG RESTY_CONFIG_OPTIONS="\
     --with-http_json_module \
     --with-http_addition_module \
     --with-http_auth_request_module \
-    --with-http_gunzip_module \
-    --with-http_gzip_static_module \
+    --without-http_gzip_module \
     --with-http_realip_module \
     --with-http_degradation_module \
     --with-http_slice_module \
@@ -367,10 +354,8 @@ ARG RESTY_CONFIG_OPTIONS="\
     --add-module=/build/modules/ngx_http_secure_link_hmac_module \
     --add-module=/build/modules/ngx_http_secure_link_sign_module \
     --add-module=/build/modules/ngx_http_auth_internal_module \
-    --add-module=/build/modules/ngx_http_brotli_module \
     --add-module=/build/modules/ngx_http_cache_purge_module \
-    --add-module=/build/modules/ngx_http_compression_normalize_module \
-    --add-module=/build/modules/ngx_http_compression_vary_filter_module \
+    --add-module=/build/modules/ngx_http_compression_module \
     --add-module=/build/modules/ngx_http_headers_control_module \
     --add-module=/build/modules/ngx_http_cors_module \
     --add-module=/build/modules/ngx_http_delay_module \
@@ -405,13 +390,9 @@ ARG RESTY_CONFIG_OPTIONS="\
     --add-module=/build/modules/ngx_http_trim_filter_module \
     --add-module=/build/modules/ngx_http_cache_dechunk_filter_module \
     --add-module=/build/modules/ngx_http_ua_parser_module \
-    --add-module=/build/modules/ngx_http_unbrotli_filter_module \
-    --add-module=/build/modules/ngx_http_undeflate_filter_module \
-    --add-module=/build/modules/ngx_http_unzstd_filter_module \
     --add-module=/build/modules/ngx_http_upstream_log_module \
     --add-module=/build/modules/ngx_http_modsecurity_module \
     --add-module=/build/modules/ngx_http_weserv_module \
-    --add-module=/build/modules/ngx_http_zstd_module \
     --add-module=/build/modules/ngx_lua_config_module \
     --add-module=/build/modules/ngx_lua_events_module \
     --add-module=/build/modules/ngx_lua_load_var_index_module \
@@ -528,7 +509,6 @@ RUN mkdir -p /build/modules \
     && cd /build/modules \
     && git clone --depth=1 --branch "${RESTY_NGX_EXPR_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_expr_module.git ngx_expr_module \
     && git clone --depth=1 --branch "${RESTY_NGX_STAT_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_stat_module.git ngx_stat_module \
-    && git clone --depth=1 --branch "${RESTY_NGX_HTTP_BROTLI_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_brotli_module.git ngx_http_brotli_module \
     && git clone --depth=1 --branch "${RESTY_NGX_SSL_FINGERPRINT_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_ssl_fingerprint_module.git ngx_ssl_fingerprint_module \
     && git clone --depth=1 --branch "${RESTY_NGX_TCP_FINGERPRINT_MODULE_VERSION}" https://${RESTY_GIT_MIRROR}/HanadaLee/ngx_tcp_fingerprint_module.git ngx_tcp_fingerprint_module \
     && git clone --depth=1 --branch "${RESTY_NGX_HTTP_WESERV_MODULE_VERSION}" https://${RESTY_GIT_MIRROR}/weserv/images.git ngx_http_weserv_module \
@@ -564,21 +544,16 @@ RUN mkdir -p /build/modules \
     && git clone --depth=1 --branch "${RESTY_NGX_HTTP_EXTRA_VARIABLES_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_extra_variables_module.git ngx_http_extra_variables_module \
     && git clone --depth=1 --branch "${RESTY_NGX_LUA_CONFIG_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_lua_config_module.git ngx_lua_config_module \
     && git clone --depth=1 --branch "${RESTY_NGX_LUA_LOAD_VAR_INDEX_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_lua_load_var_index_module.git ngx_lua_load_var_index_module \
-    && git clone --depth=1 --branch "${RESTY_NGX_HTTP_ZSTD_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_zstd_module.git ngx_http_zstd_module \
     && git clone --depth=1 --branch "${RESTY_NGX_HTTP_CACHE_DECHUNK_FILTER_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_cache_dechunk_filter_module.git ngx_http_cache_dechunk_filter_module \
-    && git clone --depth=1 --branch "${RESTY_NGX_HTTP_UNBROTLI_FILTER_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_unbrotli_filter_module.git ngx_http_unbrotli_filter_module \
-    && git clone --depth=1 --branch "${RESTY_NGX_HTTP_UNDEFLATE_FILTER_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_undeflate_filter_module.git ngx_http_undeflate_filter_module \
-    && git clone --depth=1 --branch "${RESTY_NGX_HTTP_UNZSTD_FILTER_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_unzstd_filter_module.git ngx_http_unzstd_filter_module \
     && git clone --depth=1 --branch "${RESTY_NGX_HTTP_DELAY_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_delay_module.git ngx_http_delay_module \
     && git clone --depth=1 --branch "${RESTY_NGX_HTTP_SERVER_REDIRECT_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_server_redirect_module.git ngx_http_server_redirect_module \
     && git clone --depth=1 --branch "${RESTY_NGX_HTTP_SSL_STRICT_SERVER_NAME_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_ssl_strict_server_name_module.git ngx_http_ssl_strict_server_name_module \
     && git clone --depth=1 --branch "${RESTY_NGX_HTTP_INTERNAL_REDIRECT_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_internal_redirect_module.git ngx_http_internal_redirect_module \
     && git clone --depth=1 --branch "${RESTY_NGX_HTTP_UPSTREAM_LOG_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_upstream_log_module.git ngx_http_upstream_log_module \
-    && git clone --depth=1 --branch "${RESTY_NGX_HTTP_COMPRESSION_NORMALIZE_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_compression_normalize_module.git ngx_http_compression_normalize_module \
-    && git clone --depth=1 --branch "${RESTY_NGX_HTTP_COMPRESSION_VARY_FILTER_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_compression_vary_filter_module.git ngx_http_compression_vary_filter_module \
     && git clone --depth=1 --branch "${RESTY_NGX_HTTP_REWRITE_STATUS_FILTER_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_rewrite_status_filter_module.git ngx_http_rewrite_status_filter_module \
     && git clone --depth=1 --branch "${RESTY_NGX_VAR_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_var_module.git ngx_var_module \
     && git clone --depth=1 --branch "${RESTY_NGX_HTTP_SECURITY_HEADERS_FILTER_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_security_headers_filter_module.git ngx_http_security_headers_filter_module \
+    && git clone --depth=1 --branch "${RESTY_NGX_HTTP_COMPRESSION_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_compression_module.git ngx_http_compression_module \
     && git clone --depth=1 --branch "${RESTY_NGX_HTTP_CORS_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_cors_module.git ngx_http_cors_module \
     && git clone --depth=1 --branch "${RESTY_NGX_HTTP_LOG_SET_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_log_set_module.git ngx_http_log_set_module \
     && git clone --depth=1 --branch "${RESTY_NGX_HTTP_LOOP_DETECT_MODULE_VERSION}" https://${RESTY_GIT_REPO}/hanada/ngx_http_loop_detect_module.git ngx_http_loop_detect_module \

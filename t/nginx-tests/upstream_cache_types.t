@@ -20,7 +20,7 @@ use Test::Nginx;
 select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
-my $t = Test::Nginx->new()->has(qw/http proxy fastcgi scgi uwsgi cache gzip rewrite/);
+my $t = Test::Nginx->new()->has(qw/http proxy fastcgi scgi uwsgi cache rewrite/);
 my @modules = qw/proxy fastcgi scgi uwsgi/;
 my %ports = (proxy => 8081, fastcgi => 8082, scgi => 8083, uwsgi => 8084);
 my %types = (
@@ -120,9 +120,9 @@ http {
         listen 127.0.0.1:8080;
         server_name default;
         $locations
-        gzip on;
-        gzip_min_length 0;
-        gzip_http_version 1.0;
+        compression on;
+        compression_min_length 0;
+        compression_http_version 1.0;
         location /gzip-json {
             default_type application/json;
             return 200 "gzip test body";

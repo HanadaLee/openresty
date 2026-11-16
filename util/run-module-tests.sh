@@ -9,6 +9,7 @@ set -euo pipefail
 module_root="$(cd "${1:-/build/modules}" && pwd)"
 export TEST_NGINX_BINARY
 export TEST_NGINX_RESTY_LUALIB="${TEST_NGINX_RESTY_LUALIB:-/usr/local/openresty/lualib}"
+export OPENSSL_CONF="${OPENSSL_CONF:-/etc/ssl/openssl.cnf}"
 export PATH="$(dirname "$TEST_NGINX_BINARY"):/usr/local/openresty/bin:/usr/local/openresty/luajit/bin:$PATH"
 
 if [[ -n "${NGINX_SOURCE:-}" ]]; then
@@ -39,6 +40,11 @@ if [[ -n "${NGINX_SOURCE:-}" ]]; then
 fi
 
 nginx_config="$("$TEST_NGINX_BINARY" -V 2>&1)"
+export TEST_NGINX_COMPRESSION=0
+if [[ "$nginx_config" == *"/ngx_http_compression_module"* \
+      && "$nginx_config" == *--without-http_gzip_module* ]]; then
+    export TEST_NGINX_COMPRESSION=1
+fi
 if [[ "$nginx_config" == *"/ngx_expr_module"* ]]; then
     export TEST_NGINX_EXPR=1 NGX_STAT_CONDITION=1
 else
@@ -72,6 +78,23 @@ $Test::Nginx::Util::FilterHttpConfig = sub {
     return $config if $config =~ /^\s*variables_hash_max_size\s/m;
     return "variables_hash_max_size 8192;\n$config";
 };
+
+if ($ENV{TEST_NGINX_COMPRESSION}) {
+    Test::Nginx::Util::add_block_preprocessor(sub {
+        my ($block) = @_;
+        my %directives = (
+            gzip => 'compression',
+            gzip_min_length => 'compression_min_length',
+            gzip_types => 'compression_types',
+        );
+        for my $section (qw/config http_config server_config/) {
+            my $config = $block->$section;
+            next unless defined $config;
+            $config =~ s/^(\h*)(gzip(?:_min_length|_types)?)(\h+)/$1$directives{$2}$3/gm;
+            $block->set_value($section, $config);
+        }
+    });
+}
 
 1;
 PERL
@@ -183,6 +206,33 @@ while IFS= read -r module_dir; do
             else
                 export PERL5LIB="$PERL5LIB:$output"
                 export PERL5OPT="${PERL5OPT:+$PERL5OPT }-MRestyModuleTestConfig"
+            fi
+            if [[ "$name" == ngx_http_compression_module ]]; then
+                auto_config="${NGINX_BUILD_DIR:?}/ngx_auto_config.h"
+                [[ -r "$auto_config" ]] || exit 1
+                export TEST_NGINX_OPENRESTY=1
+                export TEST_NGINX_GZIP=1
+                if [[ "$nginx_config" == *--without-http_gzip_module* ]]; then
+                    export TEST_NGINX_GZIP=0
+                fi
+                encodings=(gzip deflate)
+                decodings=(gzip deflate)
+                for codec in BROTLI ZSTD; do
+                    encoding="${codec,,}"
+                    if [[ "$codec" == BROTLI ]]; then encoding=br; fi
+                    if grep -Eq "^#define NGX_HTTP_COMPRESSION_HAVE_${codec}[[:space:]]+1$" "$auto_config"; then
+                        encodings+=("$encoding")
+                    fi
+                    if grep -Eq "^#define NGX_HTTP_COMPRESSION_HAVE_${codec}_DECODER[[:space:]]+1$" "$auto_config"; then
+                        decodings+=("$encoding")
+                    fi
+                done
+                export TEST_NGINX_COMPRESSION_ENCODINGS="${encodings[*]}"
+                export TEST_NGINX_DECOMPRESSION_ENCODINGS="${decodings[*]}"
+                export TEST_NGINX_ZSTD_TARGET_BLOCK_SIZE=0
+                if grep -Eq '^#define NGX_HTTP_COMPRESSION_HAVE_ZSTD_TARGET_BLOCK_SIZE[[:space:]]+1$' "$auto_config"; then
+                    export TEST_NGINX_ZSTD_TARGET_BLOCK_SIZE=1
+                fi
             fi
             timeout "${TEST_MODULE_TIMEOUT:-600}" prove -v "${tests[@]}"
         ) 2>&1 | tee "$output/$name-$framework/prove.log"; then

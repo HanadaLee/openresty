@@ -67,15 +67,6 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - ["if" with multiple conditions](#if-with-multiple-conditions)
     - [Support for "elif" and "else" directives](#support-for-elif-and-else-directives)
     - [Support for "goto" directive](#support-for-goto-directive)
-  - [ngx\_http\_gunzip\_module](#ngx_http_gunzip_module)
-    - [Conditional gunzip](#conditional-gunzip)
-    - [Support for forced gzip decompression](#support-for-forced-gzip-decompression)
-  - [ngx\_http\_gzip\_filter\_module](#ngx_http_gzip_filter_module)
-    - [Conditional gzip](#conditional-gzip)
-    - [Conditional gzip\_comp\_level](#conditional-gzip_comp_level)
-    - [Conditional gzip\_min\_length](#conditional-gzip_min_length)
-    - [gzip\_max\_length](#gzip_max_length)
-    - [gzip\_bypass](#gzip_bypass)
   - [ngx\_http\_log\_module](#ngx_http_log_module)
     - [Conditional access\_log](#conditional-access_log)
   - [ngx\_http\_modsecurity\_module (3rd-party module)](#ngx_http_modsecurity_module-3rd-party-module)
@@ -207,12 +198,10 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_http_secure_link_hmac_module](https://git.hanada.info/hanada/ngx_http_secure_link_hmac_module)
 * [ngx_http_secure_link_sign_module](https://git.hanada.info/hanada/ngx_http_secure_link_sign_module)
 * [ngx_http_auth_internal_module](https://git.hanada.info/hanada/ngx_http_auth_internal_module)
-* [ngx_http_brotli_module](https://git.hanada.info/hanada/ngx_http_brotli_module)
 * [ngx_http_cache_key_module](https://git.hanada.info/hanada/ngx_http_cache_purge_module#cache-key-components)
 * [ngx_http_cache_purge_module](https://git.hanada.info/hanada/ngx_http_cache_purge_module)
 * [ngx_http_cache_rocksdb_module](https://git.hanada.info/hanada/ngx_http_cache_purge_module)
-* [ngx_http_compression_normalize_module](https://git.hanada.info/hanada/ngx_http_compression_normalize_module)
-* [ngx_http_compression_vary_filter_module](https://git.hanada.info/hanada/ngx_http_compression_vary_filter_module)
+* [ngx_http_compression_module](https://git.hanada.info/hanada/ngx_http_compression_module)
 * [ngx_http_cors_module](https://git.hanada.info/hanada/ngx_http_cors_module)
 * [ngx_http_delay_module](https://git.hanada.info/hanada/ngx_http_delay_module)
 * [ngx_http_error_log_write_module](https://git.hanada.info/hanada/ngx_http_error_log_write_module)
@@ -247,13 +236,9 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_http_trim_filter_module](https://git.hanada.info/hanada/ngx_http_trim_filter_module)
 * [ngx_http_cache_dechunk_filter_module](https://git.hanada.info/hanada/ngx_http_cache_dechunk_filter_module)
 * [ngx_http_ua_parser_module](https://git.hanada.info/hanada/ngx_http_ua_parser_module)
-* [ngx_http_unbrotli_filter_module](https://git.hanada.info/hanada/ngx_http_unbrotli_filter_module)
-* [ngx_http_undeflate_filter_module](https://git.hanada.info/hanada/ngx_http_undeflate_filter_module)
-* [ngx_http_unzstd_filter_module](https://git.hanada.info/hanada/ngx_http_unzstd_filter_module)
 * [ngx_http_upstream_log_module](https://git.hanada.info/hanada/ngx_http_upstream_log_module)
 * [ngx_http_modsecurity_module](https://github.com/HanadaLee/ngx_http_modsecurity_module)
 * [ngx_http_weserv_module](https://github.com/weserv/images)
-* [ngx_http_zstd_module](https://git.hanada.info/hanada/ngx_http_zstd_module)
 * [ngx_lua_config_module](https://git.hanada.info/hanada/ngx_http_lua_config_module)
 * [ngx_lua_events_module](https://github.com/Kong/lua-resty-events)
 * [ngx_lua_load_var_index_module](https://git.hanada.info/hanada/ngx_lua_load_var_index_module)
@@ -1419,86 +1404,6 @@ location @two {
     return 200 "Hello from @two";
 }
 ```
-
-[Back to TOC](#table-of-contents)
-
-## ngx_http_gunzip_module
-
-The `gunzip_force` extension is based on [A patch to force the gunzip filter module work](http://mailman.nginx.org/pipermail/nginx-devel/2013-January/003276.html) by Weibin Yao.
-
-### Conditional gunzip
-
-* **Syntax:** *gunzip on | off;*
-
-* **Default:** *gunzip off;*
-
-* **Context:** *http, server, location, when*
-
-Refer to [gunzip](https://nginx.org/en/docs/http/ngx_http_gunzip_module.html#gunzip) for the original directive behavior. Supports conditional configuration through `when`.
-
-### Support for forced gzip decompression
-
-* **Syntax:** *gunzip_force on | off;*
-
-* **Default:** *gunzip_force off;*
-
-* **Context:** *http, server, location, when*
-
-When enabled, decompresses gzip responses without checking whether the client accepts gzip. Responses without `Content-Encoding: gzip` are not affected.
-
-[Back to TOC](#table-of-contents)
-
-## ngx_http_gzip_filter_module
-
-### Conditional gzip
-
-* **Syntax:** *gzip on | off;*
-
-* **Default:** *gzip off;*
-
-* **Context:** *http, server, location, when*
-
-Refer to [gzip](https://nginx.org/en/docs/http/ngx_http_gzip_module.html#gzip) for the original directive behavior. Supports conditional configuration through `when`.
-
-### Conditional gzip_comp_level
-
-* **Syntax:** *gzip_comp_level level;*
-
-* **Default:** *gzip_comp_level 1;*
-
-* **Context:** *http, server, location, when*
-
-Refer to [gzip_comp_level](https://nginx.org/en/docs/http/ngx_http_gzip_module.html#gzip_comp_level) for the original directive behavior. Supports conditional configuration through `when`.
-
-### Conditional gzip_min_length
-
-* **Syntax:** *gzip_min_length length;*
-
-* **Default:** *gzip_min_length 20;*
-
-* **Context:** *http, server, location, when*
-
-Refer to [gzip_min_length](https://nginx.org/en/docs/http/ngx_http_gzip_module.html#gzip_min_length) for the original directive behavior. Supports conditional configuration through `when`.
-
-### gzip_max_length
-
-* **Syntax:** *gzip_max_length length;*
-
-* **Default:** *gzip_max_length 0;*
-
-* **Context:** *http, server, location, when*
-
-Sets the maximum length of a response that will be gzipped. The length is determined only from the “Content-Length” response header field. A value of 0 means no upper limit. Supports conditional configuration.
-
-### gzip_bypass
-
-* **Syntax:** *gzip_bypass string ...;*
-
-* **Default:** *-*
-
-* **Context:** *http, server, location*
-
-Defines conditions under which the response will not be gzipped. If at least one value of the string parameters is not empty and is not equal to “0” then the response will not be gzipped.
 
 [Back to TOC](#table-of-contents)
 
