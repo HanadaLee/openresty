@@ -13,9 +13,8 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
   - [Components of official OpenResty bundle](#components-of-official-openresty-bundle)
   - [Components of this OpenResty bundle](#components-of-this-openresty-bundle)
   - [Components from LuaRocks](#components-from-luarocks)
+- [Module Overview](#module-overview)
 - [Additional Features](#additional-features)
-  - [ngx\_http](#ngx_http)
-    - [Variables for timestamps and time spent on related operations](#variables-for-timestamps-and-time-spent-on-related-operations)
   - [ngx\_http\_lua\_module](#ngx_http_lua_module)
     - [preaccess\_by\_lua\_block](#preaccess_by_lua_block)
     - [preaccess\_by\_lua\_file](#preaccess_by_lua_file)
@@ -43,12 +42,8 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [$slice\_error](#slice_error)
   - [ngx\_http\_sub\_filter\_module](#ngx_http_sub_filter_module)
     - [Conditional sub\_filter](#conditional-sub_filter)
-  - [ngx\_http\_trim\_filter\_module](#ngx_http_trim_filter_module)
-    - [Conditional trim](#conditional-trim)
   - [ngx\_http\_proxy\_module and related modules](#ngx_http_proxy_module-and-related-modules)
     - [proxy\_ssl\_certificate\_load](#proxy_ssl_certificate_load)
-    - [Proxy filter Framework](#proxy-filter-framework)
-    - [gRPC filter Framework](#grpc-filter-framework)
     - [gRPC upstream request header variables](#grpc-upstream-request-header-variables)
     - [gRPC upstream URI](#grpc-upstream-uri)
     - [gRPC upstream method](#grpc-upstream-method)
@@ -58,7 +53,6 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [Persistent cache zones](#persistent-cache-zones)
     - [Enhancement of upstream cache control](#enhancement-of-upstream-cache-control)
   - [ngx\_http\_upstream\_module](#ngx_http_upstream_module)
-    - [Extra variables for upstream information](#extra-variables-for-upstream-information)
     - [Upstream errors](#upstream-errors)
   - [ngx\_http\_realip\_module](#ngx_http_realip_module)
     - [Configuring real client IP with multiple request headers](#configuring-real-client-ip-with-multiple-request-headers)
@@ -77,13 +71,13 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [access\_by\_lua\_no\_postpone](#access_by_lua_no_postpone)
   - [ngx\_stream\_ssl\_module](#ngx_stream_ssl_module)
     - [ssl\_certificate\_load](#ssl_certificate_load-1)
-    - [ssl\_reject\_handshake](#ssl_reject_handshake-1)
+    - [ssl\_reject\_handshake](#ssl_reject_handshake)
     - [ssl\_delay\_handshake](#ssl_delay_handshake-1)
     - [Variables about SSL handshake timestamps and time spent](#variables-about-ssl-handshake-timestamps-and-time-spent-1)
   - [ngx\_stream\_proxy\_module](#ngx_stream_proxy_module)
     - [proxy\_ssl\_certificate\_load](#proxy_ssl_certificate_load-1)
   - [ngx\_stream\_upstream\_module](#ngx_stream_upstream_module)
-    - [Extra variables for upstream information](#extra-variables-for-upstream-information-1)
+    - [Extra variables for upstream information](#extra-variables-for-upstream-information)
 - [LuaRocks](#luarocks)
 - [Copyright \& License](#copyright--license)
 
@@ -190,69 +184,8 @@ For details on OpenResty's bundled components and features, refer to [openresty.
 
 The following components are additionally bundled with OpenResty, some of which are developed and maintained by Hanada.
 
-* [ngx_backtrace_module](https://git.hanada.info/hanada/ngx_backtrace_module)
-* [ngx_expr_module](https://git.hanada.info/hanada/ngx_expr_module)
-* [ngx_geoip2_module](https://git.hanada.info/hanada/ngx_geoip2_module)
-* [ngx_http_access_control_module](https://git.hanada.info/hanada/ngx_http_access_control_module)
-* [ngx_http_secure_link_hash_module](https://git.hanada.info/hanada/ngx_http_secure_link_hash_module)
-* [ngx_http_secure_link_hmac_module](https://git.hanada.info/hanada/ngx_http_secure_link_hmac_module)
-* [ngx_http_secure_link_sign_module](https://git.hanada.info/hanada/ngx_http_secure_link_sign_module)
-* [ngx_http_auth_internal_module](https://git.hanada.info/hanada/ngx_http_auth_internal_module)
-* [ngx_http_cache_key_module](https://git.hanada.info/hanada/ngx_http_cache_purge_module#cache-key-components)
-* [ngx_http_cache_purge_module](https://git.hanada.info/hanada/ngx_http_cache_purge_module)
-* [ngx_http_cache_rocksdb_module](https://git.hanada.info/hanada/ngx_http_cache_purge_module)
-* [ngx_http_compression_module](https://git.hanada.info/hanada/ngx_http_compression_module)
-* [ngx_http_cors_module](https://git.hanada.info/hanada/ngx_http_cors_module)
-* [ngx_http_delay_module](https://git.hanada.info/hanada/ngx_http_delay_module)
-* [ngx_http_error_log_write_module](https://git.hanada.info/hanada/ngx_http_error_log_write_module)
-* [ngx_http_extra_variables_module](https://git.hanada.info/hanada/ngx_http_extra_variables_module)
-* [ngx_http_grpc_filter_module](https://git.hanada.info/hanada/ngx_http_grpc_filter_module)
-* [ngx_http_grpc_headers_control_module](https://git.hanada.info/hanada/ngx_http_grpc_headers_control_module)
-* [ngx_http_grpc_set_module](https://git.hanada.info/hanada/ngx_http_grpc_set_module)
-* [ngx_http_internal_redirect_module](https://git.hanada.info/hanada/ngx_http_internal_redirect_module)
-* [ngx_http_label_module](https://git.hanada.info/hanada/ngx_http_label_module)
-* [ngx_http_limit_traffic_rate_filter_module](https://github.com/nginx-modules/ngx_http_limit_traffic_ratefilter_module)
-* [ngx_http_log_set_module](https://git.hanada.info/hanada/ngx_http_log_set_module)
-* [ngx_http_loop_detect_module](https://git.hanada.info/hanada/ngx_http_loop_detect_module)
-* [ngx_http_phase_control_module](https://git.hanada.info/hanada/ngx_http_phase_control_module)
-* [ngx_http_proxy_filter_module](https://git.hanada.info/hanada/ngx_http_proxy_filter_module)
-* [ngx_http_proxy_args_control_module](https://git.hanada.info/hanada/ngx_http_proxy_args_control_module)
-* [ngx_http_proxy_request_cookies_control_module](https://git.hanada.info/hanada/ngx_http_proxy_request_cookies_control_module)
-* [ngx_http_proxy_headers_control_module](https://git.hanada.info/hanada/ngx_http_proxy_headers_control_module)
-* [ngx_http_proxy_auth_aws_module](https://git.hanada.info/hanada/ngx_http_proxy_auth_aws_module)
-* [ngx_http_proxy_auth_netstorage_module](https://git.hanada.info/hanada/ngx_http_proxy_auth_netstorage_module)
-* [ngx_http_proxy_auth_basic_module](https://git.hanada.info/hanada/ngx_http_proxy_auth_basic_module)
-* [ngx_http_proxy_auth_internal_module](https://git.hanada.info/hanada/ngx_http_proxy_auth_internal_module)
-* [ngx_http_proxy_set_module](https://git.hanada.info/hanada/ngx_http_proxy_set_module)
-* [ngx_http_qrcode_module](https://git.hanada.info/hanada/ngx_http_qrcode_module)
-* [ngx_http_replace_filter_module](https://github.com/OpenResty/replace-filter-nginx-module)
-* [ngx_http_headers_control_module](https://git.hanada.info/hanada/ngx_http_headers_control_module)
-* [ngx_http_rewrite_status_filter_module](https://git.hanada.info/hanada/ngx_http_rewrite_status_filter_module)
-* [ngx_http_security_headers_filter_module](https://git.hanada.info/hanada/ngx_http_security_headers_filter_module)
-* [ngx_http_server_redirect_module](https://git.hanada.info/hanada/ngx_http_server_redirect_module)
-* [ngx_http_ssl_strict_server_name_module](https://git.hanada.info/hanada/ngx_http_ssl_strict_server_name_module)
-* [ngx_http_sorted_args_module](https://git.hanada.info/hanada/ngx_http_sorted_args_module)
-* [ngx_http_sysguard_module](https://github.com/vozlt/nginx-module-sysguard)
-* [ngx_http_trim_filter_module](https://git.hanada.info/hanada/ngx_http_trim_filter_module)
-* [ngx_http_cache_dechunk_filter_module](https://git.hanada.info/hanada/ngx_http_cache_dechunk_filter_module)
-* [ngx_http_ua_parser_module](https://git.hanada.info/hanada/ngx_http_ua_parser_module)
-* [ngx_http_upstream_log_module](https://git.hanada.info/hanada/ngx_http_upstream_log_module)
-* [ngx_http_modsecurity_module](https://github.com/HanadaLee/ngx_http_modsecurity_module)
-* [ngx_http_weserv_module](https://github.com/weserv/images)
-* [ngx_lua_config_module](https://git.hanada.info/hanada/ngx_http_lua_config_module)
-* [ngx_lua_events_module](https://github.com/Kong/lua-resty-events)
-* [ngx_lua_load_var_index_module](https://git.hanada.info/hanada/ngx_lua_load_var_index_module)
-* [ngx_lua_upstream_state_module](https://git.hanada.info/hanada/ngx_lua_upstream_state_module)
-* [ngx_ssl_fingerprint_module](https://git.hanada.info/hanada/ngx_ssl_fingerprint_module)
-* [ngx_stat_module](https://git.hanada.info/hanada/ngx_stat_module)
-* [ngx_stream_lua_upstream_module](https://git.hanada.info/hanada/ngx_stream_lua_upstream_module)
-* [ngx_stream_access_control_module](https://git.hanada.info/hanada/ngx_stream_access_control_module)
-* [ngx_stream_error_log_write_module](https://git.hanada.info/hanada/ngx_stream_error_log_write_module)
-* [ngx_stream_log_set_module](https://git.hanada.info/hanada/ngx_stream_log_set_module)
-* [ngx_stream_label_module](https://git.hanada.info/hanada/ngx_stream_label_module)
-* [ngx_stream_extra_variables_module](https://git.hanada.info/hanada/ngx_stream_extra_variables_module)
-* [ngx_tcp_fingerprint_module](https://github.com/HanadaLee/ngx_tcp_fingerprint_module)
-* [ngx_var_module](https://git.hanada.info/hanada/ngx_var_module)
+See [Module Overview](#module-overview) for the additional nginx modules and their functions. Other bundled components include:
+
 * [coreruleset](https://github.com/coreruleset/coreruleset)
 * [uap-core](https://github.com/ua-parser/uap-core)
 * [luarocks](https://luarocks.org/)
@@ -261,7 +194,7 @@ The following components are additionally bundled with OpenResty, some of which 
 * [jsonschema](https://github.com/api7/jsonschema)
 * [lua-resty-dns-client](https://git.hanada.info/hanada/lua-resty-dns-client)
 * [lua-resty-mlcache](https://git.hanada.info/hanada/lua-resty-mlcache)
-* [lua-lolhtml](https://github.com/HanadaLee/lua-lolhtml)
+* [lua-lolhtml](https://git.hanada.info/hanada/lua-lolhtml)
 
 ## Components from LuaRocks
 * binaryheap
@@ -299,27 +232,79 @@ The following components are additionally bundled with OpenResty, some of which 
 
 [Back to TOC](#table-of-contents)
 
-# Additional Features
+# Module Overview
 
-This bundle extends the functionality of the Nginx core and 3rd-party modules through patches.
+The following nginx module projects are added to the official OpenResty bundle. Follow each project link for its directives, variables, and examples.
 
-The following are additional features supported in this bundle, while those already included in the official OpenResty bundle have been omitted for brevity.
+| Project | Function |
+| --- | --- |
+| [ngx_backtrace_module](https://git.hanada.info/hanada/ngx_backtrace_module) | Records stack traces when nginx processes terminate abnormally. |
+| [ngx_expr_module](https://git.hanada.info/hanada/ngx_expr_module) | Defines named expressions and `when` blocks for conditional HTTP and Stream configuration. |
+| [ngx_geoip2_module](https://git.hanada.info/hanada/ngx_geoip2_module) | Looks up geographic and network information in MaxMind databases for HTTP and Stream. |
+| [ngx_http_access_control_module](https://git.hanada.info/hanada/ngx_http_access_control_module) | Applies variable-based access rules to HTTP requests. |
+| [ngx_http_auth_internal_module](https://git.hanada.info/hanada/ngx_http_auth_internal_module) | Validates internal authentication fingerprints received in request headers. |
+| [ngx_http_cache_dechunk_filter_module](https://git.hanada.info/hanada/ngx_http_cache_dechunk_filter_module) | Enables byte-range responses from cached content originally received with chunked transfer encoding. |
+| [ngx_http_cache_purge_module](https://git.hanada.info/hanada/ngx_http_cache_purge_module) | Builds cache keys and a persistent RocksDB index; deletes or invalidates entries by URL, prefix, host, or tag, with background processing and parent propagation. |
+| [ngx_http_compression_module](https://git.hanada.info/hanada/ngx_http_compression_module) | Provides gzip, Brotli, Zstd, and deflate compression and decompression, precompressed files, Accept-Encoding normalization, and Vary handling. |
+| [ngx_http_cors_module](https://git.hanada.info/hanada/ngx_http_cors_module) | Configures Cross-Origin Resource Sharing response headers and preflight handling. |
+| [ngx_http_delay_module](https://git.hanada.info/hanada/ngx_http_delay_module) | Delays HTTP request processing. |
+| [ngx_http_error_log_write_module](https://git.hanada.info/hanada/ngx_http_error_log_write_module) | Writes configured messages to the error log during HTTP request processing. |
+| [ngx_http_extra_variables_module](https://git.hanada.info/hanada/ngx_http_extra_variables_module) | Exposes request, response, cache, and upstream information, including request measurements and upstream timing. |
+| [ngx_http_grpc_filter_module](https://git.hanada.info/hanada/ngx_http_grpc_filter_module) | Provides equivalent hooks for gRPC upstream requests and responses. |
+| [ngx_http_grpc_headers_control_module](https://git.hanada.info/hanada/ngx_http_grpc_headers_control_module) | Modifies gRPC upstream request and response headers. |
+| [ngx_http_grpc_set_module](https://git.hanada.info/hanada/ngx_http_grpc_set_module) | Assigns variables while processing gRPC upstream response headers. |
+| [ngx_http_headers_control_module](https://git.hanada.info/hanada/ngx_http_headers_control_module) | Sets, removes, appends, and rewrites client request and response headers. |
+| [ngx_http_internal_redirect_module](https://git.hanada.info/hanada/ngx_http_internal_redirect_module) | Performs internal redirects in configurable request phases and supports HTTP redirects. |
+| [ngx_http_label_module](https://git.hanada.info/hanada/ngx_http_label_module) | Defines HTTP configuration labels exposed as variables. |
+| [ngx_http_limit_traffic_rate_filter_module](https://git.hanada.info/hanada/ngx_http_limit_traffic_rate_filter_module) | Shares a download bandwidth limit among concurrent responses with the same key, across workers. |
+| [ngx_http_log_set_module](https://git.hanada.info/hanada/ngx_http_log_set_module) | Assigns variables before HTTP access logs are written. |
+| [ngx_http_loop_detect_module](https://git.hanada.info/hanada/ngx_http_loop_detect_module) | Detects forwarding loops using the `CDN-Loop` request header. |
+| [ngx_http_modsecurity_module](https://github.com/owasp-modsecurity/ModSecurity-nginx) | Connects HTTP request processing to the ModSecurity v3 web application firewall. |
+| [ngx_http_phase_control_module](https://git.hanada.info/hanada/ngx_http_phase_control_module) | Skips selected HTTP processing phases before their handlers run. |
+| [ngx_http_proxy_args_control_module](https://git.hanada.info/hanada/ngx_http_proxy_args_control_module) | Modifies query arguments sent to HTTP upstreams. |
+| [ngx_http_proxy_auth_aws_module](https://git.hanada.info/hanada/ngx_http_proxy_auth_aws_module) | Generates AWS Signature Version 4 authentication for S3 upstream requests. |
+| [ngx_http_proxy_auth_basic_module](https://git.hanada.info/hanada/ngx_http_proxy_auth_basic_module) | Generates HTTP Basic authentication for upstream requests. |
+| [ngx_http_proxy_auth_internal_module](https://git.hanada.info/hanada/ngx_http_proxy_auth_internal_module) | Generates internal authentication fingerprints for upstream requests. |
+| [ngx_http_proxy_auth_netstorage_module](https://git.hanada.info/hanada/ngx_http_proxy_auth_netstorage_module) | Generates authentication headers for Akamai NetStorage upstream requests. |
+| [ngx_http_proxy_filter_module](https://git.hanada.info/hanada/ngx_http_proxy_filter_module) | Provides hooks for proxy access checks, request headers, response headers and bodies, and request finalization. |
+| [ngx_http_proxy_headers_control_module](https://git.hanada.info/hanada/ngx_http_proxy_headers_control_module) | Modifies HTTP upstream request and response headers. |
+| [ngx_http_proxy_request_cookies_control_module](https://git.hanada.info/hanada/ngx_http_proxy_request_cookies_control_module) | Modifies cookies sent to HTTP upstreams. |
+| [ngx_http_proxy_set_module](https://git.hanada.info/hanada/ngx_http_proxy_set_module) | Assigns variables while processing HTTP upstream response headers. |
+| [ngx_http_qrcode_module](https://git.hanada.info/hanada/ngx_http_qrcode_module) | Generates and serves QR codes. |
+| [ngx_http_replace_filter_module](https://github.com/openresty/replace-filter-nginx-module) | Replaces matching response body content using regular expressions. |
+| [ngx_http_rewrite_status_filter_module](https://git.hanada.info/hanada/ngx_http_rewrite_status_filter_module) | Rewrites response status codes. |
+| [ngx_http_secure_link_hash_module](https://git.hanada.info/hanada/ngx_http_secure_link_hash_module) | Verifies hash-signed requests with optional time limits. |
+| [ngx_http_secure_link_hmac_module](https://git.hanada.info/hanada/ngx_http_secure_link_hmac_module) | Verifies HMAC-signed requests with optional time limits. |
+| [ngx_http_secure_link_sign_module](https://git.hanada.info/hanada/ngx_http_secure_link_sign_module) | Verifies RSA, RSA-PSS, ECDSA, and Ed25519 signatures with optional time limits. |
+| [ngx_http_security_headers_filter_module](https://git.hanada.info/hanada/ngx_http_security_headers_filter_module) | Adds security response headers, including HSTS. |
+| [ngx_http_server_redirect_module](https://git.hanada.info/hanada/ngx_http_server_redirect_module) | Redirects request processing to another virtual server. |
+| [ngx_http_sorted_args_module](https://git.hanada.info/hanada/ngx_http_sorted_args_module) | Sorts and filters query arguments for normalized URLs and cache keys. |
+| [ngx_http_ssl_strict_server_name_module](https://git.hanada.info/hanada/ngx_http_ssl_strict_server_name_module) | Controls the check between negotiated TLS SNI and the HTTP request host, with conditional configuration. |
+| [ngx_http_sysguard_module](https://git.hanada.info/hanada/ngx_http_sysguard_module) | Limits request processing according to system load, memory, CPU usage, and response time. |
+| [ngx_http_trim_filter_module](https://git.hanada.info/hanada/ngx_http_trim_filter_module) | Removes unnecessary HTML comments and whitespace, with optional inline JavaScript and CSS trimming. |
+| [ngx_http_ua_parser_module](https://git.hanada.info/hanada/ngx_http_ua_parser_module) | Parses User-Agent values into browser, operating system, and device information. |
+| [ngx_http_upstream_log_module](https://git.hanada.info/hanada/ngx_http_upstream_log_module) | Writes a separate log entry for each upstream attempt, with conditional logging and sampling. |
+| [ngx_http_weserv_module](https://github.com/weserv/images) | Resizes, transforms, and converts images using libvips. |
+| [ngx_lua_config_module](https://git.hanada.info/hanada/ngx_lua_config_module) | Exposes HTTP and Stream configuration values and upstream definitions through Lua APIs and nginx variables. |
+| [ngx_lua_events_module](https://github.com/Kong/lua-resty-events) | Supports publish/subscribe event delivery between nginx worker processes. |
+| [ngx_lua_load_var_index_module](https://git.hanada.info/hanada/ngx_lua_load_var_index_module) | Enables indexed access to HTTP and Stream nginx variables from Lua. |
+| [ngx_lua_upstream_state_module](https://git.hanada.info/hanada/ngx_lua_upstream_state_module) | Lets Lua populate HTTP and Stream upstream state, timing, and peer information. |
+| [ngx_ssl_fingerprint_module](https://git.hanada.info/hanada/ngx_ssl_fingerprint_module) | Exposes JA3 and JA4 TLS client fingerprints for HTTP and Stream, including HTTP/3. |
+| [ngx_stat_module](https://git.hanada.info/hanada/ngx_stat_module) | Aggregates configurable HTTP and Stream metrics by group and time window. |
+| [ngx_stream_access_control_module](https://git.hanada.info/hanada/ngx_stream_access_control_module) | Applies variable-based access rules to Stream sessions. |
+| [ngx_stream_error_log_write_module](https://git.hanada.info/hanada/ngx_stream_error_log_write_module) | Writes configured messages to the error log during Stream session processing. |
+| [ngx_stream_extra_variables_module](https://git.hanada.info/hanada/ngx_stream_extra_variables_module) | Exposes connection, session, and upstream information, including per-attempt timing and byte counts. |
+| [ngx_stream_label_module](https://git.hanada.info/hanada/ngx_stream_label_module) | Defines Stream configuration labels exposed as variables. |
+| [ngx_stream_log_set_module](https://git.hanada.info/hanada/ngx_stream_log_set_module) | Assigns variables before Stream access logs are written. |
+| [ngx_stream_lua_upstream_module](https://git.hanada.info/hanada/ngx_stream_lua_upstream_module) | Exposes Lua APIs for inspecting and changing Stream upstream peer state. |
+| [ngx_tcp_fingerprint_module](https://git.hanada.info/hanada/ngx_tcp_fingerprint_module) | Exposes passive TCP client fingerprints for HTTP and Stream. RTT collection is disabled in this bundle. |
+| [ngx_var_module](https://git.hanada.info/hanada/ngx_var_module) | Defines HTTP and Stream variables using string, number, encoding, cryptographic, time, and IP functions. |
 
 [Back to TOC](#table-of-contents)
 
-## ngx_http
+# Additional Features
 
-### Variables for timestamps and time spent on related operations
-
-The module [ngx_http_extra_variables_module](https://git.hanada.info/hanada/ngx_http_extra_variables_module) must be compiled to use these variables.
-
-| Variable                               | Description |
-| ---                                    | ---         |
-| **$response_header_sent_msec**         | Response header sent timestamp in seconds with the milliseconds resolution. |
-| **$request_handling_time**             | Keeps time spent on handling request internally from receiving the request to sending the response header to the client. |
-| **$response_body_time**                | Keeps time spent on sending the response body to the client. |
-| **$request_header_lenth**              | Request header length. |
-| **$request_body_lenth**                | Request body length. |
+The following sections describe extensions maintained in this bundle's patches.
 
 [Back to TOC](#table-of-contents)
 
@@ -782,42 +767,6 @@ The previous configuration level is used when the current level has no pairs or 
 
 [Back to TOC](#table-of-contents)
 
-## ngx_http_trim_filter_module
-
-### Conditional trim
-
-* **Syntax:** *trim on | off;*
-
-* **Default:** *trim off;*
-
-* **Context:** *http, server, location, when*
-
-Enables or disables removal of unnecessary whitespace and comments from HTML
-responses. The value must be `on` or `off`; variables are no longer accepted.
-Use expressions and `when` blocks for conditional settings:
-
-```nginx
-expr compact str_eq $arg_compact 1;
-
-when compact {
-    trim on;
-    trim_js on;
-    trim_css on;
-}
-```
-
-At each configuration level, the first matching setting is used. An
-unconditional setting also matches, so place it after conditional settings
-when using it as a fallback. If no setting matches at the current level, the
-previous level is used. A matching `off` disables the corresponding feature
-instead of falling back.
-
-`trim_js` and `trim_css` use the same syntax, contexts, and selection rules;
-both default to `off` and take effect only when `trim` is enabled. Each switch
-is selected independently. `trim_types` retains its original behavior.
-
-[Back to TOC](#table-of-contents)
-
 ## ngx_http_proxy_module and related modules
 
 ### proxy_ssl_certificate_load
@@ -840,22 +789,6 @@ loaded on demand at runtime, regardless of the selected mode.
 The setting is inherited unless overridden.
 
 > `grpc_ssl_certificate_load` and `uwsgi_ssl_certificate_load` are also available with the same behavior.
-
-### Proxy filter Framework
-
-Provides a hook-based filter framework for proxy requests, allowing third-party modules to attach custom handlers at various phases of the upstream proxy lifecycle. See [ngx_http_proxy_filter_module](https://git.hanada.info/hanada/ngx_http_proxy_filter_module) for details and usage.
-
-Modules currently integrated with this framework:
-
-* [ngx_http_proxy_auth_aws_module](https://git.hanada.info/hanada/ngx_http_proxy_auth_aws_module)
-* [ngx_http_proxy_auth_netstorage_module](https://git.hanada.info/hanada/ngx_http_proxy_auth_netstorage_module)
-* [ngx_http_proxy_auth_basic_module](https://git.hanada.info/hanada/ngx_http_proxy_auth_basic_module)
-* [ngx_http_proxy_headers_control_module](https://git.hanada.info/hanada/ngx_http_proxy_headers_control_module)
-* [ngx_http_proxy_set_module](https://git.hanada.info/hanada/ngx_http_proxy_set_module)
-
-### gRPC filter Framework
-
-Provides the corresponding hook-based framework for gRPC upstream requests. The [ngx_http_grpc_headers_control_module](https://git.hanada.info/hanada/ngx_http_grpc_headers_control_module) and [ngx_http_grpc_set_module](https://git.hanada.info/hanada/ngx_http_grpc_set_module) use it to modify gRPC request and response headers and to set variables during response header processing.
 
 ### gRPC upstream request header variables
 
@@ -1221,34 +1154,6 @@ Specifies the maximun response length that can be cached. Only the size of Conte
 
 ## ngx_http_upstream_module
 
-### Extra variables for upstream information
-
-The module [ngx_http_extra_variables_module](https://git.hanada.info/hanada/ngx_http_extra_variables_module) must be compiled to use these variables.
-
-| Variable                                  | Description |
-| ---                                       | ---         |
-| **$upstream_method**                      | Upstream method, usually “GET” or “POST”. |
-| **$upstream_start_msec**                  | Keeps timestamp of upstream starts; the time is kept in seconds with millisecond resolution. Times of several responses are separated by commas and colons like addresses in the $upstream_addr variable. |
-| **$upstream_last_start_msec**             | Keeps timestamp of latest upstream starts; the time is kept in seconds with millisecond resolution. |
-| **$upstream_ssl_start_msec**              | Keeps timestamp of upstream ssl handshake starts; the time is kept in seconds with millisecond resolution. Times of several responses are separated by commas and colons like addresses in the $upstream_addr variable. |
-| **$upstream_last_ssl_start_msec**         | Keeps timestamp of latest upstream ssl handshake starts; the time is kept in seconds with millisecond resolution. |
-| **$upstream_send_start_msec**             | Keeps timestamp of upstream request send starts; the time is kept in seconds with millisecond resolution. Times of several responses are separated by commas and colons like addresses in the $upstream_addr variable. |
-| **$upstream_last_send_start_msec**        | Keeps timestamp of latest upstream request send starts; the time is kept in seconds with millisecond resolution. |
-| **$upstream_send_end_msec**               | Keeps timestamp of upstream request send ends; the time is kept in seconds with millisecond resolution. Times of several responses are separated by commas and colons like addresses in the $upstream_addr variable. |
-| **$upstream_last_send_end_msec**          | Keeps timestamp of latest upstream request send ends; the time is kept in seconds with millisecond resolution. |
-| **$upstream_header_msec**                 | Keeps timestamp of upstream response header sent; the time is kept in seconds with millisecond resolution. Times of several responses are separated by commas and colons like addresses in the $upstream_addr variable. |
-| **$upstream_last_header_msec**            | Keeps timestamp of latest upstream response header sent; the time is kept in seconds with millisecond resolution. |
-| **$upstream_end_msec**                    | Keeps timestamp of upstream response sent or abnormal interruption; the time is kept in seconds with millisecond resolution. Times of several responses are separated by commas and colons like addresses in the $upstream_addr variable. |
-| **$upstream_last_end_msec**               | Keeps timestamp of latest upstream response sent or abnormal interruption; the time is kept in seconds with millisecond resolution. |
-| **$upstream_transport_connect_time**      | Keeps time spent on establishing a connection with the upstream server; the time is kept in seconds with millisecond resolution. In case of SSL, does not include time spent on handshake. Times of several connections are separated by commas and colons like addresses in the $upstream_addr variable. |
-| **$upstream_last_transport_connect_time** | Keeps time spent on establishing a connection with the upstream server; the time is kept in seconds with millisecond resolution. In case of SSL, does not include time spent on handshake. |
-| **$upstream_ssl_time**                    | Keeps time spent on upstream ssl handshake; the time is kept in seconds with millisecond resolution. Note that this timing starts only after receiving the upstream request header. Times of several ssl connections are separated by commas and colons like addresses in the $upstream_addr variable. |
-| **$upstream_last_ssl_time**               | Keeps time spent on latest upstream ssl handshake; the time is kept in seconds with millisecond resolution. Note that this timing starts only after receiving the upstream request header. |
-| **$upstream_send_time**                   | Keeps time spent on sending request to the upstream server; the time is kept in seconds with millisecond resolution. Times of several send requests are separated by commas and colons like addresses in the $upstream_addr variable. |
-| **$upstream_last_send_time**              | Keeps time spent on sending request to the latest upstream server; the time is kept in seconds with millisecond resolution. |
-| **$upstream_read_time**                   | Keeps time spent on reading response from the upstream server; the time is kept in seconds with millisecond resolution. Note that this timing starts only after receiving the upstream request header. Times of several responses are separated by commas and colons like addresses in the $upstream_addr variable. |
-| **$upstream_last_read_time**              | Keeps time spent on reading response from the latest upstream server; the time is kept in seconds with millisecond resolution. Note that this timing starts only after receiving the upstream request header. |
-
 ### Upstream errors
 
 The `$upstream_error` variable reports the result of every upstream attempt.
@@ -1455,7 +1360,7 @@ A matching `off` stops subsequent `access_log` entries at the selected level.
 
 ## ngx_http_modsecurity_module (3rd-party module)
 
-refer to [ngx_http_modsecurity_module](https://github.com/HanadaLee/ngx_http_modsecurity_module).
+Refer to [ngx_http_modsecurity_module](https://github.com/owasp-modsecurity/ModSecurity-nginx).
 
 This module connects NGINX/OpenResty with libModSecurity v3. This bundle applies an additional patch that adds log variables for ModSecurity interventions and matched rule IDs, skips deleted request/response headers, and adds `modsecurity_bypass`.
 
@@ -1590,7 +1495,7 @@ Delays TLS handshakes, with the same variable support and delay-before-rejection
 
 ### Variables about SSL handshake timestamps and time spent
 
-In the stream subsystem, new variables are introduced to get the start timestamp, end timestamp, and time taken for the SSL handshake. The module [ngx_stream_extra_variables_module](https://git.hanada.info/hanada/ngx_stream_extra_variables_module) must be compiled to use these variables.
+In the stream subsystem, new variables are introduced to get the start timestamp, end timestamp, and time taken for the SSL handshake.
 
 | Variable                          | Description |
 | ---                               | ---         |
