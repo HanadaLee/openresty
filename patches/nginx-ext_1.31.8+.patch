@@ -19497,7 +19497,7 @@ index bb936c5fe..725d38115 100644
  char *ngx_http_file_cache_set_slot(ngx_conf_t *cf, ngx_command_t *cmd,
      void *conf);
 diff --git a/src/http/ngx_http_core_module.c b/src/http/ngx_http_core_module.c
-index 45dfd2453..aef036835 100644
+index 45dfd2453..41296f3c2 100644
 --- a/src/http/ngx_http_core_module.c
 +++ b/src/http/ngx_http_core_module.c
 @@ -9,6 +9,10 @@
@@ -19840,19 +19840,20 @@ index 45dfd2453..aef036835 100644
  ngx_int_t
  ngx_http_subrequest(ngx_http_request_t *r,
      ngx_str_t *uri, ngx_str_t *args, ngx_http_request_t **psr,
-@@ -3564,7 +3841,12 @@ ngx_http_core_init_main_conf(ngx_conf_t *cf, void *conf)
+@@ -3564,8 +3841,13 @@ ngx_http_core_init_main_conf(ngx_conf_t *cf, void *conf)
              ngx_align(cmcf->server_names_hash_bucket_size, ngx_cacheline_size);
  
  
 +#if (NGX_RESTY_EXT)
-+    ngx_conf_init_uint_value(cmcf->variables_hash_max_size, 4096);
++    ngx_conf_init_uint_value(cmcf->variables_hash_max_size, 2048);
++    ngx_conf_init_uint_value(cmcf->variables_hash_bucket_size, 128);
 +#else
      ngx_conf_init_uint_value(cmcf->variables_hash_max_size, 1024);
-+#endif
-+
      ngx_conf_init_uint_value(cmcf->variables_hash_bucket_size, 64);
++#endif
  
      cmcf->variables_hash_bucket_size =
+                ngx_align(cmcf->variables_hash_bucket_size, ngx_cacheline_size);
 @@ -3734,6 +4016,11 @@ ngx_http_core_create_loc_conf(ngx_conf_t *cf)
      clcf->auth_delay = NGX_CONF_UNSET_MSEC;
      clcf->if_modified_since = NGX_CONF_UNSET_UINT;
