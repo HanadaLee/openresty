@@ -423,6 +423,12 @@ local addrs, err = ngx.resolve("backend.example", "ipv4")
 
 Returns the resolved addresses as an array of `{ addr = "...", type = 4 | 6 }` entries, or `nil, err` on lookup failure. The optional family is `ipv4`, `ipv6`, or `both` (the default). It filters the returned addresses. The active `resolver` configuration controls which DNS queries are sent.
 
+```lua
+local name, err = ngx.resolve("192.0.2.1", "ptr")
+```
+
+The `ptr` mode accepts an IPv4 or IPv6 address and returns its PTR hostname, or `nil, err` on lookup failure.
+
 Uses the resolver and timeout of the current HTTP location or Stream server. Available in HTTP server rewrite, rewrite, preaccess, access, precontent, and content, in Stream access, preread, and content, and in timers in both subsystems. Resolve upstream names before entering the balancer phase.
 
 [Back to TOC](#table-of-contents)

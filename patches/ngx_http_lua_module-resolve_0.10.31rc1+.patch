@@ -12,8 +12,11 @@ diff --git a/config b/config
 diff --git a/src/ngx_http_lua_resolver.c b/src/ngx_http_lua_resolver.c
 --- /dev/null
 +++ b/src/ngx_http_lua_resolver.c
-@@ -0,0 +1,367 @@
+@@ -0,0 +1,423 @@
 +#include "ngx_http_lua_util.h"
++
++
++#define NGX_HTTP_LUA_RESOLVE_PTR  -1
 +
 +
 +/* The result layout is also declared in lua-resty-core. */
@@ -29,6 +32,7 @@ diff --git a/src/ngx_http_lua_resolver.c b/src/ngx_http_lua_resolver.c
 +    ngx_http_lua_resolver_addr_t   *addrs;
 +    const char                     *error;
 +    size_t                          naddrs;
++    ngx_str_t                       name;
 +} ngx_http_lua_resolver_result_t;
 +
 +
@@ -98,7 +102,10 @@ diff --git a/src/ngx_http_lua_resolver.c b/src/ngx_http_lua_resolver.c
 +    if (len == 0 || len > 254
 +        || ngx_strlchr((u_char *) name, (u_char *) name + len, '\0'))
 +    {
-+        *errlen = ngx_snprintf(err, *errlen, "invalid hostname") - err;
++        *errlen = ngx_snprintf(err, *errlen, "%s",
++                              (family == NGX_HTTP_LUA_RESOLVE_PTR)
++                              ? "invalid IP address" : "invalid hostname")
++                  - err;
 +        return NGX_ERROR;
 +    }
 +
@@ -229,6 +236,20 @@ diff --git a/src/ngx_http_lua_resolver.c b/src/ngx_http_lua_resolver.c
 +
 +
 +static void
++ngx_http_lua_resolver_done(ngx_http_lua_resolver_ctx_t *ctx)
++{
++    if (ctx->family == NGX_HTTP_LUA_RESOLVE_PTR) {
++        ngx_resolve_addr_done(ctx->resolver);
++
++    } else {
++        ngx_resolve_name_done(ctx->resolver);
++    }
++
++    ctx->resolver = NULL;
++}
++
++
++static void
 +ngx_http_lua_resolver_free(ngx_http_lua_resolver_ctx_t *ctx)
 +{
 +    if (ctx->event.posted) {
@@ -236,11 +257,15 @@ diff --git a/src/ngx_http_lua_resolver.c b/src/ngx_http_lua_resolver.c
 +    }
 +
 +    if (ctx->resolver) {
-+        ngx_resolve_name_done(ctx->resolver);
++        ngx_http_lua_resolver_done(ctx);
 +    }
 +
 +    if (ctx->result.addrs) {
 +        ngx_free(ctx->result.addrs);
++    }
++
++    if (ctx->result.name.data) {
++        ngx_free(ctx->result.name.data);
 +    }
 +
 +    ngx_free(ctx);
@@ -298,6 +323,23 @@ diff --git a/src/ngx_http_lua_resolver.c b/src/ngx_http_lua_resolver.c
 +    if (rctx->state) {
 +        ctx->result.error = ngx_resolver_strerror(rctx->state);
 +
++    } else if (ctx->family == NGX_HTTP_LUA_RESOLVE_PTR) {
++        if (rctx->name.len == 0) {
++            ctx->result.error = "no PTR record";
++
++        } else {
++            ctx->result.name.data = ngx_alloc(rctx->name.len, ctx->event.log);
++
++            if (ctx->result.name.data == NULL) {
++                ctx->result.error = "no memory";
++
++            } else {
++                ctx->result.name.len = rctx->name.len;
++                ngx_memcpy(ctx->result.name.data, rctx->name.data,
++                           rctx->name.len);
++            }
++        }
++
 +    } else if (rctx->naddrs == 0) {
 +        ctx->result.error = "no addresses";
 +
@@ -305,8 +347,7 @@ diff --git a/src/ngx_http_lua_resolver.c b/src/ngx_http_lua_resolver.c
 +        ngx_http_lua_resolver_set_addrs(ctx, rctx->addrs, rctx->naddrs);
 +    }
 +
-+    ngx_resolve_name_done(rctx);
-+    ctx->resolver = NULL;
++    ngx_http_lua_resolver_done(ctx);
 +
 +    if (ctx->waiting) {
 +        /* Resume after the resolver has finished dispatching its callbacks. */
@@ -328,17 +369,23 @@ diff --git a/src/ngx_http_lua_resolver.c b/src/ngx_http_lua_resolver.c
 +
 +    rc = ngx_parse_addr(pool, &addr, name, len);
 +
-+    if (rc == NGX_OK) {
++    if (rc == NGX_ERROR) {
++        ctx->result.error = "no memory";
++        return NGX_OK;
++    }
++
++    if (ctx->family == NGX_HTTP_LUA_RESOLVE_PTR) {
++        if (rc != NGX_OK) {
++            ctx->result.error = "invalid IP address";
++            return NGX_OK;
++        }
++
++    } else if (rc == NGX_OK) {
 +        ngx_memzero(&literal, sizeof(ngx_resolver_addr_t));
 +        literal.sockaddr = addr.sockaddr;
 +        literal.socklen = addr.socklen;
 +
 +        ngx_http_lua_resolver_set_addrs(ctx, &literal, 1);
-+        return NGX_OK;
-+    }
-+
-+    if (rc == NGX_ERROR) {
-+        ctx->result.error = "no memory";
 +        return NGX_OK;
 +    }
 +
@@ -359,13 +406,22 @@ diff --git a/src/ngx_http_lua_resolver.c b/src/ngx_http_lua_resolver.c
 +    }
 +
 +    ctx->resolver = rctx;
-+    rctx->name.data = name;
-+    rctx->name.len = len;
 +    rctx->handler = ngx_http_lua_resolver_handler;
 +    rctx->data = ctx;
 +    rctx->timeout = timeout;
 +
-+    if (ngx_resolve_name(rctx) != NGX_OK) {
++    if (ctx->family == NGX_HTTP_LUA_RESOLVE_PTR) {
++        rctx->addr.sockaddr = addr.sockaddr;
++        rctx->addr.socklen = addr.socklen;
++        rc = ngx_resolve_addr(rctx);
++
++    } else {
++        rctx->name.data = name;
++        rctx->name.len = len;
++        rc = ngx_resolve_name(rctx);
++    }
++
++    if (rc != NGX_OK) {
 +        ctx->resolver = NULL;
 +        ctx->result.error = "resolver failure";
 +        return NGX_OK;

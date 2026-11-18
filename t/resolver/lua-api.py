@@ -9,6 +9,7 @@ import tempfile
 import threading
 import time
 from collections import Counter
+from ipaddress import ip_address
 from pathlib import Path
 
 from common import check_logs
@@ -43,11 +44,18 @@ def dns_server(sock, index):
         with lock:
             queries[index, host, qtype] += 1
 
-        if host == "timeout.example":
+        if host in ("timeout.example", ip_address("192.0.2.4").reverse_pointer):
             continue
 
         code, answers = 0, []
-        if host == "missing.example":
+        if qtype == 12:
+            if host == ip_address("192.0.2.3").reverse_pointer:
+                code = 3
+            elif host == ip_address("192.0.2.5").reverse_pointer and index == 0:
+                code = 2
+            else:
+                answers = [dns_answer(12, dns_name("ptr.example"))]
+        elif host == "missing.example":
             code = 3
         elif host == "backup.example" and index == 0:
             code = 2
@@ -109,6 +117,9 @@ local function lookup(host, family)
     local addrs, err = ngx.resolve(host, family)
     if not addrs then
         return err
+    end
+    if family == "ptr" then
+        return addrs
     end
     local result = {}
     for i, addr in ipairs(addrs) do
@@ -194,6 +205,17 @@ http {{
                 ngx.say(lookup("cancel.example", "ipv4"))
             }}
         }}
+        location = /ptr-parallel {{
+            content_by_lua_block {{
+                local lookup = require "resolve_format"
+                local a = ngx.thread.spawn(lookup, "192.0.2.2", "ptr")
+                local b = ngx.thread.spawn(lookup, "192.0.2.2", "ptr")
+                assert(ngx.thread.kill(a))
+                local ok, name = ngx.thread.wait(b)
+                assert(ok, name)
+                ngx.say(name)
+            }}
+        }}
         location = /cosocket {{
             content_by_lua_block {{
                 local sock = ngx.socket.tcp()
@@ -220,7 +242,7 @@ http {{
         listen 127.0.0.1:{no_dns_port};
         location / {{
             content_by_lua_block {{
-                ngx.say(require("resolve_format")(ngx.var.arg_host))
+                ngx.say(require("resolve_format")(ngx.var.arg_host, ngx.var.arg_family))
             }}
         }}
     }}
@@ -234,9 +256,15 @@ stream {{
         resolver 127.0.0.1:{dns_ports[0]} ipv6=off;
         resolver_timeout 250ms;
         preread_by_lua_block {{
-            ngx.ctx.answer = require("resolve_format")("stream.example", "ipv4")
+            local lookup = require "resolve_format"
+            ngx.ctx.answer = lookup("stream.example", "ipv4")
+            ngx.ctx.ptr4 = lookup("192.0.2.1", "ptr")
+            ngx.ctx.ptr6 = lookup("2001:db8::1", "ptr")
         }}
-        content_by_lua_block {{ ngx.say(ngx.ctx.answer) }}
+        content_by_lua_block {{
+            ngx.say(ngx.ctx.answer)
+            ngx.say(ngx.ctx.ptr4, " ", ngx.ctx.ptr6)
+        }}
     }}
 }}
 """)
@@ -283,9 +311,25 @@ stream {{
             assert http_request("/?host=::1", no_dns_port) == "6/::1"
             print("PASS DNS errors, family filtering and IP literals")
 
+            for addr in ("192.0.2.1", "2001:db8::1"):
+                path = f"/resolve?host={addr}&family=ptr"
+                assert request(path) == "ptr.example"
+                assert request(path) == "ptr.example"
+                assert queries[0, ip_address(addr).reverse_pointer, 12] == 1, queries
+            assert request("/resolve?host=invalid.example&family=ptr") == "invalid IP address"
+            assert "Host not found" in request("/resolve?host=192.0.2.3&family=ptr")
+            assert "timed out" in request("/resolve?host=192.0.2.4&family=ptr").lower()
+            assert request("/resolve?host=192.0.2.5&family=ptr") == "ptr.example"
+            assert queries[1, ip_address("192.0.2.5").reverse_pointer, 12] == 1, queries
+            assert http_request("/?host=192.0.2.1&family=ptr", no_dns_port) == "no resolver defined"
+            assert request("/ptr-parallel") == "ptr.example"
+            assert queries[0, ip_address("192.0.2.2").reverse_pointer, 12] == 1, queries
+            print("PASS IPv4/IPv6 PTR, cache, failover, errors and coroutine cancellation")
+
             with socket.create_connection(("127.0.0.1", stream_port), 5) as sock:
                 sock.sendall(b"x")
-                assert sock.makefile("rb").readline() == b"4/127.0.0.1\n"
+                output = b"4/127.0.0.1\nptr.example ptr.example\n"
+                assert sock.makefile("rb").read(len(output)) == output
             assert request("/timer") == "4/127.0.0.1"
             assert request("/balanced") == "ok"
             print("PASS Stream preread, HTTP timers and balancer context checks")

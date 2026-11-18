@@ -12,7 +12,7 @@ diff --git a/lib/resty/core.lua b/lib/resty/core.lua
 diff --git a/lib/resty/core/resolver.lua b/lib/resty/core/resolver.lua
 --- /dev/null
 +++ b/lib/resty/core/resolver.lua
-@@ -0,0 +1,127 @@
+@@ -0,0 +1,136 @@
 +local base = require "resty.core.base"
 +base.allows_subsystem("http", "stream")
 +
@@ -47,6 +47,7 @@ diff --git a/lib/resty/core/resolver.lua b/lib/resty/core/resolver.lua
 +            ngx_http_lua_resolver_addr_t *addrs;
 +            const char *error;
 +            size_t naddrs;
++            ngx_str_t name;
 +        } ngx_http_lua_resolver_result_t;
 +
 +        int ngx_http_lua_ffi_resolve(ngx_http_request_t *r,
@@ -73,6 +74,7 @@ diff --git a/lib/resty/core/resolver.lua b/lib/resty/core/resolver.lua
 +            ngx_stream_lua_resolver_addr_t *addrs;
 +            const char *error;
 +            size_t naddrs;
++            ngx_str_t name;
 +        } ngx_stream_lua_resolver_result_t;
 +
 +        int ngx_stream_lua_ffi_resolve(ngx_stream_lua_request_t *r,
@@ -89,7 +91,8 @@ diff --git a/lib/resty/core/resolver.lua b/lib/resty/core/resolver.lua
 +end
 +
 +
-+local family_ids = { both = 0, ipv4 = 4, ipv6 = 6 }
++local RESOLVE_PTR = -1
++local family_ids = { both = 0, ipv4 = 4, ipv6 = 6, ptr = RESOLVE_PTR }
 +local ERR_BUF_SIZE = 128
 +
 +
@@ -100,7 +103,7 @@ diff --git a/lib/resty/core/resolver.lua b/lib/resty/core/resolver.lua
 +
 +    local family_id = family == nil and 0 or family_ids[family]
 +    if family_id == nil then
-+        error("family must be 'ipv4', 'ipv6', or 'both'", 2)
++        error("family must be 'ipv4', 'ipv6', 'both', or 'ptr'", 2)
 +    end
 +
 +    local r = get_request()
@@ -127,6 +130,12 @@ diff --git a/lib/resty/core/resolver.lua b/lib/resty/core/resolver.lua
 +        local err = ffi_str(result.error)
 +        ffi_resolve_done(result)
 +        return nil, err
++    end
++
++    if family_id == RESOLVE_PTR then
++        local name = ffi_str(result.name.data, result.name.len)
++        ffi_resolve_done(result)
++        return name
 +    end
 +
 +    local naddrs = tonumber(result.naddrs)
