@@ -583,7 +583,6 @@ RUN mkdir -p /build/lualib \
     && cd /build/lualib \
     && git clone --depth=1 --branch v${RESTY_LUA_RESTY_BALANCER_VERSION} https://${RESTY_GIT_MIRROR}/openresty/lua-resty-balancer.git lua-resty-balancer \
     && git clone --depth=1 --branch v${RESTY_JSONSCHEMA_VERSION} https://${RESTY_GIT_MIRROR}/api7/jsonschema.git jsonschema \
-    && git clone --depth=1 --branch supported_semaphore_wait_phases https://${RESTY_GIT_MIRROR}/HanadaLee/lua-resty-dns-client.git lua-resty-dns-client \
     && git clone --depth=1 --branch ${RESTY_LUA_RESTY_MLCACHE_VERSION} https://${RESTY_GIT_REPO}/hanada/lua-resty-mlcache.git lua-resty-mlcache \
     && git clone --depth=1 --branch "${RESTY_LUA_RESTY_COOKIE_VERSION}" https://${RESTY_GIT_REPO}/hanada/lua-resty-cookie.git lua-resty-cookie
 
@@ -692,9 +691,6 @@ RUN RESTY_VERSION="$(cat /build/openresty-version)" \
     && cd /build/modules/ngx_http_loop_detect_module \
     && echo 'patching ngx_http_loop_detect_module' \
     && patch -p1 < /build/patches/ngx_http_loop_detect_module-cdn_id_1.0.0+.patch \
-    && cd /build/lualib/lua-resty-dns-client \
-    && echo 'patching lua-resty-dns-client for preaccess_by_lua' \
-    && patch -p1 < /build/patches/lua-resty-dns-client-preaccess_by_lua.patch \
     && cd "${OPENRESTY_DIR}" \
     && echo "patching openresty-${RESTY_VERSION}" \
     && patch -p1 < /build/patches/openresty-fix_prefix_1.27.1.2+.patch \
@@ -796,7 +792,6 @@ RUN mkdir -p /usr/local/openresty/share \
     && cp -r lua-resty-balancer/lib/* /usr/local/openresty/lualib/ \
     && install -m 755 lua-resty-balancer/librestychash.so /usr/local/openresty/lualib/ \
     && cp -r jsonschema/lib/* /usr/local/openresty/lualib/ \
-    && cp -r lua-resty-dns-client/src/* /usr/local/openresty/lualib/ \
     && cp -r lua-resty-mlcache/lib/* /usr/local/openresty/lualib/
 
 # Install LuaRocks packages and runtime data.

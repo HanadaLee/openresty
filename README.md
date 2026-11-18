@@ -200,7 +200,6 @@ See [Module Overview](#module-overview) for the additional nginx modules and the
 * [lua-resty-multipart-parser](https://github.com/agentzh/lua-resty-multipart-parser)
 * [lua-resty-balancer](https://github.com/OpenResty/lua-resty-balancer)
 * [jsonschema](https://github.com/api7/jsonschema)
-* [lua-resty-dns-client](https://git.hanada.info/hanada/lua-resty-dns-client)
 * [lua-resty-mlcache](https://git.hanada.info/hanada/lua-resty-mlcache)
 * [lua-lolhtml](https://git.hanada.info/hanada/lua-lolhtml)
 
