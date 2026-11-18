@@ -1,0 +1,369 @@
+diff --git a/config b/config
+--- a/config
++++ b/config
+@@ -256,6 +256,7 @@
+                 $ngx_addon_dir/src/ngx_stream_lua_string.c \
+                 $ngx_addon_dir/src/ngx_stream_lua_control.c \
+                 $ngx_addon_dir/src/ngx_stream_lua_sleep.c \
++                $ngx_addon_dir/src/ngx_stream_lua_resolver.c \
+                 $ngx_addon_dir/src/ngx_stream_lua_phase.c \
+                 $ngx_addon_dir/src/ngx_stream_lua_ctx.c \
+                 $ngx_addon_dir/src/ngx_stream_lua_regex.c \
+diff --git a/src/ngx_stream_lua_resolver.c b/src/ngx_stream_lua_resolver.c
+--- /dev/null
++++ b/src/ngx_stream_lua_resolver.c
+@@ -0,0 +1,354 @@
++#include "ngx_stream_lua_util.h"
++
++
++/* The result layout is also declared in lua-resty-core. */
++
++typedef struct {
++    u_char                           *data;
++    size_t                            len;
++    int                               family;
++} ngx_stream_lua_resolver_addr_t;
++
++
++typedef struct {
++    ngx_stream_lua_resolver_addr_t   *addrs;
++    const char                       *error;
++    size_t                            naddrs;
++} ngx_stream_lua_resolver_result_t;
++
++
++typedef struct {
++    ngx_stream_lua_resolver_result_t  result;
++    ngx_resolver_ctx_t               *resolver;
++    ngx_event_t                       event;
++    ngx_stream_lua_request_t         *request;
++    ngx_stream_lua_co_ctx_t          *coctx;
++    int                               family;
++    unsigned                          waiting:1;
++} ngx_stream_lua_resolver_ctx_t;
++
++
++static void ngx_stream_lua_resolver_free(ngx_stream_lua_resolver_ctx_t *ctx);
++static ngx_int_t ngx_stream_lua_resolver_start(
++    ngx_stream_lua_resolver_ctx_t *ctx, ngx_pool_t *pool,
++    ngx_resolver_t *resolver, ngx_msec_t timeout, u_char *host, size_t len);
++
++
++static void ngx_stream_lua_resolve_cleanup(void *data);
++static void ngx_stream_lua_resolve_handler(ngx_event_t *ev);
++static ngx_int_t ngx_stream_lua_resolve_resume(ngx_stream_lua_request_t *r);
++
++int ngx_stream_lua_ffi_resolve(ngx_stream_lua_request_t *r,
++    const u_char *name, size_t len, int family,
++    ngx_stream_lua_resolver_result_t **result, u_char *err, size_t *errlen);
++void ngx_stream_lua_ffi_resolve_done(
++    ngx_stream_lua_resolver_result_t *result);
++
++
++int
++ngx_stream_lua_ffi_resolve(ngx_stream_lua_request_t *r, const u_char *name,
++    size_t len, int family, ngx_stream_lua_resolver_result_t **result,
++    u_char *err, size_t *errlen)
++{
++    unsigned                       flags;
++    u_char                        *host;
++    ngx_stream_lua_ctx_t          *lctx;
++    ngx_stream_lua_co_ctx_t       *coctx;
++    ngx_stream_core_srv_conf_t    *cscf;
++    ngx_stream_lua_resolver_ctx_t *ctx;
++
++    lctx = ngx_stream_lua_get_module_ctx(r, ngx_stream_lua_module);
++    if (lctx == NULL) {
++        *errlen = ngx_snprintf(err, *errlen, "no request context") - err;
++        return NGX_ERROR;
++    }
++
++    flags = NGX_STREAM_LUA_CONTEXT_ACCESS
++            | NGX_STREAM_LUA_CONTEXT_PREREAD
++            | NGX_STREAM_LUA_CONTEXT_CONTENT
++            | NGX_STREAM_LUA_CONTEXT_TIMER;
++
++    if (ngx_stream_lua_ffi_check_context(lctx, flags, err, errlen) != NGX_OK) {
++        return NGX_ERROR;
++    }
++
++    if (lctx->cur_co_ctx == NULL) {
++        *errlen = ngx_snprintf(err, *errlen, "no coroutine context") - err;
++        return NGX_ERROR;
++    }
++
++    if (len == 0 || len > 254
++        || ngx_strlchr((u_char *) name, (u_char *) name + len, '\0'))
++    {
++        *errlen = ngx_snprintf(err, *errlen, "invalid hostname") - err;
++        return NGX_ERROR;
++    }
++
++    ctx = ngx_alloc(sizeof(ngx_stream_lua_resolver_ctx_t) + len,
++                    r->connection->log);
++    if (ctx == NULL) {
++        *errlen = ngx_snprintf(err, *errlen, "no memory") - err;
++        return NGX_ERROR;
++    }
++
++    ngx_memzero(ctx, sizeof(ngx_stream_lua_resolver_ctx_t));
++    host = (u_char *) (ctx + 1);
++    ngx_memcpy(host, name, len);
++
++    coctx = lctx->cur_co_ctx;
++    ngx_stream_lua_cleanup_pending_operation(coctx);
++    coctx->cleanup = ngx_stream_lua_resolve_cleanup;
++    coctx->data = ctx;
++
++    ctx->request = r;
++    ctx->coctx = coctx;
++    ctx->family = family;
++
++    ctx->event.handler = ngx_stream_lua_resolve_handler;
++    ctx->event.data = ctx;
++    ctx->event.log = r->connection->log;
++
++    cscf = ngx_stream_get_module_srv_conf(r->session,
++                                          ngx_stream_core_module);
++    *result = &ctx->result;
++
++    return ngx_stream_lua_resolver_start(ctx, r->pool, cscf->resolver,
++                                         cscf->resolver_timeout, host, len);
++}
++
++
++void
++ngx_stream_lua_ffi_resolve_done(ngx_stream_lua_resolver_result_t *result)
++{
++    ngx_stream_lua_resolver_ctx_t  *ctx;
++
++    ctx = (ngx_stream_lua_resolver_ctx_t *) result;
++    ngx_stream_lua_cleanup_pending_operation(ctx->coctx);
++}
++
++
++static void
++ngx_stream_lua_resolve_cleanup(void *data)
++{
++    ngx_stream_lua_co_ctx_t  *coctx = data;
++
++    ngx_stream_lua_resolver_free(coctx->data);
++    coctx->data = NULL;
++}
++
++
++static void
++ngx_stream_lua_resolve_handler(ngx_event_t *ev)
++{
++    ngx_stream_lua_request_t      *r;
++    ngx_stream_lua_ctx_t          *lctx;
++    ngx_stream_lua_resolver_ctx_t *ctx;
++
++    ctx = ev->data;
++    r = ctx->request;
++    lctx = ngx_stream_lua_get_module_ctx(r, ngx_stream_lua_module);
++    if (lctx == NULL) {
++        ngx_stream_lua_cleanup_pending_operation(ctx->coctx);
++        return;
++    }
++
++    lctx->cur_co_ctx = ctx->coctx;
++
++    if (lctx->entered_content_phase) {
++        (void) ngx_stream_lua_resolve_resume(r);
++
++    } else {
++        lctx->resume_handler = ngx_stream_lua_resolve_resume;
++        ngx_stream_lua_core_run_phases(r);
++    }
++}
++
++
++static ngx_int_t
++ngx_stream_lua_resolve_resume(ngx_stream_lua_request_t *r)
++{
++    lua_State            *vm;
++    ngx_int_t             rc;
++    ngx_uint_t            nreqs;
++    ngx_connection_t     *c;
++    ngx_stream_lua_ctx_t *ctx;
++
++    ctx = ngx_stream_lua_get_module_ctx(r, ngx_stream_lua_module);
++    ctx->resume_handler = ngx_stream_lua_wev_handler;
++
++    c = r->connection;
++    vm = ngx_stream_lua_get_lua_vm(r, ctx);
++    nreqs = c->requests;
++
++    rc = ngx_stream_lua_run_thread(vm, r, ctx, 0);
++
++    if (rc == NGX_AGAIN) {
++        return ngx_stream_lua_run_posted_threads(c, vm, r, ctx, nreqs);
++    }
++
++    if (rc == NGX_DONE) {
++        ngx_stream_lua_finalize_request(r, NGX_DONE);
++        return ngx_stream_lua_run_posted_threads(c, vm, r, ctx, nreqs);
++    }
++
++    if (ctx->entered_content_phase) {
++        ngx_stream_lua_finalize_request(r, rc);
++        return NGX_DONE;
++    }
++
++    return rc;
++}
++
++
++static void
++ngx_stream_lua_resolver_free(ngx_stream_lua_resolver_ctx_t *ctx)
++{
++    if (ctx->event.posted) {
++        ngx_delete_posted_event(&ctx->event);
++    }
++
++    if (ctx->resolver) {
++        ngx_resolve_name_done(ctx->resolver);
++    }
++
++    if (ctx->result.addrs) {
++        ngx_free(ctx->result.addrs);
++    }
++
++    ngx_free(ctx);
++}
++
++
++static void
++ngx_stream_lua_resolver_set_addrs(ngx_stream_lua_resolver_ctx_t *ctx,
++    ngx_resolver_addr_t *addrs, ngx_uint_t naddrs)
++{
++    int                             family;
++    u_char                         *text;
++    ngx_uint_t                      i;
++    ngx_stream_lua_resolver_addr_t *out;
++
++    out = ngx_alloc(naddrs * (sizeof(ngx_stream_lua_resolver_addr_t)
++                              + NGX_INET6_ADDRSTRLEN), ctx->event.log);
++    if (out == NULL) {
++        ctx->result.error = "no memory";
++        return;
++    }
++
++    ctx->result.addrs = out;
++    text = (u_char *) (out + naddrs);
++
++    for (i = 0; i < naddrs; i++) {
++        family = (addrs[i].sockaddr->sa_family == AF_INET) ? 4 : 6;
++
++        if (ctx->family && ctx->family != family) {
++            continue;
++        }
++
++        out->len = ngx_sock_ntop(addrs[i].sockaddr, addrs[i].socklen, text,
++                                 NGX_INET6_ADDRSTRLEN, 0);
++        out->data = text;
++        out->family = family;
++        out++;
++        text += NGX_INET6_ADDRSTRLEN;
++        ctx->result.naddrs++;
++    }
++
++    if (ctx->result.naddrs == 0) {
++        ctx->result.error = "no addresses for the requested family";
++    }
++}
++
++
++static void
++ngx_stream_lua_resolver_handler(ngx_resolver_ctx_t *rctx)
++{
++    ngx_stream_lua_resolver_ctx_t  *ctx;
++
++    ctx = rctx->data;
++
++    if (rctx->state) {
++        ctx->result.error = ngx_resolver_strerror(rctx->state);
++
++    } else if (rctx->naddrs == 0) {
++        ctx->result.error = "no addresses";
++
++    } else {
++        ngx_stream_lua_resolver_set_addrs(ctx, rctx->addrs, rctx->naddrs);
++    }
++
++    ngx_resolve_name_done(rctx);
++    ctx->resolver = NULL;
++
++    if (ctx->waiting) {
++        /* Resume after the resolver has finished dispatching its callbacks. */
++
++        ngx_post_event(&ctx->event, &ngx_posted_events);
++    }
++}
++
++
++static ngx_int_t
++ngx_stream_lua_resolver_start(ngx_stream_lua_resolver_ctx_t *ctx,
++    ngx_pool_t *pool, ngx_resolver_t *resolver, ngx_msec_t timeout,
++    u_char *name, size_t len)
++{
++    ngx_int_t            rc;
++    ngx_addr_t           addr;
++    ngx_resolver_ctx_t  *rctx;
++    ngx_resolver_addr_t  literal;
++
++    rc = ngx_parse_addr(pool, &addr, name, len);
++
++    if (rc == NGX_OK) {
++        ngx_memzero(&literal, sizeof(ngx_resolver_addr_t));
++        literal.sockaddr = addr.sockaddr;
++        literal.socklen = addr.socklen;
++
++        ngx_stream_lua_resolver_set_addrs(ctx, &literal, 1);
++        return NGX_OK;
++    }
++
++    if (rc == NGX_ERROR) {
++        ctx->result.error = "no memory";
++        return NGX_OK;
++    }
++
++    if (resolver == NULL) {
++        ctx->result.error = "no resolver defined";
++        return NGX_OK;
++    }
++
++    rctx = ngx_resolve_start(resolver, NULL);
++    if (rctx == NGX_NO_RESOLVER) {
++        ctx->result.error = "no resolver defined";
++        return NGX_OK;
++    }
++
++    if (rctx == NULL) {
++        ctx->result.error = "no memory";
++        return NGX_OK;
++    }
++
++    ctx->resolver = rctx;
++    rctx->name.data = name;
++    rctx->name.len = len;
++    rctx->handler = ngx_stream_lua_resolver_handler;
++    rctx->data = ctx;
++    rctx->timeout = timeout;
++
++    if (ngx_resolve_name(rctx) != NGX_OK) {
++        ctx->resolver = NULL;
++        ctx->result.error = "resolver failure";
++        return NGX_OK;
++    }
++
++    /* The callback can complete inline and release rctx on a cache hit. */
++
++    if (ctx->resolver == NULL) {
++        return NGX_OK;
++    }
++
++    ctx->waiting = 1;
++    return NGX_AGAIN;
++}

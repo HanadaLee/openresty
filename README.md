@@ -21,6 +21,8 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [resolver_next_nameserver](#resolver_next_nameserver)
     - [resolver_next_nameserver_timeout](#resolver_next_nameserver_timeout)
     - [resolver_next_nameserver_tries](#resolver_next_nameserver_tries)
+  - [lua-resty-core](#lua-resty-core)
+    - [ngx.resolve](#ngxresolve)
   - [ngx\_http\_lua\_module](#ngx_http_lua_module)
     - [preaccess\_by\_lua\_block](#preaccess_by_lua_block)
     - [preaccess\_by\_lua\_file](#preaccess_by_lua_file)
@@ -408,6 +410,20 @@ Limits the time during which another nameserver may be tried. `0` disables the l
 * **Context:** HTTP `http`, `server`, `location`, `upstream`; Stream `stream`, `server`, `upstream`; Mail `mail`, `server`
 
 Limits attempts, including the first attempt, retransmissions and CNAME/SRV follow-up queries. `0` disables the limit. Waiters sharing a query retain independent limits.
+
+[Back to TOC](#table-of-contents)
+
+## lua-resty-core
+
+### ngx.resolve
+
+```lua
+local addrs, err = ngx.resolve("backend.example", "ipv4")
+```
+
+Returns the resolved addresses as an array of `{ addr = "...", type = 4 | 6 }` entries, or `nil, err` on lookup failure. The optional family is `ipv4`, `ipv6`, or `both` (the default). It filters the returned addresses. The active `resolver` configuration controls which DNS queries are sent.
+
+Uses the resolver and timeout of the current HTTP location or Stream server. Available in HTTP server rewrite, rewrite, preaccess, access, precontent, and content, in Stream access, preread, and content, and in timers in both subsystems. Resolve upstream names before entering the balancer phase.
 
 [Back to TOC](#table-of-contents)
 

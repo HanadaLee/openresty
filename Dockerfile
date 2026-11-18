@@ -702,15 +702,18 @@ RUN RESTY_VERSION="$(cat /build/openresty-version)" \
     && echo "patching ngx_stream_lua_module" \
     && patch -p1 < /build/patches/ngx_stream_lua_module-expose_request_struct_0.0.18RC2+.patch \
     && patch -p1 < /build/patches/ngx_stream_lua_module-access_by_lua_0.0.18RC2+.patch \
+    && patch -p1 < /build/patches/ngx_stream_lua_module-resolve_0.0.18RC2+.patch \
     && cd "${OPENRESTY_DIR}"/bundle/lua-resty-websocket-* \
     && echo "patching lua-resty-websocket" \
     && patch -p1 < /build/patches/lua-resty-websocket-fix_stream_0.13+.patch \
     && cd "${OPENRESTY_DIR}"/bundle/lua-resty-core-* \
     && echo "patching lua-resty-core for preaccess_by_lua" \
     && patch -p1 < /build/patches/lua-resty-core-preaccess_by_lua_0.1.34rc1+.patch \
+    && patch -p1 < /build/patches/lua-resty-core-resolve_0.1.33RC1+.patch \
     && cd "${OPENRESTY_DIR}"/bundle/ngx_lua-* \
     && echo "patching ngx_http_lua_module for preaccess_by_lua" \
     && patch -p1 < /build/patches/ngx_http_lua_module-preaccess_by_lua_0.10.31rc1+.patch \
+    && patch -p1 < /build/patches/ngx_http_lua_module-resolve_0.10.31rc1+.patch \
     && echo "patching ngx_http_lua_module for native ClientHello retry" \
     && patch -p1 < /build/patches/ngx_http_lua_module-client_hello_retry_0.10.29rc1+.patch \
     && cd "${NGINX_DIR}" \
