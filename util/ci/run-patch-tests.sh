@@ -32,7 +32,7 @@ run_test_phase patch-regressions docker run --rm --init \
         (cd /input && sha256sum -c /results/inputs.sha256) > /results/input-verification.log
         apt-get -o APT::Update::Error-Mode=any update
         DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-            perl libtest-base-perl libtext-diff-perl libtest-longstring-perl \
+            perl python3 libtest-base-perl libtext-diff-perl libtest-longstring-perl \
             libwww-perl libipc-run-perl libio-socket-ssl-perl liburi-perl \
             liblist-moreutils-perl
         mkdir -p /test-work/tests /test-work/harnesses /results/tmp
