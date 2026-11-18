@@ -685,13 +685,13 @@ RUN RESTY_VERSION="$(cat /build/openresty-version)" \
     && NGINX_DIR="${OPENRESTY_DIR}/bundle/nginx-${NGINX_VERSION}" \
     && cd /build/modules/ngx_tcp_fingerprint_module \
     && echo 'patching ngx_tcp_fingerprint_module to remove RTT collection' \
-    && patch --batch --forward --fuzz=0 -p1 < /build/patches/ngx_tcp_fingerprint_module-no-rtt.patch \
+    && patch --batch --forward --fuzz=0 -p1 < /build/patches/ngx_tcp_fingerprint_module-no-rtt_0.2.0+.patch \
     && cd /build/modules/ngx_http_modsecurity_module \
     && echo 'patching ngx_http_modsecurity_module' \
-    && patch -p1 < /build/patches/ngx_http_modsecurity_module-ext.patch \
+    && patch -p1 < /build/patches/ngx_http_modsecurity_module-ext_1.0.4-18-gb7cf44e+.patch \
     && cd /build/modules/ngx_http_loop_detect_module \
     && echo 'patching ngx_http_loop_detect_module' \
-    && patch -p1 < /build/patches/ngx_http_loop_detect_module-cdn_id.patch \
+    && patch -p1 < /build/patches/ngx_http_loop_detect_module-cdn_id_1.0.0+.patch \
     && cd /build/lualib/lua-resty-dns-client \
     && echo 'patching lua-resty-dns-client for preaccess_by_lua' \
     && patch -p1 < /build/patches/lua-resty-dns-client-preaccess_by_lua.patch \
@@ -707,12 +707,12 @@ RUN RESTY_VERSION="$(cat /build/openresty-version)" \
     && patch -p1 < /build/patches/lua-resty-websocket-fix_stream_0.13+.patch \
     && cd "${OPENRESTY_DIR}"/bundle/lua-resty-core-* \
     && echo "patching lua-resty-core for preaccess_by_lua" \
-    && patch -p1 < /build/patches/lua-resty-core-preaccess_by_lua.patch \
+    && patch -p1 < /build/patches/lua-resty-core-preaccess_by_lua_0.1.34rc1+.patch \
     && cd "${OPENRESTY_DIR}"/bundle/ngx_lua-* \
     && echo "patching ngx_http_lua_module for preaccess_by_lua" \
-    && patch -p1 < /build/patches/ngx_http_lua_module-preaccess_by_lua.patch \
+    && patch -p1 < /build/patches/ngx_http_lua_module-preaccess_by_lua_0.10.31rc1+.patch \
     && echo "patching ngx_http_lua_module for native ClientHello retry" \
-    && patch -p1 < /build/patches/ngx_http_lua_module-client_hello_retry.patch \
+    && patch -p1 < /build/patches/ngx_http_lua_module-client_hello_retry_0.10.29rc1+.patch \
     && cd "${NGINX_DIR}" \
     && echo "patching nginx-${NGINX_VERSION} ext" \
     && patch -p1 < /build/patches/nginx-ext_1.31.8+.patch \
@@ -725,19 +725,19 @@ RUN RESTY_VERSION="$(cat /build/openresty-version)" \
     && bash /build/modules/ngx_http_cache_purge_module/util/apply-nginx-patches.sh "${NGINX_DIR}" \
     && cd "${OPENRESTY_DIR}"/bundle/redis-nginx-module-* \
     && echo "patching ngx_http_redis_module" \
-    && patch -p1 < /build/patches/ngx_http_redis_module-conditional_upstream.patch \
+    && patch -p1 < /build/patches/ngx_http_redis_module-conditional_upstream_0.40+.patch \
     && cd "${OPENRESTY_DIR}"/bundle/redis2-nginx-module-* \
     && echo "patching ngx_http_redis2_module" \
-    && patch -p1 < /build/patches/ngx_http_redis2_module-conditional_upstream.patch \
+    && patch -p1 < /build/patches/ngx_http_redis2_module-conditional_upstream_0.15rc1+.patch \
     && cd "${OPENRESTY_DIR}"/bundle/drizzle-nginx-module-* \
     && echo "patching ngx_http_drizzle_module" \
-    && patch -p1 < /build/patches/ngx_http_drizzle_module-conditional_upstream.patch \
+    && patch -p1 < /build/patches/ngx_http_drizzle_module-conditional_upstream_0.1.7+.patch \
     && cd "${OPENRESTY_DIR}"/bundle/ngx_postgres-* \
     && echo "patching ngx_postgres_module" \
-    && patch -p1 < /build/patches/ngx_postgres_module-conditional_upstream.patch \
+    && patch -p1 < /build/patches/ngx_postgres_module-conditional_upstream_1.1+.patch \
     && cd "${OPENRESTY_DIR}"/bundle/ngx_lua-* \
     && echo "patching ngx_http_lua_module for conditional upstream settings" \
-    && patch -p1 < /build/patches/ngx_http_lua_module-conditional_upstream.patch \
+    && patch -p1 < /build/patches/ngx_http_lua_module-conditional_upstream_0.10.27rc1+.patch \
     && cd "${NGINX_DIR}" \
     && echo "patching nginx-${NGINX_VERSION} for ngx_http_upstream_log_module" \
     && patch -p1 < /build/modules/ngx_http_upstream_log_module/ngx_http_upstream_log_1.25.3+.patch \
