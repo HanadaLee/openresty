@@ -15,6 +15,12 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
   - [Components from LuaRocks](#components-from-luarocks)
 - [Module Overview](#module-overview)
 - [Additional Features](#additional-features)
+  - [Resolver](#resolver)
+    - [nameserver](#nameserver)
+    - [resolver](#resolver-1)
+    - [resolver_next_nameserver](#resolver_next_nameserver)
+    - [resolver_next_nameserver_timeout](#resolver_next_nameserver_timeout)
+    - [resolver_next_nameserver_tries](#resolver_next_nameserver_tries)
   - [ngx\_http\_lua\_module](#ngx_http_lua_module)
     - [preaccess\_by\_lua\_block](#preaccess_by_lua_block)
     - [preaccess\_by\_lua\_file](#preaccess_by_lua_file)
@@ -305,6 +311,103 @@ The following nginx module projects are added to the official OpenResty bundle. 
 # Additional Features
 
 The following sections describe extensions maintained in this bundle's patches.
+
+[Back to TOC](#table-of-contents)
+
+## Resolver
+
+Resolver extensions apply to HTTP, Stream and Mail.
+
+```nginx
+http {
+    nameserver dns {
+        server 192.0.2.53 weight=2;
+        server 192.0.2.54;
+        local /etc/resolv.conf level=2;
+        server 203.0.113.53 level=3;
+    }
+
+    resolver dns ipv6=off max_ttl=5m
+                 negative_valid=10s error_valid=1s stale_valid=5m;
+    resolver_timeout 5s;
+    resolver_next_nameserver error timeout rcode_servfail;
+}
+```
+
+### nameserver
+
+* **Syntax:** `nameserver name { ... }`
+* **Default:** —
+* **Context:** `http`, `stream`, `mail`
+
+Defines a group of DNS servers. Group names are local to their HTTP, Stream or Mail block. A `resolver` directive may reference a group before its definition.
+
+The block accepts `server` and `local`:
+
+```nginx
+server address [level=number] [weight=number]
+               [max_fails=number] [fail_timeout=time];
+local file [level=number] [weight=number]
+           [max_fails=number] [fail_timeout=time];
+```
+
+`local` reads nameserver addresses from a resolv.conf file when the configuration is loaded.
+
+| Parameter | Default | Description |
+| --- | --- | --- |
+| `level` | `1` | Smaller levels are tried first on a cache miss. |
+| `weight` | `1` | Weight for round-robin selection within a level. |
+| `max_fails` | `0` | Transport failures before temporary exclusion; `0` disables exclusion. |
+| `fail_timeout` | `10s` | Failure counting window and exclusion time. |
+
+The default port is 53. Server hostnames are resolved when the configuration is loaded. If every server in the group is excluded, selection temporarily considers all servers available.
+
+### resolver
+
+Extends the [HTTP resolver](https://nginx.org/en/docs/http/ngx_http_core_module.html#resolver), [Stream resolver](https://nginx.org/en/docs/stream/ngx_stream_core_module.html#resolver) and [Mail resolver](https://nginx.org/en/docs/mail/ngx_mail_core_module.html#resolver) directives.
+
+A single server argument selects a nameserver group in the current HTTP, Stream or Mail block. If no group matches, nginx parses the argument as an address or hostname. Multiple server arguments and `local=on` retain address-list processing. Mail retains `resolver off`.
+
+The following optional parameters are added:
+
+| Parameter | Default | Description |
+| --- | --- | --- |
+| `min_ttl=time` | `0` | Minimum positive-answer TTL. |
+| `max_ttl=time` | `0` | Maximum positive-answer TTL; `0` adds no limit. |
+| `negative_valid=time` | `0` | Maximum cache lifetime for NXDOMAIN and NODATA. |
+| `error_valid=time` | `0` | Maximum cache lifetime for final lookup failures. |
+| `stale_valid=time` | `0` | Additional time during which expired positive answers may be returned while refreshing in the background. |
+
+`valid` cannot be used with `min_ttl` or `max_ttl`, including `valid=0`. Negative and failure lifetimes use the smallest applicable TTL, their configured limit and a nonzero `valid`. Negative TTLs use the smaller SOA TTL and MINIMUM value. A zero negative TTL is not cached.
+
+Stale answers remain available until their original validity plus `stale_valid`; access and failed refreshes do not extend that deadline. A successful refresh replaces the cached answer, and a negative result invalidates the previous positive answer. All levels of a resolver share the same cache.
+
+### resolver_next_nameserver
+
+* **Syntax:** `resolver_next_nameserver condition ...;`
+* **Syntax:** `resolver_next_nameserver off;`
+* **Default:** `resolver_next_nameserver error timeout;`
+* **Context:** HTTP `http`, `server`, `location`, `upstream`; Stream `stream`, `server`, `upstream`; Mail `mail`, `server`
+
+Specifies when another DNS server may be tried. Conditions are `error`, `timeout`, `invalid_response`, `nodata`, `rcode_formerr`, `rcode_servfail`, `rcode_nxdomain`, `rcode_notimp` and `rcode_refused`. RCODEs greater than 5 use `invalid_response`.
+
+`off` disables retries while allowing the current attempt to complete. It takes precedence over any other conditions set at the same configuration level. Truncation fallback to TCP uses the same attempt. Exhausting a round does not start another round until the resend timer expires.
+
+### resolver_next_nameserver_timeout
+
+* **Syntax:** `resolver_next_nameserver_timeout time;`
+* **Default:** `resolver_next_nameserver_timeout 0;`
+* **Context:** HTTP `http`, `server`, `location`, `upstream`; Stream `stream`, `server`, `upstream`; Mail `mail`, `server`
+
+Limits the time during which another nameserver may be tried. `0` disables the limit. The window starts with the first attempt and is not restarted for another level, CNAME or SRV target. `resolver_timeout` retains its existing query timeout semantics.
+
+### resolver_next_nameserver_tries
+
+* **Syntax:** `resolver_next_nameserver_tries number;`
+* **Default:** `resolver_next_nameserver_tries 0;`
+* **Context:** HTTP `http`, `server`, `location`, `upstream`; Stream `stream`, `server`, `upstream`; Mail `mail`, `server`
+
+Limits attempts, including the first attempt, retransmissions and CNAME/SRV follow-up queries. `0` disables the limit. Waiters sharing a query retain independent limits.
 
 [Back to TOC](#table-of-contents)
 
