@@ -125,7 +125,7 @@ built directly from the repository root:
 docker build --tag openresty:local .
 ```
 
-To build a versioned local image, resolve the release version first.
+To build a versioned local image, resolve the pinned upstream version first:
 
 ```shell
 resty_version="$(bash util/openresty-version.sh)"
@@ -147,8 +147,6 @@ name. The patches in this repository target the bundle produced by the pinned
 commit and must be regenerated or revalidated whenever that commit changes.
 The default `RESTY_REPOSITORY` is derived from `RESTY_GIT_MIRROR`, so overriding
 the mirror also applies to the pinned OpenResty source checkout.
-
-The temporary nginx 1.31.9 backport gives the OpenResty 1.31.8.1 source bundle the 1.31.9.1 release version. When the pinned OpenResty bundle includes nginx 1.31.9 or later, remove the backport, the temporary upstream notification patch adjustment and the Dockerfile version override so the release version comes from upstream `util/ver` again.
 
 Dynamic modules must be built against the same patched source and configuration headers as the server. Module signatures include the extension ABI. Incompatible modules are rejected with `is not binary compatible`; `--with-compat` does not bypass these checks.
 

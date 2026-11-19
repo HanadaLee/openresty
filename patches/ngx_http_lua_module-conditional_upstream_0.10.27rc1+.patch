@@ -2,17 +2,15 @@ diff --git a/src/ngx_http_lua_balancer.c b/src/ngx_http_lua_balancer.c
 index 904de3a..81334ac 100644
 --- a/src/ngx_http_lua_balancer.c
 +++ b/src/ngx_http_lua_balancer.c
-@@ -15,6 +15,10 @@
+@@ -15,4 +15,8 @@
  #include "ngx_http_lua_util.h"
  #include "ngx_http_lua_directive.h"
- 
++
 +#if (NGX_RESTY_EXT && NGX_EXPR)
 +#include <ngx_http_expr_module.h>
 +#endif
-+
+ 
  #define NGX_BALANCER_DEF_HOST_LEN  32
- typedef struct {
-     ngx_queue_t                    queue;
 @@ -1188,7 +1192,18 @@ ngx_http_lua_ffi_balancer_set_more_tries(ngx_http_request_t *r,
      bp = (ngx_http_lua_balancer_peer_data_t *) u->peer.data;
  
