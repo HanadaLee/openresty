@@ -1,6 +1,6 @@
 # Temporary release version for the nginx 1.31.9 backport.
 ARG RESTY_VERSION="1.31.9.1"
-ARG RESTY_RELEASE="393"
+ARG RESTY_RELEASE="394"
 ARG RESTY_COMMIT="1779c93a7eb5ab5b3c0fc45b9224107db9f3829e"
 ARG RESTY_J="4"
 ARG RESTY_IMAGE_BASE="debian"
