@@ -38,8 +38,6 @@ __DATA__
         assert(file:close())
         ngx.say(assert(ngx.fs.read_file(path, 6)))
     }
---- stream_request
-go
 --- stream_response
 abXYef
 --- no_error_log
