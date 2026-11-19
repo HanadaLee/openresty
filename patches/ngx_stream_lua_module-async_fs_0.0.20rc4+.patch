@@ -1,0 +1,226 @@
+Expose ngx.fs in Stream Lua with the shared file operations.
+
+diff --git a/config b/config
+index 434960a99a9c258fe5d8935b5137d21813e03b2e..cd0a79e69f4e8062c19e90987d249b1accc6c016 100644
+--- a/config
++++ b/config
+@@ -243,6 +243,7 @@ STREAM_LUA_SRCS=" \
+                 $ngx_addon_dir/src/ngx_stream_lua_lex.c \
+                 $ngx_addon_dir/src/ngx_stream_lua_contentby.c \
+                 $ngx_addon_dir/src/ngx_stream_lua_util.c \
++                $ngx_addon_dir/src/ngx_stream_lua_async_fs.c \
+                 $ngx_addon_dir/src/ngx_stream_lua_cache.c \
+                 $ngx_addon_dir/src/ngx_stream_lua_clfactory.c \
+                 $ngx_addon_dir/src/ngx_stream_lua_exception.c \
+@@ -295,6 +296,8 @@ STREAM_LUA_DEPS=" \
+                 $ngx_addon_dir/src/ngx_stream_lua_lex.h \
+                 $ngx_addon_dir/src/ngx_stream_lua_contentby.h \
+                 $ngx_addon_dir/src/ngx_stream_lua_util.h \
++                $ngx_addon_dir/src/ngx_stream_lua_async_fs.h \
++                $ngx_addon_dir/src/ngx_lua_async_fs.inc \
+                 $ngx_addon_dir/src/ngx_stream_lua_cache.h \
+                 $ngx_addon_dir/src/ngx_stream_lua_clfactory.h \
+                 $ngx_addon_dir/src/ngx_stream_lua_pcrefix.h \
+diff --git a/src/ngx_stream_lua_async_fs.c b/src/ngx_stream_lua_async_fs.c
+new file mode 100644
+index 0000000000000000000000000000000000000000..b8ef71c5fdd92fb3b9d5d4289fc799b3a71f2854
+--- /dev/null
++++ b/src/ngx_stream_lua_async_fs.c
+@@ -0,0 +1,141 @@
++
++/*
++ * Copyright (C) Yichun Zhang (agentzh)
++ */
++
++
++#include "ngx_stream_lua_async_fs.h"
++#include "ngx_stream_lua_util.h"
++
++
++#if (NGX_THREADS)
++
++typedef ngx_stream_lua_co_ctx_t ngx_lua_fs_co_ctx_t;
++
++#define NGX_LUA_FS_DEBUG  NGX_LOG_DEBUG_STREAM
++#define ngx_lua_fs_cleanup_pending_operation \
++    ngx_stream_lua_cleanup_pending_operation
++
++#include "ngx_lua_async_fs.inc"
++
++
++static ngx_lua_fs_co_ctx_t *
++ngx_lua_fs_check_context(lua_State *L)
++{
++    ngx_stream_lua_request_t  *r;
++    ngx_stream_lua_ctx_t      *ctx;
++
++    r = ngx_stream_lua_get_req(L);
++    if (r == NULL) {
++        luaL_error(L, "no request found");
++        return NULL;
++    }
++
++    ctx = ngx_stream_lua_get_module_ctx(r, ngx_stream_lua_module);
++    if (ctx == NULL) {
++        luaL_error(L, "no request ctx found");
++        return NULL;
++    }
++
++    if (!(ctx->context & NGX_STREAM_LUA_CONTEXT_YIELDABLE)) {
++        luaL_error(L, "API disabled in the context of %s",
++                   ngx_stream_lua_context_name(ctx->context));
++        return NULL;
++    }
++
++    if (ctx->cur_co_ctx == NULL) {
++        luaL_error(L, "no coroutine context");
++        return NULL;
++    }
++
++    luaL_checkstack(L, 3, "file operation results");
++
++    return ctx->cur_co_ctx;
++}
++
++
++static ngx_int_t
++ngx_stream_lua_fs_resume(ngx_stream_lua_request_t *r)
++{
++    lua_State             *vm;
++    ngx_int_t              rc;
++    ngx_uint_t             nreqs;
++    ngx_connection_t      *c;
++    ngx_stream_lua_ctx_t  *ctx;
++
++    ctx = ngx_stream_lua_get_module_ctx(r, ngx_stream_lua_module);
++    if (ctx == NULL) {
++        return NGX_ERROR;
++    }
++
++    ctx->resume_handler = ngx_stream_lua_wev_handler;
++    c = r->connection;
++    vm = ngx_stream_lua_get_lua_vm(r, ctx);
++    nreqs = c->requests;
++
++    rc = ngx_stream_lua_run_thread(vm, r, ctx,
++                                   ctx->cur_co_ctx->fs_nresults);
++
++    if (rc == NGX_AGAIN) {
++        return ngx_stream_lua_run_posted_threads(c, vm, r, ctx, nreqs);
++    }
++
++    if (rc == NGX_DONE) {
++        ngx_stream_lua_finalize_request(r, NGX_DONE);
++        return ngx_stream_lua_run_posted_threads(c, vm, r, ctx, nreqs);
++    }
++
++    if (ctx->entered_content_phase) {
++        ngx_stream_lua_finalize_request(r, rc);
++        return NGX_DONE;
++    }
++
++    return rc;
++}
++
++
++static void
++ngx_lua_fs_complete(ngx_lua_fs_ctx_t *fs_ctx)
++{
++    lua_State                 *vm;
++    ngx_stream_lua_request_t  *r;
++    ngx_stream_lua_ctx_t      *ctx;
++    ngx_lua_fs_co_ctx_t       *coctx;
++
++    coctx = fs_ctx->wait_co_ctx;
++    r = ngx_stream_lua_get_req(coctx->co);
++    if (r == NULL) {
++        ngx_lua_fs_task_free(fs_ctx);
++        return;
++    }
++
++    ctx = ngx_stream_lua_get_module_ctx(r, ngx_stream_lua_module);
++    if (ctx == NULL) {
++        ngx_lua_fs_task_free(fs_ctx);
++        return;
++    }
++
++    vm = ngx_stream_lua_get_lua_vm(r, ctx);
++    coctx->fs_nresults = ngx_lua_fs_deliver(vm, fs_ctx);
++    ctx->cur_co_ctx = coctx;
++
++    if (ctx->entered_content_phase) {
++        (void) ngx_stream_lua_fs_resume(r);
++
++    } else {
++        ctx->resume_handler = ngx_stream_lua_fs_resume;
++        ngx_stream_lua_core_run_phases(r);
++    }
++}
++
++
++#endif
++
++
++void
++ngx_stream_lua_inject_async_fs_api(lua_State *L)
++{
++#if (NGX_THREADS)
++    ngx_lua_fs_inject_api(L);
++#endif
++}
+diff --git a/src/ngx_stream_lua_async_fs.h b/src/ngx_stream_lua_async_fs.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..afec6d35926bf9943c43e7484f520a30fd361b52
+--- /dev/null
++++ b/src/ngx_stream_lua_async_fs.h
+@@ -0,0 +1,17 @@
++
++/*
++ * Copyright (C) Yichun Zhang (agentzh)
++ */
++
++
++#ifndef _NGX_STREAM_LUA_ASYNC_FS_H_INCLUDED_
++#define _NGX_STREAM_LUA_ASYNC_FS_H_INCLUDED_
++
++
++#include "ngx_stream_lua_common.h"
++
++
++void ngx_stream_lua_inject_async_fs_api(lua_State *L);
++
++
++#endif
+diff --git a/src/ngx_stream_lua_common.h b/src/ngx_stream_lua_common.h
+index 5d845953719e194c5541d06bc2b508d3d90ccedf..4f07d2ed973e6e1fb592ac95988fcf324701c2f9 100644
+--- a/src/ngx_stream_lua_common.h
++++ b/src/ngx_stream_lua_common.h
+@@ -414,6 +414,8 @@ struct ngx_stream_lua_co_ctx_s {
+                                          from beging collected by the
+                                          Lua GC */
+ 
++    int                      fs_nresults;
++
+     unsigned                 waited_by_parent:1;  /* whether being waited by
+                                                      a parent coroutine */
+ 
+diff --git a/src/ngx_stream_lua_util.c b/src/ngx_stream_lua_util.c
+index 8984d2880abd76aeb6d7b8505c57a5233f159a5d..2d9ce4e5000809cf11e6262b5390f9a017a1be51 100644
+--- a/src/ngx_stream_lua_util.c
++++ b/src/ngx_stream_lua_util.c
+@@ -22,6 +22,7 @@
+ #include "nginx.h"
+ #include "ngx_stream_lua_directive.h"
+ #include "ngx_stream_lua_util.h"
++#include "ngx_stream_lua_async_fs.h"
+ #include "ngx_stream_lua_exception.h"
+ #include "ngx_stream_lua_pcrefix.h"
+ #include "ngx_stream_lua_args.h"
+@@ -529,6 +530,7 @@ ngx_stream_lua_inject_ngx_api(lua_State *L, ngx_stream_lua_main_conf_t *lmcf,
+     ngx_stream_lua_inject_uthread_api(log, L);
+     ngx_stream_lua_inject_timer_api(L);
+     ngx_stream_lua_inject_config_api(L);
++    ngx_stream_lua_inject_async_fs_api(L);
+ 
+     lua_getglobal(L, "package"); /* ngx package */
+     lua_getfield(L, -1, "loaded"); /* ngx package loaded */

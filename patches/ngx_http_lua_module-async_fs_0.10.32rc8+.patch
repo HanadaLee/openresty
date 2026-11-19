@@ -1,0 +1,234 @@
+Backport ngx.fs from openresty/lua-nginx-module#2489 (oowl).
+Upstream revision: d4895bc228e31babf0a1cf229156ca09899da6f6
+https://github.com/openresty/lua-nginx-module/pull/2489
+
+Add single-task read_file and append_file operations, allocate read
+buffers after dequeueing, and use write for append-mode descriptors.
+
+Protect Lua result creation and harden descriptor ownership, size
+validation, and request cleanup.
+
+diff --git a/config b/config
+index e53be37ecb667db70c400b46f921c172e1b6007e..878723d79dc730a72f8c85b9ec58c5d4e0417e96 100644
+--- a/config
++++ b/config
+@@ -305,6 +305,7 @@ HTTP_LUA_SRCS=" \
+             $ngx_addon_dir/src/ngx_http_lua_input_filters.c \
+             $ngx_addon_dir/src/ngx_http_lua_pipe.c \
+             $ngx_addon_dir/src/ngx_http_lua_worker_thread.c \
++            $ngx_addon_dir/src/ngx_http_lua_async_fs.c \
+             "
+ 
+ HTTP_LUA_DEPS=" \
+@@ -372,6 +373,8 @@ HTTP_LUA_DEPS=" \
+             $ngx_addon_dir/src/ngx_http_lua_input_filters.h \
+             $ngx_addon_dir/src/ngx_http_lua_pipe.h \
+             $ngx_addon_dir/src/ngx_http_lua_worker_thread.h \
++            $ngx_addon_dir/src/ngx_http_lua_async_fs.h \
++            $ngx_addon_dir/src/ngx_lua_async_fs.inc \
+             "
+ 
+ # ----------------------------------------
+diff --git a/src/ngx_http_lua_async_fs.c b/src/ngx_http_lua_async_fs.c
+new file mode 100644
+index 0000000000000000000000000000000000000000..b28b42213eebccf6acac1fd1f3a3e4fe360cacfd
+--- /dev/null
++++ b/src/ngx_http_lua_async_fs.c
+@@ -0,0 +1,154 @@
++
++/*
++ * Copyright (C) Yichun Zhang (agentzh)
++ */
++
++
++#include "ngx_http_lua_async_fs.h"
++#include "ngx_http_lua_util.h"
++
++
++#if (NGX_THREADS)
++
++typedef ngx_http_lua_co_ctx_t ngx_lua_fs_co_ctx_t;
++
++#define NGX_LUA_FS_DEBUG  NGX_LOG_DEBUG_HTTP
++#define ngx_lua_fs_cleanup_pending_operation \
++    ngx_http_lua_cleanup_pending_operation
++
++#include "ngx_lua_async_fs.inc"
++
++
++static ngx_lua_fs_co_ctx_t *
++ngx_lua_fs_check_context(lua_State *L)
++{
++    ngx_http_request_t  *r;
++    ngx_http_lua_ctx_t  *ctx;
++
++    r = ngx_http_lua_get_req(L);
++    if (r == NULL) {
++        luaL_error(L, "no request found");
++        return NULL;
++    }
++
++    ctx = ngx_http_get_module_ctx(r, ngx_http_lua_module);
++    if (ctx == NULL) {
++        luaL_error(L, "no request ctx found");
++        return NULL;
++    }
++
++    if (!(ctx->context & NGX_HTTP_LUA_CONTEXT_YIELDABLE)) {
++        luaL_error(L, "API disabled in the context of %s",
++                   ngx_http_lua_context_name(ctx->context));
++        return NULL;
++    }
++
++    if (ctx->cur_co_ctx == NULL) {
++        luaL_error(L, "no coroutine context");
++        return NULL;
++    }
++
++    luaL_checkstack(L, 3, "file operation results");
++
++    return ctx->cur_co_ctx;
++}
++
++
++static ngx_int_t
++ngx_http_lua_fs_resume(ngx_http_request_t *r)
++{
++    lua_State           *vm;
++    ngx_int_t            rc;
++    ngx_uint_t           nreqs;
++    ngx_connection_t    *c;
++    ngx_http_lua_ctx_t  *ctx;
++
++    ctx = ngx_http_get_module_ctx(r, ngx_http_lua_module);
++    if (ctx == NULL) {
++        return NGX_ERROR;
++    }
++
++    ctx->resume_handler = ngx_http_lua_wev_handler;
++    c = r->connection;
++    vm = ngx_http_lua_get_lua_vm(r, ctx);
++    nreqs = c->requests;
++
++    rc = ngx_http_lua_run_thread(vm, r, ctx,
++                                 ctx->cur_co_ctx->nresults_from_worker_thread);
++
++    if (rc == NGX_AGAIN) {
++        return ngx_http_lua_run_posted_threads(c, vm, r, ctx, nreqs);
++    }
++
++    if (rc == NGX_DONE) {
++        ngx_http_lua_finalize_request(r, NGX_DONE);
++        return ngx_http_lua_run_posted_threads(c, vm, r, ctx, nreqs);
++    }
++
++    if (ctx->entered_content_phase) {
++        ngx_http_lua_finalize_request(r, rc);
++        return NGX_DONE;
++    }
++
++    return rc;
++}
++
++
++static void
++ngx_lua_fs_complete(ngx_lua_fs_ctx_t *fs_ctx)
++{
++    lua_State            *vm;
++    ngx_connection_t     *c;
++    ngx_http_request_t   *r;
++    ngx_http_lua_ctx_t   *ctx;
++    ngx_lua_fs_co_ctx_t  *coctx;
++    ngx_uint_t            fake;
++
++    coctx = fs_ctx->wait_co_ctx;
++    r = ngx_http_lua_get_req(coctx->co);
++    if (r == NULL) {
++        ngx_lua_fs_task_free(fs_ctx);
++        return;
++    }
++
++    ctx = ngx_http_get_module_ctx(r, ngx_http_lua_module);
++    if (ctx == NULL) {
++        ngx_lua_fs_task_free(fs_ctx);
++        return;
++    }
++
++    c = r->connection;
++    fake = (c->fd == (ngx_socket_t) -1);
++
++    if (!fake) {
++        ngx_http_set_log_request(c->log, r);
++    }
++
++    vm = ngx_http_lua_get_lua_vm(r, ctx);
++    coctx->nresults_from_worker_thread = ngx_lua_fs_deliver(vm, fs_ctx);
++    ctx->cur_co_ctx = coctx;
++
++    if (ctx->entered_content_phase) {
++        (void) ngx_http_lua_fs_resume(r);
++
++    } else {
++        ctx->resume_handler = ngx_http_lua_fs_resume;
++        ngx_http_core_run_phases(r);
++    }
++
++    if (!fake) {
++        ngx_http_run_posted_requests(c);
++    }
++}
++
++
++#endif
++
++
++void
++ngx_http_lua_inject_async_fs_api(lua_State *L)
++{
++#if (NGX_THREADS)
++    ngx_lua_fs_inject_api(L);
++#endif
++}
+diff --git a/src/ngx_http_lua_async_fs.h b/src/ngx_http_lua_async_fs.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..5bcc7055db6a322ebdfcf4923f95d66b154a4c2a
+--- /dev/null
++++ b/src/ngx_http_lua_async_fs.h
+@@ -0,0 +1,17 @@
++
++/*
++ * Copyright (C) Yichun Zhang (agentzh)
++ */
++
++
++#ifndef _NGX_HTTP_LUA_ASYNC_FS_H_INCLUDED_
++#define _NGX_HTTP_LUA_ASYNC_FS_H_INCLUDED_
++
++
++#include "ngx_http_lua_common.h"
++
++
++void ngx_http_lua_inject_async_fs_api(lua_State *L);
++
++
++#endif
+diff --git a/src/ngx_http_lua_util.c b/src/ngx_http_lua_util.c
+index ee41d28f8e1027fd9c033cc2fc6e65ca71b637eb..ef0871cbaa179c6a3fba2773f909edf423cfffa8 100644
+--- a/src/ngx_http_lua_util.c
++++ b/src/ngx_http_lua_util.c
+@@ -48,6 +48,7 @@
+ #include "ngx_http_lua_log_ringbuf.h"
+ #if (NGX_THREADS)
+ #include "ngx_http_lua_worker_thread.h"
++#include "ngx_http_lua_async_fs.h"
+ #endif
+ #if (NGX_HTTP_V3)
+ #include <ngx_event_quic.h>
+@@ -863,6 +864,7 @@ ngx_http_lua_inject_ngx_api(lua_State *L, ngx_http_lua_main_conf_t *lmcf,
+     ngx_http_lua_inject_config_api(L);
+ #if (NGX_THREADS)
+     ngx_http_lua_inject_worker_thread_api(log, L);
++    ngx_http_lua_inject_async_fs_api(L);
+ #endif
+ 
+     lua_getglobal(L, "package"); /* ngx package */

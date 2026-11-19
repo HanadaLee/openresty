@@ -24,6 +24,7 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
   - [lua-resty-core](#lua-resty-core)
     - [ngx.resolve](#ngxresolve)
   - [ngx\_http\_lua\_module](#ngx_http_lua_module)
+    - [ngx.fs](#ngxfs)
     - [preaccess\_by\_lua\_block](#preaccess_by_lua_block)
     - [preaccess\_by\_lua\_file](#preaccess_by_lua_file)
     - [preaccess\_by\_lua\_no\_postpone](#preaccess_by_lua_no_postpone)
@@ -433,6 +434,22 @@ Uses the resolver and timeout of the current HTTP location or Stream server. Ava
 [Back to TOC](#table-of-contents)
 
 ## ngx_http_lua_module
+
+### ngx.fs
+
+Available in HTTP and Stream Lua contexts that can yield, including timers. The optional pool name defaults to `default_lua_io`. Define it with [thread_pool](https://nginx.org/en/docs/ngx_core_module.html#thread_pool).
+
+| Operation | Description |
+| --- | --- |
+| `ngx.fs.read_file(path, max_bytes[, pool])` | Reads a regular file in one thread-pool task. A `nil` limit uses the file size at open time. |
+| `ngx.fs.append_file(path, data[, pool])` | Opens, appends, and closes in one thread-pool task. Returns the number of bytes written. |
+| `ngx.fs.open(path[, mode[, pool]])` | Opens a file in mode `r`, `w`, `a`, `r+`, or `w+`. |
+| `file:read(size[, offset])` | Reads up to `size` bytes from the given offset. Returns an empty string at EOF. |
+| `file:write(data[, offset])` | Writes from the given offset and returns the number of bytes written. Append mode writes at the end. |
+| `file:close()` | Closes the handle. |
+| `ngx.fs.stat(path[, pool])` | Returns file metadata. For symbolic links, returns the link's metadata. |
+
+Offsets default to zero. Read sizes and offsets must be integers. Reads return Lua strings up to the LuaJIT string-size limit. I/O failures return `nil, err`. Append and write return the byte count from a single write without fsync. `file:close()` runs synchronously and invalidates the handle even if the close reports an error.
 
 ### preaccess_by_lua_block
 
@@ -1499,6 +1516,8 @@ Defines conditions under which the request will be checked by modsecurity. If at
 [Back to TOC](#table-of-contents)
 
 ## ngx_stream_lua_module
+
+See [ngx.fs](#ngxfs) for asynchronous file operations in Stream Lua.
 
 ### access_by_lua_block
 
