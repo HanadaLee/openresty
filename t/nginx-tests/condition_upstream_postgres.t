@@ -19,7 +19,8 @@ select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
 my $t = Test::Nginx->new()
-	->has(qw/http http_postgres_module ngx_expr_module/)->plan(1);
+	->has(qw/http http_postgres_module|ngx_postgres ngx_expr_module/)
+	->plan(1);
 
 $t->write_file_expand('nginx.conf', <<'EOF');
 

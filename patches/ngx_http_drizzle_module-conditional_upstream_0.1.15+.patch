@@ -15,7 +15,7 @@ index b2f1e3c..66840a8 100644
      ngx_http_upstream_dbd_init(r);
  
 diff --git a/src/ngx_http_drizzle_module.c b/src/ngx_http_drizzle_module.c
-index 84c3946..90f486f 100644
+index 8550056..e021d56 100644
 --- a/src/ngx_http_drizzle_module.c
 +++ b/src/ngx_http_drizzle_module.c
 @@ -16,6 +16,10 @@
@@ -64,7 +64,7 @@ index 84c3946..90f486f 100644
        NULL },
  
      { ngx_string("drizzle_recv_cols_timeout"),
-@@ -211,8 +231,13 @@ ngx_http_drizzle_create_loc_conf(ngx_conf_t *cf)
+@@ -219,8 +239,13 @@ ngx_http_drizzle_create_loc_conf(ngx_conf_t *cf)
          return NULL;
      }
  
@@ -78,7 +78,7 @@ index 84c3946..90f486f 100644
  
      conf->recv_cols_timeout = NGX_CONF_UNSET_MSEC;
      conf->recv_rows_timeout = NGX_CONF_UNSET_MSEC;
-@@ -221,8 +246,6 @@ ngx_http_drizzle_create_loc_conf(ngx_conf_t *cf)
+@@ -229,8 +254,6 @@ ngx_http_drizzle_create_loc_conf(ngx_conf_t *cf)
  
      /* the hardcoded values */
      conf->upstream.cyclic_temp_file = 0;
@@ -87,7 +87,7 @@ index 84c3946..90f486f 100644
      conf->upstream.send_lowat = 0;
      conf->upstream.bufs.num = 0;
      conf->upstream.busy_buffers_size = 0;
-@@ -230,8 +253,17 @@ ngx_http_drizzle_create_loc_conf(ngx_conf_t *cf)
+@@ -238,8 +261,17 @@ ngx_http_drizzle_create_loc_conf(ngx_conf_t *cf)
      conf->upstream.temp_file_write_size = 0;
      conf->upstream.intercept_errors = 1;
      conf->upstream.intercept_404 = 1;
@@ -105,7 +105,7 @@ index 84c3946..90f486f 100644
  
      /* set by ngx_pcalloc:
       *      conf->dbname = NULL
-@@ -256,11 +288,57 @@ ngx_http_drizzle_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -265,11 +297,57 @@ ngx_http_drizzle_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
      ngx_conf_merge_value(conf->enable_module_header,
                           prev->enable_module_header, 1);
  
@@ -163,7 +163,7 @@ index 84c3946..90f486f 100644
  
      ngx_conf_merge_msec_value(conf->recv_cols_timeout,
                                prev->recv_cols_timeout, 60000);
-@@ -285,6 +363,10 @@ ngx_http_drizzle_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -309,6 +387,10 @@ ngx_http_drizzle_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
          conf->tid_var_index = prev->tid_var_index;
      }
  
@@ -175,10 +175,10 @@ index 84c3946..90f486f 100644
  }
  
 diff --git a/src/ngx_http_drizzle_processor.c b/src/ngx_http_drizzle_processor.c
-index b987417..f2467ef 100644
+index b290ca2..9f3f1eb 100644
 --- a/src/ngx_http_drizzle_processor.c
 +++ b/src/ngx_http_drizzle_processor.c
-@@ -217,7 +217,11 @@ ngx_http_upstream_drizzle_send_query(ngx_http_request_t *r,
+@@ -222,7 +222,11 @@ ngx_http_upstream_drizzle_send_query(ngx_http_request_t *r,
                  ngx_del_timer(c->write);
              }
  
@@ -191,7 +191,7 @@ index b987417..f2467ef 100644
  
          return NGX_AGAIN;
 diff --git a/src/ngx_http_drizzle_util.c b/src/ngx_http_drizzle_util.c
-index 370999d..27032f9 100644
+index 2d84cc4..570d549 100644
 --- a/src/ngx_http_drizzle_util.c
 +++ b/src/ngx_http_drizzle_util.c
 @@ -19,6 +19,10 @@
@@ -205,37 +205,7 @@ index 370999d..27032f9 100644
  
  static ngx_int_t ngx_http_upstream_dbd_reinit(ngx_http_request_t *r,
      ngx_http_upstream_t *u);
-@@ -227,6 +231,9 @@ ngx_http_upstream_drizzle_next(ngx_http_request_t *r,
-     ngx_http_upstream_t *u, ngx_int_t ft_type)
- {
-     ngx_uint_t  status, state;
-+#if (NGX_RESTY_EXT && NGX_EXPR)
-+    ngx_uint_t  next_upstream;
-+#endif
- 
-     ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
-                    "http next upstream, %xi", ft_type);
-@@ -287,7 +294,19 @@ ngx_http_upstream_drizzle_next(ngx_http_request_t *r,
-     if (status) {
-         u->state->status = status;
- 
-+#if (NGX_RESTY_EXT && NGX_EXPR)
-+        next_upstream = u->conf->next_upstream;
-+        if (u->conf->next_upstream_conf != NULL
-+            && u->conf->next_upstream_conf != NGX_CONF_UNSET_PTR)
-+        {
-+            next_upstream = ngx_http_get_expr_bitmask_value(r,
-+                                                   u->conf->next_upstream_conf);
-+        }
-+
-+        if (u->peer.tries == 0 || !(next_upstream & ft_type)) {
-+#else
-         if (u->peer.tries == 0 || !(u->conf->next_upstream & ft_type)) {
-+#endif
-             ngx_http_upstream_drizzle_finalize_request(r, u, status);
-             return;
-         }
-@@ -414,6 +433,9 @@ ngx_http_upstream_dbd_init_request(ngx_http_request_t *r)
+@@ -358,6 +362,9 @@ ngx_http_upstream_dbd_init_request(ngx_http_request_t *r)
      ngx_http_core_loc_conf_t       *clcf;
      ngx_http_upstream_srv_conf_t   *uscf, **uscfp;
      ngx_http_upstream_main_conf_t  *umcf;
@@ -245,7 +215,7 @@ index 370999d..27032f9 100644
  
  #if defined(nginx_version) && nginx_version >= 8011
      if (r->aio) {
-@@ -423,6 +445,24 @@ ngx_http_upstream_dbd_init_request(ngx_http_request_t *r)
+@@ -367,6 +374,24 @@ ngx_http_upstream_dbd_init_request(ngx_http_request_t *r)
  
      u = r->upstream;
  
@@ -270,7 +240,7 @@ index 370999d..27032f9 100644
  #if 0 && (NGX_HTTP_CACHE)
  
      if (u->conf->cache) {
-@@ -451,7 +491,19 @@ ngx_http_upstream_dbd_init_request(ngx_http_request_t *r)
+@@ -395,7 +420,19 @@ ngx_http_upstream_dbd_init_request(ngx_http_request_t *r)
  
      u->store = (u->conf->store || u->conf->store_lengths);
  
@@ -290,7 +260,7 @@ index 370999d..27032f9 100644
          r->read_event_handler =
                               ngx_http_upstream_dbd_rd_check_broken_connection;
          r->write_event_handler =
-@@ -747,7 +799,11 @@ ngx_http_upstream_dbd_connect(ngx_http_request_t *r, ngx_http_upstream_t *u)
+@@ -691,7 +728,11 @@ ngx_http_upstream_dbd_connect(ngx_http_request_t *r, ngx_http_upstream_t *u)
      u->request_sent = 0;
  
      if (rc == NGX_AGAIN) {

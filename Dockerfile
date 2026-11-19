@@ -2,7 +2,7 @@
 # is not pinned separately from the upstream source revision.
 ARG RESTY_VERSION
 ARG RESTY_RELEASE="394"
-ARG RESTY_COMMIT="e5c81af021ae18cc1ebd1bce7414555a312789c6"
+ARG RESTY_COMMIT="8f1a374d79d849c4b2f6e4f35639aac70ab02985"
 ARG RESTY_J="4"
 ARG RESTY_IMAGE_BASE="debian"
 ARG RESTY_IMAGE_TAG="trixie-slim"
@@ -40,7 +40,7 @@ ARG RESTY_LRANDOM_VERSION="20180729-1"
 ARG RESTY_LUAXXHASH_VERSION="1.0.0-1"
 ARG RESTY_XML2LUA_VERSION="1.6-2"
 ARG RESTY_LUA_FFI_ZLIB_VERSION="0.6-0"
-ARG RESTY_LUA_RESTY_OPENSSL_VERSION="1.9.0-1"
+ARG RESTY_LUA_RESTY_OPENSSL_VERSION="1.10.0-1"
 ARG RESTY_LUA_RESTY_HTTP_VERSION="0.18.0-0"
 ARG RESTY_LUA_RESTY_HMAC_FFI_VERSION="0.06-1"
 ARG RESTY_LUA_RESTY_JWT_VERSION="0.4.0-1"
@@ -730,7 +730,7 @@ RUN RESTY_VERSION="$(cat /build/openresty-version)" \
     && patch -p1 < /build/patches/ngx_http_redis2_module-conditional_upstream_0.15rc1+.patch \
     && cd "${OPENRESTY_DIR}"/bundle/drizzle-nginx-module-* \
     && echo "patching ngx_http_drizzle_module" \
-    && patch -p1 < /build/patches/ngx_http_drizzle_module-conditional_upstream_0.1.7+.patch \
+    && patch -p1 < /build/patches/ngx_http_drizzle_module-conditional_upstream_0.1.15+.patch \
     && cd "${OPENRESTY_DIR}"/bundle/ngx_postgres-* \
     && echo "patching ngx_postgres_module" \
     && patch -p1 < /build/patches/ngx_postgres_module-conditional_upstream_1.1+.patch \
