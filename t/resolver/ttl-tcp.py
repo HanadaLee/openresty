@@ -1,5 +1,6 @@
 # Copyright (C) Hanada
 
+import errno
 import http.client
 import os
 import socket
@@ -19,13 +20,26 @@ directory = Path(tempfile.mkdtemp(prefix="resolver-ttl-", dir=root))
 (directory / "logs").mkdir()
 counts = Counter()
 lock = threading.Lock()
-udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-udp.bind(("127.0.0.1", 0))
-dns_port = udp.getsockname()[1]
-tcp = socket.socket()
-tcp.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-tcp.bind(("127.0.0.1", dns_port))
-tcp.listen()
+
+# TCP and UDP allocate ephemeral ports independently.
+for _ in range(10):
+    tcp = socket.socket()
+    tcp.bind(("127.0.0.1", 0))
+    address = tcp.getsockname()
+    udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        udp.bind(address)
+    except OSError as exc:
+        udp.close()
+        tcp.close()
+        if exc.errno != errno.EADDRINUSE:
+            raise
+    else:
+        tcp.listen()
+        dns_port = address[1]
+        break
+else:
+    raise RuntimeError("could not bind UDP and TCP on the same DNS port")
 
 
 def response(data, protocol):
