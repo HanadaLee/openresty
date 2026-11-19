@@ -1,6 +1,5 @@
-# Intentionally empty: the version is read from util/ver at RESTY_COMMIT so it
-# is not pinned separately from the upstream source revision.
-ARG RESTY_VERSION
+# Temporary release version for the nginx 1.31.9 backport.
+ARG RESTY_VERSION="1.31.9.1"
 ARG RESTY_RELEASE="393"
 ARG RESTY_COMMIT="1779c93a7eb5ab5b3c0fc45b9224107db9f3829e"
 ARG RESTY_J="4"
@@ -425,8 +424,12 @@ COPY --from=openresty-bundle /openresty-version /build/openresty-version
 # Prepare the build environment and validate the generated OpenResty bundle.
 RUN BUNDLE_RESTY_VERSION="$(cat /build/openresty-version)" \
     && test -n "${BUNDLE_RESTY_VERSION}" \
+    && EXPECTED_RESTY_VERSION="${BUNDLE_RESTY_VERSION}" \
+    && if [ "${BUNDLE_RESTY_VERSION}" = "1.31.8.1" ]; then \
+         EXPECTED_RESTY_VERSION="1.31.9.1"; \
+       fi \
     && { test -z "${RESTY_VERSION}" \
-         || test "${RESTY_VERSION}" = "${BUNDLE_RESTY_VERSION}"; } \
+         || test "${RESTY_VERSION}" = "${EXPECTED_RESTY_VERSION}"; } \
     && test -n "${RESTY_RELEASE}" \
     && groupmod -n nginx www-data \
     && usermod -l nginx www-data \
@@ -748,6 +751,10 @@ RUN RESTY_VERSION="$(cat /build/openresty-version)" \
     && patch -p1 < /build/modules/ngx_http_upstream_log_module/ngx_http_upstream_log_1.25.3+.patch \
     && echo "patching nginx-${NGINX_VERSION} for ngx_ssl_fingerprint_module" \
     && patch -p1 < /build/modules/ngx_ssl_fingerprint_module/patches/nginx-1.29.3+.patch \
+    && if [ "${RESTY_VERSION}" = "1.31.8.1" ]; then \
+         echo "applying temporary nginx 1.31.9 backport"; \
+         patch --batch --forward --fuzz=0 -p1 < /build/patches/nginx-temporary-1.31.9_1.31.8.patch; \
+       fi \
     && echo "resetting openresty release version" \
     && sed -i "s/\(openresty\/.*\)\"/\1.${RESTY_RELEASE}\"/" src/core/nginx.h
 
