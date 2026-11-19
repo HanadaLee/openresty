@@ -2,7 +2,7 @@
 # is not pinned separately from the upstream source revision.
 ARG RESTY_VERSION
 ARG RESTY_RELEASE="393"
-ARG RESTY_COMMIT="265baf62de60397452f306d61b168ab2c1809d41"
+ARG RESTY_COMMIT="1779c93a7eb5ab5b3c0fc45b9224107db9f3829e"
 ARG RESTY_J="4"
 ARG RESTY_IMAGE_BASE="debian"
 ARG RESTY_IMAGE_TAG="trixie-slim"
@@ -714,7 +714,13 @@ RUN RESTY_VERSION="$(cat /build/openresty-version)" \
     && patch -p1 < /build/patches/ngx_http_lua_module-client_hello_retry_0.10.29rc1+.patch \
     && cd "${NGINX_DIR}" \
     && echo "patching nginx-${NGINX_VERSION} ext" \
-    && patch -p1 < /build/patches/nginx-ext_1.31.8+.patch \
+    && if [ "${RESTY_VERSION}" = "1.31.8.1" ]; then \
+         sed 's/^\([-+]\)\(#define NGX_HTTP_UPSTREAM_NOTIFY_CACHED_CONNECTION_ERROR\) 0x1$/\1\2 0x80/' \
+             /build/patches/nginx-ext_1.31.8+.patch > /tmp/nginx-ext-upstream-notify.patch \
+         && patch --batch --forward --fuzz=0 -p1 < /tmp/nginx-ext-upstream-notify.patch; \
+       else \
+         patch -p1 < /build/patches/nginx-ext_1.31.8+.patch; \
+       fi \
     && echo "patching nginx-${NGINX_VERSION} for independent module core support" \
     && bash /build/modules/ngx_http_extra_variables_module/util/apply-nginx-patches.sh "${NGINX_DIR}" \
     && bash /build/modules/ngx_stream_extra_variables_module/util/apply-nginx-patches.sh "${NGINX_DIR}" \
