@@ -9,7 +9,7 @@ fixtures="${2:-$script_dir/../../t/module-abi}"
 source_dir="$(cd "$source_dir" && pwd)"
 fixtures="$(cd "$fixtures" && pwd)"
 nginx="$source_dir/objs/nginx"
-test_root="$(mktemp -d /tmp/resty-abi.XXXXXX)"
+test_root="$(mktemp -d /tmp/ext-abi.XXXXXX)"
 nginx_pid=""
 
 cleanup() {
@@ -17,7 +17,7 @@ cleanup() {
         kill -QUIT "$nginx_pid" 2>/dev/null || true
         wait "$nginx_pid" 2>/dev/null || true
     fi
-    if [[ "${RESTY_ABI_KEEP_FILES:-0}" == 1 ]]; then
+    if [[ "${EXT_ABI_KEEP_FILES:-0}" == 1 ]]; then
         echo "ABI test files: $test_root"
     else
         rm -rf -- "$test_root"
@@ -55,31 +55,33 @@ compile() {
 for compat in 0 1; do
     for ssl in 0 1; do
         compile "$test_root/signature" \
-            '-DRESTY_ABI_TEST_PRINT=1 -DRESTY_ABI_TEST_LEGACY=1' '' \
-            "NGX_COMPAT=$compat" "NGX_HTTP_SSL=$ssl" NGX_RESTY_EXT=0
+            '-DEXT_ABI_TEST_PRINT=1 -DEXT_ABI_TEST_LEGACY=1' '' \
+            "NGX_COMPAT=$compat" "NGX_HTTP_SSL=$ssl" NGX_EXT=0
         legacy="$("$test_root/signature")"
         for expr in 0 1; do
             for proxy_filter in 0 1; do
                 for grpc_filter in 0 1; do
-                    for ext in 0 1; do
-                        compile "$test_root/signature" '-DRESTY_ABI_TEST_PRINT=1' '' \
-                            "NGX_COMPAT=$compat" "NGX_HTTP_SSL=$ssl" \
-                            "NGX_RESTY_EXT=$ext" "NGX_EXPR=$expr" \
-                            "NGX_HTTP_PROXY_FILTER=$proxy_filter" \
-                            "NGX_HTTP_GRPC_FILTER=$grpc_filter"
-                        expected="$legacy"
-                        if [[ "$ext" == 1 ]]; then
-                            expected+=",resty,3,$expr${ssl}1"
-                        fi
-                        [[ "$("$test_root/signature")" == "$expected" ]] || \
-                            fail "signature: compat=$compat ssl=$ssl ext=$ext expr=$expr proxy_filter=$proxy_filter grpc_filter=$grpc_filter"
+                    for client in 0 1; do
+                        for ext in 0 1; do
+                            compile "$test_root/signature" '-DEXT_ABI_TEST_PRINT=1' '' \
+                                "NGX_COMPAT=$compat" "NGX_HTTP_SSL=$ssl" \
+                                "NGX_EXT=$ext" "NGX_EXPR=$expr" "NGX_CLIENT=$client" \
+                                "NGX_HTTP_PROXY_FILTER=$proxy_filter" \
+                                "NGX_HTTP_GRPC_FILTER=$grpc_filter"
+                            expected="$legacy"
+                            if [[ "$ext" == 1 ]]; then
+                                expected+=",ext,3,$expr${ssl}1$client"
+                            fi
+                            [[ "$("$test_root/signature")" == "$expected" ]] || \
+                                fail "signature: compat=$compat ssl=$ssl ext=$ext client=$client expr=$expr proxy_filter=$proxy_filter grpc_filter=$grpc_filter"
+                        done
                     done
                 done
             done
         done
     done
 done
-echo 'ABI signature matrix: 64 combinations passed'
+echo 'ABI signature matrix: 128 combinations passed'
 
 mkdir -p "$test_root/logs" "$test_root/html"
 printf 'abi body\n' > "$test_root/html/body"
@@ -122,17 +124,18 @@ grep -q 'abi_test configuration reached' "$test_root/matching.log" || \
     fail 'matching module configuration hook not called'
 echo 'ABI loader: matching module accepted'
 
-for variant in legacy no-ext expr http-ssl no-shm revision; do
+for variant in legacy no-ext expr http-ssl client no-shm revision; do
     settings=()
     flags=''
     case "$variant" in
-        legacy) flags='-DRESTY_ABI_TEST_LEGACY=1' ;;
-        no-ext) settings=(NGX_RESTY_EXT=0) ;;
-        no-shm) flags='-DRESTY_ABI_TEST_NO_SHM=1' ;;
-        revision) flags='-DRESTY_ABI_TEST_REVISION=1' ;;
+        legacy) flags='-DEXT_ABI_TEST_LEGACY=1' ;;
+        no-ext) settings=(NGX_EXT=0) ;;
+        no-shm) flags='-DEXT_ABI_TEST_NO_SHM=1' ;;
+        revision) flags='-DEXT_ABI_TEST_REVISION=1' ;;
         *)
             case "$variant" in
                 expr) macro=NGX_EXPR ;;
+                client) macro=NGX_CLIENT ;;
                 http-ssl) macro=NGX_HTTP_SSL ;;
             esac
             value=1

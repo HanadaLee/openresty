@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# Tests for the NGX_RESTY_EXT error_page_field directive.
+# Tests for the NGX_EXT error_page_field directive.
 
 ###############################################################################
 

@@ -12,7 +12,7 @@ index cd0a79e..5ed9f65 100755
                  $ngx_addon_dir/src/ngx_stream_lua_directive.c \
 diff --git a/src/ngx_stream_lua_http_client.c b/src/ngx_stream_lua_http_client.c
 new file mode 100644
-index 0000000..b5a2919
+index 0000000..8dde60d
 --- /dev/null
 +++ b/src/ngx_stream_lua_http_client.c
 @@ -0,0 +1,284 @@
@@ -24,7 +24,7 @@ index 0000000..b5a2919
 +
 +#include "ngx_stream_lua_util.h"
 +
-+#if (NGX_RESTY_EXT && NGX_CLIENT)
++#if (NGX_EXT && NGX_CLIENT)
 +
 +
 +typedef struct {
@@ -301,14 +301,14 @@ index 0000000..b5a2919
 +
 +#endif
 diff --git a/src/ngx_stream_lua_module.c b/src/ngx_stream_lua_module.c
-index 1cbb3a6..6d8d1b1 100755
+index 1cbb3a6..5808a0b 100755
 --- a/src/ngx_stream_lua_module.c
 +++ b/src/ngx_stream_lua_module.c
 @@ -607,6 +607,11 @@ ngx_stream_lua_init(ngx_conf_t *cf)
      ngx_stream_core_main_conf_t        *cmcf;
  
  
-+#if (NGX_RESTY_EXT && NGX_CLIENT)
++#if (NGX_EXT && NGX_CLIENT)
 +    if (ngx_client_http_require(cf->cycle) != NGX_OK) {
 +        return NGX_ERROR;
 +    }

@@ -16,19 +16,30 @@ def source(text, undefined=False):
 
 
 class ProjectionTests(unittest.TestCase):
+    def test_old_extension_name_in_history(self):
+        text = "#if (NGX_RESTY_EXT)\nold();\n#else\nnative();\n#endif\n"
+        self.assertEqual(isolation.project(text, historical=True), [("native();", 4)])
+        self.assertEqual(source(text), text.rstrip())
+
+    def test_continued_guards_preserve_source_lines(self):
+        text = "#if (NGX_EXT && \\\nOTHER)\nskip();\n#endif\n"
+        other = "#if (OTHER || \\\nFEATURE)\nkeep();\n#endif"
+        self.assertEqual(source(text + other), other)
+        self.assertEqual(isolation.project(text + other)[2], ("keep();", 7))
+
     def test_other_features_remain_symbolic(self):
         text = "#if (NGX_PCRE)\n    int a;\n#else\n    int b;\n#endif\n"
         self.assertEqual(source(text), text.rstrip())
 
     def test_nested_extension_branches(self):
-        text = ("#if (NGX_RESTY_EXT && NGX_EXPR)\n    extended();\n"
+        text = ("#if (NGX_EXT && NGX_EXPR)\n    extended();\n"
                 "#else\n#if (NGX_PCRE)\n    native();\n#endif\n#endif\n")
         expected = "#if (NGX_PCRE)\n    native();\n#endif"
         for undefined in (False, True):
             self.assertEqual(source(text, undefined), expected)
 
     def test_ifdef_is_not_the_same_as_zero(self):
-        text = "#ifdef NGX_RESTY_EXT\ndefined();\n#else\nundefined();\n#endif\n"
+        text = "#ifdef NGX_EXT\ndefined();\n#else\nundefined();\n#endif\n"
         self.assertEqual(source(text), "defined();")
         self.assertEqual(source(text, True), "undefined();")
 
@@ -38,24 +49,24 @@ class ProjectionTests(unittest.TestCase):
         self.assertEqual(source("\r\n    int a;\r\n \r\n"), "    int a;")
 
     def test_comment_directives_are_not_evaluated(self):
-        text = "/*\n#if (NGX_RESTY_EXT)\nexample\n#endif\n*/\nint a;\n"
+        text = "/*\n#if (NGX_EXT)\nexample\n#endif\n*/\nint a;\n"
         self.assertEqual(source(text), text.rstrip())
 
     def test_line_numbers_are_preserved(self):
-        text = "\n#if (NGX_RESTY_EXT)\nremoved();\n#endif\n\n    int a;\n"
+        text = "\n#if (NGX_EXT)\nremoved();\n#endif\n\n    int a;\n"
         self.assertEqual(isolation.project(text), [("    int a;", 6)])
 
     def test_new_source_must_be_fully_guarded(self):
-        self.assertEqual(source("#if (NGX_RESTY_EXT)\nint a;\n#endif\n"), "")
-        self.assertNotEqual(source("int a;\n#if (NGX_RESTY_EXT)\nint b;\n#endif\n"), "")
+        self.assertEqual(source("#if (NGX_EXT)\nint a;\n#endif\n"), "")
+        self.assertNotEqual(source("int a;\n#if (NGX_EXT)\nint b;\n#endif\n"), "")
 
     def test_unsupported_expression_fails_closed(self):
         with self.assertRaises(ValueError):
-            source("#if NGX_RESTY_EXT == 1\nint a;\n#endif\n")
+            source("#if NGX_EXT == 1\nint a;\n#endif\n")
 
     def test_unbalanced_guard_fails_closed(self):
         with self.assertRaises(ValueError):
-            source("#if (NGX_RESTY_EXT)\nint a;\n")
+            source("#if (NGX_EXT)\nint a;\n")
 
 
 if __name__ == "__main__":

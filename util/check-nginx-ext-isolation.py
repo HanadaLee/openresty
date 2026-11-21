@@ -14,7 +14,7 @@ import re
 import subprocess
 
 
-EXT = "NGX_RESTY_EXT"
+EXT = "NGX_EXT"
 DIRECTIVE = re.compile(r"^\s*#\s*(if|ifdef|ifndef|elif|else|endif)\b(.*)$")
 TOKEN = re.compile(r"defined|[A-Za-z_]\w*|0[xX][0-9a-fA-F]+|[0-9]+|&&|\|\||!|\(|\)")
 LITERAL = re.compile(r'''"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|/\*.*?\*/|//[^\n]*''', re.S)
@@ -89,12 +89,12 @@ def condition(kind, expression, undefined=False):
     return value
 
 
-def project(text, undefined=False):
+def project(text, undefined=False, historical=False):
     lines = text.splitlines()
     # Comments and literals can contain text that looks like a directive.
     masked = LITERAL.sub(lambda m: re.sub(r"[^\n]", " ", m[0]), text)
-    directives = {i: DIRECTIVE.match(line)
-                  for i, line in enumerate(masked.splitlines())}
+    masked_lines = masked.splitlines()
+    directives = [DIRECTIVE.match(line) for line in masked_lines]
     index = 0
 
     def sequence():
@@ -111,13 +111,17 @@ def project(text, undefined=False):
                 continue
             branches = []
             while True:
-                head = (lines[index], index + 1)
+                start = index
                 match = directives[index]
                 kind, expression = match.groups()
                 index += 1
+                while lines[index - 1].endswith("\\") and index < len(lines):
+                    expression = expression[:-1] + masked_lines[index]
+                    index += 1
+                head = [(lines[i], i + 1) for i in range(start, index)]
                 branches.append((head, kind, expression, sequence()))
                 if index >= len(lines):
-                    raise ValueError(f"unterminated #if at {head[1]}")
+                    raise ValueError(f"unterminated #if at {head[0][1]}")
                 tail = directives[index]
                 if tail[1] == "endif":
                     end = (lines[index], index + 1)
@@ -126,18 +130,21 @@ def project(text, undefined=False):
             # Untouched conditions stay symbolic: retain all their branches.
             active_unknown = False
             for head, kind, expression, children in branches:
+                if historical:
+                    expression = re.sub(r"\bNGX_RESTY_EXT\b", EXT, expression)
                 value = True if kind == "else" else condition(kind, expression, undefined)
                 if value is False:
                     continue
                 if value is True:
                     if active_unknown:
-                        result.append(head if kind == "else" else ("#else", head[1]))
+                        result.append(head[0] if kind == "else" else ("#else", head[0][1]))
                     result.extend(children)
                     break
                 if active_unknown:
-                    result.append(head)
+                    result.extend(head)
                 else:
-                    result.append((re.sub(r"#\s*elif\b", "#if", head[0]), head[1]))
+                    result.append((re.sub(r"#\s*elif\b", "#if", head[0][0]), head[0][1]))
+                    result.extend(head[1:])
                     active_unknown = True
                 result.extend(children)
             if active_unknown:
@@ -198,9 +205,9 @@ def main():
     base_lines = {path: [line for line in blob(sha).splitlines() if line.strip()]
                   for path, sha in bases.items()}
 
-    def inspect(path, text, key):
+    def inspect(path, text, key, historical=False):
         if key not in projections:
-            projections[key] = project(text, args.undefined)
+            projections[key] = project(text, args.undefined, historical)
         projected = projections[key]
         expected = base_lines.get(path, [])
         actual = [line for line, _ in projected]
@@ -227,7 +234,8 @@ def main():
                 if bases.get(path) == entries.get(path):
                     continue
                 content = blob(entries[path]) if path in entries else ""
-                failure = inspect(path, content, entries.get(path, "missing:" + path))
+                failure = inspect(path, content, entries.get(path, "missing:" + path),
+                                  historical=True)
                 if failure:
                     failures.append(failure)
             subject = git(repo, "show", "-s", "--format=%s", sha).decode().strip()

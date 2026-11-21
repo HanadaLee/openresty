@@ -1,12 +1,12 @@
 diff --git a/src/ngx_http_lua_balancer.c b/src/ngx_http_lua_balancer.c
-index 904de3a..81334ac 100644
+index 904de3a..b7ee96b 100644
 --- a/src/ngx_http_lua_balancer.c
 +++ b/src/ngx_http_lua_balancer.c
 @@ -15,4 +15,8 @@
  #include "ngx_http_lua_util.h"
  #include "ngx_http_lua_directive.h"
 +
-+#if (NGX_RESTY_EXT && NGX_EXPR)
++#if (NGX_EXT && NGX_EXPR)
 +#include <ngx_http_expr_module.h>
 +#endif
  
@@ -15,7 +15,7 @@ index 904de3a..81334ac 100644
      bp = (ngx_http_lua_balancer_peer_data_t *) u->peer.data;
  
  #if (nginx_version >= 1007005)
-+#if (NGX_RESTY_EXT && NGX_EXPR)
++#if (NGX_EXT && NGX_EXPR)
 +    if (r->upstream->conf->next_upstream_tries_conf != NULL
 +        && r->upstream->conf->next_upstream_tries_conf != NGX_CONF_UNSET_PTR)
 +    {
@@ -34,7 +34,7 @@ index 904de3a..81334ac 100644
  {
      u_char     *p, *last;
      ngx_str_t   name;
-+#if (NGX_RESTY_EXT && NGX_EXPR)
++#if (NGX_EXT && NGX_EXPR)
 +    ngx_int_t   rc;
 +
 +    if (u->conf->ssl_name_conf != NULL
