@@ -281,8 +281,14 @@ sub config_case {
 	my $paths = $prefix . "_certificate $cert;\n";
 	$paths .= $prefix . "_certificate_key $key;\n" if defined $key;
 	my $parent_mode = $inherit && $inherit eq 'default' ? 'default' : 'runtime';
-	my $parent = $inherit ? "$load $parent_mode;\n$paths" : '';
-	$extra .= $paths unless $inherit;
+	my $parent = $inherit ? "$load $parent_mode;\n" : '';
+
+	# Other servers can inherit the parent, including the default HTTP client.
+	if ($inherit && $parent_mode eq 'runtime') {
+		$parent .= $paths;
+	} else {
+		$extra .= $paths;
+	}
 	my $pass = '';
 	if ($upstream) {
 		$pass = $target eq 'stream-proxy'
