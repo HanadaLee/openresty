@@ -1,12 +1,12 @@
 diff --git a/lib/ngx/http.md b/lib/ngx/http.md
 new file mode 100644
-index 0000000..6fce0b7
+index 0000000..0b87ba5
 --- /dev/null
 +++ b/lib/ngx/http.md
-@@ -0,0 +1,29 @@
+@@ -0,0 +1,55 @@
 +# ngx.http
 +
-+`ngx.http.request_uri` is available in HTTP and Stream Lua when nginx is built with internal HTTP client support.
++`ngx.http` is available in HTTP and Stream Lua when nginx is built with internal HTTP client support.
 +
 +## request_uri
 +
@@ -24,7 +24,7 @@ index 0000000..6fce0b7
 +| --- | --- |
 +| `method` | Request method. Defaults to `GET`. |
 +| `headers` | Request header table. Use an array of values for repeated fields. |
-+| `body` | Request body string. |
++| `body` | Request body string or chunk iterator. |
 +| `query` | Query string or argument table. Replaces the query from the URL. |
 +| `server` | Name of a configured internal `client;` server. Defaults to the shared `@client` server. |
 +| `max_response_bytes` | Response body limit in bytes. Defaults to `16777216`. |
@@ -33,6 +33,32 @@ index 0000000..6fce0b7
 +
 +The selected internal server sets the resolver, upstream connection, TLS, and timeout policy.
 +An automatically created `@client` server inherits DNS settings from the `http` block.
++
++## request
++
++`ngx.http.request(url[, options])` returns the final response headers as soon as they are available. Read the response incrementally with `res.body_reader([size])`. Each call returns up to `size` bytes, `nil` at EOF, or `nil, err` if the transfer fails. Reads default to 16 KiB. Call `res:close()` when stopping before EOF. The reader belongs to the calling request and supports one pending read.
++
++```lua
++local res, err = ngx.http.request(url, { method = "POST", body = source_reader })
++if not res then
++    return nil, err
++end
++while true do
++    local chunk, err = res.body_reader(8192)
++    if not chunk then
++        return err == nil, err
++    end
++    local ok, err = sink(chunk)
++    if not ok then
++        res:close()
++        return nil, err
++    end
++end
++```
++
++Both request methods accept a body iterator. It receives a suggested chunk size and returns a non-empty string, `nil` at EOF, or `nil, err`. It may yield. Supply `Content-Length` when the request body length is known. Otherwise the client provides chunked framing. The selected location's `client_body_buffer_size` controls request body buffering. Its proxy buffering directives still apply.
++
++Streaming responses have no default total size limit. Set `max_response_bytes` to bound the entire response. A transfer error after headers is reported by the reader.
 diff --git a/lib/resty/core.lua b/lib/resty/core.lua
 index a7fb39b..3568cd5 100755
 --- a/lib/resty/core.lua
@@ -47,10 +73,10 @@ index a7fb39b..3568cd5 100755
  local base = require "resty.core.base"
 diff --git a/lib/resty/core/http.lua b/lib/resty/core/http.lua
 new file mode 100644
-index 0000000..ddafc50
+index 0000000..b64ff7a
 --- /dev/null
 +++ b/lib/resty/core/http.lua
-@@ -0,0 +1,250 @@
+@@ -0,0 +1,461 @@
 +local base = require "resty.core.base"
 +base.allows_subsystem("http", "stream")
 +
@@ -71,6 +97,7 @@ index 0000000..ddafc50
 +local setmetatable = setmetatable
 +local pairs = pairs
 +
++local CHUNK_SIZE = 16384
 +local DEFAULT_RESPONSE_LIMIT = 16 * 1024 * 1024
 +local MAX_RESPONSE_LIMIT = 1024 * 1024 * 1024
 +local EMPTY = {}
@@ -94,6 +121,8 @@ index 0000000..ddafc50
 +    ngx_lua_http_client_header_t  *headers;
 +    size_t                         nheaders;
 +    size_t                         response_limit;
++    int                            stream;
++    int                            request_body_streaming;
 +} ngx_lua_http_client_request_t;
 +
 +typedef struct {
@@ -108,6 +137,19 @@ index 0000000..ddafc50
 +    ngx_lua_http_client_request_t *request,
 +    ngx_lua_http_client_result_t **result, unsigned char *err, size_t *errlen);
 +void ]] .. prefix .. [[_done(ngx_lua_http_client_result_t *result);
++int ]] .. prefix .. [[_get_response_headers(
++    ]] .. request_type .. [[ *r, ngx_lua_http_client_result_t *result);
++ssize_t ]] .. prefix .. [[_read_response_body(
++    ]] .. request_type .. [[ *r, ngx_lua_http_client_result_t *result,
++    unsigned char *buf, size_t size);
++ssize_t ]] .. prefix .. [[_write_request_body(
++    ]] .. request_type .. [[ *r, ngx_lua_http_client_result_t *result,
++    const unsigned char *buf, size_t size);
++int ]] .. prefix .. [[_wait(]] .. request_type .. [[ *r,
++    ngx_lua_http_client_result_t *result, unsigned char *err, size_t *errlen);
++void ]] .. prefix .. [[_close(ngx_lua_http_client_result_t *result);
++void ]] .. prefix .. [[_release(
++    ngx_lua_http_client_result_t *result);
 +]])
 +
 +local ok, request, done = pcall(function()
@@ -198,7 +240,156 @@ index 0000000..ddafc50
 +end
 +
 +
-+local function request_uri(url, opts)
++local get_response_headers = C[prefix .. "_get_response_headers"]
++local read_response_body = C[prefix .. "_read_response_body"]
++local write_request_body = C[prefix .. "_write_request_body"]
++local stream_wait = C[prefix .. "_wait"]
++local stream_close = C[prefix .. "_close"]
++local stream_release = C[prefix .. "_release"]
++
++
++local function stream_error(rc)
++    if rc == -1001 then
++        return "HTTP response exceeds maximum size"
++    elseif rc == -1000 then
++        return "timeout"
++    elseif rc == base.FFI_DECLINED then
++        return "request body does not match Content-Length"
++    elseif rc == base.FFI_ABORT then
++        return "closed"
++    end
++    return "HTTP request failed"
++end
++
++
++local function wait(r, handle)
++    local err = get_string_buf(256)
++    local len = get_size_ptr()
++    len[0] = 256
++    if stream_wait(r, handle, err, len) ~= FFI_AGAIN then
++        return nil, ffi_str(err, len[0])
++    end
++    co_yield()
++    return true
++end
++
++
++local function send_request_body(r, handle, producer)
++    while true do
++        local rc = get_response_headers(r, handle)
++        if rc == 0 then
++            return true
++        elseif rc ~= FFI_AGAIN then
++            return nil, stream_error(rc)
++        end
++
++        local ok, chunk, err = pcall(producer, CHUNK_SIZE)
++        if not ok then
++            return nil, chunk
++        end
++        if err then
++            return nil, err
++        end
++        if chunk ~= nil and (type(chunk) ~= "string" or #chunk == 0) then
++            return nil, "body iterator must return a non-empty string or nil"
++        end
++
++        local len = chunk and #chunk or 0
++        local pos = 0
++        repeat
++            local data = chunk and ffi_cast(string_ptr, chunk) + pos or nil
++            rc = tonumber(write_request_body(r, handle, data, len - pos))
++            if rc == FFI_AGAIN then
++                ok, err = wait(r, handle)
++                if not ok then
++                    return nil, err
++                end
++            elseif rc == base.FFI_DONE then
++                return true
++            elseif rc < 0 then
++                return nil, stream_error(rc)
++            elseif not chunk then
++                return true
++            else
++                pos = pos + rc
++            end
++        until chunk and pos == len
++    end
++end
++
++
++local function response_stream(r, handle)
++    while true do
++        local rc = get_response_headers(r, handle)
++        if rc == 0 then
++            break
++        elseif rc ~= FFI_AGAIN then
++            return nil, stream_error(rc)
++        end
++        local ok, err = wait(r, handle)
++        if not ok then
++            return nil, err
++        end
++    end
++
++    local closed, eof
++    local res = {
++        status = tonumber(handle.status),
++        headers = response_headers(handle.headers, tonumber(handle.nheaders)),
++    }
++    function res.close()
++        if not closed then
++            if get_request() ~= r then
++                return nil, "HTTP stream belongs to another request"
++            end
++            closed = true
++            stream_close(handle)
++        end
++        return true
++    end
++
++    function res.body_reader(size)
++        if eof then
++            return nil
++        end
++        if closed then
++            return nil, "closed"
++        end
++        if get_request() ~= r then
++            return nil, "HTTP stream belongs to another request"
++        end
++        size = size or CHUNK_SIZE
++        if type(size) ~= "number" or size < 1 or size % 1 ~= 0 then
++            return nil, "invalid read size"
++        end
++        size = math.min(CHUNK_SIZE, size)
++        while not closed do
++            local buf = get_string_buf(size)
++            local n = tonumber(read_response_body(r, handle, buf, size))
++            if n > 0 then
++                return ffi_str(buf, n)
++            end
++            if n == base.FFI_BUSY then
++                return nil, "HTTP stream is busy"
++            end
++            if n ~= FFI_AGAIN then
++                eof = n == 0
++                res.close()
++                return nil, n < 0 and stream_error(n) or nil
++            end
++            local ok, err = wait(r, handle)
++            if not ok then
++                return nil, err
++            end
++        end
++        return nil, "closed"
++    end
++
++    return res
++end
++
++
++local function perform(url, opts, streaming)
 +    local r = get_request()
 +    if not r then
 +        return nil, "no request found"
@@ -220,9 +411,12 @@ index 0000000..ddafc50
 +
 +    local server = opts.server or ""
 +    local method = opts.method or "GET"
-+    local body = opts.body or ""
++    local body = opts.body
++    if body == nil then
++        body = ""
++    end
 +    if type(server) ~= "string" or type(method) ~= "string"
-+       or type(body) ~= "string"
++       or (type(body) ~= "string" and type(body) ~= "function")
 +    then
 +        return nil, "invalid HTTP server, method, or body"
 +    end
@@ -244,9 +438,12 @@ index 0000000..ddafc50
 +        end
 +    end
 +
-+    local limit = opts.max_response_bytes or DEFAULT_RESPONSE_LIMIT
-+    if type(limit) ~= "number" or limit < 1 or limit > MAX_RESPONSE_LIMIT
-+       or limit % 1 ~= 0
++    local limit = opts.max_response_bytes
++    if limit == nil and not streaming then
++        limit = DEFAULT_RESPONSE_LIMIT
++    end
++    if limit ~= nil and (type(limit) ~= "number" or limit < 1
++       or limit > MAX_RESPONSE_LIMIT or limit % 1 ~= 0)
 +    then
 +        return nil, "invalid HTTP response size limit"
 +    end
@@ -265,10 +462,15 @@ index 0000000..ddafc50
 +    set_str(input.server, server)
 +    set_str(input.url, url)
 +    set_str(input.method, method)
-+    set_str(input.body, body)
++    local iterator = type(body) == "function"
++    input.request_body_streaming = iterator and 1 or 0
++    input.stream = (streaming or iterator) and 1 or 0
++    if not iterator then
++        set_str(input.body, body)
++    end
 +    input.headers = fields
 +    input.nheaders = #refs
-+    input.response_limit = limit
++    input.response_limit = limit or 0
 +
 +    local result = ffi_new(new_result)
 +    local err = get_string_buf(256)
@@ -276,6 +478,38 @@ index 0000000..ddafc50
 +    errlen[0] = 256
 +
 +    local rc = request(r, input, result, err, errlen)
++    if rc == 0 then
++        local handle = ffi.gc(result[0], stream_release)
++        if iterator then
++            local ok, message = send_request_body(r, handle, body)
++            if not ok then
++                stream_close(handle)
++                return nil, message
++            end
++        end
++        local res, message = response_stream(r, handle)
++        if not res then
++            stream_close(handle)
++            return nil, message
++        end
++        if streaming then
++            return res
++        end
++        local chunks = {}
++        while true do
++            local piece, e = res.body_reader()
++            if not piece then
++                if e then
++                    res.close()
++                    return nil, e
++                end
++                break
++            end
++            chunks[#chunks + 1] = piece
++        end
++        return { status = res.status, headers = res.headers,
++                 body = table.concat(chunks) }
++    end
 +    if rc ~= FFI_AGAIN then
 +        return nil, ffi_str(err, errlen[0])
 +    end
@@ -298,6 +532,9 @@ index 0000000..ddafc50
 +end
 +
 +
-+ngx.http = { request_uri = request_uri }
++ngx.http = {
++    request = function(url, opts) return perform(url, opts, true) end,
++    request_uri = function(url, opts) return perform(url, opts, false) end,
++}
 +
 +return ngx.http

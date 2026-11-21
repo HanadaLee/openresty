@@ -96,10 +96,10 @@ index 85836a1..9b8e69c 100755
  
 diff --git a/src/ngx_http_lua_http_client.c b/src/ngx_http_lua_http_client.c
 new file mode 100644
-index 0000000..c215a29
+index 0000000..c69a21d
 --- /dev/null
 +++ b/src/ngx_http_lua_http_client.c
-@@ -0,0 +1,300 @@
+@@ -0,0 +1,567 @@
 +
 +/*
 + * Copyright (C) Hanada
@@ -119,6 +119,8 @@ index 0000000..c215a29
 +    ngx_keyval_t                      *headers;
 +    size_t                             nheaders;
 +    size_t                             response_limit;
++    int                                stream;
++    int                                request_body_streaming;
 +} ngx_http_lua_http_client_request_t;
 +
 +
@@ -140,15 +142,40 @@ index 0000000..c215a29
 +} ngx_http_lua_http_client_ctx_t;
 +
 +
++typedef struct {
++    ngx_http_lua_http_client_ctx_t     ctx;
++    ngx_event_t                        event;
++    ngx_http_cleanup_t                *cleanup;
++} ngx_http_lua_http_client_stream_t;
++
++
 +int ngx_http_lua_ffi_http_client(ngx_http_request_t *r,
 +    ngx_http_lua_http_client_request_t *request,
 +    ngx_http_lua_http_client_result_t **result, u_char *err, size_t *errlen);
 +void ngx_http_lua_ffi_http_client_done(
 +    ngx_http_lua_http_client_result_t *result);
 +
++int ngx_http_lua_ffi_http_client_get_response_headers(ngx_http_request_t *r,
++    ngx_http_lua_http_client_result_t *result);
++ssize_t ngx_http_lua_ffi_http_client_read_response_body(ngx_http_request_t *r,
++    ngx_http_lua_http_client_result_t *result, u_char *buf, size_t size);
++ssize_t ngx_http_lua_ffi_http_client_write_request_body(ngx_http_request_t *r,
++    ngx_http_lua_http_client_result_t *result, const u_char *buf, size_t size);
++int ngx_http_lua_ffi_http_client_wait(ngx_http_request_t *r,
++    ngx_http_lua_http_client_result_t *result, u_char *err, size_t *errlen);
++void ngx_http_lua_ffi_http_client_close(
++    ngx_http_lua_http_client_result_t *result);
++void ngx_http_lua_ffi_http_client_release(
++    ngx_http_lua_http_client_result_t *result);
++
++static ngx_http_lua_ctx_t *ngx_http_lua_http_client_context(
++    ngx_http_request_t *r, u_char *err, size_t *errlen);
++static void ngx_http_lua_http_client_notify(ngx_event_t *ev);
++static void ngx_http_lua_http_client_stream_cleanup(void *data);
++static void ngx_http_lua_http_client_wait_cleanup(void *data);
 +static void ngx_http_lua_http_client_cancel(void *data);
-+static void ngx_http_lua_http_client_handler(
-+    ngx_http_lua_http_client_ctx_t *ctx);
++static void ngx_http_lua_http_client_handler(ngx_http_request_t *r,
++    ngx_http_lua_co_ctx_t *coctx);
 +static ngx_int_t ngx_http_lua_http_client_resume(ngx_http_request_t *r);
 +static ngx_int_t ngx_http_lua_http_client_check_size(void *data,
 +    size_t header_size, uint64_t body_size);
@@ -156,24 +183,17 @@ index 0000000..c215a29
 +    ngx_client_http_response_t *response, void *data, ngx_int_t rc);
 +
 +
-+int
-+ngx_http_lua_ffi_http_client(ngx_http_request_t *r,
-+    ngx_http_lua_http_client_request_t *request,
-+    ngx_http_lua_http_client_result_t **result, u_char *err, size_t *errlen)
++static ngx_http_lua_ctx_t *
++ngx_http_lua_http_client_context(ngx_http_request_t *r, u_char *err,
++    size_t *errlen)
 +{
-+    ngx_int_t                        rc;
-+    unsigned                         flags;
-+    ngx_array_t                      headers;
-+    ngx_http_lua_ctx_t              *lctx;
-+    ngx_http_lua_co_ctx_t           *coctx;
-+    ngx_client_http_request_t        req;
-+    ngx_client_http_post_request_t   post;
-+    ngx_http_lua_http_client_ctx_t  *ctx;
++    unsigned             flags;
++    ngx_http_lua_ctx_t  *lctx;
 +
 +    lctx = ngx_http_get_module_ctx(r, ngx_http_lua_module);
 +    if (lctx == NULL || lctx->cur_co_ctx == NULL) {
 +        *errlen = ngx_snprintf(err, *errlen, "no coroutine context") - err;
-+        return NGX_ERROR;
++        return NULL;
 +    }
 +
 +    flags = NGX_HTTP_LUA_CONTEXT_SERVER_REWRITE
@@ -181,13 +201,40 @@ index 0000000..c215a29
 +            | NGX_HTTP_LUA_CONTEXT_ACCESS
 +            | NGX_HTTP_LUA_CONTEXT_CONTENT
 +            | NGX_HTTP_LUA_CONTEXT_TIMER;
++
 +#ifdef NGX_HTTP_LUA_CONTEXT_PREACCESS
 +    flags |= NGX_HTTP_LUA_CONTEXT_PREACCESS;
 +#endif
++
 +#ifdef NGX_HTTP_LUA_CONTEXT_PRECONTENT
 +    flags |= NGX_HTTP_LUA_CONTEXT_PRECONTENT;
 +#endif
++
 +    if (ngx_http_lua_ffi_check_context(lctx, flags, err, errlen) != NGX_OK) {
++        return NULL;
++    }
++
++    return lctx;
++}
++
++
++int
++ngx_http_lua_ffi_http_client(ngx_http_request_t *r,
++    ngx_http_lua_http_client_request_t *request,
++    ngx_http_lua_http_client_result_t **result, u_char *err, size_t *errlen)
++{
++    ngx_int_t                           rc;
++    ngx_array_t                         headers;
++    ngx_http_lua_ctx_t                 *lctx;
++    ngx_http_lua_co_ctx_t              *coctx;
++    ngx_client_http_stream_t            options;
++    ngx_client_http_request_t           req;
++    ngx_client_http_post_request_t      post;
++    ngx_http_lua_http_client_ctx_t     *ctx;
++    ngx_http_lua_http_client_stream_t  *stream;
++
++    lctx = ngx_http_lua_http_client_context(r, err, errlen);
++    if (lctx == NULL) {
 +        return NGX_ERROR;
 +    }
 +
@@ -202,39 +249,80 @@ index 0000000..c215a29
 +    req.headers = &headers;
 +    req.body = request->body;
 +
-+    ctx = ngx_calloc(sizeof(ngx_http_lua_http_client_ctx_t),
-+                     r->connection->log);
-+    if (ctx == NULL) {
-+        *errlen = ngx_snprintf(err, *errlen, "no memory") - err;
-+        return NGX_ERROR;
++    stream = NULL;
++
++    if (request->stream) {
++        stream = ngx_calloc(sizeof(ngx_http_lua_http_client_stream_t),
++                            r->connection->log);
++        if (stream == NULL) {
++            goto nomem;
++        }
++
++        ctx = &stream->ctx;
++        stream->event.data = ctx;
++        stream->event.handler = ngx_http_lua_http_client_notify;
++        stream->event.log = r->connection->log;
++
++    } else {
++        ctx = ngx_calloc(sizeof(ngx_http_lua_http_client_ctx_t),
++                         r->connection->log);
++        if (ctx == NULL) {
++            goto nomem;
++        }
 +    }
 +
 +    ctx->response_limit = request->response_limit;
++    ctx->request = r;
 +
-+    post.handler = ngx_http_lua_http_client_complete;
-+    post.header_handler = NULL;
-+    post.body_handler = NULL;
-+    post.check_size = ngx_http_lua_http_client_check_size;
-+    post.data = ctx;
++    if (stream) {
++        options.notify = &stream->event;
++        options.check_size = ngx_http_lua_http_client_check_size;
++        options.data = ctx;
++        options.request_body_streaming = request->request_body_streaming;
 +
-+    rc = ngx_client_http_create_request((ngx_cycle_t *) ngx_cycle,
-+                                        r->connection->log, &req,
-+                                        &ctx->client, &post);
++        rc = ngx_client_http_create_streaming_request((ngx_cycle_t *) ngx_cycle,
++                                                      r->connection->log, &req,
++                                                      &ctx->client, &options);
++
++    } else {
++        ngx_memzero(&post, sizeof(ngx_client_http_post_request_t));
++        post.handler = ngx_http_lua_http_client_complete;
++        post.check_size = ngx_http_lua_http_client_check_size;
++        post.data = ctx;
++
++        rc = ngx_client_http_create_request((ngx_cycle_t *) ngx_cycle,
++                                            r->connection->log, &req,
++                                            &ctx->client, &post);
++    }
++
 +    if (rc != NGX_OK) {
 +        ngx_free(ctx);
 +
 +        if (rc == NGX_DECLINED) {
 +            *errlen = ngx_snprintf(err, *errlen, "unknown client server \"%V\"",
-+                                   &request->server)
-+                       - err;
++                                   &request->server) - err;
 +
 +        } else {
 +            *errlen = ngx_snprintf(err, *errlen,
-+                                   "failed to create HTTP request")
-+                       - err;
++                                   "failed to create HTTP request") - err;
 +        }
 +
 +        return NGX_ERROR;
++    }
++
++    *result = &ctx->result;
++
++    if (stream) {
++        stream->cleanup = ngx_http_lua_cleanup_add(r, 0);
++        if (stream->cleanup == NULL) {
++            ngx_client_http_close_request(ctx->client);
++            ngx_free(ctx);
++            goto nomem;
++        }
++
++        stream->cleanup->handler = ngx_http_lua_http_client_stream_cleanup;
++        stream->cleanup->data = stream;
++        return NGX_OK;
 +    }
 +
 +    coctx = lctx->cur_co_ctx;
@@ -242,12 +330,13 @@ index 0000000..c215a29
 +    coctx->cleanup = ngx_http_lua_http_client_cancel;
 +    coctx->data = ctx;
 +
-+    ctx->request = r;
 +    ctx->coctx = coctx;
-+
-+    *result = &ctx->result;
-+
 +    return NGX_AGAIN;
++
++nomem:
++
++    *errlen = ngx_snprintf(err, *errlen, "no memory") - err;
++    return NGX_ERROR;
 +}
 +
 +
@@ -261,10 +350,187 @@ index 0000000..c215a29
 +}
 +
 +
++int
++ngx_http_lua_ffi_http_client_get_response_headers(ngx_http_request_t *r,
++    ngx_http_lua_http_client_result_t *result)
++{
++    ngx_int_t                        rc;
++    ngx_client_http_response_t      *response;
++    ngx_http_lua_http_client_ctx_t  *ctx;
++
++    ctx = (ngx_http_lua_http_client_ctx_t *) result;
++    if (ctx->request != r || ctx->client == NULL) {
++        return NGX_ABORT;
++    }
++
++    rc = ngx_client_http_get_response_headers(ctx->client, &response);
++    if (rc == NGX_OK) {
++        result->status = response->status;
++        result->headers = response->headers.elts;
++        result->nheaders = response->headers.nelts;
++    }
++
++    return rc;
++}
++
++
++ssize_t
++ngx_http_lua_ffi_http_client_read_response_body(ngx_http_request_t *r,
++    ngx_http_lua_http_client_result_t *result, u_char *buf, size_t size)
++{
++    ngx_http_lua_http_client_ctx_t  *ctx;
++
++    ctx = (ngx_http_lua_http_client_ctx_t *) result;
++
++    if (ctx->request != r || ctx->client == NULL) {
++        return NGX_ABORT;
++    }
++
++    if (ctx->coctx) {
++        return NGX_BUSY;
++    }
++
++    return ngx_client_http_read_response_body(ctx->client, buf, size);
++}
++
++
++ssize_t
++ngx_http_lua_ffi_http_client_write_request_body(ngx_http_request_t *r,
++    ngx_http_lua_http_client_result_t *result, const u_char *buf, size_t size)
++{
++    ngx_http_lua_http_client_ctx_t  *ctx;
++
++    ctx = (ngx_http_lua_http_client_ctx_t *) result;
++
++    if (ctx->request != r || ctx->client == NULL) {
++        return NGX_ABORT;
++    }
++
++    return ngx_client_http_write_request_body(ctx->client, buf, size);
++}
++
++
++int
++ngx_http_lua_ffi_http_client_wait(ngx_http_request_t *r,
++    ngx_http_lua_http_client_result_t *result, u_char *err, size_t *errlen)
++{
++    ngx_http_lua_ctx_t              *lctx;
++    ngx_http_lua_co_ctx_t           *coctx;
++    ngx_http_lua_http_client_ctx_t  *ctx;
++
++    ctx = (ngx_http_lua_http_client_ctx_t *) result;
++
++    if (ctx->request != r || ctx->client == NULL || ctx->coctx) {
++        *errlen = ngx_snprintf(err, *errlen,
++                               "HTTP stream is closed or busy") - err;
++        return NGX_ERROR;
++    }
++
++    lctx = ngx_http_lua_http_client_context(r, err, errlen);
++    if (lctx == NULL) {
++        return NGX_ERROR;
++    }
++
++    coctx = lctx->cur_co_ctx;
++    ngx_http_lua_cleanup_pending_operation(coctx);
++    coctx->cleanup = ngx_http_lua_http_client_wait_cleanup;
++    coctx->data = ctx;
++    ctx->coctx = coctx;
++
++    return NGX_AGAIN;
++}
++
++
++static void
++ngx_http_lua_http_client_notify(ngx_event_t *ev)
++{
++    ngx_http_lua_co_ctx_t           *coctx;
++    ngx_http_lua_http_client_ctx_t  *ctx;
++
++    ctx = ev->data;
++    coctx = ctx->coctx;
++    if (coctx == NULL) {
++        return;
++    }
++
++    ctx->coctx = NULL;
++    coctx->cleanup = NULL;
++    coctx->data = NULL;
++
++    ngx_http_lua_http_client_handler(ctx->request, coctx);
++}
++
++
++static void
++ngx_http_lua_http_client_wait_cleanup(void *data)
++{
++    ngx_http_lua_co_ctx_t  *coctx = data;
++
++    ngx_http_lua_http_client_stream_cleanup(coctx->data);
++}
++
++
++static void
++ngx_http_lua_http_client_stream_cleanup(void *data)
++{
++    ngx_http_lua_http_client_stream_t  *stream = data;
++
++    if (stream->cleanup) {
++        stream->cleanup->handler = NULL;
++        ngx_http_lua_cleanup_free(stream->ctx.request,
++                                  &stream->cleanup->handler);
++        stream->cleanup = NULL;
++    }
++
++    if (stream->ctx.coctx) {
++        stream->ctx.coctx->cleanup = NULL;
++        stream->ctx.coctx->data = NULL;
++        stream->ctx.coctx = NULL;
++    }
++
++    if (stream->event.posted) {
++        ngx_delete_posted_event(&stream->event);
++    }
++
++    if (stream->ctx.client) {
++        ngx_client_http_close_request(stream->ctx.client);
++        stream->ctx.client = NULL;
++    }
++
++    stream->ctx.request = NULL;
++}
++
++
++void
++ngx_http_lua_ffi_http_client_close(ngx_http_lua_http_client_result_t *result)
++{
++    ngx_http_lua_http_client_stream_t  *stream;
++
++    stream = (ngx_http_lua_http_client_stream_t *) result;
++
++    if (stream->ctx.coctx && stream->ctx.client) {
++        ngx_client_http_close_request(stream->ctx.client);
++        stream->ctx.client = NULL;
++        ngx_post_event(&stream->event, &ngx_posted_events);
++        return;
++    }
++
++    ngx_http_lua_http_client_stream_cleanup(stream);
++}
++
++
++void
++ngx_http_lua_ffi_http_client_release(ngx_http_lua_http_client_result_t *result)
++{
++    ngx_http_lua_http_client_stream_cleanup(result);
++    ngx_free(result);
++}
++
++
 +static void
 +ngx_http_lua_http_client_cancel(void *data)
 +{
-+    ngx_http_lua_co_ctx_t  *coctx = data;
++    ngx_http_lua_co_ctx_t   *coctx = data;
 +
 +    ngx_http_lua_http_client_ctx_t *ctx;
 +
@@ -285,7 +551,9 @@ index 0000000..c215a29
 +{
 +    ngx_http_lua_http_client_ctx_t  *ctx = data;
 +
-+    if (header_size > 64 * 1024 || body_size > ctx->response_limit) {
++    if (header_size > 64 * 1024
++        || (ctx->response_limit && body_size > ctx->response_limit))
++    {
 +        return NGX_CLIENT_HTTP_TOO_LARGE;
 +    }
 +
@@ -324,22 +592,21 @@ index 0000000..c215a29
 +    }
 +
 +    /* The client posts completion after closing its internal HTTP request. */
-+    ngx_http_lua_http_client_handler(ctx);
++    ngx_http_lua_http_client_handler(ctx->request, ctx->coctx);
 +}
 +
 +
 +static void
-+ngx_http_lua_http_client_handler(ngx_http_lua_http_client_ctx_t *ctx)
++ngx_http_lua_http_client_handler(ngx_http_request_t *r,
++    ngx_http_lua_co_ctx_t *coctx)
 +{
-+    ngx_http_request_t  *r;
 +    ngx_http_lua_ctx_t  *lctx;
 +    ngx_connection_t    *c;
 +    ngx_http_log_ctx_t  *log_ctx;
 +
-+    r = ctx->request;
 +    lctx = ngx_http_get_module_ctx(r, ngx_http_lua_module);
 +    if (lctx == NULL) {
-+        ngx_http_lua_cleanup_pending_operation(ctx->coctx);
++        ngx_http_lua_cleanup_pending_operation(coctx);
 +        return;
 +    }
 +
@@ -350,7 +617,7 @@ index 0000000..c215a29
 +        log_ctx->current_request = r;
 +    }
 +
-+    lctx->cur_co_ctx = ctx->coctx;
++    lctx->cur_co_ctx = coctx;
 +
 +    if (lctx->entered_content_phase) {
 +        (void) ngx_http_lua_http_client_resume(r);
