@@ -23,6 +23,9 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [resolver_next_nameserver_tries](#resolver_next_nameserver_tries)
   - [lua-resty-core](#lua-resty-core)
     - [ngx.resolve](#ngxresolve)
+    - [ngx.http](#ngxhttp)
+  - [ngx_http_client_module](#ngx_http_client_module)
+    - [client](#client)
   - [ngx\_http\_lua\_module](#ngx_http_lua_module)
     - [ngx.fs](#ngxfs)
     - [preaccess\_by\_lua\_block](#preaccess_by_lua_block)
@@ -38,6 +41,8 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [More directives for not modified checking](#more-directives-for-not-modified-checking)
   - [ngx\_http\_ssl\_module](#ngx_http_ssl_module)
     - [ssl\_certificate\_load](#ssl_certificate_load)
+    - [ssl_ocsp_http_client](#ssl_ocsp_http_client)
+    - [ssl_stapling_http_client](#ssl_stapling_http_client)
     - [Conditional ssl\_reject\_handshake](#conditional-ssl_reject_handshake)
     - [ssl\_delay\_handshake](#ssl_delay_handshake)
     - [Optimizing TLS over TCP to reduce latency](#optimizing-tls-over-tcp-to-reduce-latency)
@@ -78,8 +83,12 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [access\_by\_lua\_block](#access_by_lua_block)
     - [access\_by\_lua\_file](#access_by_lua_file)
     - [access\_by\_lua\_no\_postpone](#access_by_lua_no_postpone)
+  - [ngx_stream_log_module](#ngx_stream_log_module)
+    - [Conditional access_log](#conditional-access_log-1)
   - [ngx\_stream\_ssl\_module](#ngx_stream_ssl_module)
     - [ssl\_certificate\_load](#ssl_certificate_load-1)
+    - [ssl_ocsp_http_client](#ssl_ocsp_http_client-1)
+    - [ssl_stapling_http_client](#ssl_stapling_http_client-1)
     - [ssl\_reject\_handshake](#ssl_reject_handshake)
     - [ssl\_delay\_handshake](#ssl_delay_handshake-1)
     - [Variables about SSL handshake timestamps and time spent](#variables-about-ssl-handshake-timestamps-and-time-spent-1)
@@ -148,6 +157,8 @@ name. The patches in this repository target the bundle produced by the pinned
 commit and must be regenerated or revalidated whenever that commit changes.
 The default `RESTY_REPOSITORY` is derived from `RESTY_GIT_MIRROR`, so overriding
 the mirror also applies to the pinned OpenResty source checkout.
+
+The patched nginx configure script accepts `--without-client` to disable the internal HTTP client and `--without-ext` to disable all nginx-ext features. Add-on modules can test `NGX_EXT` and `NGX_CLIENT` at compile time.
 
 Dynamic modules must be built against the same patched source and configuration headers as the server. Module signatures include the extension ABI. Incompatible modules are rejected with `is not binary compatible`; `--with-compat` does not bypass these checks.
 
@@ -339,7 +350,9 @@ http {
 ### nameserver
 
 * **Syntax:** `nameserver name { ... }`
+
 * **Default:** —
+
 * **Context:** `http`, `stream`, `mail`
 
 Defines a group of DNS servers. Group names are local to their HTTP, Stream or Mail block. A `resolver` directive may reference a group before its definition.
@@ -387,8 +400,11 @@ Stale answers remain available until their original validity plus `stale_valid`;
 ### resolver_next_nameserver
 
 * **Syntax:** `resolver_next_nameserver condition ...;`
+
 * **Syntax:** `resolver_next_nameserver off;`
+
 * **Default:** `resolver_next_nameserver error timeout;`
+
 * **Context:** HTTP `http`, `server`, `location`, `upstream`; Stream `stream`, `server`, `upstream`; Mail `mail`, `server`
 
 Specifies when another DNS server may be tried. Conditions are `error`, `timeout`, `invalid_response`, `nodata`, `rcode_formerr`, `rcode_servfail`, `rcode_nxdomain`, `rcode_notimp` and `rcode_refused`. RCODEs greater than 5 use `invalid_response`.
@@ -398,7 +414,9 @@ Specifies when another DNS server may be tried. Conditions are `error`, `timeout
 ### resolver_next_nameserver_timeout
 
 * **Syntax:** `resolver_next_nameserver_timeout time;`
+
 * **Default:** `resolver_next_nameserver_timeout 0;`
+
 * **Context:** HTTP `http`, `server`, `location`, `upstream`; Stream `stream`, `server`, `upstream`; Mail `mail`, `server`
 
 Limits the time during which another nameserver may be tried. `0` disables the limit. The window starts with the first attempt and is not restarted for another level, CNAME or SRV target. `resolver_timeout` retains its existing query timeout semantics.
@@ -406,7 +424,9 @@ Limits the time during which another nameserver may be tried. `0` disables the l
 ### resolver_next_nameserver_tries
 
 * **Syntax:** `resolver_next_nameserver_tries number;`
+
 * **Default:** `resolver_next_nameserver_tries 0;`
+
 * **Context:** HTTP `http`, `server`, `location`, `upstream`; Stream `stream`, `server`, `upstream`; Mail `mail`, `server`
 
 Limits attempts, including the first attempt, retransmissions and CNAME/SRV follow-up queries. `0` disables the limit. Waiters sharing a query retain independent limits.
@@ -433,6 +453,64 @@ Uses the resolver and timeout of the current HTTP location or Stream server. Ava
 
 [Back to TOC](#table-of-contents)
 
+### ngx.http
+
+Sends an HTTP or HTTPS request through a named [client server](#client). Available in HTTP server rewrite, rewrite, preaccess, access, precontent and content, in Stream access, preread and content, and in timers in both subsystems.
+
+| Call | Result |
+| --- | --- |
+| `ngx.http.request_uri(url[, options])` | Waits for the complete response and returns `status`, `headers` and `body` in a table. The default body limit is 16 MiB. |
+| `ngx.http.request(url[, options])` | Returns `status`, `headers` and `body_reader` when the response headers arrive. There is no default total body limit. |
+
+```lua
+local res, err = ngx.http.request_uri("https://example.org/status", {
+    headers = { Host = "example.org" },
+})
+if not res then
+    return nil, err
+end
+return res.status, res.body
+```
+
+The URL must be absolute. Options include `server` (default `@client`), `method` (default `GET`), `headers`, `query`, `body` and `max_response_bytes`. A query string or argument table replaces the URL query. Response header names are case-insensitive. Repeated fields are returned as an array.
+
+Both calls accept a request body string or a function that receives a suggested chunk size and returns a nonempty string, `nil` at EOF, or `nil, err`. For streaming responses, `res.body_reader([size])` reads up to the requested number of bytes (default 16 KiB) and uses the same EOF and error conventions. Call `res:close()` when stopping early. Transport errors return `nil, err`. HTTP error responses retain their status and body.
+
+[Back to TOC](#table-of-contents)
+
+## ngx_http_client_module
+
+### client
+
+* **Syntax:** *client;*
+
+* **Default:** —
+
+* **Context:** *server*
+
+Declares an HTTP server for internally generated requests. It takes one literal `server_name` beginning with `@` and does not accept a `listen` directive. If `@client` is not configured, nginx creates the following default server in the HTTP configuration.
+
+```nginx
+server {
+    client;
+    server_name @client;
+    access_log off;
+
+    location / {
+        proxy_pass $scheme://$host$is_request_port$request_port;
+        proxy_set_header Host $http_host;
+        proxy_buffering off;
+        proxy_request_buffering off;
+        proxy_ssl_server_name on;
+        proxy_ssl_name $http_host;
+    }
+}
+```
+
+The proxy destination uses the URL scheme and host. `$is_request_port$request_port` includes the colon and port only when the URL specifies a port. The caller supplies the HTTP `Host` header. Configure a `resolver` for destinations that require DNS.
+
+[Back to TOC](#table-of-contents)
+
 ## ngx_http_lua_module
 
 ### ngx.fs
@@ -453,7 +531,7 @@ Offsets default to zero. Read sizes and offsets must be integers. Reads return L
 
 ### preaccess_by_lua_block
 
-* **Syntax:** *preaccess_by_lua_block { lua-script }*
+* **Syntax:** `preaccess_by_lua_block { lua-script }`
 
 * **Default:** *-*
 
@@ -658,7 +736,7 @@ Specify whether to ignore the `If-Match` request header. If enabled, the `If-Mat
 * **Syntax:** *not_modified_check on | any | strict | prefer_if_none_match;*
 
 * **Default:** *not_modified_check strict;*
-  
+
 * **Context:** *http, server, location*
 
 Specifies how to check if the response is unmodified (304 Not Modified):
@@ -696,6 +774,44 @@ If either path contains variables, certificates and private keys are always
 loaded on demand at runtime, regardless of the selected mode.
 `ssl_certificate_cache` also applies to files loaded in `runtime` mode.
 The setting is inherited unless overridden.
+
+### ssl_ocsp_http_client
+
+* **Syntax:** *ssl_ocsp_http_client @name;*
+
+* **Default:** *ssl_ocsp_http_client @client;*
+
+* **Context:** *http, server*
+
+Selects the HTTP client server used to check the OCSP status of client certificates. The named server must declare [client](#client).
+
+### ssl_stapling_http_client
+
+* **Syntax:** *ssl_stapling_http_client @name;*
+
+* **Default:** *ssl_stapling_http_client @client;*
+
+* **Context:** *http, server*
+
+Selects the HTTP client server used to fetch OCSP responses for stapling. Both directives accept the same named server. The OCSP client sends an HTTP GET to the responder.
+
+```nginx
+http {
+    ssl_ocsp_http_client @ocsp;
+    ssl_stapling_http_client @ocsp;
+
+    server {
+        client;
+        server_name @ocsp;
+        access_log off;
+
+        location / {
+            proxy_pass http://$host$is_request_port$request_port;
+            proxy_set_header Host $http_host;
+        }
+    }
+}
+```
 
 ### Conditional ssl_reject_handshake
 
@@ -1072,7 +1188,8 @@ Allows the merge inheritance of fastcgi_param in receiving contexts.
 Refer to [proxy_cookie_domain](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cookie_domain), [proxy_cookie_flags](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cookie_flags), and [proxy_cookie_path](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cookie_path) for the original directive behavior. The directives below add cookie value and expiration rewriting.
 
 * **Syntax:** *proxy_cookie_value off;*
-*proxy_cookie_value cookie value replacement;*
+
+* **Syntax:** *proxy_cookie_value cookie value replacement;*
 
 * **Default:** *proxy_cookie_value off;*
 
@@ -1101,7 +1218,8 @@ again by subsequent rules. The `off` parameter cancels rules inherited from
 the previous configuration level.
 
 * **Syntax:** *proxy_cookie_max_age off;*
-*proxy_cookie_max_age cookie time;*
+
+* **Syntax:** *proxy_cookie_max_age cookie time;*
 
 * **Default:** *proxy_cookie_max_age off;*
 
@@ -1383,7 +1501,7 @@ The numeric comparison operators support decimals and negative numbers. Non-nume
 
 ### "if" with multiple conditions
 
-* **Syntax:** *if (conditions) {...}*
+* **Syntax:** `if (conditions) {...}`
 
 * **Default:** *-*
 
@@ -1406,7 +1524,7 @@ if ($remote_addr = 192.168.1.1 && ($http_user_agent ~ Mozilla || $server_port > 
 
 ### Support for "elif" and "else" directives
 
-* **Syntax:** *elif (conditions) {...}*
+* **Syntax:** `elif (conditions) {...}`
 
 * **Default:** *-*
 
@@ -1416,7 +1534,7 @@ Similar to if, but if this directive is not preceded by an if/elif directive, or
 
 > This directive will create a new location just like if, please refer to [if is evil](https://web.archive.org/web/20231227223503/https://www.nginx.com/resources/wiki/start/topics/depth/ifisevil/)
 
-* **Syntax:** *else {...}*
+* **Syntax:** `else {...}`
 
 * **Default:** *-*
 
@@ -1457,13 +1575,15 @@ location @two {
 
 ### Conditional access_log
 
-* **Syntax:** *access_log path [format [buffer=size] [gzip[=level]] [flush=time] [if=condition] [sample=number]]*;  *access_log off*;
+* **Syntax:** *access_log path [format [buffer=size] [gzip[=level]] [flush=time] [if=condition] [sample=number]];*
+
+* **Syntax:** *access_log off;*
 
 * **Default:** *access_log logs/access.log combined;*
 
-* **Context:** *http, stream, server, location, when*
+* **Context:** *http, server, location, if in location, limit_except, when*
 
-Refer to [access_log](https://nginx.org/en/docs/http/ngx_http_log_module.html#access_log) (HTTP) and [access_log](https://nginx.org/en/docs/stream/ngx_stream_log_module.html#access_log) (Stream) for the original directive behavior.
+Refer to [access_log](https://nginx.org/en/docs/http/ngx_http_log_module.html#access_log) for the original directive behavior.
 
 Define conditions with `ngx_expr_module` and place conditional log entries in `when` blocks. Matching entries are processed in configuration order. Use `when !condition_name` for the inverse case.
 
@@ -1506,7 +1626,9 @@ Refer to [ngx_http_modsecurity_module](https://github.com/owasp-modsecurity/ModS
 This module connects NGINX/OpenResty with libModSecurity v3. This bundle applies an additional patch that adds log variables for ModSecurity interventions and matched rule IDs, skips deleted request/response headers, and adds `modsecurity_bypass`.
 
 ### modsecurity_bypass
+
 * **Syntax:** *modsecurity_bypass string ...;*
+
 * **Default:** *-*
 
 * **Context:** *http, server, location*
@@ -1517,11 +1639,11 @@ Defines conditions under which the request will be checked by modsecurity. If at
 
 ## ngx_stream_lua_module
 
-See [ngx.fs](#ngxfs) for asynchronous file operations in Stream Lua.
+For asynchronous file operations and outbound HTTP requests, see [ngx.fs](#ngxfs) and [ngx.http](#ngxhttp).
 
 ### access_by_lua_block
 
-* **Syntax:** *access_by_lua_block { lua-script }*
+* **Syntax:** `access_by_lua_block { lua-script }`
 
 * **Default:** *-*
 
@@ -1529,30 +1651,7 @@ See [ngx.fs](#ngxfs) for asynchronous file operations in Stream Lua.
 
 * **Phase:** *access*
 
-Runs the inline Lua code for each TCP or UDP session during the Stream access
-phase. It can inspect Stream variables, accept or reject a session with
-`ngx.exit`, produce output with `ngx.print` or `ngx.say`, and use yieldable APIs
-such as `ngx.sleep`, cosockets, and user threads.
-
-By default, the handler is postponed to the end of the access phase, so access
-handlers such as `allow` and `deny` run first. Use
-`access_by_lua_no_postpone` when Lua must run at its natural registered position.
-
-```nginx
-stream {
-    server {
-        listen 12345;
-
-        access_by_lua_block {
-            if ngx.var.remote_addr == "192.0.2.10" then
-                return ngx.exit(403)
-            end
-        }
-
-        proxy_pass backend;
-    }
-}
-```
+Runs Lua during the access phase of a TCP or UDP session, after `allow` and `deny` by default. The handler can yield, send data with `ngx.print` or `ngx.say`, or end the session with `ngx.exit`. See the [HTTP directive](https://github.com/openresty/lua-nginx-module#access_by_lua_block).
 
 ### access_by_lua_file
 
@@ -1564,20 +1663,7 @@ stream {
 
 * **Phase:** *access*
 
-Equivalent to `access_by_lua_block`, except that the Lua source or LuaJIT
-bytecode is loaded from `path`. Nginx variables may be used in the path. A
-relative path is resolved against nginx's server prefix, and the normal
-`lua_code_cache` behavior applies.
-
-```nginx
-stream {
-    server {
-        listen 12345;
-        access_by_lua_file conf/lua/stream-access.lua;
-        proxy_pass backend;
-    }
-}
-```
+Loads the Stream access handler from a file. Paths, variables and code caching follow the [HTTP directive](https://github.com/openresty/lua-nginx-module#access_by_lua_file).
 
 ### access_by_lua_no_postpone
 
@@ -1587,11 +1673,23 @@ stream {
 
 * **Context:** *stream*
 
-Controls whether `access_by_lua_block` and `access_by_lua_file` are postponed
-to the end of the Stream access phase. The default `off` runs Lua after the
-other access handlers. When set to `on`, the Lua handler runs at its natural
-registered position; normal completion continues through the remaining access
-handlers.
+Controls whether the Lua handler runs at the end of the Stream access phase. See the [HTTP directive](https://github.com/openresty/lua-nginx-module#access_by_lua_no_postpone).
+
+[Back to TOC](#table-of-contents)
+
+## ngx_stream_log_module
+
+### Conditional access_log
+
+* **Syntax:** `access_log path format [buffer=size] [gzip[=level]] [flush=time] [if=condition] [sample=number];`
+
+* **Syntax:** `access_log off;`
+
+* **Default:** —
+
+* **Context:** *stream, server, when*
+
+Stream requires an explicit log format for each destination. The `when`, `if=` and `sample=` parameters follow the [HTTP directive](#conditional-access_log). See the [nginx Stream log documentation](https://nginx.org/en/docs/stream/ngx_stream_log_module.html#access_log) for the native directive.
 
 [Back to TOC](#table-of-contents)
 
@@ -1605,16 +1703,27 @@ handlers.
 
 * **Context:** *stream, server*
 
-Specifies when certificates and private keys configured by `ssl_certificate`
-and `ssl_certificate_key` are loaded. In `default` mode, files specified by
-constant paths are loaded during startup or reload. In `runtime` mode, these
-files are loaded on demand during TLS handshakes, in the same way as files
-specified by paths containing variables.
+Stream uses the same modes as HTTP for loading server certificates and private keys. See [ssl_certificate_load](#ssl_certificate_load).
 
-If either path contains variables, certificates and private keys are always
-loaded on demand at runtime, regardless of the selected mode.
-`ssl_certificate_cache` also applies to files loaded in `runtime` mode.
-The setting is inherited unless overridden.
+### ssl_ocsp_http_client
+
+* **Syntax:** *ssl_ocsp_http_client @name;*
+
+* **Default:** *ssl_ocsp_http_client @client;*
+
+* **Context:** *stream, server*
+
+As in HTTP, this directive selects the client used to check the OCSP status of client certificates. See [ssl_ocsp_http_client](#ssl_ocsp_http_client).
+
+### ssl_stapling_http_client
+
+* **Syntax:** *ssl_stapling_http_client @name;*
+
+* **Default:** *ssl_stapling_http_client @client;*
+
+* **Context:** *stream, server*
+
+As in HTTP, this directive selects the client used to fetch OCSP responses for stapling. See [ssl_stapling_http_client](#ssl_stapling_http_client).
 
 ### ssl_reject_handshake
 
@@ -1624,7 +1733,7 @@ The setting is inherited unless overridden.
 
 * **Context:** *stream, server, when*
 
-Refer to [ssl_reject_handshake](https://nginx.org/en/docs/stream/ngx_stream_ssl_module.html#ssl_reject_handshake) for the original directive behavior. Define conditions with `ngx_expr_module` and place conditional settings in `when` blocks.
+For the native behavior, see [ssl_reject_handshake](https://nginx.org/en/docs/stream/ngx_stream_ssl_module.html#ssl_reject_handshake). Conditional configuration follows the [HTTP directive](#conditional-ssl_reject_handshake).
 
 ### ssl_delay_handshake
 
@@ -1634,21 +1743,17 @@ Refer to [ssl_reject_handshake](https://nginx.org/en/docs/stream/ngx_stream_ssl_
 
 * **Context:** *stream, server, when*
 
-Delays TLS handshakes, with the same variable support and delay-before-rejection behavior as the [HTTP directive](#ssl_delay_handshake). The delay counts toward `ssl_handshake_timeout`.
+Stream applies the same handshake delay as HTTP, including before rejection. The delay counts toward `ssl_handshake_timeout`. See [ssl_delay_handshake](#ssl_delay_handshake).
 
 ### Variables about SSL handshake timestamps and time spent
 
-In the stream subsystem, new variables are introduced to get the start timestamp, end timestamp, and time taken for the SSL handshake.
-
-| Variable                          | Description |
-| ---                               | ---         |
-| **$ssl_handshake_start_msec**     | SSL handshake start timestamp in seconds with the milliseconds resolution.|
-| **$ssl_handshake_end_msec**       | SSL handshake finish timestamp in seconds with the milliseconds resolution.|
-| **$ssl_handshake_time**           | Keeps time spent on ssl handshaking in seconds with the milliseconds resolution.|
+Stream exposes the same handshake timestamps and durations as HTTP. See the [SSL handshake variables](#variables-about-ssl-handshake-timestamps-and-time-spent).
 
 [Back to TOC](#table-of-contents)
 
 ## ngx_stream_proxy_module
+
+For the Stream proxy directives that support `when`, see [Conditional upstream directives](#conditional-upstream-directives).
 
 ### proxy_ssl_certificate_load
 
@@ -1658,16 +1763,7 @@ In the stream subsystem, new variables are introduced to get the start timestamp
 
 * **Context:** *stream, server*
 
-Specifies when certificates and private keys configured by
-`proxy_ssl_certificate` and `proxy_ssl_certificate_key` are loaded. In `default`
-mode, files specified by constant paths are loaded during startup or reload.
-In `runtime` mode, these files are loaded on demand when establishing upstream
-TLS connections, in the same way as files specified by paths containing variables.
-
-If either path contains variables, certificates and private keys are always
-loaded on demand at runtime, regardless of the selected mode.
-`proxy_ssl_certificate_cache` also applies to files loaded in `runtime` mode.
-The setting is inherited unless overridden.
+Stream uses the same modes as HTTP for loading client certificates and private keys for upstream TLS connections. See [proxy_ssl_certificate_load](#proxy_ssl_certificate_load).
 
 [Back to TOC](#table-of-contents)
 
