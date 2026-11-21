@@ -34,8 +34,12 @@ sequences = {
         "try_files", "cache_rocksdb", "compression_normalize",
         "delay", "internal_redirect", "phase_control",
     ),
+    "HTTP client": (
+        "proxy", "client", "write_filter",
+    ),
     "response filters": (
-        "v3_filter", "compression_vary_filter", "rewrite_status_filter",
+        "chunked_filter", "v2_filter", "v3_filter", "client_filter",
+        "compression_vary_filter", "rewrite_status_filter",
         "range_header_filter", "compression_filter", "modsecurity",
         "postpone_filter", "ssi_filter", "charset_filter", "sub_filter",
         "addition_filter", "decompression_filter", "userid_filter",
