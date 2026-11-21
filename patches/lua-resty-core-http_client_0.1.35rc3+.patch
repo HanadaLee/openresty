@@ -1,0 +1,303 @@
+diff --git a/lib/ngx/http.md b/lib/ngx/http.md
+new file mode 100644
+index 0000000..6fce0b7
+--- /dev/null
++++ b/lib/ngx/http.md
+@@ -0,0 +1,29 @@
++# ngx.http
++
++`ngx.http.request_uri` is available in HTTP and Stream Lua when nginx is built with internal HTTP client support.
++
++## request_uri
++
++```lua
++local res, err = ngx.http.request_uri("https://example.com/api", {
++    method = "POST",
++    headers = { ["Content-Type"] = "application/json" },
++    body = [[{"ready":true}]],
++})
++```
++
++The call yields until the response is complete. On success, it returns a table with `status`, `headers`, and `body`. HTTP error status codes are returned in `status`. A request or transport failure returns `nil, err`.
++
++| Option | Description |
++| --- | --- |
++| `method` | Request method. Defaults to `GET`. |
++| `headers` | Request header table. Use an array of values for repeated fields. |
++| `body` | Request body string. |
++| `query` | Query string or argument table. Replaces the query from the URL. |
++| `server` | Name of a configured internal `client;` server. Defaults to the shared `@client` server. |
++| `max_response_bytes` | Response body limit in bytes. Defaults to `16777216`. |
++
++Response header lookup is case-insensitive. Repeated response fields are returned as arrays in arrival order.
++
++The selected internal server sets the resolver, upstream connection, TLS, and timeout policy.
++An automatically created `@client` server inherits DNS settings from the `http` block.
+diff --git a/lib/resty/core.lua b/lib/resty/core.lua
+index a7fb39b..3568cd5 100755
+--- a/lib/resty/core.lua
++++ b/lib/resty/core.lua
+@@ -27,6 +27,7 @@ require "resty.core.socket"
+ require "resty.core.misc"
+ require "resty.core.ctx"
+ require "resty.core.resolver"
++require "resty.core.http"
+ 
+ 
+ local base = require "resty.core.base"
+diff --git a/lib/resty/core/http.lua b/lib/resty/core/http.lua
+new file mode 100644
+index 0000000..ddafc50
+--- /dev/null
++++ b/lib/resty/core/http.lua
+@@ -0,0 +1,250 @@
++local base = require "resty.core.base"
++base.allows_subsystem("http", "stream")
++
++local ffi = require "ffi"
++local C = ffi.C
++local ffi_cast = ffi.cast
++local ffi_new = ffi.new
++local ffi_str = ffi.string
++local get_request = base.get_request
++local get_size_ptr = base.get_size_ptr
++local get_string_buf = base.get_string_buf
++local FFI_AGAIN = base.FFI_AGAIN
++local co_yield = coroutine._yield
++local type = type
++local lower = string.lower
++local tonumber = tonumber
++local tostring = tostring
++local setmetatable = setmetatable
++local pairs = pairs
++
++local DEFAULT_RESPONSE_LIMIT = 16 * 1024 * 1024
++local MAX_RESPONSE_LIMIT = 1024 * 1024 * 1024
++local EMPTY = {}
++
++local subsystem = ngx.config.subsystem
++local prefix = "ngx_" .. subsystem .. "_lua_ffi_http_client"
++local request_type = subsystem == "http" and "ngx_http_request_t"
++                                         or "ngx_stream_lua_request_t"
++
++ffi.cdef([[
++typedef struct {
++    ngx_str_t                      key;
++    ngx_str_t                      value;
++} ngx_lua_http_client_header_t;
++
++typedef struct {
++    ngx_str_t                      server;
++    ngx_str_t                      url;
++    ngx_str_t                      method;
++    ngx_str_t                      body;
++    ngx_lua_http_client_header_t  *headers;
++    size_t                         nheaders;
++    size_t                         response_limit;
++} ngx_lua_http_client_request_t;
++
++typedef struct {
++    ngx_str_t                      body;
++    ngx_lua_http_client_header_t  *headers;
++    size_t                         nheaders;
++    unsigned                       status;
++    const char                    *error;
++} ngx_lua_http_client_result_t;
++
++int ]] .. prefix .. [[(]] .. request_type .. [[ *r,
++    ngx_lua_http_client_request_t *request,
++    ngx_lua_http_client_result_t **result, unsigned char *err, size_t *errlen);
++void ]] .. prefix .. [[_done(ngx_lua_http_client_result_t *result);
++]])
++
++local ok, request, done = pcall(function()
++    return C[prefix], C[prefix .. "_done"]
++end)
++if not ok then
++    return
++end
++
++local new_request = ffi.typeof("ngx_lua_http_client_request_t")
++local new_result = ffi.typeof("ngx_lua_http_client_result_t *[1]")
++local new_headers = ffi.typeof("ngx_lua_http_client_header_t[?]")
++local string_ptr = ffi.typeof("unsigned char *")
++
++
++local function set_str(dst, value)
++    dst.len = #value
++    dst.data = ffi_cast(string_ptr, value)
++end
++
++
++local function request_headers(headers)
++    local fields = {}
++
++    for name, value in pairs(headers) do
++        if type(name) ~= "string" then
++            return nil, "invalid request header name"
++        end
++
++        if type(value) == "table" then
++            for i = 1, #value do
++                local v = value[i]
++                if type(v) ~= "string" and type(v) ~= "number" then
++                    return nil, "invalid request header value"
++                end
++                fields[#fields + 1] = { name, tostring(v) }
++            end
++
++        else
++            if type(value) ~= "string" and type(value) ~= "number" then
++                return nil, "invalid request header value"
++            end
++
++            fields[#fields + 1] = { name, tostring(value) }
++        end
++    end
++
++    local out = ffi_new(new_headers, #fields)
++    for i = 1, #fields do
++        set_str(out[i - 1].key, fields[i][1])
++        set_str(out[i - 1].value, fields[i][2])
++    end
++
++    return out, fields
++end
++
++
++local function response_headers(headers, nheaders)
++    local names = {}
++    local out = {}
++
++    for i = 0, nheaders - 1 do
++        local name = ffi_str(headers[i].key.data, headers[i].key.len)
++        local value = ffi_str(headers[i].value.data, headers[i].value.len)
++        local key = lower(name)
++        local original = names[key]
++
++        if not original then
++            names[key] = name
++            out[name] = value
++
++        else
++            local values = out[original]
++            if type(values) == "table" then
++                values[#values + 1] = value
++            else
++                out[original] = { values, value }
++            end
++        end
++    end
++
++    return setmetatable(out, { __index = function(t, k)
++        local original = type(k) == "string" and names[lower(k)]
++        if original then
++            return rawget(t, original)
++        end
++    end })
++end
++
++
++local function request_uri(url, opts)
++    local r = get_request()
++    if not r then
++        return nil, "no request found"
++    end
++
++    if opts ~= nil and type(opts) ~= "table" then
++        return nil, "invalid HTTP request options"
++    end
++    opts = opts or EMPTY
++
++    if type(url) ~= "string" then
++        return nil, "invalid HTTP URL"
++    end
++
++    local fragment = url:find("#", 1, true)
++    if fragment then
++        url = url:sub(1, fragment - 1)
++    end
++
++    local server = opts.server or ""
++    local method = opts.method or "GET"
++    local body = opts.body or ""
++    if type(server) ~= "string" or type(method) ~= "string"
++       or type(body) ~= "string"
++    then
++        return nil, "invalid HTTP server, method, or body"
++    end
++
++    if opts.query ~= nil then
++        local query = opts.query
++        if type(query) == "table" then
++            query = ngx.encode_args(query)
++        elseif type(query) ~= "string" then
++            return nil, "invalid HTTP query"
++        end
++
++        local start = url:find("?", 1, true)
++        if start then
++            url = url:sub(1, start - 1)
++        end
++        if query ~= "" then
++            url = url .. "?" .. query
++        end
++    end
++
++    local limit = opts.max_response_bytes or DEFAULT_RESPONSE_LIMIT
++    if type(limit) ~= "number" or limit < 1 or limit > MAX_RESPONSE_LIMIT
++       or limit % 1 ~= 0
++    then
++        return nil, "invalid HTTP response size limit"
++    end
++
++    local headers = opts.headers
++    if headers ~= nil and type(headers) ~= "table" then
++        return nil, "invalid HTTP request headers"
++    end
++
++    local fields, refs = request_headers(headers or EMPTY)
++    if not fields then
++        return nil, refs
++    end
++
++    local input = ffi_new(new_request)
++    set_str(input.server, server)
++    set_str(input.url, url)
++    set_str(input.method, method)
++    set_str(input.body, body)
++    input.headers = fields
++    input.nheaders = #refs
++    input.response_limit = limit
++
++    local result = ffi_new(new_result)
++    local err = get_string_buf(256)
++    local errlen = get_size_ptr()
++    errlen[0] = 256
++
++    local rc = request(r, input, result, err, errlen)
++    if rc ~= FFI_AGAIN then
++        return nil, ffi_str(err, errlen[0])
++    end
++
++    co_yield()
++
++    local res = result[0]
++    if res.error ~= nil then
++        local message = ffi_str(res.error)
++        done(res)
++        return nil, message
++    end
++
++    local status = tonumber(res.status)
++    local out_headers = response_headers(res.headers, tonumber(res.nheaders))
++    local out_body = res.body.len == 0 and "" or
++                     ffi_str(res.body.data, res.body.len)
++    done(res)
++    return { status = status, headers = out_headers, body = out_body }
++end
++
++
++ngx.http = { request_uri = request_uri }
++
++return ngx.http

@@ -710,6 +710,7 @@ RUN RESTY_VERSION="$(cat /build/openresty-version)" \
     && echo "patching lua-resty-core for preaccess_by_lua" \
     && patch -p1 < /build/patches/lua-resty-core-preaccess_by_lua_0.1.34rc1+.patch \
     && patch -p1 < /build/patches/lua-resty-core-resolve_0.1.33RC1+.patch \
+    && patch --batch --forward --fuzz=0 -p1 < /build/patches/lua-resty-core-http_client_0.1.35rc3+.patch \
     && cd "${OPENRESTY_DIR}"/bundle/ngx_lua-* \
     && echo "patching ngx_http_lua_module for preaccess_by_lua" \
     && patch -p1 < /build/patches/ngx_http_lua_module-preaccess_by_lua_0.10.31rc1+.patch \
