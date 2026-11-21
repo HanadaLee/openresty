@@ -702,7 +702,6 @@ RUN RESTY_VERSION="$(cat /build/openresty-version)" \
     && echo "patching ngx_stream_lua_module for ngx.fs" \
     && patch --batch --forward --fuzz=0 -p1 < /build/patches/ngx_stream_lua_module-async_fs_0.0.20rc4+.patch \
     && patch --batch --forward --fuzz=0 -p1 < /build/patches/ngx_stream_lua_module-http_client_0.0.20rc4+.patch \
-    && cp /build/patches/ngx_lua_async_fs.inc src/ \
     && cd "${OPENRESTY_DIR}"/bundle/lua-resty-websocket-* \
     && echo "patching lua-resty-websocket" \
     && patch -p1 < /build/patches/lua-resty-websocket-fix_stream_0.13+.patch \
@@ -745,7 +744,6 @@ RUN RESTY_VERSION="$(cat /build/openresty-version)" \
     && echo "patching ngx_http_lua_module for ngx.fs" \
     && patch --batch --forward --fuzz=0 -p1 < /build/patches/ngx_http_lua_module-async_fs_0.10.32rc8+.patch \
     && patch --batch --forward --fuzz=0 -p1 < /build/patches/ngx_http_lua_module-http_client_0.10.32rc8+.patch \
-    && cp /build/patches/ngx_lua_async_fs.inc src/ \
     && cd "${NGINX_DIR}" \
     && echo "patching nginx-${NGINX_VERSION} for ngx_http_upstream_log_module" \
     && patch -p1 < /build/modules/ngx_http_upstream_log_module/ngx_http_upstream_log_1.25.3+.patch \
