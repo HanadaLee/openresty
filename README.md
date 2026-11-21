@@ -27,6 +27,7 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
   - [ngx_http_client_module](#ngx_http_client_module)
     - [client](#client)
   - [ngx\_http\_lua\_module](#ngx_http_lua_module)
+    - [Upstream TLS sessions](#upstream-tls-sessions)
     - [ngx.fs](#ngxfs)
     - [preaccess\_by\_lua\_block](#preaccess_by_lua_block)
     - [preaccess\_by\_lua\_file](#preaccess_by_lua_file)
@@ -512,6 +513,10 @@ The proxy destination uses the URL scheme and host. `$is_request_port$request_po
 [Back to TOC](#table-of-contents)
 
 ## ngx_http_lua_module
+
+### Upstream TLS sessions
+
+With upstream TLS session reuse enabled, peers selected by `ngx.balancer.set_current_peer()` can resume a TLS session on a new connection. Each worker caches up to 256 sessions per Lua upstream. Sessions are isolated by peer, TLS name, ALPN offer and configuration context. Connections using client certificates or Lua upstream certificate or verification callbacks perform a full handshake.
 
 ### ngx.fs
 
@@ -1638,6 +1643,8 @@ Defines conditions under which the request will be checked by modsecurity. If at
 [Back to TOC](#table-of-contents)
 
 ## ngx_stream_lua_module
+
+Dynamic upstream peers support the same [TLS session resumption](#upstream-tls-sessions) as HTTP.
 
 For asynchronous file operations and outbound HTTP requests, see [ngx.fs](#ngxfs) and [ngx.http](#ngxhttp).
 
