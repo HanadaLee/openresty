@@ -1,5 +1,5 @@
 diff --git a/src/ngx_http_lua_balancer.c b/src/ngx_http_lua_balancer.c
-index 904de3a..b7ee96b 100644
+index 904de3a..8f78d40 100644
 --- a/src/ngx_http_lua_balancer.c
 +++ b/src/ngx_http_lua_balancer.c
 @@ -15,4 +15,8 @@
@@ -53,11 +53,13 @@ index 904de3a..b7ee96b 100644
  
      if (u->conf->ssl_name) {
          if (ngx_http_complex_value(r, u->conf->ssl_name, &name) != NGX_OK) {
-@@ -1395,6 +1426,7 @@ ngx_http_lua_upstream_get_ssl_name(ngx_http_request_t *r,
+@@ -1395,6 +1426,9 @@ ngx_http_lua_upstream_get_ssl_name(ngx_http_request_t *r,
          name = u->ssl_name;
      }
  
++#if (NGX_EXT && NGX_EXPR)
 +ssl_name_set:
++#endif
      if (name.len == 0) {
          goto done;
      }
