@@ -701,6 +701,7 @@ RUN RESTY_VERSION="$(cat /build/openresty-version)" \
     && patch -p1 < /build/patches/ngx_stream_lua_module-resolve_0.0.18RC2+.patch \
     && echo "patching ngx_stream_lua_module for ngx.fs" \
     && patch --batch --forward --fuzz=0 -p1 < /build/patches/ngx_stream_lua_module-async_fs_0.0.20rc4+.patch \
+    && patch --batch --forward --fuzz=0 -p1 < /build/patches/ngx_stream_lua_module-http_client_0.0.20rc4+.patch \
     && cp /build/patches/ngx_lua_async_fs.inc src/ \
     && cd "${OPENRESTY_DIR}"/bundle/lua-resty-websocket-* \
     && echo "patching lua-resty-websocket" \
