@@ -742,6 +742,7 @@ RUN RESTY_VERSION="$(cat /build/openresty-version)" \
     && patch -p1 < /build/patches/ngx_http_lua_module-conditional_upstream_0.10.27rc1+.patch \
     && echo "patching ngx_http_lua_module for ngx.fs" \
     && patch --batch --forward --fuzz=0 -p1 < /build/patches/ngx_http_lua_module-async_fs_0.10.32rc8+.patch \
+    && patch --batch --forward --fuzz=0 -p1 < /build/patches/ngx_http_lua_module-http_client_0.10.32rc8+.patch \
     && cp /build/patches/ngx_lua_async_fs.inc src/ \
     && cd "${NGINX_DIR}" \
     && echo "patching nginx-${NGINX_VERSION} for ngx_http_upstream_log_module" \

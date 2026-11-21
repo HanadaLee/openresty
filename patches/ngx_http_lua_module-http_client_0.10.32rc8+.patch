@@ -1,0 +1,703 @@
+diff --git a/config b/config
+index 878723d..55cf53a 100755
+--- a/config
++++ b/config
+@@ -274,6 +274,7 @@ HTTP_LUA_SRCS=" \
+             $ngx_addon_dir/src/ngx_http_lua_shdict.c \
+             $ngx_addon_dir/src/ngx_http_lua_socket_tcp.c \
+             $ngx_addon_dir/src/ngx_http_lua_api.c \
++            $ngx_addon_dir/src/ngx_http_lua_http_client.c \
+             $ngx_addon_dir/src/ngx_http_lua_logby.c \
+             $ngx_addon_dir/src/ngx_http_lua_sleep.c \
+             $ngx_addon_dir/src/ngx_http_lua_resolver.c \
+diff --git a/src/ngx_http_lua_api.c b/src/ngx_http_lua_api.c
+index 2478f0d..a990cc2 100755
+--- a/src/ngx_http_lua_api.c
++++ b/src/ngx_http_lua_api.c
+@@ -328,7 +328,11 @@ ngx_http_lua_co_ctx_resume_helper(ngx_http_lua_co_ctx_t *coctx, int nrets)
+         return;
+     }
+ 
++#if (NGX_RESTY_EXT && NGX_CLIENT)
++    if (!ngx_http_lua_is_fake_request(r)) {  /* not a fake connection */
++#else
+     if (c->fd != (ngx_socket_t) -1) {  /* not a fake connection */
++#endif
+         log_ctx = c->log->data;
+         log_ctx->current_request = r;
+     }
+diff --git a/src/ngx_http_lua_args.c b/src/ngx_http_lua_args.c
+index d427ac5..2e08938 100755
+--- a/src/ngx_http_lua_args.c
++++ b/src/ngx_http_lua_args.c
+@@ -416,7 +416,11 @@ ngx_http_lua_ffi_req_get_uri_args_count(ngx_http_request_t *r, int max,
+     int                      count;
+     u_char                  *p, *last;
+ 
++#if (NGX_RESTY_EXT && NGX_CLIENT)
++    if (ngx_http_lua_is_fake_request(r)) {
++#else
+     if (r->connection->fd == (ngx_socket_t) -1) {
++#endif
+         return NGX_HTTP_LUA_FFI_BAD_CONTEXT;
+     }
+ 
+diff --git a/src/ngx_http_lua_headers.c b/src/ngx_http_lua_headers.c
+index 85836a1..7e5bea4 100755
+--- a/src/ngx_http_lua_headers.c
++++ b/src/ngx_http_lua_headers.c
+@@ -788,7 +788,11 @@ ngx_http_lua_ffi_req_get_headers_count(ngx_http_request_t *r, int max,
+     ngx_table_elt_t              *header;
+ #endif
+ 
++#if (NGX_RESTY_EXT && NGX_CLIENT)
++    if (ngx_http_lua_is_fake_request(r)) {
++#else
+     if (r->connection->fd == (ngx_socket_t) -1) {
++#endif
+         return NGX_HTTP_LUA_FFI_BAD_CONTEXT;
+     }
+ 
+@@ -955,7 +959,11 @@ ngx_http_lua_ffi_set_resp_header(ngx_http_request_t *r, const u_char *key_data,
+         return NGX_HTTP_LUA_FFI_NO_REQ_CTX;
+     }
+ 
++#if (NGX_RESTY_EXT && NGX_CLIENT)
++    if (ngx_http_lua_is_fake_request(r)) {
++#else
+     if (r->connection->fd == (ngx_socket_t) -1) {
++#endif
+         return NGX_HTTP_LUA_FFI_BAD_CONTEXT;
+     }
+ 
+@@ -1067,7 +1075,11 @@ ngx_http_lua_ffi_req_set_header(ngx_http_request_t *r, const u_char *key,
+     ngx_uint_t                   i;
+     ngx_str_t                    k, v;
+ 
++#if (NGX_RESTY_EXT && NGX_CLIENT)
++    if (ngx_http_lua_is_fake_request(r)) {  /* fake request */
++#else
+     if (r->connection->fd == (ngx_socket_t) -1) {  /* fake request */
++#endif
+         return NGX_HTTP_LUA_FFI_BAD_CONTEXT;
+     }
+ 
+@@ -1161,7 +1173,11 @@ ngx_http_lua_ffi_get_resp_header(ngx_http_request_t *r,
+ 
+     ngx_http_lua_loc_conf_t     *llcf;
+ 
++#if (NGX_RESTY_EXT && NGX_CLIENT)
++    if (ngx_http_lua_is_fake_request(r)) {
++#else
+     if (r->connection->fd == (ngx_socket_t) -1) {
++#endif
+         return NGX_HTTP_LUA_FFI_BAD_CONTEXT;
+     }
+ 
+diff --git a/src/ngx_http_lua_http_client.c b/src/ngx_http_lua_http_client.c
+new file mode 100644
+index 0000000..85ea1ef
+--- /dev/null
++++ b/src/ngx_http_lua_http_client.c
+@@ -0,0 +1,300 @@
++
++/*
++ * Copyright (C) Hanada
++ */
++
++
++#include "ngx_http_lua_util.h"
++
++#if (NGX_RESTY_EXT && NGX_CLIENT)
++
++
++typedef struct {
++    ngx_str_t                          server;
++    ngx_str_t                          url;
++    ngx_str_t                          method;
++    ngx_str_t                          body;
++    ngx_keyval_t                      *headers;
++    size_t                             nheaders;
++    size_t                             response_limit;
++} ngx_http_lua_http_client_request_t;
++
++
++typedef struct {
++    ngx_str_t                          body;
++    ngx_keyval_t                      *headers;
++    size_t                             nheaders;
++    unsigned                           status;
++    const char                        *error;
++} ngx_http_lua_http_client_result_t;
++
++
++typedef struct {
++    ngx_http_lua_http_client_result_t  result;
++    ngx_client_http_t                 *client;
++    ngx_http_request_t                *request;
++    ngx_http_lua_co_ctx_t             *coctx;
++    size_t                             response_limit;
++} ngx_http_lua_http_client_ctx_t;
++
++
++int ngx_http_lua_ffi_http_client(ngx_http_request_t *r,
++    ngx_http_lua_http_client_request_t *request,
++    ngx_http_lua_http_client_result_t **result, u_char *err, size_t *errlen);
++void ngx_http_lua_ffi_http_client_done(
++    ngx_http_lua_http_client_result_t *result);
++
++static void ngx_http_lua_http_client_cancel(void *data);
++static void ngx_http_lua_http_client_handler(
++    ngx_http_lua_http_client_ctx_t *ctx);
++static ngx_int_t ngx_http_lua_http_client_resume(ngx_http_request_t *r);
++static ngx_int_t ngx_http_lua_http_client_check_size(void *data,
++    size_t header_size, uint64_t body_size);
++static void ngx_http_lua_http_client_complete(
++    ngx_client_http_response_t *response, void *data, ngx_int_t rc);
++
++
++int
++ngx_http_lua_ffi_http_client(ngx_http_request_t *r,
++    ngx_http_lua_http_client_request_t *request,
++    ngx_http_lua_http_client_result_t **result, u_char *err, size_t *errlen)
++{
++    ngx_int_t                        rc;
++    unsigned                         flags;
++    ngx_array_t                      headers;
++    ngx_http_lua_ctx_t              *lctx;
++    ngx_http_lua_co_ctx_t           *coctx;
++    ngx_client_http_request_t        req;
++    ngx_client_http_post_request_t   post;
++    ngx_http_lua_http_client_ctx_t  *ctx;
++
++    lctx = ngx_http_get_module_ctx(r, ngx_http_lua_module);
++    if (lctx == NULL || lctx->cur_co_ctx == NULL) {
++        *errlen = ngx_snprintf(err, *errlen, "no coroutine context") - err;
++        return NGX_ERROR;
++    }
++
++    flags = NGX_HTTP_LUA_CONTEXT_SERVER_REWRITE
++            | NGX_HTTP_LUA_CONTEXT_REWRITE
++            | NGX_HTTP_LUA_CONTEXT_ACCESS
++            | NGX_HTTP_LUA_CONTEXT_CONTENT
++            | NGX_HTTP_LUA_CONTEXT_TIMER;
++#ifdef NGX_HTTP_LUA_CONTEXT_PREACCESS
++    flags |= NGX_HTTP_LUA_CONTEXT_PREACCESS;
++#endif
++#ifdef NGX_HTTP_LUA_CONTEXT_PRECONTENT
++    flags |= NGX_HTTP_LUA_CONTEXT_PRECONTENT;
++#endif
++    if (ngx_http_lua_ffi_check_context(lctx, flags, err, errlen) != NGX_OK) {
++        return NGX_ERROR;
++    }
++
++    ngx_memzero(&req, sizeof(ngx_client_http_request_t));
++
++    headers.elts = request->headers;
++    headers.nelts = request->nheaders;
++
++    req.server_name = request->server.len ? &request->server : NULL;
++    req.method = request->method;
++    req.url = request->url;
++    req.headers = &headers;
++    req.body = request->body;
++
++    ctx = ngx_calloc(sizeof(ngx_http_lua_http_client_ctx_t),
++                     r->connection->log);
++    if (ctx == NULL) {
++        *errlen = ngx_snprintf(err, *errlen, "no memory") - err;
++        return NGX_ERROR;
++    }
++
++    ctx->response_limit = request->response_limit;
++
++    post.handler = ngx_http_lua_http_client_complete;
++    post.header_handler = NULL;
++    post.body_handler = NULL;
++    post.check_size = ngx_http_lua_http_client_check_size;
++    post.data = ctx;
++
++    rc = ngx_client_http_create_request((ngx_cycle_t *) ngx_cycle,
++                                        r->connection->log, &req,
++                                        &ctx->client, &post);
++    if (rc != NGX_OK) {
++        ngx_free(ctx);
++
++        if (rc == NGX_DECLINED) {
++            *errlen = ngx_snprintf(err, *errlen, "unknown client server \"%V\"",
++                                   &request->server)
++                       - err;
++
++        } else {
++            *errlen = ngx_snprintf(err, *errlen,
++                                   "failed to create HTTP request")
++                       - err;
++        }
++
++        return NGX_ERROR;
++    }
++
++    coctx = lctx->cur_co_ctx;
++    ngx_http_lua_cleanup_pending_operation(coctx);
++    coctx->cleanup = ngx_http_lua_http_client_cancel;
++    coctx->data = ctx;
++
++    ctx->request = r;
++    ctx->coctx = coctx;
++
++    *result = &ctx->result;
++
++    return NGX_AGAIN;
++}
++
++
++void
++ngx_http_lua_ffi_http_client_done(ngx_http_lua_http_client_result_t *result)
++{
++    ngx_http_lua_http_client_ctx_t *ctx;
++
++    ctx = (ngx_http_lua_http_client_ctx_t *) result;
++    ngx_http_lua_cleanup_pending_operation(ctx->coctx);
++}
++
++
++static void
++ngx_http_lua_http_client_cancel(void *data)
++{
++    ngx_http_lua_co_ctx_t  *coctx = data;
++
++    ngx_http_lua_http_client_ctx_t *ctx;
++
++    ctx = coctx->data;
++    coctx->data = NULL;
++
++    if (ctx->client) {
++        ngx_client_http_close_request(ctx->client);
++    }
++
++    ngx_free(ctx);
++}
++
++
++static ngx_int_t
++ngx_http_lua_http_client_check_size(void *data, size_t header_size,
++    uint64_t body_size)
++{
++    ngx_http_lua_http_client_ctx_t  *ctx = data;
++
++    if (header_size > 64 * 1024 || body_size > ctx->response_limit) {
++        return NGX_CLIENT_HTTP_TOO_LARGE;
++    }
++
++    return NGX_OK;
++}
++
++
++static void
++ngx_http_lua_http_client_complete(ngx_client_http_response_t *response,
++    void *data, ngx_int_t rc)
++{
++    ngx_http_lua_http_client_ctx_t  *ctx = data;
++
++    ctx->client = NULL;
++
++    if (rc == NGX_OK) {
++        ctx->result.status = response->status;
++        ctx->result.body = response->body;
++        ctx->result.headers = response->headers.elts;
++        ctx->result.nheaders = response->headers.nelts;
++
++    } else {
++        switch (rc) {
++
++        case NGX_CLIENT_HTTP_TIMEDOUT:
++            ctx->result.error = "timeout";
++            break;
++
++        case NGX_CLIENT_HTTP_TOO_LARGE:
++            ctx->result.error = "HTTP response exceeds maximum size";
++            break;
++
++        default:
++            ctx->result.error = "HTTP request failed";
++        }
++    }
++
++    /* The client posts completion after closing its internal HTTP request. */
++    ngx_http_lua_http_client_handler(ctx);
++}
++
++
++static void
++ngx_http_lua_http_client_handler(ngx_http_lua_http_client_ctx_t *ctx)
++{
++    ngx_http_request_t  *r;
++    ngx_http_lua_ctx_t  *lctx;
++    ngx_connection_t    *c;
++    ngx_http_log_ctx_t  *log_ctx;
++
++    r = ctx->request;
++    lctx = ngx_http_get_module_ctx(r, ngx_http_lua_module);
++    if (lctx == NULL) {
++        ngx_http_lua_cleanup_pending_operation(ctx->coctx);
++        return;
++    }
++
++    c = r->connection;
++
++    if (!ngx_http_lua_is_fake_request(r)) {
++        log_ctx = c->log->data;
++        log_ctx->current_request = r;
++    }
++
++    lctx->cur_co_ctx = ctx->coctx;
++
++    if (lctx->entered_content_phase) {
++        (void) ngx_http_lua_http_client_resume(r);
++
++    } else {
++        lctx->resume_handler = ngx_http_lua_http_client_resume;
++        ngx_http_core_run_phases(r);
++    }
++
++    ngx_http_run_posted_requests(c);
++}
++
++
++static ngx_int_t
++ngx_http_lua_http_client_resume(ngx_http_request_t *r)
++{
++    lua_State           *vm;
++    ngx_int_t            rc;
++    ngx_uint_t           nreqs;
++    ngx_connection_t    *c;
++    ngx_http_lua_ctx_t  *ctx;
++
++    ctx = ngx_http_get_module_ctx(r, ngx_http_lua_module);
++    ctx->resume_handler = ngx_http_lua_wev_handler;
++
++    c = r->connection;
++    vm = ngx_http_lua_get_lua_vm(r, ctx);
++    nreqs = c->requests;
++
++    rc = ngx_http_lua_run_thread(vm, r, ctx, 0);
++
++    if (rc == NGX_AGAIN) {
++        return ngx_http_lua_run_posted_threads(c, vm, r, ctx, nreqs);
++    }
++
++    if (rc == NGX_DONE) {
++        ngx_http_lua_finalize_request(r, NGX_DONE);
++        return ngx_http_lua_run_posted_threads(c, vm, r, ctx, nreqs);
++    }
++
++    if (ctx->entered_content_phase) {
++        ngx_http_lua_finalize_request(r, rc);
++        return NGX_DONE;
++    }
++
++    return rc;
++}
++
++#endif
+diff --git a/src/ngx_http_lua_misc.c b/src/ngx_http_lua_misc.c
+index 8b74167..7ee73f7 100755
+--- a/src/ngx_http_lua_misc.c
++++ b/src/ngx_http_lua_misc.c
+@@ -44,7 +44,11 @@ ngx_http_lua_ngx_req_is_internal(lua_State *L)
+ int
+ ngx_http_lua_ffi_get_resp_status(ngx_http_request_t *r)
+ {
++#if (NGX_RESTY_EXT && NGX_CLIENT)
++    if (ngx_http_lua_is_fake_request(r)) {
++#else
+     if (r->connection->fd == (ngx_socket_t) -1) {
++#endif
+         return NGX_HTTP_LUA_FFI_BAD_CONTEXT;
+     }
+ 
+@@ -69,7 +73,11 @@ ngx_http_lua_ffi_set_resp_status_and_reason(ngx_http_request_t *r, int status,
+ {
+     u_char *buf;
+ 
++#if (NGX_RESTY_EXT && NGX_CLIENT)
++    if (ngx_http_lua_is_fake_request(r)) {
++#else
+     if (r->connection->fd == (ngx_socket_t) -1) {
++#endif
+         return NGX_HTTP_LUA_FFI_BAD_CONTEXT;
+     }
+ 
+@@ -132,7 +140,11 @@ ngx_http_lua_ffi_set_resp_status(ngx_http_request_t *r, int status)
+ int
+ ngx_http_lua_ffi_req_is_internal(ngx_http_request_t *r)
+ {
++#if (NGX_RESTY_EXT && NGX_CLIENT)
++    if (ngx_http_lua_is_fake_request(r)) {
++#else
+     if (r->connection->fd == (ngx_socket_t) -1) {
++#endif
+         return NGX_HTTP_LUA_FFI_BAD_CONTEXT;
+     }
+ 
+@@ -143,7 +155,11 @@ ngx_http_lua_ffi_req_is_internal(ngx_http_request_t *r)
+ int
+ ngx_http_lua_ffi_is_subrequest(ngx_http_request_t *r)
+ {
++#if (NGX_RESTY_EXT && NGX_CLIENT)
++    if (ngx_http_lua_is_fake_request(r)) {
++#else
+     if (r->connection->fd == (ngx_socket_t) -1) {
++#endif
+         return NGX_HTTP_LUA_FFI_BAD_CONTEXT;
+     }
+ 
+@@ -161,7 +177,11 @@ ngx_http_lua_ffi_headers_sent(ngx_http_request_t *r)
+         return NGX_HTTP_LUA_FFI_NO_REQ_CTX;
+     }
+ 
++#if (NGX_RESTY_EXT && NGX_CLIENT)
++    if (ngx_http_lua_is_fake_request(r)) {
++#else
+     if (r->connection->fd == (ngx_socket_t) -1) {
++#endif
+         return NGX_HTTP_LUA_FFI_BAD_CONTEXT;
+     }
+ 
+diff --git a/src/ngx_http_lua_req_method.c b/src/ngx_http_lua_req_method.c
+index a41e5af..de77151 100755
+--- a/src/ngx_http_lua_req_method.c
++++ b/src/ngx_http_lua_req_method.c
+@@ -11,12 +11,20 @@
+ 
+ #include "ddebug.h"
+ #include "ngx_http_lua_subrequest.h"
++#if (NGX_RESTY_EXT && NGX_CLIENT)
++#include "ngx_http_lua_util.h"
++#else
++#endif
+ 
+ 
+ int
+ ngx_http_lua_ffi_req_get_method(ngx_http_request_t *r)
+ {
++#if (NGX_RESTY_EXT && NGX_CLIENT)
++    if (ngx_http_lua_is_fake_request(r)) {
++#else
+     if (r->connection->fd == (ngx_socket_t) -1) {
++#endif
+         return NGX_HTTP_LUA_FFI_BAD_CONTEXT;
+     }
+ 
+@@ -28,7 +36,11 @@ int
+ ngx_http_lua_ffi_req_get_method_name(ngx_http_request_t *r, u_char **name,
+     size_t *len)
+ {
++#if (NGX_RESTY_EXT && NGX_CLIENT)
++    if (ngx_http_lua_is_fake_request(r)) {
++#else
+     if (r->connection->fd == (ngx_socket_t) -1) {
++#endif
+         return NGX_HTTP_LUA_FFI_BAD_CONTEXT;
+     }
+ 
+@@ -42,7 +54,11 @@ ngx_http_lua_ffi_req_get_method_name(ngx_http_request_t *r, u_char **name,
+ int
+ ngx_http_lua_ffi_req_set_method(ngx_http_request_t *r, int method)
+ {
++#if (NGX_RESTY_EXT && NGX_CLIENT)
++    if (ngx_http_lua_is_fake_request(r)) {
++#else
+     if (r->connection->fd == (ngx_socket_t) -1) {
++#endif
+         return NGX_HTTP_LUA_FFI_BAD_CONTEXT;
+     }
+ 
+diff --git a/src/ngx_http_lua_sleep.c b/src/ngx_http_lua_sleep.c
+index 770ce9b..e0f3dcb 100755
+--- a/src/ngx_http_lua_sleep.c
++++ b/src/ngx_http_lua_sleep.c
+@@ -114,7 +114,11 @@ ngx_http_lua_sleep_handler(ngx_event_t *ev)
+         return;
+     }
+ 
++#if (NGX_RESTY_EXT && NGX_CLIENT)
++    if (!ngx_http_lua_is_fake_request(r)) {  /* not a fake connection */
++#else
+     if (c->fd != (ngx_socket_t) -1) {  /* not a fake connection */
++#endif
+         log_ctx = c->log->data;
+         log_ctx->current_request = r;
+     }
+diff --git a/src/ngx_http_lua_socket_tcp.c b/src/ngx_http_lua_socket_tcp.c
+index 9953e66..8e8633e 100755
+--- a/src/ngx_http_lua_socket_tcp.c
++++ b/src/ngx_http_lua_socket_tcp.c
+@@ -3678,7 +3678,11 @@ ngx_http_lua_socket_tcp_handler(ngx_event_t *ev)
+     r = u->request;
+     c = r->connection;
+ 
++#if (NGX_RESTY_EXT && NGX_CLIENT)
++    if (!ngx_http_lua_is_fake_request(r)) {  /* not a fake connection */
++#else
+     if (c->fd != (ngx_socket_t) -1) {  /* not a fake connection */
++#endif
+         ctx = c->log->data;
+         ctx->current_request = r;
+     }
+diff --git a/src/ngx_http_lua_socket_udp.c b/src/ngx_http_lua_socket_udp.c
+index 54458f6..da451a9 100755
+--- a/src/ngx_http_lua_socket_udp.c
++++ b/src/ngx_http_lua_socket_udp.c
+@@ -1416,7 +1416,11 @@ ngx_http_lua_socket_udp_handler(ngx_event_t *ev)
+     r = u->request;
+     c = r->connection;
+ 
++#if (NGX_RESTY_EXT && NGX_CLIENT)
++    if (!ngx_http_lua_is_fake_request(r)) {  /* not a fake connection */
++#else
+     if (c->fd != (ngx_socket_t) -1) {  /* not a fake connection */
++#endif
+         ctx = c->log->data;
+         ctx->current_request = r;
+     }
+diff --git a/src/ngx_http_lua_util.c b/src/ngx_http_lua_util.c
+index ef0871c..78f89e8 100755
+--- a/src/ngx_http_lua_util.c
++++ b/src/ngx_http_lua_util.c
+@@ -1094,7 +1094,11 @@ ngx_http_lua_request_cleanup(ngx_http_lua_ctx_t *ctx, int forcible)
+     lmcf = ngx_http_get_module_main_conf(r, ngx_http_lua_module);
+ 
+ #if 1
++#if (NGX_RESTY_EXT && NGX_CLIENT)
++    if (ngx_http_lua_is_fake_request(r)) {
++#else
+     if (r->connection->fd == (ngx_socket_t) -1) {
++#endif
+         /* being a fake request */
+ 
+         if (ctx->context == NGX_HTTP_LUA_CONTEXT_TIMER) {
+@@ -1702,7 +1706,11 @@ done:
+ #endif
+ 
+     if (ctx->entered_content_phase
++#if (NGX_RESTY_EXT && NGX_CLIENT)
++        && !ngx_http_lua_is_fake_request(r))
++#else
+         && r->connection->fd != (ngx_socket_t) -1)
++#endif
+     {
+         rc = ngx_http_lua_send_chain_link(r, ctx,
+                                           NULL /* last_buf */);
+@@ -2452,7 +2460,11 @@ ngx_http_lua_handle_exit(lua_State *L, ngx_http_request_t *r,
+ 
+     ngx_http_lua_request_cleanup(ctx, 0);
+ 
++#if (NGX_RESTY_EXT && NGX_CLIENT)
++    if (ngx_http_lua_is_fake_request(r)) {  /* fake request */
++#else
+     if (r->connection->fd == (ngx_socket_t) -1) {  /* fake request */
++#endif
+         return ctx->exit_code;
+     }
+ 
+@@ -3742,7 +3754,11 @@ ngx_http_lua_finalize_request(ngx_http_request_t *r, ngx_int_t rc)
+ #endif
+ #endif
+ 
++#if (NGX_RESTY_EXT && NGX_CLIENT)
++    if (!ngx_http_lua_is_fake_request(r)) {
++#else
+     if (r->connection->fd != (ngx_socket_t) -1) {
++#endif
+         ngx_http_finalize_request(r, rc);
+         return;
+     }
+diff --git a/src/ngx_http_lua_util.h b/src/ngx_http_lua_util.h
+index 695f982..1a10448 100755
+--- a/src/ngx_http_lua_util.h
++++ b/src/ngx_http_lua_util.h
+@@ -28,6 +28,10 @@
+ #   define NGX_HTTP_SWITCHING_PROTOCOLS 101
+ #endif
+ 
++#if (NGX_RESTY_EXT && NGX_CLIENT)
++#define ngx_http_lua_is_fake_request(r)                                      \
++    ((r)->connection->fd == (ngx_socket_t) -1 && !(r)->connection->stub)
++#endif
+ #define NGX_HTTP_LUA_ESCAPE_HEADER_NAME  7
+ 
+ #define NGX_HTTP_LUA_ESCAPE_HEADER_VALUE  8
+@@ -83,17 +87,32 @@
+     }
+ 
+ 
++#if (NGX_RESTY_EXT && NGX_CLIENT)
++#define ngx_http_lua_check_fake_request(L, r)                                \
++    if (ngx_http_lua_is_fake_request(r)) {                                   \
++        return luaL_error(L, "API disabled in the current context");         \
++    }
++#else
+ #define ngx_http_lua_check_fake_request(L, r)                                \
+     if ((r)->connection->fd == (ngx_socket_t) -1) {                          \
+         return luaL_error(L, "API disabled in the current context");         \
+     }
++#endif
+ 
+ 
++#if (NGX_RESTY_EXT && NGX_CLIENT)
++#define ngx_http_lua_check_fake_request2(L, r, ctx)                          \
++    if (ngx_http_lua_is_fake_request(r)) {                                   \
++        return luaL_error(L, "API disabled in the context of %s",            \
++                          ngx_http_lua_context_name((ctx)->context));        \
++    }
++#else
+ #define ngx_http_lua_check_fake_request2(L, r, ctx)                          \
+     if ((r)->connection->fd == (ngx_socket_t) -1) {                          \
+         return luaL_error(L, "API disabled in the context of %s",            \
+                           ngx_http_lua_context_name((ctx)->context));        \
+     }
++#endif
+ 
+ 
+ #define ngx_http_lua_check_if_abortable(L, ctx)                              \
+@@ -311,7 +330,11 @@ ngx_http_lua_create_ctx(ngx_http_request_t *r)
+     ngx_http_set_ctx(r, ctx, ngx_http_lua_module);
+ 
+     llcf = ngx_http_get_module_loc_conf(r, ngx_http_lua_module);
++#if (NGX_RESTY_EXT && NGX_CLIENT)
++    if (!llcf->enable_code_cache && !ngx_http_lua_is_fake_request(r)) {
++#else
+     if (!llcf->enable_code_cache && r->connection->fd != (ngx_socket_t) -1) {
++#endif
+         lmcf = ngx_http_get_module_main_conf(r, ngx_http_lua_module);
+ 
+ #ifdef DDEBUG
+diff --git a/src/ngx_http_lua_variable.c b/src/ngx_http_lua_variable.c
+index 2c6c623..4bbc5e3 100755
+--- a/src/ngx_http_lua_variable.c
++++ b/src/ngx_http_lua_variable.c
+@@ -34,7 +34,11 @@ ngx_http_lua_ffi_var_get(ngx_http_request_t *r, u_char *name_data,
+         return NGX_ERROR;
+     }
+ 
++#if (NGX_RESTY_EXT && NGX_CLIENT)
++    if (ngx_http_lua_is_fake_request(r)) {
++#else
+     if ((r)->connection->fd == (ngx_socket_t) -1) {
++#endif
+         *err = "API disabled in the current context";
+         return NGX_ERROR;
+     }
+@@ -117,7 +121,11 @@ ngx_http_lua_ffi_var_set(ngx_http_request_t *r, u_char *name_data,
+         return NGX_ERROR;
+     }
+ 
++#if (NGX_RESTY_EXT && NGX_CLIENT)
++    if (ngx_http_lua_is_fake_request(r)) {
++#else
+     if ((r)->connection->fd == (ngx_socket_t) -1) {
++#endif
+         *errlen = ngx_snprintf(errbuf, *errlen,
+                                "API disabled in the current context")
+                   - errbuf;
