@@ -29328,7 +29328,7 @@ index fb63a20..14f4974 100644
      ngx_null_string,        /* "506 Variant Also Negotiates" */
      ngx_string("507 Insufficient Storage"),
 diff --git a/src/http/ngx_http_request.c b/src/http/ngx_http_request.c
-index 71d431f..34b1bf9 100644
+index 71d431f..5ec6d08 100644
 --- a/src/http/ngx_http_request.c
 +++ b/src/http/ngx_http_request.c
 @@ -9,6 +9,10 @@
@@ -29425,18 +29425,18 @@ index 71d431f..34b1bf9 100644
      if (sscf->reject_handshake) {
          c->ssl->handshake_rejected = 1;
          *ad = SSL_AD_UNRECOGNIZED_NAME;
-@@ -1027,6 +1064,135 @@ done:
+@@ -1027,6 +1064,7 @@ done:
  
      c->ssl->sni_accepted = 1;
      return SSL_TLSEXT_ERR_OK;
 +#endif
-+
-+error:
-+
-+    *ad = SSL_AD_INTERNAL_ERROR;
-+    return SSL_TLSEXT_ERR_ALERT_FATAL;
-+}
-+
+
+ error:
+
+@@ -1034,6 +1072,136 @@ error:
+     return SSL_TLSEXT_ERR_ALERT_FATAL;
+ }
+
 +
 +#if (NGX_EXT)
 +
@@ -29558,24 +29558,29 @@ index 71d431f..34b1bf9 100644
 +    }
 +
 +    return SSL_TLSEXT_ERR_OK;
- 
- error:
- 
-@@ -1036,6 +1202,8 @@ error:
- 
- #endif
- 
++
++error:
++
++    *ad = SSL_AD_INTERNAL_ERROR;
++    return SSL_TLSEXT_ERR_ALERT_FATAL;
++}
++
 +#endif
 +
+ #endif
  
- #ifdef SSL_R_CERT_CB_ERROR
  
-@@ -3013,6 +3181,13 @@ ngx_http_finalize_connection(ngx_http_request_t *r)
+@@ -3013,6 +3181,18 @@ ngx_http_finalize_connection(ngx_http_request_t *r)
  {
      ngx_http_core_loc_conf_t  *clcf;
  
 +#if (NGX_EXT && NGX_CLIENT)
 +    if (r->connection->stub) {
++        if (r->main->terminated && r->main->count == 1) {
++            /* Termination owns the last reference during request cleanup. */
++            return;
++        }
++
 +        ngx_http_close_request(r, 0);
 +        return;
 +    }
@@ -29584,7 +29589,7 @@ index 71d431f..34b1bf9 100644
  #if (NGX_HTTP_V2)
      if (r->stream) {
          ngx_http_close_request(r, 0);
-@@ -3236,6 +3411,12 @@ ngx_http_test_reading(ngx_http_request_t *r)
+@@ -3236,6 +3416,12 @@ ngx_http_test_reading(ngx_http_request_t *r)
  
      ngx_log_debug0(NGX_LOG_DEBUG_HTTP, c->log, 0, "http test reading");
  
@@ -29597,7 +29602,7 @@ index 71d431f..34b1bf9 100644
  #if (NGX_HTTP_V2)
  
      if (r->stream) {
-@@ -3985,6 +4166,13 @@ ngx_http_close_request(ngx_http_request_t *r, ngx_int_t rc)
+@@ -3985,6 +4171,13 @@ ngx_http_close_request(ngx_http_request_t *r, ngx_int_t rc)
      }
  #endif
  
@@ -29611,7 +29616,7 @@ index 71d431f..34b1bf9 100644
      ngx_http_free_request(r, rc);
      ngx_http_close_connection(c);
  }
-@@ -4045,6 +4233,9 @@ ngx_http_free_request(ngx_http_request_t *r, ngx_int_t rc)
+@@ -4045,6 +4238,9 @@ ngx_http_free_request(ngx_http_request_t *r, ngx_int_t rc)
      log->action = "closing request";
  
      if (r->connection->timedout
@@ -29621,7 +29626,7 @@ index 71d431f..34b1bf9 100644
  #if (NGX_HTTP_V3)
          && r->connection->quic == NULL
  #endif
-@@ -4149,6 +4340,10 @@ ngx_http_log_error(ngx_log_t *log, u_char *buf, size_t len)
+@@ -4149,6 +4345,10 @@ ngx_http_log_error(ngx_log_t *log, u_char *buf, size_t len)
      ngx_http_request_t  *r;
      ngx_http_log_ctx_t  *ctx;
  
@@ -29632,7 +29637,7 @@ index 71d431f..34b1bf9 100644
      if (log->action) {
          p = ngx_snprintf(buf, len, " while %s", log->action);
          len -= p - buf;
-@@ -4163,6 +4358,19 @@ ngx_http_log_error(ngx_log_t *log, u_char *buf, size_t len)
+@@ -4163,6 +4363,19 @@ ngx_http_log_error(ngx_log_t *log, u_char *buf, size_t len)
      r = ctx->request;
  
      if (r) {
