@@ -602,11 +602,23 @@ RUN cd /build/lib/libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION} \
     && make -j${RESTY_J} \
     && make install \
     && ldconfig \
+    && cd /build/lib/zstd-${RESTY_ZSTD_VERSION} \
+    && make -j${RESTY_J} \
+    && make install \
+    && ldconfig \
+    && cd /build/lib/brotli \
+    && mkdir -p out \
+    && cd out \
+    && cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON \
+        -DCMAKE_C_FLAGS="-O3 -flto -funroll-loops -ffunction-sections -fdata-sections -Wl,--gc-sections" \
+        -DCMAKE_CXX_FLAGS="-O3 -flto -funroll-loops -ffunction-sections -fdata-sections -Wl,--gc-sections" .. \
+    && cmake --build . --config Release --target install \
+    && ldconfig \
     && cd /build/lib/openssl-${RESTY_OPENSSL_VERSION} \
     && echo 'patching OpenSSL 3.x for OpenResty' \
     && curl -fSLv https://${RESTY_GIT_RAW_MIRROR}/openresty/openresty/${RESTY_COMMIT}/patches/openssl-${RESTY_OPENSSL_PATCH_VERSION}-sess_set_get_cb_yield.patch | patch -p1 \
     && ./config \
-        shared zlib -g \
+        shared zlib enable-brotli enable-zstd -g \
         --libdir=lib \
         ${RESTY_OPENSSL_BUILD_OPTIONS} \
     && make update \
@@ -616,10 +628,6 @@ RUN cd /build/lib/libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION} \
     && cd /build/lib/pcre2-${RESTY_PCRE_VERSION} \
     && ./configure \
         ${RESTY_PCRE_BUILD_OPTIONS} \
-    && make -j${RESTY_J} \
-    && make install \
-    && ldconfig \
-    && cd /build/lib/zstd-${RESTY_ZSTD_VERSION} \
     && make -j${RESTY_J} \
     && make install \
     && ldconfig
@@ -657,14 +665,6 @@ RUN cd /build/lib/vips-${RESTY_LIBVIPS_VERSION} \
     && ./configure --prefix=/usr/local --disable-examples \
     && make -j${RESTY_J} \
     && make install \
-    && ldconfig \
-    && cd /build/lib/brotli \
-    && mkdir -p out \
-    && cd out \
-    && cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON \
-        -DCMAKE_C_FLAGS="-O3 -flto -funroll-loops -ffunction-sections -fdata-sections -Wl,--gc-sections" \
-        -DCMAKE_CXX_FLAGS="-O3 -flto -funroll-loops -ffunction-sections -fdata-sections -Wl,--gc-sections" .. \
-    && cmake --build . --config Release --target install \
     && ldconfig \
     && cd /build/modules/ngx_http_weserv_module \
     && meson setup build --prefix=/usr \
