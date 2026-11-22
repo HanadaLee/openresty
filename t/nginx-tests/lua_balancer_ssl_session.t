@@ -16,6 +16,13 @@ my $t = Test::Nginx->new()->has(qw/http http_ssl proxy stream stream_ssl
 	stream_return stream_map/)->has_daemon('openssl');
 my $d = $t->testdir();
 
+$t->write_file('openssl.cnf', <<'EOF');
+[req]
+distinguished_name = dn
+[dn]
+EOF
+local $ENV{OPENSSL_CONF} = "$d/openssl.cnf";
+
 system("openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj /CN=one.test "
 	. "-keyout $d/origin.key -out $d/origin.crt >$d/openssl.log 2>&1") == 0
 	or die "openssl req: $?";
