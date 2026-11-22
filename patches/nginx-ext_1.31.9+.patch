@@ -7544,7 +7544,7 @@ index 29a4530..850d2bd 100644
  #if (NGX_DEBUG)
 diff --git a/src/event/ngx_event_openssl_compression.c b/src/event/ngx_event_openssl_compression.c
 new file mode 100644
-index 0000000..e3730e1
+index 0000000..f4210de
 --- /dev/null
 +++ b/src/event/ngx_event_openssl_compression.c
 @@ -0,0 +1,673 @@
@@ -7725,9 +7725,9 @@ index 0000000..e3730e1
 +    for (i = 1; i < len; i += 2) {
 +        alg = (p[i] << 8) | p[i + 1];
 +
-+        if ((alg == TLSEXT_comp_cert_zlib && BIO_f_zlib() != NULL)
-+            || (alg == TLSEXT_comp_cert_brotli && BIO_f_brotli() != NULL)
-+            || (alg == TLSEXT_comp_cert_zstd && BIO_f_zstd() != NULL))
++        if ((alg == TLSEXT_comp_cert_zlib && COMP_zlib_oneshot() != NULL)
++            || (alg == TLSEXT_comp_cert_brotli && COMP_brotli_oneshot() != NULL)
++            || (alg == TLSEXT_comp_cert_zstd && COMP_zstd_oneshot() != NULL))
 +        {
 +            break;
 +        }
