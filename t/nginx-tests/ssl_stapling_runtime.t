@@ -7,6 +7,7 @@
 use warnings;
 use strict;
 
+use Digest::SHA qw/sha256_hex/;
 use IO::Socket::SSL;
 use Test::More;
 
@@ -29,6 +30,8 @@ plan(skip_all => 'nginx extensions are disabled') if $t->has_module('--without-e
 my $d = $t->testdir();
 my $ocsp_port = port(8080);
 my $client = '';
+my $compression = $t->has_module('built with OpenSSL (?:3\.(?:[2-9]|[1-9]\d+)\.|[4-9]\.)')
+    ? 'ssl_certificate_compression on;' : '';
 
 if (!$t->has_module('--without-client')) {
 	$client = <<'EOF';
@@ -59,6 +62,7 @@ events {
 http {
     %%TEST_GLOBALS_HTTP%%
 
+    $compression
     ssl_stapling on;
     ssl_stapling_verify on;
     ssl_trusted_certificate ca.crt;
@@ -101,6 +105,16 @@ http {
     }
 
     server {
+        listen 127.0.0.1:8449 ssl;
+        server_name ocsp.test;
+        ssl_stapling off;
+        ssl_certificate_load runtime;
+        ssl_certificate chain.crt;
+        ssl_certificate_key rsa.key;
+        return 200 ok;
+    }
+
+    server {
         listen 127.0.0.1:8080;
         access_log responder.log combined;
         root %%TESTDIR%%;
@@ -116,6 +130,7 @@ http {
 stream {
     %%TEST_GLOBALS_STREAM%%
 
+    $compression
     ssl_stapling on;
     ssl_stapling_verify on;
     ssl_trusted_certificate ca.crt;
@@ -201,7 +216,15 @@ for my $name (qw/active variable stream/) {
 	$t->write_file("$name.crt", $t->read_file('a.crt'));
 }
 
-$t->plan(20)->run();
+$t->write_file('chain.crt', $t->read_file('a.crt'));
+if ($compression) {
+    openssl('req -x509 -key ca.key -days 2 -subj /CN=ca -set_serial 12345 '
+        . '-addext basicConstraints=critical,CA:TRUE -addext keyUsage=critical,keyCertSign,cRLSign '
+        . '-out alternate.crt');
+    openssl("x509 -in $_.crt -outform DER -out $_.der") for qw/ca alternate/;
+}
+
+$t->plan(20 + ($compression ? 18 : 0))->run();
 
 is(staple(8443, 'TLSv1_2'), '1 no staple', 'runtime HTTP cold handshake');
 is(warm(8443, 'TLSv1_2'), '1 good', 'runtime HTTP TLS 1.2');
@@ -215,6 +238,21 @@ is(staple(8443, 'TLSv1_2', 'ECDSA'), '3 no staple', 'cold ECDSA beside warm RSA'
 is(warm(8443, 'TLSv1_2', 'ECDSA'), '3 good', 'ECDSA has its own staple');
 is(staple(8443, 'TLSv1_3'), '1 good', 'RSA staple unchanged by ECDSA');
 
+if ($compression) {
+    for my $alg (1 .. 3) {
+        compressed(8443, $alg, 1, 'a', 'RSA', "HTTP stapled algorithm $alg");
+        compressed(8446, $alg, 1, 'a', 'RSA', "Stream stapled algorithm $alg");
+        compressed(8443, $alg, 0, '', 'RSA', "no unsolicited staple $alg");
+    }
+    compressed(8443, 2, 1, 'ec', 'ECDSA', 'ECDSA uses its own chain and staple');
+    compressed(8443, 0, 1, 'a', 'RSA', 'client without compression receives staple');
+    compressed(8444, 3, 1, 'a', 'RSA', 'variable certificate without a file cache');
+    compressed(8449, 2, 0, '', 'RSA', 'original intermediate', 'ca');
+    $t->write_file('chain.crt', $t->read_file('a.leaf') . $t->read_file('alternate.crt'));
+    compressed(8449, 2, 0, '', 'RSA', 'changed intermediate starts cold', 'alternate', 0);
+    compressed(8449, 2, 0, '', 'RSA', 'changed intermediate is compressed', 'alternate');
+}
+
 rotate($_) for qw/active variable stream/;
 sleep 1;
 is(staple(8443, 'TLSv1_3'), '2 no staple', 'HTTP rotation drops the old staple');
@@ -225,6 +263,12 @@ is(warm(8446, 'TLSv1_3'), '2 good', 'Stream rotation fetches the new staple');
 is(staple(8445, 'TLSv1_3'), '5 no staple', 'certificate without AIA handshakes');
 is(staple(8448, 'TLSv1_3'), '4 no staple', 'wrong OCSP cert ID cold handshake');
 is(warm(8448, 'TLSv1_3'), '4 no staple', 'wrong OCSP cert ID is not stapled');
+
+if ($compression) {
+    compressed(8443, 2, 1, 'b', 'RSA', 'HTTP rotation replaces the stapled message');
+    compressed(8446, 2, 1, 'b', 'RSA', 'Stream rotation replaces the stapled message');
+    compressed(8443, 2, 0, '', 'RSA', 'rotated chain without unsolicited staple');
+}
 
 my $requests = $t->read_file('responder.log');
 is(scalar(() = $requests =~ m{"GET /bad/}g), 1, 'wrong response retries are throttled');
@@ -286,6 +330,29 @@ sub warm {
 		last if $out !~ /no staple$/;
 	}
 	return $out;
+}
+
+sub compressed {
+    my ($listener, $alg, $status, $name, $type, $label, $issuer, $expected) = @_;
+    $expected //= $alg;
+    my $sig = $type eq 'RSA' ? 'rsa_pss_rsae_sha256' : 'ecdsa_secp256r1_sha256';
+    my $want = $name ? sha256_hex($t->read_file("$name.der")) : '-';
+    $want .= ' ' . sha256_hex($t->read_file("$issuer.der")) if defined $issuer;
+    my $result = '';
+
+    for (1 .. 15) {
+        open my $probe, '-|', 'python3', '../ssl/cert_compression.py',
+            port($listener), "$d/ca.crt", $alg, $status, $sig,
+            (defined $issuer ? 'issuer' : ()) or die "python3: $!";
+        $result = <$probe> // '';
+        close $probe or last;
+        chomp $result;
+        last if $result eq "$expected $want";
+        last if $result ne "0 $want";
+        select undef, undef, undef, 0.05;
+    }
+
+    is($result, "$expected $want", $label);
 }
 
 sub rotate {

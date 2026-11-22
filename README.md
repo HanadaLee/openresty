@@ -42,6 +42,7 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [More directives for not modified checking](#more-directives-for-not-modified-checking)
   - [ngx\_http\_ssl\_module](#ngx_http_ssl_module)
     - [ssl\_certificate\_load](#ssl_certificate_load)
+    - [ssl\_certificate\_compression](#ssl_certificate_compression)
     - [ssl_ocsp_http_client](#ssl_ocsp_http_client)
     - [ssl_stapling_http_client](#ssl_stapling_http_client)
     - [Conditional ssl\_reject\_handshake](#conditional-ssl_reject_handshake)
@@ -88,6 +89,7 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [Conditional access_log](#conditional-access_log-1)
   - [ngx\_stream\_ssl\_module](#ngx_stream_ssl_module)
     - [ssl\_certificate\_load](#ssl_certificate_load-1)
+    - [ssl\_certificate\_compression](#ssl_certificate_compression-1)
     - [ssl_ocsp_http_client](#ssl_ocsp_http_client-1)
     - [ssl_stapling_http_client](#ssl_stapling_http_client-1)
     - [ssl\_reject\_handshake](#ssl_reject_handshake)
@@ -785,6 +787,12 @@ If either path contains variables, certificates and private keys are always
 loaded on demand at runtime, regardless of the selected mode.
 `ssl_certificate_cache` also applies to files loaded in `runtime` mode.
 The setting is inherited unless overridden.
+
+### ssl_certificate_compression
+
+Extends the nginx [ssl_certificate_compression](https://nginx.org/en/docs/http/ngx_http_ssl_module.html#ssl_certificate_compression) directive to support runtime certificates and OCSP stapling with OpenSSL 3.2 or later.
+
+When a compressed version of the current certificate chain and staple is unavailable, the server sends the ordinary TLS 1.3 Certificate message. Worker processes use the `default` thread pool to compress new entries in builds with thread support.
 
 ### ssl_ocsp_http_client
 
@@ -1717,6 +1725,10 @@ Stream requires an explicit log format for each destination. The `when`, `if=` a
 * **Context:** *stream, server*
 
 Stream uses the same modes as HTTP for loading server certificates and private keys. See [ssl_certificate_load](#ssl_certificate_load).
+
+### ssl_certificate_compression
+
+Stream supports the same certificate compression and stapling behavior as HTTP. See [ssl_certificate_compression](#ssl_certificate_compression).
 
 ### ssl_ocsp_http_client
 
