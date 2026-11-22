@@ -6831,6 +6831,24 @@ index d1876bb..1aaf348 100644
 +
 +
  #endif /* _NGX_SLAB_H_INCLUDED_ */
+diff --git a/src/core/ngx_string.c b/src/core/ngx_string.c
+index 10fe764..027ffef 100644
+--- a/src/core/ngx_string.c
++++ b/src/core/ngx_string.c
+@@ -583,6 +583,13 @@ ngx_sprintf_str(u_char *buf, u_char *last, u_char *src, size_t len,
+
+         } else {
+             len = ngx_min((size_t) (last - buf), len);
++
++#if (NGX_EXT)
++            if (len == 0) {
++                return buf;
++            }
++#endif
++
+             buf = ngx_cpymem(buf, src, len);
+         }
+
 diff --git a/src/event/ngx_event.c b/src/event/ngx_event.c
 index 4d4997d..697de1b 100644
 --- a/src/event/ngx_event.c
