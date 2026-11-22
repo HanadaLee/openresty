@@ -340,6 +340,11 @@ sub compressed {
     $want .= ' ' . sha256_hex($t->read_file("$issuer.der")) if defined $issuer;
     my $result = '';
 
+    # Use the same OpenSSL build as nginx for certificate compression.
+    local $ENV{LD_LIBRARY_PATH} = join ':',
+        grep { defined && length } @ENV{qw/TEST_NGINX_OPENSSL_LIB LD_LIBRARY_PATH/}
+        if $ENV{TEST_NGINX_OPENSSL_LIB};
+
     for (1 .. 15) {
         open my $probe, '-|', 'python3', '../ssl/cert_compression.py',
             port($listener), "$d/ca.crt", $alg, $status, $sig,

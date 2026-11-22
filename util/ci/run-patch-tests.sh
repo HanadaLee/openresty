@@ -42,6 +42,7 @@ run_test_phase patch-regressions docker run --rm --init \
         export NO_PROXY="*" no_proxy="*"
         export TMPDIR=/results/tmp TEST_NGINX_LEAVE=1
         TEST_NGINX_BINARY=/usr/local/openresty/sbin/nginx \
+            TEST_NGINX_OPENSSL_LIB=/usr/local/openresty/lib \
             TEST_NGINX_ROOT=/test-work/harnesses/test-nginx \
             NGINX_TESTS_ROOT=/test-work/harnesses/nginx-tests \
             TEST_ROOT=/test-work/tests TEST_PATCH_OUTPUT=/results \
