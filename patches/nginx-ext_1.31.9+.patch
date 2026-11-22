@@ -15314,7 +15314,7 @@ index 032ba96..76f29a4 100644
  
          r->headers_out.status = NGX_HTTP_NOT_MODIFIED;
 diff --git a/src/http/modules/ngx_http_proxy_module.c b/src/http/modules/ngx_http_proxy_module.c
-index 4948d27..1637c87 100644
+index 4948d27..662f67a 100644
 --- a/src/http/modules/ngx_http_proxy_module.c
 +++ b/src/http/modules/ngx_http_proxy_module.c
 @@ -9,6 +9,9 @@
@@ -15334,10 +15334,10 @@ index 4948d27..1637c87 100644
 +#if (NGX_EXT && NGX_EXPR)
 +typedef struct {
 +    ngx_expr_when_id_t              expr_id;
-+    ngx_uint_t                     level;  /* local rules precede ancestors */
-+    unsigned                       off:1;
-+    unsigned                       implicit:1;
-+    unsigned                       empty:1;
++    ngx_uint_t                      level;  /* local rules precede ancestors */
++    unsigned                        off:1;
++    unsigned                        implicit:1;
++    unsigned                        empty:1;
 +} ngx_http_proxy_rewrite_condition_t;
 +#endif
 +
@@ -15372,8 +15372,8 @@ index 4948d27..1637c87 100644
 +#endif
 +    } cookie;
 +
-+    ngx_http_proxy_rewrite_t      *pr;
-+    ngx_uint_t                     regex;
++    ngx_http_proxy_rewrite_t           *pr;
++    ngx_uint_t                          regex;
 +} ngx_http_proxy_cookie_value_t;
 +
 +
@@ -15388,8 +15388,8 @@ index 4948d27..1637c87 100644
 +#endif
 +    } cookie;
 +
-+    time_t                         max_age;
-+    ngx_uint_t                     regex;
++    time_t                              max_age;
++    ngx_uint_t                          regex;
 +} ngx_http_proxy_cookie_max_age_t;
 +
 +#endif
@@ -18992,11 +18992,11 @@ index 4948d27..1637c87 100644
 +ngx_http_proxy_rewrite_rule(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
 +    size_t size, char *(*parse)(ngx_conf_t *, ngx_command_t *, void *))
 +{
-+    char                                *rv;
-+    u_char                              *p;
-+    ngx_str_t                           *value;
-+    ngx_uint_t                           i, off;
-+    ngx_array_t                          parsed, **rules;
++    char                                 *rv;
++    u_char                               *p;
++    ngx_str_t                            *value;
++    ngx_uint_t                            i, off;
++    ngx_array_t                           parsed, **rules;
 +    ngx_expr_when_id_t                    expr_id;
 +    ngx_http_proxy_loc_conf_t             lcf;
 +    ngx_http_proxy_rewrite_condition_t   *condition;
@@ -19069,10 +19069,10 @@ index 4948d27..1637c87 100644
 +    ngx_array_t *prev, size_t size, void *default_rule)
  {
 -    ngx_http_proxy_loc_conf_t *plcf = conf;
-+    u_char                              *p;
-+    ngx_uint_t                           i, n, level, inherited_level;
-+    ngx_uint_t                           add_default;
-+    ngx_array_t                         *a;
++    u_char                               *p;
++    ngx_uint_t                            i, n, level, inherited_level;
++    ngx_uint_t                            add_default;
++    ngx_array_t                          *a;
 +    ngx_http_proxy_rewrite_condition_t   *condition, *fallback;
  
 -    ngx_str_t                         *value;
@@ -21401,7 +21401,7 @@ index f6731e7..11c8a3e 100644
      return NGX_CONF_OK;
  }
 diff --git a/src/http/modules/ngx_http_rewrite_module.c b/src/http/modules/ngx_http_rewrite_module.c
-index eefe4c8..d69f0f6 100644
+index eefe4c8..7ce9aa4 100644
 --- a/src/http/modules/ngx_http_rewrite_module.c
 +++ b/src/http/modules/ngx_http_rewrite_module.c
 @@ -1,8 +1,16 @@
@@ -22184,8 +22184,8 @@ index eefe4c8..d69f0f6 100644
 +    ngx_http_rewrite_loc_conf_t *lcf, ngx_str_t *value,
 +    ngx_uint_t begin, ngx_uint_t last, ngx_uint_t depth)
 +{
-+    char                           *rv;
-+    ngx_uint_t                      slots;
++    char                            *rv;
++    ngx_uint_t                       slots;
 +    ngx_http_rewrite_if_op_t         op;
 +    ngx_http_script_if_op_code_t    *op_code;
 +
@@ -25495,7 +25495,7 @@ index a078d44..8cb5f76 100644
  
  
 diff --git a/src/http/modules/ngx_http_sub_filter_module.c b/src/http/modules/ngx_http_sub_filter_module.c
-index b50a252..38d6c9a 100644
+index b50a252..9cf995f 100644
 --- a/src/http/modules/ngx_http_sub_filter_module.c
 +++ b/src/http/modules/ngx_http_sub_filter_module.c
 @@ -9,10 +9,17 @@
@@ -25529,7 +25529,7 @@ index b50a252..38d6c9a 100644
 +#endif
      ngx_uint_t                 dynamic; /* unsigned dynamic:1; */
 +#if (NGX_EXT && NGX_EXPR)
-+    ngx_http_sub_loc_conf_t    *parent;
++    ngx_http_sub_loc_conf_t   *parent;
 +#endif
  
      ngx_array_t               *pairs;
@@ -32091,7 +32091,7 @@ index 440683e..f03a335 100644
 +
 +#endif
 diff --git a/src/http/ngx_http_upstream.c b/src/http/ngx_http_upstream.c
-index 1c7a9f1..51cd476 100644
+index 1c7a9f1..1827792 100644
 --- a/src/http/ngx_http_upstream.c
 +++ b/src/http/ngx_http_upstream.c
 @@ -9,6 +9,10 @@
@@ -34318,7 +34318,7 @@ index 1c7a9f1..51cd476 100644
 +ngx_http_upstream_hide_cookie_match(ngx_http_request_t *r,
 +    ngx_http_upstream_hide_cookies_t *cookies, u_char *name, size_t len)
 +{
-+    ngx_uint_t                i, active;
++    ngx_uint_t                 i, active;
 +    ngx_conf_expr_str_ctx_t   *value;
 +
 +    for ( /* void */; cookies; cookies = cookies->parent) {
@@ -34737,7 +34737,7 @@ index 1c7a9f1..51cd476 100644
 +char *
 +ngx_http_upstream_hide_cookie(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 +{
-+    ngx_str_t                           *value;
++    ngx_str_t                            *value;
 +    ngx_conf_expr_str_ctx_t              *cookie;
 +    ngx_http_upstream_hide_cookies_t    **cookies;
 +
@@ -34803,7 +34803,7 @@ index 1c7a9f1..51cd476 100644
      {
          if (conf->ssl_passwords && conf->ssl_passwords->pool == NULL) {
 diff --git a/src/http/ngx_http_upstream.h b/src/http/ngx_http_upstream.h
-index bc8fd42..98d44a3 100644
+index bc8fd42..1025dca 100644
 --- a/src/http/ngx_http_upstream.h
 +++ b/src/http/ngx_http_upstream.h
 @@ -56,18 +56,79 @@
@@ -34867,7 +34867,7 @@ index bc8fd42..98d44a3 100644
 +    ngx_http_upstream_hide_cookies_t;
 +
 +struct ngx_http_upstream_hide_cookies_s {
-+    ngx_array_t                        values;
++    ngx_array_t                         values;
 +    ngx_http_upstream_hide_cookies_t   *parent;
 +};
 +#endif
@@ -34923,7 +34923,7 @@ index bc8fd42..98d44a3 100644
 +#if (NGX_EXPR)
 +    ngx_http_upstream_hide_cookies_t *hide_cookies;
 +#else
-+    ngx_array_t                     *hide_cookies;
++    ngx_array_t                      *hide_cookies;
 +#endif
 +#endif
  
@@ -34980,7 +34980,7 @@ index bc8fd42..98d44a3 100644
      ngx_http_complex_value_t        *ssl_certificate_key;
      ngx_ssl_cache_t                 *ssl_certificate_cache;
 +#if (NGX_EXT)
-+    ngx_uint_t                      ssl_certificate_load;
++    ngx_uint_t                       ssl_certificate_load;
 +#endif
      ngx_array_t                     *ssl_passwords;
  #endif
@@ -36131,7 +36131,7 @@ index 774bc7e..6e359c4 100644
              s.len = value[i].len - 3;
              s.data = value[i].data + 3;
 diff --git a/src/stream/ngx_stream_proxy_module.c b/src/stream/ngx_stream_proxy_module.c
-index 7466569..722cb25 100644
+index 7466569..87ff57e 100644
 --- a/src/stream/ngx_stream_proxy_module.c
 +++ b/src/stream/ngx_stream_proxy_module.c
 @@ -9,6 +9,10 @@
@@ -36192,7 +36192,7 @@ index 7466569..722cb25 100644
      ngx_stream_complex_value_t      *ssl_certificate_key;
      ngx_ssl_cache_t                 *ssl_certificate_cache;
 +#if (NGX_EXT)
-+    ngx_uint_t                      ssl_certificate_load;
++    ngx_uint_t                       ssl_certificate_load;
 +#endif
      ngx_array_t                     *ssl_passwords;
      ngx_array_t                     *ssl_conf_commands;

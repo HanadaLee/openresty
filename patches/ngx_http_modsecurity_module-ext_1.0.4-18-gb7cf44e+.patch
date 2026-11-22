@@ -125,7 +125,7 @@ index 03b8764..ecd8672 100644
          ngx_http_modsecurity_store_ctx_header(r, &data[i].key, &data[i].value);
  #endif
 diff --git a/src/ngx_http_modsecurity_module.c b/src/ngx_http_modsecurity_module.c
-index d3d9624..99c2473 100644
+index d3d9624..fc4a030 100644
 --- a/src/ngx_http_modsecurity_module.c
 +++ b/src/ngx_http_modsecurity_module.c
 @@ -30,6 +30,11 @@
@@ -230,12 +230,12 @@ index d3d9624..99c2473 100644
 +    ngx_http_variable_value_t *v, uintptr_t data)
 +{
 +    ngx_http_modsecurity_ctx_t  *ctx;
-+    size_t  size;
-+    size_t  written;
-+    size_t  i;
-+    size_t  cap;
-+    int64_t *ids;
-+    u_char  *buf, *p, *end;
++    size_t                       size;
++    size_t                       written;
++    size_t                       i;
++    size_t                       cap;
++    int64_t                     *ids;
++    u_char                      *buf, *p, *end;
 +
 +    ctx = ngx_http_modsecurity_get_module_ctx(r);
 +    if (ctx == NULL || ctx->modsec_transaction == NULL) {

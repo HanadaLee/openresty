@@ -38,16 +38,16 @@ diff --git a/lib/resty/core/resolver.lua b/lib/resty/core/resolver.lua
 +if ngx.config.subsystem == "http" then
 +    ffi.cdef[[
 +        typedef struct {
-+            unsigned char *data;
-+            size_t len;
-+            int family;
++            unsigned char                *data;
++            size_t                        len;
++            int                           family;
 +        } ngx_http_lua_resolver_addr_t;
 +
 +        typedef struct {
 +            ngx_http_lua_resolver_addr_t *addrs;
-+            const char *error;
-+            size_t naddrs;
-+            ngx_str_t name;
++            const char                   *error;
++            size_t                        naddrs;
++            ngx_str_t                     name;
 +        } ngx_http_lua_resolver_result_t;
 +
 +        int ngx_http_lua_ffi_resolve(ngx_http_request_t *r,
@@ -65,16 +65,16 @@ diff --git a/lib/resty/core/resolver.lua b/lib/resty/core/resolver.lua
 +else
 +    ffi.cdef[[
 +        typedef struct {
-+            unsigned char *data;
-+            size_t len;
-+            int family;
++            unsigned char                  *data;
++            size_t                          len;
++            int                             family;
 +        } ngx_stream_lua_resolver_addr_t;
 +
 +        typedef struct {
 +            ngx_stream_lua_resolver_addr_t *addrs;
-+            const char *error;
-+            size_t naddrs;
-+            ngx_str_t name;
++            const char                     *error;
++            size_t                          naddrs;
++            ngx_str_t                       name;
 +        } ngx_stream_lua_resolver_result_t;
 +
 +        int ngx_stream_lua_ffi_resolve(ngx_stream_lua_request_t *r,
