@@ -30,10 +30,10 @@ index e53be37ecb667db70c400b46f921c172e1b6007e..eb1d94827213451467585240145832df
  # ----------------------------------------
 diff --git a/src/ngx_http_lua_async_fs.c b/src/ngx_http_lua_async_fs.c
 new file mode 100644
-index 0000000000000000000000000000000000000000..f0b93afcfa1c2304a27e1343a0fa11cf3691877b
+index 0000000000000000000000000000000000000000..f4dac59c4372e7d981362ccbc8931c41133de09e
 --- /dev/null
 +++ b/src/ngx_http_lua_async_fs.c
-@@ -0,0 +1,1303 @@
+@@ -0,0 +1,1308 @@
 +
 +/*
 + * Copyright (C) Yichun Zhang (agentzh)
@@ -1303,7 +1303,12 @@ index 0000000000000000000000000000000000000000..f0b93afcfa1c2304a27e1343a0fa11cf
 +    }
 +
 +    c = r->connection;
++
++#if (NGX_EXT && NGX_CLIENT)
++    fake = ngx_http_lua_is_fake_request(r);
++#else
 +    fake = (c->fd == (ngx_socket_t) -1);
++#endif
 +
 +    if (!fake) {
 +        ngx_http_set_log_request(c->log, r);

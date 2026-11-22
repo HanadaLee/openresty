@@ -211,3 +211,47 @@ GET /t
 ok
 --- no_error_log
 [error]
+
+=== TEST 8: an HTTP client request can capture a subrequest after file I/O
+--- main_config
+    thread_pool default_lua_io threads=2 max_queue=32;
+--- http_config
+    server {
+        server_name @file_client;
+        client;
+
+        location = /file {
+            content_by_lua_block {
+                local path = ngx.config.prefix() .. "html/client-file"
+                local data = assert(ngx.fs.read_file(path, 6))
+                local res = ngx.location.capture("/sub")
+                assert(res.status == 200)
+                ngx.print(data, res.body)
+            }
+        }
+
+        location = /sub {
+            return 200 "subrequest";
+        }
+    }
+--- config
+    location = /t {
+        content_by_lua_block {
+            local res, err = ngx.http.request_uri("http://origin.test/file", {
+                server = "@file_client", headers = { Host = "origin.test" },
+            })
+            assert(res, err)
+            assert(res.status == 200)
+            ngx.say(res.body)
+        }
+    }
+--- user_files
+>>> client-file
+hello
+--- request
+GET /t
+--- response_body
+hello
+subrequest
+--- no_error_log
+[error]
