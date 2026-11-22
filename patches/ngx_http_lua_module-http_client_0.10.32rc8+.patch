@@ -895,7 +895,7 @@ index 695f982..bbb47cf 100755
  #define NGX_HTTP_LUA_ESCAPE_HEADER_NAME  7
  
  #define NGX_HTTP_LUA_ESCAPE_HEADER_VALUE  8
-@@ -83,17 +87,32 @@
+@@ -83,17 +87,31 @@
      }
  
  
@@ -904,21 +904,20 @@ index 695f982..bbb47cf 100755
 +    if (ngx_http_lua_is_fake_request(r)) {                                   \
 +        return luaL_error(L, "API disabled in the current context");         \
 +    }
-+#else
- #define ngx_http_lua_check_fake_request(L, r)                                \
-     if ((r)->connection->fd == (ngx_socket_t) -1) {                          \
-         return luaL_error(L, "API disabled in the current context");         \
-     }
-+#endif
- 
- 
-+#if (NGX_EXT && NGX_CLIENT)
++
++
 +#define ngx_http_lua_check_fake_request2(L, r, ctx)                          \
 +    if (ngx_http_lua_is_fake_request(r)) {                                   \
 +        return luaL_error(L, "API disabled in the context of %s",            \
 +                          ngx_http_lua_context_name((ctx)->context));        \
 +    }
 +#else
+ #define ngx_http_lua_check_fake_request(L, r)                                \
+     if ((r)->connection->fd == (ngx_socket_t) -1) {                          \
+         return luaL_error(L, "API disabled in the current context");         \
+     }
+ 
+ 
  #define ngx_http_lua_check_fake_request2(L, r, ctx)                          \
      if ((r)->connection->fd == (ngx_socket_t) -1) {                          \
          return luaL_error(L, "API disabled in the context of %s",            \
@@ -928,7 +927,7 @@ index 695f982..bbb47cf 100755
  
  
  #define ngx_http_lua_check_if_abortable(L, ctx)                              \
-@@ -311,7 +330,11 @@ ngx_http_lua_create_ctx(ngx_http_request_t *r)
+@@ -311,7 +329,11 @@ ngx_http_lua_create_ctx(ngx_http_request_t *r)
      ngx_http_set_ctx(r, ctx, ngx_http_lua_module);
  
      llcf = ngx_http_get_module_loc_conf(r, ngx_http_lua_module);
