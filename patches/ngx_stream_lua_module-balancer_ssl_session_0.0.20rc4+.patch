@@ -1,10 +1,11 @@
 --- a/src/ngx_stream_lua_common.h
 +++ b/src/ngx_stream_lua_common.h
-@@ -352,6 +352,9 @@
+@@ -352,6 +352,10 @@
          u_char             *src_key;
  
          ngx_stream_lua_srv_conf_handler_pt        handler;
 +#if (NGX_STREAM_SSL && HAVE_NGX_STREAM_BALANCER_EXPORT_PATCH)
++        ngx_uint_t                                 ssl_session_cache_size;
 +        struct ngx_lua_balancer_ssl_cache_s       *ssl_sessions;
 +#endif
      } balancer;
@@ -12,16 +13,13 @@
  };
 --- a/src/ngx_stream_lua_balancer.c
 +++ b/src/ngx_stream_lua_balancer.c
-@@ -46,6 +46,36 @@
+@@ -46,6 +46,35 @@
  
  
  #if (NGX_STREAM_SSL && HAVE_NGX_STREAM_BALANCER_EXPORT_PATCH)
 +/*
 + * Per-worker TLS sessions for dynamically selected upstream peers.
 + */
-+
-+#define NGX_LUA_BALANCER_SSL_CACHE_SIZE  256
-+
 +
 +typedef struct {
 +    ngx_str_node_t      sn;
@@ -35,6 +33,7 @@
 +    ngx_rbtree_node_t   sentinel;
 +    ngx_queue_t         queue;
 +    ngx_uint_t          nelts;
++    ngx_uint_t          max;
 +} ngx_lua_balancer_ssl_cache_t;
 +
 +
@@ -45,11 +44,12 @@
 +} ngx_lua_balancer_ssl_peer_t;
 +
 +
-+static ngx_lua_balancer_ssl_cache_t *ngx_lua_balancer_ssl_init(ngx_conf_t *cf);
++static ngx_int_t ngx_lua_balancer_ssl_init(ngx_conf_t *cf,
++    ngx_stream_lua_srv_conf_t *lscf);
  static ngx_int_t ngx_stream_lua_balancer_set_session(ngx_peer_connection_t *pc,
      void *data);
  static void ngx_stream_lua_balancer_save_session(ngx_peer_connection_t *pc,
-@@ -71,6 +101,11 @@
+@@ -71,6 +100,11 @@
      ngx_stream_lua_request_t *r);
  void ngx_stream_lua_balancer_free_peer(ngx_peer_connection_t *pc, void *data,
      ngx_uint_t state);
@@ -61,7 +61,7 @@
  
  
  ngx_int_t
-@@ -227,6 +262,16 @@
+@@ -227,6 +261,15 @@
  ngx_stream_lua_balancer_init(ngx_conf_t *cf,
      ngx_stream_upstream_srv_conf_t *us)
  {
@@ -69,8 +69,7 @@
 +    ngx_stream_lua_srv_conf_t  *lscf;
 +
 +    lscf = ngx_stream_conf_upstream_srv_conf(us, ngx_stream_lua_module);
-+    lscf->balancer.ssl_sessions = ngx_lua_balancer_ssl_init(cf);
-+    if (lscf->balancer.ssl_sessions == NULL) {
++    if (ngx_lua_balancer_ssl_init(cf, lscf) != NGX_OK) {
 +        return NGX_ERROR;
 +    }
 +#endif
@@ -78,7 +77,7 @@
      if (ngx_stream_upstream_init_round_robin(cf, us) != NGX_OK) {
          return NGX_ERROR;
      }
-@@ -474,13 +519,244 @@
+@@ -474,13 +517,258 @@
  
  
  #if (NGX_STREAM_SSL && HAVE_NGX_STREAM_BALANCER_EXPORT_PATCH)
@@ -110,23 +109,30 @@
 +}
 +
 +
-+static ngx_lua_balancer_ssl_cache_t *
-+ngx_lua_balancer_ssl_init(ngx_conf_t *cf)
++static ngx_int_t
++ngx_lua_balancer_ssl_init(ngx_conf_t *cf,
++    ngx_stream_lua_srv_conf_t *lscf)
 +{
 +    ngx_pool_cleanup_t            *cln;
 +    ngx_lua_balancer_ssl_cache_t  *cache;
++
++    ngx_conf_init_uint_value(lscf->balancer.ssl_session_cache_size, 256);
++
++    if (lscf->balancer.ssl_session_cache_size == 0) {
++        return NGX_OK;
++    }
 +
 +    if (ngx_lua_balancer_ssl_index == -1) {
 +        ngx_lua_balancer_ssl_index = SSL_get_ex_new_index(0, NULL, NULL, NULL,
 +                                                         NULL);
 +        if (ngx_lua_balancer_ssl_index == -1) {
-+            return NULL;
++            return NGX_ERROR;
 +        }
 +    }
 +
 +    cln = ngx_pool_cleanup_add(cf->pool, sizeof(ngx_lua_balancer_ssl_cache_t));
 +    if (cln == NULL) {
-+        return NULL;
++        return NGX_ERROR;
 +    }
 +
 +    cache = cln->data;
@@ -134,9 +140,12 @@
 +                    ngx_str_rbtree_insert_value);
 +    ngx_queue_init(&cache->queue);
 +    cache->nelts = 0;
++    cache->max = lscf->balancer.ssl_session_cache_size;
 +    cln->handler = ngx_lua_balancer_ssl_cleanup;
 +
-+    return cache;
++    lscf->balancer.ssl_sessions = cache;
++
++    return NGX_OK;
 +}
 +
 +
@@ -173,7 +182,7 @@
 +            return;
 +        }
 +
-+        if (cache->nelts == NGX_LUA_BALANCER_SSL_CACHE_SIZE) {
++        if (cache->nelts == cache->max) {
 +            q = ngx_queue_last(&cache->queue);
 +            last = ngx_queue_data(q, ngx_lua_balancer_ssl_node_t, queue);
 +            ngx_lua_balancer_ssl_remove(cache, last);
@@ -306,6 +315,10 @@
 +        s = bp->request->session;
 +        pc->connection->ssl->save_session = NULL;
 +
++        if (bp->conf->balancer.ssl_sessions == NULL) {
++            return NGX_OK;
++        }
++
 +#ifdef HAVE_PROXY_SSL_PATCH
 +        lscf = ngx_stream_get_module_srv_conf(s, ngx_stream_lua_module);
 +        if (lscf->ups.proxy_ssl_cert_handler
@@ -324,7 +337,7 @@
          return NGX_OK;
      }
  
-@@ -494,7 +770,7 @@
+@@ -494,7 +782,7 @@
      ngx_stream_lua_balancer_peer_data_t        *bp = data;
  
      if (bp->sockaddr && bp->socklen) {
@@ -355,3 +368,33 @@
  
      /* TODO honor lua_code_cache off */
      L = ngx_stream_lua_get_lua_vm(r, NULL);
+--- a/src/ngx_stream_lua_module.c
++++ b/src/ngx_stream_lua_module.c
+@@ -344,6 +344,16 @@
+       0,
+       (void *) ngx_stream_lua_balancer_handler_file },
+ 
++#if (NGX_STREAM_SSL && HAVE_NGX_STREAM_BALANCER_EXPORT_PATCH)
++
++    { ngx_string("balancer_ssl_session_cache"),
++      NGX_STREAM_UPS_CONF|NGX_CONF_TAKE1,
++      ngx_conf_set_num_slot,
++      NGX_STREAM_SRV_CONF_OFFSET,
++      offsetof(ngx_stream_lua_srv_conf_t, balancer.ssl_session_cache_size),
++      NULL },
++
++#endif
+ 
+     { ngx_string("lua_socket_keepalive_timeout"),
+       NGX_STREAM_MAIN_CONF|NGX_STREAM_SRV_CONF
+@@ -952,6 +962,10 @@
+      *      lscf->balancer.src_key = NULL;
+      */
+ 
++#if (NGX_STREAM_SSL && HAVE_NGX_STREAM_BALANCER_EXPORT_PATCH)
++    conf->balancer.ssl_session_cache_size = NGX_CONF_UNSET_UINT;
++#endif
++
+     conf->enable_code_cache  = NGX_CONF_UNSET;
+     conf->check_client_abort = NGX_CONF_UNSET;
+ 

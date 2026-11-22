@@ -27,7 +27,7 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
   - [ngx_http_client_module](#ngx_http_client_module)
     - [client](#client)
   - [ngx\_http\_lua\_module](#ngx_http_lua_module)
-    - [Upstream TLS sessions](#upstream-tls-sessions)
+    - [balancer_ssl_session_cache](#balancer_ssl_session_cache)
     - [ngx.fs](#ngxfs)
     - [preaccess\_by\_lua\_block](#preaccess_by_lua_block)
     - [preaccess\_by\_lua\_file](#preaccess_by_lua_file)
@@ -514,9 +514,15 @@ The proxy destination uses the URL scheme and host. `$is_request_port$request_po
 
 ## ngx_http_lua_module
 
-### Upstream TLS sessions
+### balancer_ssl_session_cache
 
-With upstream TLS session reuse enabled, peers selected by `ngx.balancer.set_current_peer()` can resume a TLS session on a new connection. Each worker caches up to 256 sessions per Lua upstream. Sessions are isolated by peer, TLS name, ALPN offer and configuration context. Connections using client certificates or Lua upstream certificate or verification callbacks perform a full handshake.
+* **Syntax:** `balancer_ssl_session_cache number;`
+
+* **Default:** `balancer_ssl_session_cache 256;`
+
+* **Context:** *upstream*
+
+Sets the maximum number of upstream TLS sessions each worker caches for peers selected by `ngx.balancer.set_current_peer()`. Entries are allocated on demand and the least recently used entry is evicted when the cache is full. A value of zero disables the cache. Upstream TLS session reuse must be enabled. Sessions are isolated by peer, TLS name, ALPN offer and configuration context. Connections using client certificates or Lua upstream certificate or verification callbacks perform a full handshake.
 
 ### ngx.fs
 
@@ -1644,7 +1650,7 @@ Defines conditions under which the request will be checked by modsecurity. If at
 
 ## ngx_stream_lua_module
 
-Dynamic upstream peers support the same [TLS session resumption](#upstream-tls-sessions) as HTTP.
+The Stream `balancer_ssl_session_cache` directive works the same way as its [HTTP counterpart](#balancer_ssl_session_cache).
 
 For asynchronous file operations and outbound HTTP requests, see [ngx.fs](#ngxfs) and [ngx.http](#ngxhttp).
 

@@ -80,6 +80,41 @@ END
 END
 }
 
+for my $size (0, 2) {
+	my $peers = <<"END";
+	upstream capacity_$size {
+	    server 0.0.0.1:1;
+	    balancer_ssl_session_cache $size;
+	    balancer_by_lua_block {
+	        assert(require("ngx.balancer").set_current_peer("127.0.0.1", BACKEND))
+	    }
+	}
+END
+	(my $http_peers = $peers) =~ s/BACKEND/%%PORT_8090%%/;
+	$http_peers =~ s/    server 0/    balancer_keepalive 1;\n\t    server 0/;
+	(my $stream_peers = $peers) =~ s/BACKEND/%%PORT_8091%%/;
+	$http .= $http_peers . <<"END";
+	server {
+	    listen 127.0.0.1:804$size;
+	    proxy_ssl_protocols TLSv1.2;
+	    proxy_ssl_server_name on;
+	    proxy_ssl_name \$host;
+	    location / { proxy_pass https://capacity_$size; }
+	}
+END
+	$stream .= $stream_peers . <<"END";
+	server {
+	    listen 127.0.0.1:805$size proxy_protocol;
+	    proxy_ssl_protocols TLSv1.2;
+	    proxy_ssl_server_name on;
+	    proxy_ssl_name \$name;
+	    proxy_ssl_alpn \$alpn;
+	    proxy_ssl on;
+	    proxy_pass capacity_$size;
+	}
+END
+}
+
 $t->write_file_expand('nginx.conf', <<"END");
 %%TEST_GLOBALS%%
 daemon off;
@@ -203,6 +238,23 @@ for my $v (2, 3) {
 			PeerPort => port("80$v$listener"), Timeout => 5) or die $!;
 		print $s "PROXY TCP4 192.0.2.$ip 127.0.0.1 12345 443\r\n";
 		result(scalar <$s>, $want, "$tls Stream $label");
+		close $s;
+	}
+}
+
+for my $size (0, 2) {
+	my @cases = $size ? ([1, '.'], [2, '.'], [1, 'r'], [3, '.'], [1, 'r'], [2, '.'])
+		: ([1, '.'], [1, '.']);
+	for my $case (@cases) {
+		my ($id, $want) = @$case;
+		my $reply = http("GET / HTTP/1.0\r\nHost: cap-$id.test\r\n\r\n",
+			PeerAddr => '127.0.0.1:' . port("804$size"));
+		result($reply, $want, "HTTP capacity $size peer $id");
+
+		my $s = IO::Socket::INET->new(PeerAddr => '127.0.0.1',
+			PeerPort => port("805$size"), Timeout => 5) or die $!;
+		print $s "PROXY TCP4 192.0.2.$id 127.0.0.1 12345 443\r\n";
+		result(scalar <$s>, $want, "Stream capacity $size peer $id");
 		close $s;
 	}
 }
