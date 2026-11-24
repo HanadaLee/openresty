@@ -2,7 +2,7 @@
 # is not pinned separately from the upstream source revision.
 ARG RESTY_VERSION
 ARG RESTY_RELEASE="399"
-ARG RESTY_COMMIT="8f1a374d79d849c4b2f6e4f35639aac70ab02985"
+ARG RESTY_COMMIT="fd029bbd07cd4bcf0a152c002063a631db4dfeb7"
 ARG RESTY_J="4"
 ARG RESTY_IMAGE_BASE="debian"
 ARG RESTY_IMAGE_TAG="trixie-slim"
