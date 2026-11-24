@@ -67,6 +67,7 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [Support for inheritance in "proxy\_set\_header" and its friends](#support-for-inheritance-in-proxy_set_header-and-its-friends)
     - [Enhancement of upstream cookie handler](#enhancement-of-upstream-cookie-handler)
     - [proxy\_cache\_lock\_early\_read](#proxy_cache_lock_early_read)
+    - [proxy\_cache\_lock\_poll\_interval](#proxy_cache_lock_poll_interval)
     - [Persistent cache zones](#persistent-cache-zones)
     - [Enhancement of upstream cache control](#enhancement-of-upstream-cache-control)
   - [ngx\_http\_upstream\_module](#ngx_http_upstream_module)
@@ -1306,6 +1307,16 @@ Eligible responses are fixed-length `200` and single-range `206` responses witho
 The shared temporary file design is based on [CDN77’s patch series](https://mailman.nginx.org/pipermail/nginx-devel/2022-January/7L5VS5E2RS4GG3GQF3H24IKS7QLZYFVV.html) by Jiří Setnička and Jan Prachař.
 
 The bundled cache purge module supports in-flight invalidation. If the build selects purge 5.1.6, enabling early reads logs a warning and uses the regular cache lock. Leave early reads off with older purge modules that lack the invalidation hook. A URL or key purge fences in-flight reads for the corresponding namespace and URL. A broader purge, or a reader that falls outside the retained purge history, can interrupt other in-flight reads.
+
+### proxy_cache_lock_poll_interval
+
+**Syntax:** `proxy_cache_lock_poll_interval time;`\
+**Default:** `proxy_cache_lock_poll_interval 500ms;`\
+**Context:** `http`, `server`, `location`, `when`
+
+Sets the maximum interval between checks of a cache lock or an in-progress cache file. The interval must be greater than zero. When early readers share a timer, the shortest interval applies. To retain the earlier 50ms early-read interval, set this directive explicitly.
+
+Based on a [proposal by Nejc Lovrencic](https://mailman.nginx.org/pipermail/nginx-devel/2024-March/XZ77NIM4V27W44Z75PRHCR6OA56SYOFT.html).
 
 ### Persistent cache zones
 
