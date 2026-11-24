@@ -728,6 +728,10 @@ RUN RESTY_VERSION="$(cat /build/openresty-version)" \
     && patch --force -p1 < /build/modules/ngx_http_proxy_filter_module/patches/nginx-request-builder-1.31.9+.patch \
     && patch --force -p1 < /build/modules/ngx_http_grpc_filter_module/patches/nginx-request-builder-1.31.9+.patch \
     && patch --force -p1 < /build/modules/ngx_http_cache_purge_module/patches/nginx-cache-policy-1.31.9+.patch \
+    && if [ "${RESTY_NGX_HTTP_CACHE_PURGE_MODULE_VERSION}" = "5.1.6" ]; then \
+           patch --force -d /build/modules/ngx_http_cache_purge_module -p1 \
+               < /build/patches/ngx_http_cache_purge_module-early_read_guard_5.1.6.patch; \
+       fi \
     && cd "${OPENRESTY_DIR}"/bundle/redis-nginx-module-* \
     && echo "patching ngx_http_redis_module" \
     && patch --force -p1 < /build/patches/ngx_http_redis_module-conditional_upstream_0.40+.patch \

@@ -1,0 +1,7 @@
+--- a/config
++++ b/config
+@@ -75,3 +75,4 @@
+ fi
+ 
+ have=NGX_HTTP_CACHE_PURGE_MODULE . auto/have
++have=NGX_HTTP_CACHE_EARLY_GUARD_REQUIRED . auto/have

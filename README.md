@@ -66,6 +66,7 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [Conditional upstream directives](#conditional-upstream-directives)
     - [Support for inheritance in "proxy\_set\_header" and its friends](#support-for-inheritance-in-proxy_set_header-and-its-friends)
     - [Enhancement of upstream cookie handler](#enhancement-of-upstream-cookie-handler)
+    - [proxy\_cache\_lock\_early\_read](#proxy_cache_lock_early_read)
     - [Persistent cache zones](#persistent-cache-zones)
     - [Enhancement of upstream cache control](#enhancement-of-upstream-cache-control)
   - [ngx\_http\_upstream\_module](#ngx_http_upstream_module)
@@ -1285,6 +1286,20 @@ See also the [proxy_hide_header](https://nginx.org/en/docs/http/ngx_http_proxy_m
 Prevents Set-Cookie headers from being passed when the response is served from cache.
 
 > fastcgi_cache_hide_cookies, scgi_cache_hide_cookies and uwsgi_cache_hide_cookies directives are also available.
+
+### proxy_cache_lock_early_read
+
+**Syntax:** `proxy_cache_lock_early_read on | off;`\
+**Default:** `proxy_cache_lock_early_read off;`\
+**Context:** `http`, `server`, `location`, `when`
+
+Allows a request waiting for [proxy_cache_lock](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_lock) to read a response while its cache file is being written, including across workers. Requires proxy buffering and `use_temp_path=off` on a local file system. The lock timeout applies until the reader joins the fill.
+
+Eligible responses are fixed-length `200` and single-range `206` responses without `Vary`, `Set-Cookie`, or `Content-Encoding`. Cache partial responses under a key that distinguishes ranges. When using slice, include `$slice_range` in the key as described in the [slice module documentation](https://nginx.org/en/docs/http/ngx_http_slice_module.html#slice). Authenticated, cookie-bearing and conditional requests use the regular cache path. A reader that joins a fill reports `MISS`; a subsequent hit reports `HIT`.
+
+The shared temporary file design is based on [CDN77’s patch series](https://mailman.nginx.org/pipermail/nginx-devel/2022-January/7L5VS5E2RS4GG3GQF3H24IKS7QLZYFVV.html) by Jiří Setnička and Jan Prachař.
+
+When the cache purge module is present, it must support in-flight invalidation. The bundled 5.1.6 build logs a warning at startup and uses the regular cache lock. For custom builds with an older module, apply the compatibility patch or leave early reads off. A URL or key purge fences in-flight reads for the corresponding namespace and URL. A broader purge, or a reader that falls outside the retained purge history, can interrupt other in-flight reads.
 
 ### Persistent cache zones
 
