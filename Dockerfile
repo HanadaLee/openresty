@@ -1,6 +1,6 @@
-# Intentionally empty: the version is read from util/ver at RESTY_COMMIT so it
-# is not pinned separately from the upstream source revision.
+# Derived from upstream util/ver and the optional nginx overlay.
 ARG RESTY_VERSION
+ARG RESTY_NGINX_OVERRIDE="1.31.10"
 ARG RESTY_RELEASE="399"
 ARG RESTY_COMMIT="fd029bbd07cd4bcf0a152c002063a631db4dfeb7"
 ARG RESTY_J="4"
@@ -132,9 +132,12 @@ FROM dockerhub.hanada.info/${RESTY_IMAGE_BASE}:${RESTY_IMAGE_TAG} AS openresty-b
 ARG RESTY_GIT_MIRROR
 ARG RESTY_REPOSITORY
 ARG RESTY_COMMIT
+ARG RESTY_NGINX_OVERRIDE
 ARG RESTY_J
 
 COPY util/rewrite-openresty-archives.sh /usr/local/bin/rewrite-openresty-archives
+COPY util/nginx-overlay.sh /usr/local/bin/nginx-overlay
+COPY patches/nginx-overlay/ /nginx-overlay/
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -158,10 +161,17 @@ RUN mkdir -p /build/openresty \
          /build/openresty/util/mirror-tarballs \
          "${RESTY_GIT_MIRROR}" \
     && cd /build/openresty \
-    && RESTY_VERSION="$(./util/ver)" \
-    && test -n "${RESTY_VERSION}" \
+    && UPSTREAM_VERSION="$(./util/ver)" \
+    && OPENRESTY_DIR="openresty-${UPSTREAM_VERSION}" \
     && MIRROR_JOBS="${RESTY_J}" make \
-    && mv "openresty-${RESTY_VERSION}.tar.gz" /openresty.tar.gz \
+    && RESTY_VERSION="$(bash /usr/local/bin/nginx-overlay apply \
+         "$OPENRESTY_DIR" "$UPSTREAM_VERSION" "$RESTY_NGINX_OVERRIDE" /nginx-overlay)" \
+    && if [ "$RESTY_VERSION" = "$UPSTREAM_VERSION" ]; then \
+         mv "$OPENRESTY_DIR.tar.gz" /openresty.tar.gz; \
+       else \
+         mv "$OPENRESTY_DIR" "openresty-${RESTY_VERSION}" \
+         && tar -czf /openresty.tar.gz "openresty-${RESTY_VERSION}"; \
+       fi \
     && printf '%s\n' "${RESTY_VERSION}" > /openresty-version
 
 FROM dockerhub.hanada.info/${RESTY_IMAGE_BASE}:${RESTY_IMAGE_TAG} AS openresty-build
@@ -719,7 +729,11 @@ RUN RESTY_VERSION="$(cat /build/openresty-version)" \
     && patch --force -p1 < /build/patches/ngx_http_lua_module-client_hello_retry_0.10.29rc1+.patch \
     && cd "${NGINX_DIR}" \
     && echo "patching nginx-${NGINX_VERSION} ext" \
-    && patch --force -p1 < /build/patches/nginx-ext_1.31.9+.patch \
+    && NGINX_EXT_PATCH="/build/patches/nginx-ext_${NGINX_VERSION}+.patch" \
+    && if [ ! -f "$NGINX_EXT_PATCH" ]; then \
+         NGINX_EXT_PATCH=/build/patches/nginx-ext_1.31.9+.patch; \
+       fi \
+    && patch --force -p1 < "$NGINX_EXT_PATCH" \
     && patch --force -p1 < /build/patches/nginx-stream_proxy_ssl_alpn_1.31.9+.patch \
     && echo "patching nginx-${NGINX_VERSION} for independent module core support" \
     && patch --force -p1 < /build/modules/ngx_http_extra_variables_module/patches/nginx-1.31.8+.patch \

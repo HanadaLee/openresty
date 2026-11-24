@@ -133,9 +133,7 @@ only the explicit runtime packages, and copies the cleaned
 `/usr/local/openresty` tree. The bundle archive, compiler toolchain, and other
 build-stage files are therefore not retained in the published image.
 
-`RESTY_VERSION` is read from `util/ver` at the pinned commit. `RESTY_RELEASE`
-remains a local, monotonically increasing bundle release. A local image can be
-built directly from the repository root:
+`RESTY_VERSION` is derived from `util/ver` at the pinned commit and the optional nginx overlay. `RESTY_RELEASE` remains a local, monotonically increasing bundle release. A local image can be built directly from the repository root:
 
 ```shell
 docker build --tag openresty:local .
@@ -163,6 +161,12 @@ name. The patches in this repository target the bundle produced by the pinned
 commit and must be regenerated or revalidated whenever that commit changes.
 The default `RESTY_REPOSITORY` is derived from `RESTY_GIT_MIRROR`, so overriding
 the mirror also applies to the pinned OpenResty source checkout.
+
+When nginx releases before OpenResty adopts it, set `RESTY_NGINX_OVERRIDE` and add a `patches/nginx-overlay/<bundled-nginx>-to-<target-nginx>.patch` based on the nginx release delta. The build applies it to the OpenResty-customized nginx sources before applying the extension patches. The current overlay upgrades 1.31.9 to 1.31.10, leaving the other bundle components pinned by `RESTY_COMMIT`. The resulting bundle version combines the target nginx version with the fourth component of the upstream OpenResty version.
+
+If the existing extension patch no longer applies, add `patches/nginx-ext_<target-nginx>+.patch`. Both 1.31.9 and 1.31.10 use the existing `nginx-ext_1.31.9+.patch`.
+
+Clear `RESTY_NGINX_OVERRIDE` once the pinned OpenResty commit bundles the target nginx version. To build against the pinned bundle without the overlay locally, pass `--build-arg RESTY_NGINX_OVERRIDE=`; use `RESTY_NGINX_OVERRIDE= bash util/openresty-version.sh` if you also need the version for an image tag.
 
 The patched nginx configure script accepts `--without-client` to disable the internal HTTP client and `--without-ext` to disable all nginx-ext features. Add-on modules can test `NGX_EXT` and `NGX_CLIENT` at compile time.
 

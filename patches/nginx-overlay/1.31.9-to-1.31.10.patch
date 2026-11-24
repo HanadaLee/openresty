@@ -1,0 +1,92 @@
+diff --git a/src/core/nginx.h b/src/core/nginx.h
+--- a/src/core/nginx.h
++++ b/src/core/nginx.h
+@@ -9,8 +9,8 @@
+ #define _NGINX_H_INCLUDED_
+ 
+ 
+-#define nginx_version      1031009
+-#define NGINX_VERSION      "1.31.9"
++#define nginx_version      1031010
++#define NGINX_VERSION      "1.31.10"
+ #define NGINX_VER          "openresty/" NGINX_VERSION ".1"
+ 
+ #ifdef NGX_BUILD
+diff --git a/src/core/ngx_output_chain.c b/src/core/ngx_output_chain.c
+--- a/src/core/ngx_output_chain.c
++++ b/src/core/ngx_output_chain.c
+@@ -670,7 +670,7 @@
+ {
+     ngx_chain_writer_ctx_t *ctx = data;
+ 
+-    off_t              size;
++    off_t              size, sent;
+     ngx_chain_t       *cl, *ln, *chain;
+     ngx_connection_t  *c;
+ 
+@@ -787,6 +787,8 @@
+         return NGX_OK;
+     }
+ 
++    sent = c->sent;
++
+     chain = c->send_chain(c, ctx->out, ctx->limit);
+ 
+     ngx_log_debug1(NGX_LOG_DEBUG_CORE, c->log, 0,
+@@ -796,7 +798,7 @@
+         return NGX_ERROR;
+     }
+ 
+-    if (chain && c->write->ready) {
++    if (chain && c->write->ready && c->sent != sent) {
+         ngx_post_event(c->write, &ngx_posted_next_events);
+     }
+ 
+diff --git a/src/http/ngx_http_write_filter_module.c b/src/http/ngx_http_write_filter_module.c
+--- a/src/http/ngx_http_write_filter_module.c
++++ b/src/http/ngx_http_write_filter_module.c
+@@ -47,7 +47,7 @@
+ ngx_int_t
+ ngx_http_write_filter(ngx_http_request_t *r, ngx_chain_t *in)
+ {
+-    off_t                      size, sent, nsent, limit;
++    off_t                      size, sent, psent, nsent, limit;
+     ngx_uint_t                 last, flush, sync;
+     ngx_msec_t                 delay;
+     ngx_chain_t               *cl, *ln, **ll, *chain;
+@@ -308,13 +308,14 @@
+ 
+     if (r->limit_rate) {
+ 
++        psent = sent;
+         nsent = c->sent;
+ 
+         if (r->limit_rate_after) {
+ 
+-            sent -= r->limit_rate_after;
+-            if (sent < 0) {
+-                sent = 0;
++            psent -= r->limit_rate_after;
++            if (psent < 0) {
++                psent = 0;
+             }
+ 
+             nsent -= r->limit_rate_after;
+@@ -323,7 +324,7 @@
+             }
+         }
+ 
+-        delay = (ngx_msec_t) ((nsent - sent) * 1000 / r->limit_rate);
++        delay = (ngx_msec_t) ((nsent - psent) * 1000 / r->limit_rate);
+ 
+         if (delay > 0) {
+             c->write->delayed = 1;
+@@ -331,7 +332,7 @@
+         }
+     }
+ 
+-    if (chain && c->write->ready && !c->write->delayed) {
++    if (chain && c->write->ready && !c->write->delayed && sent != c->sent) {
+         ngx_post_event(c->write, &ngx_posted_next_events);
+     }
+ 

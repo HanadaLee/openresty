@@ -3,6 +3,7 @@
 set -euo pipefail
 
 dockerfile="${1:-Dockerfile}"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 read_arg() {
     local name="$1"
@@ -11,10 +12,12 @@ read_arg() {
         "$dockerfile" | head -n 1
 }
 
+overlay="${RESTY_NGINX_OVERRIDE-$(read_arg RESTY_NGINX_OVERRIDE)}"
+
 # Keep compatibility with revisions that pinned RESTY_VERSION directly.
 version="$(read_arg RESTY_VERSION)"
 if [[ -n "$version" ]]; then
-    printf '%s\n' "$version"
+    bash "$script_dir/nginx-overlay.sh" version "$version" "$overlay" "$script_dir/../patches/nginx-overlay"
     exit 0
 fi
 
@@ -57,9 +60,4 @@ fi
 git -C "$checkout" show "${resolved}:util/ver" > "$checkout/ver"
 version="$(bash "$checkout/ver")"
 
-if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    echo "Invalid version from OpenResty util/ver: $version" >&2
-    exit 1
-fi
-
-printf '%s\n' "$version"
+bash "$script_dir/nginx-overlay.sh" version "$version" "$overlay" "$script_dir/../patches/nginx-overlay"

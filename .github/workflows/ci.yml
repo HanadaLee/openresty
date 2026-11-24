@@ -37,6 +37,10 @@ jobs:
         shell: bash
         run: bash t/ci/release-state.sh
 
+      - name: Check nginx bundle overlay
+        shell: bash
+        run: bash t/ci/nginx-overlay.sh
+
       - name: Check module test discovery
         shell: bash
         run: bash t/ci/module-tests.sh
