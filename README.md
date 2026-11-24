@@ -162,11 +162,9 @@ commit and must be regenerated or revalidated whenever that commit changes.
 The default `RESTY_REPOSITORY` is derived from `RESTY_GIT_MIRROR`, so overriding
 the mirror also applies to the pinned OpenResty source checkout.
 
-When nginx releases before OpenResty adopts it, set `RESTY_NGINX_OVERRIDE` and add a `patches/nginx-overlay/<bundled-nginx>-to-<target-nginx>.patch` based on the nginx release delta. The build applies it to the OpenResty-customized nginx sources before applying the extension patches. The current overlay upgrades 1.31.9 to 1.31.10, leaving the other bundle components pinned by `RESTY_COMMIT`. The resulting bundle version combines the target nginx version with the fourth component of the upstream OpenResty version.
+`RESTY_NGINX_OVERRIDE` selects the nginx version in the bundle. The build applies `patches/nginx-overlay/<bundled-nginx>-to-<target-nginx>.patch` before the extension patches. Other components come from `RESTY_COMMIT`. The bundle version combines the target nginx version with the fourth component of the pinned OpenResty version.
 
-If the existing extension patch no longer applies, add `patches/nginx-ext_<target-nginx>+.patch`. Both 1.31.9 and 1.31.10 use the existing `nginx-ext_1.31.9+.patch`.
-
-Clear `RESTY_NGINX_OVERRIDE` once the pinned OpenResty commit bundles the target nginx version. To build against the pinned bundle without the overlay locally, pass `--build-arg RESTY_NGINX_OVERRIDE=`; use `RESTY_NGINX_OVERRIDE= bash util/openresty-version.sh` if you also need the version for an image tag.
+Pass `--build-arg RESTY_NGINX_OVERRIDE=` to use the pinned OpenResty bundle without an overlay. Use `RESTY_NGINX_OVERRIDE= bash util/openresty-version.sh` to print the corresponding bundle version.
 
 The patched nginx configure script accepts `--without-client` to disable the internal HTTP client and `--without-ext` to disable all nginx-ext features. Add-on modules can test `NGX_EXT` and `NGX_CLIENT` at compile time.
 
@@ -1313,7 +1311,7 @@ Eligible responses are fixed-length `200` and single-range `206` responses witho
 
 The shared temporary file design is based on [CDN77’s patch series](https://mailman.nginx.org/pipermail/nginx-devel/2022-January/7L5VS5E2RS4GG3GQF3H24IKS7QLZYFVV.html) by Jiří Setnička and Jan Prachař.
 
-The bundled cache purge module supports in-flight invalidation. If the build selects purge 5.1.6, enabling early reads logs a warning and uses the regular cache lock. Leave early reads off with older purge modules that lack the invalidation hook. A URL or key purge fences in-flight reads for the corresponding namespace and URL. A broader purge, or a reader that falls outside the retained purge history, can interrupt other in-flight reads.
+Early reads with cache purge require support for in-flight invalidation. A URL or key purge fences in-flight reads for the corresponding namespace and URL. A broader purge, or a reader that falls outside the retained purge history, can interrupt other in-flight reads.
 
 ### proxy_cache_lock_expired
 
