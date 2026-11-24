@@ -34,7 +34,7 @@ run_test_phase patch-regressions docker run --rm --init \
         DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             perl python3 libtest-base-perl libtext-diff-perl libtest-longstring-perl \
             libwww-perl libipc-run-perl libio-socket-ssl-perl liburi-perl \
-            liblist-moreutils-perl
+            liblist-moreutils-perl libcryptx-perl
         mkdir -p /test-work/tests /test-work/harnesses /results/tmp
         cp -a /input/tests/. /test-work/tests/
         cp -a /input/harnesses/. /test-work/harnesses/

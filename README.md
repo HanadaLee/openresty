@@ -194,6 +194,8 @@ NGINX_TESTS_ROOT=/path/to/nginx-tests \
 bash util/run-tests.sh
 ```
 
+The `nginx-tests` suite includes cross-worker tests for [proxy_cache_lock_early_read](#proxy_cache_lock_early_read). HTTP/2 cancellation uses `IO::Socket::SSL` with ALPN; HTTP/3 cancellation uses `CryptX`.
+
 [Back to TOC](#table-of-contents)
 
 # Components
