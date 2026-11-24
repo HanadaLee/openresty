@@ -24,8 +24,9 @@ my $dir = $t->testdir();
 my $tls = '';
 if ($h2 || $h3) {
 	$t->has_daemon('openssl');
-	system('openssl', 'req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-subj', '/CN=localhost',
-		'-days', '1', '-keyout', "$dir/test.key", '-out', "$dir/test.crt") == 0 or die 'openssl req';
+	$t->write_file('openssl.conf', "[req]\ndistinguished_name = dn\n[dn]\n");
+	system('openssl', 'req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-config', "$dir/openssl.conf",
+		'-subj', '/CN=localhost', '-days', '1', '-keyout', "$dir/test.key", '-out', "$dir/test.crt") == 0 or die 'openssl req';
 	$tls = "ssl_certificate test.crt; ssl_certificate_key test.key;\n";
 	$tls .= "listen 127.0.0.1:8082 ssl reuseport; http2 on;\n" if $h2;
 	$tls .= "listen 127.0.0.1:%%PORT_8980_UDP%% quic reuseport;\n" if $h3;
