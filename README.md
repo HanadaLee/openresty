@@ -1331,7 +1331,7 @@ Based on a [patch by Elliot Thomas](https://mailman.nginx.org/pipermail/nginx-de
 **Default:** `proxy_cache_lock_poll_interval 500ms;`\
 **Context:** `http`, `server`, `location`, `when`
 
-Sets the maximum interval between checks of a cache lock or an in-progress cache file. The interval must be greater than zero. When early readers share a timer, the shortest interval applies. To retain the earlier 50ms early-read interval, set this directive explicitly.
+Sets the maximum interval between checks of a cache lock or an in-progress cache file. The interval must be greater than zero. When early readers share a timer, the shortest interval applies.
 
 Based on a [proposal by Nejc Lovrencic](https://mailman.nginx.org/pipermail/nginx-devel/2024-March/XZ77NIM4V27W44Z75PRHCR6OA56SYOFT.html).
 
