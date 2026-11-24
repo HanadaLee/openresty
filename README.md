@@ -1305,7 +1305,7 @@ Eligible responses are fixed-length `200` and single-range `206` responses witho
 
 The shared temporary file design is based on [CDN77’s patch series](https://mailman.nginx.org/pipermail/nginx-devel/2022-January/7L5VS5E2RS4GG3GQF3H24IKS7QLZYFVV.html) by Jiří Setnička and Jan Prachař.
 
-When the cache purge module is present, it must support in-flight invalidation. The bundled 5.1.6 build logs a warning at startup and uses the regular cache lock. For custom builds with an older module, apply the compatibility patch or leave early reads off. A URL or key purge fences in-flight reads for the corresponding namespace and URL. A broader purge, or a reader that falls outside the retained purge history, can interrupt other in-flight reads.
+The bundled cache purge module supports in-flight invalidation. If the build selects purge 5.1.6, enabling early reads logs a warning and uses the regular cache lock. Leave early reads off with older purge modules that lack the invalidation hook. A URL or key purge fences in-flight reads for the corresponding namespace and URL. A broader purge, or a reader that falls outside the retained purge history, can interrupt other in-flight reads.
 
 ### Persistent cache zones
 
