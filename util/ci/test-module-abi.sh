@@ -70,10 +70,11 @@ for compat in 0 1; do
                                 "NGX_HTTP_GRPC_FILTER=$grpc_filter"
                             expected="$legacy"
                             if [[ "$ext" == 1 ]]; then
-                                expected+=",ext,3,$expr${ssl}1$client"
+                                expected+=",ext,4,$expr${ssl}1$client"
                             fi
-                            [[ "$("$test_root/signature")" == "$expected" ]] || \
-                                fail "signature: compat=$compat ssl=$ssl ext=$ext client=$client expr=$expr proxy_filter=$proxy_filter grpc_filter=$grpc_filter"
+                            actual="$("$test_root/signature")"
+                            [[ "$actual" == "$expected" ]] || \
+                                fail "signature: expected=$expected actual=$actual compat=$compat ssl=$ssl ext=$ext client=$client expr=$expr proxy_filter=$proxy_filter grpc_filter=$grpc_filter"
                         done
                     done
                 done
