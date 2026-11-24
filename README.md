@@ -455,7 +455,7 @@ local name, err = ngx.resolve("192.0.2.1", "ptr")
 
 The `ptr` mode accepts an IPv4 or IPv6 address and returns its PTR hostname, or `nil, err` on lookup failure.
 
-Uses the resolver and timeout of the current HTTP location or Stream server. Available in HTTP server rewrite, rewrite, preaccess, access, precontent, and content, in Stream access, preread, and content, and in timers in both subsystems. Resolve upstream names before entering the balancer phase.
+The API follows the [ngx.resolve proposal](https://github.com/openresty/lua-nginx-module/pull/1478). It uses the resolver and timeout of the current HTTP location or Stream server. Available in HTTP server rewrite, rewrite, preaccess, access, precontent, and content, in Stream access, preread, and content, and in timers in both subsystems. Resolve upstream names before entering the balancer phase.
 
 [Back to TOC](#table-of-contents)
 
@@ -513,6 +513,8 @@ server {
 }
 ```
 
+The internal request implementation is adapted from [Angie’s HTTP client module](https://github.com/webserver-llc/angie/commit/d17c5df825f2afdd7f5134b668d35a0b0d546544).
+
 The proxy destination uses the URL scheme and host. `$is_request_port$request_port` includes the colon and port only when the URL specifies a port. The caller supplies the HTTP `Host` header. Configure a `resolver` for destinations that require DNS.
 
 [Back to TOC](#table-of-contents)
@@ -532,6 +534,8 @@ Sets the maximum number of upstream TLS sessions each worker caches for peers se
 ### ngx.fs
 
 Available in HTTP and Stream Lua contexts that can yield, including timers. The optional pool name defaults to `default_lua_io`. Define it with [thread_pool](https://nginx.org/en/docs/ngx_core_module.html#thread_pool).
+
+The API is adapted from the [lua-nginx-module asynchronous file I/O proposal](https://github.com/openresty/lua-nginx-module/pull/2489).
 
 | Operation | Description |
 | --- | --- |
@@ -929,7 +933,7 @@ Sets the intermediate record size. The default accounts for three TCP segments: 
 
 * **Context:** *http, server*
 
-Visit [ngx_http_tls_dyn_size](https://github.com/nginx-modules/ngx_http_tls_dyn_size) repository for more information.
+Dynamic record sizing is based on [Vlad Krasnov’s patch for Cloudflare](https://github.com/cloudflare/sslconfig/tree/3e45b99/patches).
 
 ### Variables about SSL handshake timestamps and time spent
 
@@ -955,7 +959,7 @@ New variables are introduced to get the start timestamp, end timestamp, and time
 
 Refer to [slice](https://nginx.org/en/docs/http/ngx_http_slice_module.html#slice) for the original directive behavior. The original size argument is moved to `slice_size`. This directive accepts `on` or `off` and supports conditional configuration through `when`.
 
-When slicing is enabled, multipart byte-range requests are supported, including reordered and overlapping ranges.
+When slicing is enabled, multipart byte-range requests are supported, including reordered and overlapping ranges. Design references: [Jayce’s analysis of multi-range requests with slice](https://jayce.github.io/public/posts/nginx/multi-ranges-with-slice/) and [DenizUgur’s prototype](https://github.com/DenizUgur/nginx/tree/770ec4f193bd7e8f90ea6c2ccb05ccf78355acfa).
 
 ### slice_size
 
@@ -1321,7 +1325,7 @@ by the nginx master process. A reload keeps the live zone; a graceful stop
 such as `nginx -s quit` saves it. `SIGKILL` does not save a snapshot.
 
 `fastcgi_cache_path`, `scgi_cache_path`, and `uwsgi_cache_path` support
-the same parameter.
+the same parameter. Shared-memory persistence is ported from [Angie’s shared-zone snapshots](https://github.com/webserver-llc/angie/commit/09bd7dc6dc0c10f68713a1f9153ca92e2c91b257) and [cache zone restore](https://github.com/webserver-llc/angie/commit/4cebcf43a911eb4531f7365c3c23babfd99dd371) by Vladimir Khomutov.
 
 ### Enhancement of upstream cache control
 
@@ -1659,7 +1663,7 @@ A matching `off` stops subsequent `access_log` entries at the selected level.
 
 Refer to [ngx_http_modsecurity_module](https://github.com/owasp-modsecurity/ModSecurity-nginx).
 
-This module connects NGINX/OpenResty with libModSecurity v3. This bundle applies an additional patch that adds log variables for ModSecurity interventions and matched rule IDs, skips deleted request/response headers, and adds `modsecurity_bypass`.
+This module connects NGINX/OpenResty with libModSecurity v3. This bundle applies a ModSecurity connector patch that adds log variables for ModSecurity interventions and matched rule IDs, skips deleted request/response headers, and adds `modsecurity_bypass`.
 
 ### modsecurity_bypass
 
