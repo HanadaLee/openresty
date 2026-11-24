@@ -67,6 +67,7 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [Support for inheritance in "proxy\_set\_header" and its friends](#support-for-inheritance-in-proxy_set_header-and-its-friends)
     - [Enhancement of upstream cookie handler](#enhancement-of-upstream-cookie-handler)
     - [proxy\_cache\_lock\_early\_read](#proxy_cache_lock_early_read)
+    - [proxy\_cache\_lock\_expired](#proxy_cache_lock_expired)
     - [proxy\_cache\_lock\_poll\_interval](#proxy_cache_lock_poll_interval)
     - [Persistent cache zones](#persistent-cache-zones)
     - [Enhancement of upstream cache control](#enhancement-of-upstream-cache-control)
@@ -1308,6 +1309,16 @@ The shared temporary file design is based on [CDN77’s patch series](https://ma
 
 The bundled cache purge module supports in-flight invalidation. If the build selects purge 5.1.6, enabling early reads logs a warning and uses the regular cache lock. Leave early reads off with older purge modules that lack the invalidation hook. A URL or key purge fences in-flight reads for the corresponding namespace and URL. A broader purge, or a reader that falls outside the retained purge history, can interrupt other in-flight reads.
 
+### proxy_cache_lock_expired
+
+**Syntax:** `proxy_cache_lock_expired on | off;`\
+**Default:** `proxy_cache_lock_expired off;`\
+**Context:** `http`, `server`, `location`, `when`
+
+Extends [proxy_cache_lock](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_lock) to expired responses. Requests that cannot use the stale response wait for the first request to refresh it. A request that times out is passed upstream without writing its response to the cache.
+
+Based on a [patch by Elliot Thomas](https://mailman.nginx.org/pipermail/nginx-devel/2019-June/012302.html).
+
 ### proxy_cache_lock_poll_interval
 
 **Syntax:** `proxy_cache_lock_poll_interval time;`\
@@ -1333,7 +1344,7 @@ proxy_cache_path /var/cache/nginx/content
 Use a separate state file for each zone and keep its configured size
 unchanged when restoring it. The state directory must exist and be writable
 by the nginx master process. A reload keeps the live zone; a graceful stop
-such as `nginx -s quit` saves it. `SIGKILL` does not save a snapshot.
+such as `nginx -s quit` saves it. `SIGKILL` does not save a snapshot. An incompatible keys-zone snapshot is renamed with the `.old` suffix. Cached response files remain usable.
 
 `fastcgi_cache_path`, `scgi_cache_path`, and `uwsgi_cache_path` support
 the same parameter. Shared-memory persistence is ported from [Angie’s shared-zone snapshots](https://github.com/webserver-llc/angie/commit/09bd7dc6dc0c10f68713a1f9153ca92e2c91b257) and [cache zone restore](https://github.com/webserver-llc/angie/commit/4cebcf43a911eb4531f7365c3c23babfd99dd371) by Vladimir Khomutov.
