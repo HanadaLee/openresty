@@ -963,6 +963,8 @@ Refer to [slice](https://nginx.org/en/docs/http/ngx_http_slice_module.html#slice
 
 When slicing is enabled, multipart byte-range requests are supported, including reordered and overlapping ranges. Design references: [Jayce’s analysis of multi-range requests with slice](https://jayce.github.io/public/posts/nginx/multi-ranges-with-slice/) and [DenizUgur’s prototype](https://github.com/DenizUgur/nginx/tree/770ec4f193bd7e8f90ea6c2ccb05ccf78355acfa).
 
+Background cache updates retain the range of the slice being refreshed. Based on a [patch by J Carter](https://mailman.nginx.org/pipermail/nginx-devel/2024-June/M4X5EZSRTQQ6HQ5BAOBFPM7DL5QWEAZ7.html).
+
 ### slice_size
 
 * **Syntax:** *slice_size size;*
