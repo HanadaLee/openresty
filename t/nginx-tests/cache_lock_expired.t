@@ -266,11 +266,12 @@ sub background_conditional {
 	is($r->{cache}, 'HIT', 'background child inherits already acquired parent lease');
 	is($r->{body}, 'body-2', 'conditional background owner commits refreshed entity');
 }
-background_conditional();
 
 if ($purge) {
 	wait_for(sub { decode_json(get('/ops/capabilities')->{body})->{ready} }, 'purge index');
 }
+
+background_conditional();
 coalesce('/on/304', '', 'REVALIDATED', 'body-1');
 coalesce('/on/200', '', 'EXPIRED', 'body-2');
 coalesce('/norevalidate/304', '', 'EXPIRED', 'body-2');
