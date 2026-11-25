@@ -34497,7 +34497,7 @@ index 4f2fbd1..e09952f 100644
  
  #endif /* _NGX_HTTP_SCRIPT_H_INCLUDED_ */
 diff --git a/src/http/ngx_http_special_response.c b/src/http/ngx_http_special_response.c
-index 440683e..e7c8efd 100644
+index 440683e..f343391 100644
 --- a/src/http/ngx_http_special_response.c
 +++ b/src/http/ngx_http_special_response.c
 @@ -10,6 +10,136 @@
@@ -34543,41 +34543,41 @@ index 440683e..e7c8efd 100644
 +#define ngx_http_error_507_reason   "Insufficient Storage"
 +
 +#define ngx_http_error_400_message                                            \
-+    "The server could not process the request because it was invalid."
++    "The server rejected this request as invalid."
 +#define ngx_http_error_401_message                                            \
-+    "Valid authentication credentials were not provided."
++    "Valid credentials are required."
 +#define ngx_http_error_403_message                                            \
-+    "You do not have permission to access this resource."
++    "The client does not have the required permission."
 +#define ngx_http_error_404_message                                            \
-+    "The requested resource could not be found."
++    "The server could not find what was requested."
 +#define ngx_http_error_405_message                                            \
-+    "The requested method is not supported for this resource."
++    "This HTTP method is not allowed for the requested URL."
 +#define ngx_http_error_406_message                                            \
-+    "The server cannot provide a response matching the request headers."
++    "No available response matches your content preferences."
 +#define ngx_http_error_407_message                                            \
-+    "Valid proxy authentication credentials were not provided."
++    "The proxy requires valid credentials."
 +#define ngx_http_error_408_message                                            \
 +    "The server did not receive the complete request in time."
 +#define ngx_http_error_409_message                                            \
-+    "The request conflicts with the current state of the resource."
++    "The request cannot be completed in the current state."
 +#define ngx_http_error_410_message                                            \
-+    "The requested resource is no longer available."
++    "What was requested is no longer available."
 +#define ngx_http_error_411_message                                            \
 +    "The request must include a valid Content-Length header."
 +#define ngx_http_error_412_message                                            \
-+    "One or more conditions in the request headers were not met."
++    "A condition in the request headers was not met."
 +#define ngx_http_error_413_message                                            \
 +    "The request content exceeds the server's allowed size."
 +#define ngx_http_error_414_message                                            \
 +    "The request URI exceeds the server's allowed length."
 +#define ngx_http_error_415_message                                            \
-+    "The server does not support the request content type."
++    "The server cannot accept the format of the request body."
 +#define ngx_http_error_416_message                                            \
 +    "The server cannot provide the requested range."
 +#define ngx_http_error_421_message                                            \
-+    "The request was sent to a server that cannot handle it."
++    "The request reached the wrong server."
 +#define ngx_http_error_429_message                                            \
-+    "The client sent too many requests within a short period."
++    "The request rate exceeds the limit."
 +#define ngx_http_error_494_message                                            \
 +    "A request header or cookie exceeds the allowed size."
 +#define ngx_http_error_495_message                                            \
@@ -34595,17 +34595,17 @@ index 440683e..e7c8efd 100644
 +#define ngx_http_error_503_message                                            \
 +    "The server is temporarily unable to process the request."
 +#define ngx_http_error_504_message                                            \
-+    "The upstream server did not respond within the allowed time."
++    "The upstream server did not respond in time."
 +#define ngx_http_error_505_message                                            \
-+    "The server does not support the HTTP version used by the request."
++    "The server does not support this HTTP version."
 +#define ngx_http_error_507_message                                            \
-+    "The server does not have enough storage to complete the request."
++    "There is not enough storage to complete this request."
 +
 +
 +#define ngx_http_error_page(code, reason)                                     \
 +    "<title>" code " " reason "</title></head>" CRLF                          \
 +    "<body>" CRLF                                                             \
-+    "<div><h1>" code " " reason "</h1>" CRLF
++    "<main><h1><b>" code "</b> <span>" reason "</span></h1>" CRLF
 +
 +#define ngx_http_error_page_ext(code, reason, message)                        \
 +    ngx_http_error_page(code, reason)                                         \
@@ -34614,7 +34614,7 @@ index 440683e..e7c8efd 100644
 +#define ngx_http_error_page_redirect(code, reason)                            \
 +    "<title>" code " " reason "</title></head>" CRLF                          \
 +    "<body>" CRLF                                                             \
-+    "<div style=\"text-align:center\">" CRLF                                  \
++    "<main style=\"text-align:center\">" CRLF                                  \
 +    "<h1>" code " " reason "</h1>" CRLF
 +
 +#define ngx_http_error_page_info(reason, message)                             \
@@ -34637,7 +34637,7 @@ index 440683e..e7c8efd 100644
  
  static ngx_int_t ngx_http_send_error_page(ngx_http_request_t *r,
      ngx_http_err_page_t *err_page);
-@@ -17,28 +147,110 @@ static ngx_int_t ngx_http_send_special_response(ngx_http_request_t *r,
+@@ -17,28 +147,114 @@ static ngx_int_t ngx_http_send_special_response(ngx_http_request_t *r,
      ngx_http_core_loc_conf_t *clcf, ngx_uint_t err);
  static ngx_int_t ngx_http_send_refresh(ngx_http_request_t *r);
  
@@ -34652,8 +34652,9 @@ index 440683e..e7c8efd 100644
 +
 +
 +static u_char ngx_http_error_head[] =
-+"<!DOCTYPE html><html>" CRLF
-+"<head>"
++"<!DOCTYPE html><html lang=\"en\">" CRLF
++"<head><meta charset=\"utf-8\">"
++"<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
 +;
 +
 +#endif
@@ -34661,7 +34662,7 @@ index 440683e..e7c8efd 100644
  
  static u_char ngx_http_error_full_tail[] =
 +#if (NGX_EXT)
-+"<p>" NGINX_VER "</p></div>" CRLF
++"<p>" NGINX_VER "</p></main>" CRLF
 +#else
  "<hr><center>" NGINX_VER "</center>" CRLF
 +#endif
@@ -34672,7 +34673,7 @@ index 440683e..e7c8efd 100644
  
  static u_char ngx_http_error_build_tail[] =
 +#if (NGX_EXT)
-+"<p>" NGINX_VER_BUILD "</p></div>" CRLF
++"<p>" NGINX_VER_BUILD "</p></main>" CRLF
 +#else
  "<hr><center>" NGINX_VER_BUILD "</center>" CRLF
 +#endif
@@ -34683,7 +34684,7 @@ index 440683e..e7c8efd 100644
  
  static u_char ngx_http_error_tail[] =
 +#if (NGX_EXT)
-+"</div>" CRLF
++"</main>" CRLF
 +#else
  "<hr><center>openresty</center>" CRLF
 +#endif
@@ -34694,52 +34695,55 @@ index 440683e..e7c8efd 100644
  
 +#if (NGX_EXT)
 +
-+static u_char ngx_http_error_style[] =
-+"<style>" CRLF
-+"body{font-family:Arial,sans-serif;background-color:#f4f4f9;color:#333;"
-+"margin:0;padding:0;display:flex;height:100vh;"
-+"justify-content:center;align-items:center}"
-+"div{background-color:white;border-radius:8px;"
-+"box-shadow:0 4px 8px rgba(0,0,0,0.1);padding:20px 30px;"
-+"width:100%;max-width:600px}"
-+"h1{color:#f90}"
-+"p{font-size:1.2em}"
-+"table{width:100%;margin:20px 0;border-collapse:collapse}"
-+"table td{padding:10px;border:1px solid #ddd;}"
-+"table td:first-child{font-weight:bold;background-color:#f9f9f9}"
-+"@media (prefers-color-scheme:dark){body{background-color:#333;color:#f4f4f9}"
-+"div{background-color:black}"
-+"table td{border:1px solid #444}"
-+"table td:first-child{background-color:#3a3a3a}}" CRLF
-+"</style>" CRLF
-+;
++#define ngx_http_error_base_style                                             \
++    "body{margin:0 16px;min-height:100vh;display:grid;place-content:center;"  \
++    "grid:auto/min(100%,480px);background:#f4f6f8;color:#222632;"             \
++    "font:15px/1.5 \"Segoe UI\",Arial,sans-serif}main{"                       \
++    "padding:clamp(20px,5vw,32px);background:#fff;"                           \
++    "border:1px solid #80889824;border-radius:16px;"                          \
++    "box-shadow:0 8px 28px #1922350c}h1{display:flex;gap:12px;margin:0;"      \
++    "font-size:24px;font-weight:600;line-height:28px;color:#b5482c}b{"        \
++    "align-self:center;padding:0 11px;border-radius:99px;"                    \
++    "background:#b5482c13;font-size:15px}p{margin:12px 0 0;opacity:.78}"      \
++    "@media(prefers-color-scheme:dark){body{background:#191a20;color:#eee}"   \
++    "main{background:#23252c}h1{color:#ffa488}b{background:#ffa48818}}"
++
++#define ngx_http_error_fields_style                                           \
++    "dl{display:grid;grid:auto/fit-content(35%) 1fr;align-items:baseline;"    \
++    "gap:6px 16px;margin:20px 0 0;padding:14px 16px;border-radius:10px;"      \
++    "background:#73829912;font-size:13px;overflow-wrap:anywhere}dt{"          \
++    "opacity:.72}dd{margin:0;font:13px/20px Consolas,monospace}"
++
++
++static ngx_str_t ngx_http_error_styles[] = {
++    ngx_string("<style>" ngx_http_error_base_style "</style>" CRLF),
++    ngx_string("<style>" ngx_http_error_base_style ngx_http_error_fields_style
++               "</style>" CRLF)
++};
 +
 +
 +static u_char ngx_http_error_fields_head[] =
-+"<table><tbody>" CRLF
++"<dl>" CRLF
 +;
 +
 +
 +static u_char ngx_http_error_field_head[] =
-+"<tr>" CRLF
-+"<td>"
++"<dt>"
 +;
 +
 +
 +static u_char ngx_http_error_field_value[] =
-+"</td>" CRLF
-+"<td>"
++"</dt><dd>"
 +;
 +
 +
 +static u_char ngx_http_error_field_tail[] =
-+"</td>" CRLF
-+"</tr>" CRLF
++"</dd>" CRLF
 +;
 +
 +
 +static u_char ngx_http_error_fields_tail[] =
-+"</tbody></table>" CRLF
++"</dl>" CRLF
 +;
 +
 +#endif
@@ -34748,7 +34752,7 @@ index 440683e..e7c8efd 100644
  static u_char ngx_http_msie_padding[] =
  "<!-- a padding to disable MSIE and Chrome friendly error page -->" CRLF
  "<!-- a padding to disable MSIE and Chrome friendly error page -->" CRLF
-@@ -58,290 +270,488 @@ static u_char ngx_http_msie_refresh_tail[] =
+@@ -58,290 +274,488 @@ static u_char ngx_http_msie_refresh_tail[] =
  
  
  static char ngx_http_error_301_page[] =
@@ -35013,9 +35017,9 @@ index 440683e..e7c8efd 100644
 +#else
  "<html>" CRLF
  "<head><title>414 Request-URI Too Large</title></head>" CRLF
-+#endif
  "<body>" CRLF
  "<center><h1>414 Request-URI Too Large</h1></center>" CRLF
++#endif
  ;
  
  
@@ -35237,7 +35241,7 @@ index 440683e..e7c8efd 100644
  ;
  
  
-@@ -420,10 +830,330 @@ static ngx_str_t ngx_http_error_pages[] = {
+@@ -420,10 +834,330 @@ static ngx_str_t ngx_http_error_pages[] = {
  };
  
  
@@ -35568,7 +35572,7 @@ index 440683e..e7c8efd 100644
      ngx_http_err_page_t       *err_page;
      ngx_http_core_loc_conf_t  *clcf;
  
-@@ -461,6 +1191,19 @@ ngx_http_special_response_handler(ngx_http_request_t *r, ngx_int_t error)
+@@ -461,6 +1195,19 @@ ngx_http_special_response_handler(ngx_http_request_t *r, ngx_int_t error)
  
      clcf = ngx_http_get_module_loc_conf(r, ngx_http_core_module);
  
@@ -35588,7 +35592,7 @@ index 440683e..e7c8efd 100644
      if (!r->error_page && clcf->error_pages && r->uri_changes != 0) {
  
          if (clcf->recursive_error_pages == 0) {
-@@ -471,10 +1214,12 @@ ngx_http_special_response_handler(ngx_http_request_t *r, ngx_int_t error)
+@@ -471,10 +1218,12 @@ ngx_http_special_response_handler(ngx_http_request_t *r, ngx_int_t error)
  
          for (i = 0; i < clcf->error_pages->nelts; i++) {
              if (err_page[i].status == error) {
@@ -35601,7 +35605,7 @@ index 440683e..e7c8efd 100644
  
      r->expect_tested = 1;
  
-@@ -614,6 +1359,12 @@ ngx_http_send_error_page(ngx_http_request_t *r, ngx_http_err_page_t *err_page)
+@@ -614,6 +1363,12 @@ ngx_http_send_error_page(ngx_http_request_t *r, ngx_http_err_page_t *err_page)
          return NGX_ERROR;
      }
  
@@ -35614,16 +35618,16 @@ index 440683e..e7c8efd 100644
      if (uri.len && uri.data[0] == '/') {
  
          if (err_page->value.lengths) {
-@@ -686,7 +1437,21 @@ ngx_http_send_special_response(ngx_http_request_t *r,
+@@ -686,7 +1441,21 @@ ngx_http_send_special_response(ngx_http_request_t *r,
      ngx_int_t     rc;
      ngx_buf_t    *b;
      ngx_uint_t    msie_padding;
 +
 +#if (NGX_EXT)
-+    ngx_uint_t    style;
-+    ngx_chain_t   out[6];
++    ngx_str_t    *style;
 +    ngx_buf_t    *ib;
 +    ngx_uint_t    i;
++    ngx_chain_t   out[6];
 +
 +    if (clcf->error_page_format != NGX_HTTP_ERROR_PAGE_FORMAT_DEFAULT
 +        && ngx_http_error_pages[err].len)
@@ -35636,7 +35640,7 @@ index 440683e..e7c8efd 100644
  
      if (clcf->server_tokens == NGX_HTTP_SERVER_TOKENS_ON) {
          len = sizeof(ngx_http_error_full_tail) - 1;
-@@ -701,10 +1466,38 @@ ngx_http_send_special_response(ngx_http_request_t *r,
+@@ -701,10 +1470,38 @@ ngx_http_send_special_response(ngx_http_request_t *r,
          tail = ngx_http_error_tail;
      }
  
@@ -35651,7 +35655,7 @@ index 440683e..e7c8efd 100644
 +        ib = NULL;
 +    }
 +
-+    style = 0;
++    style = NULL;
 +#endif
 +
      msie_padding = 0;
@@ -35665,8 +35669,8 @@ index 440683e..e7c8efd 100644
 +                                          + len;
 +
 +        if (err >= NGX_HTTP_OFF_4XX) {
-+            r->headers_out.content_length_n += sizeof(ngx_http_error_style) - 1;
-+            style = 1;
++            style = &ngx_http_error_styles[ib != NULL];
++            r->headers_out.content_length_n += style->len;
 +        }
 +#else
          r->headers_out.content_length_n = ngx_http_error_pages[err].len + len;
@@ -35675,7 +35679,7 @@ index 440683e..e7c8efd 100644
          if (clcf->msie_padding
              && (r->headers_in.msie || r->headers_in.chrome)
              && r->http_version >= NGX_HTTP_VERSION_10
-@@ -742,6 +1535,37 @@ ngx_http_send_special_response(ngx_http_request_t *r,
+@@ -742,6 +1539,37 @@ ngx_http_send_special_response(ngx_http_request_t *r,
          return ngx_http_send_special(r, NGX_HTTP_LAST);
      }
  
@@ -35701,8 +35705,8 @@ index 440683e..e7c8efd 100644
 +        }
 +
 +        b->memory = 1;
-+        b->pos = ngx_http_error_style;
-+        b->last = ngx_http_error_style + sizeof(ngx_http_error_style) - 1;
++        b->pos = style->data;
++        b->last = style->data + style->len;
 +
 +        out[i].buf = b;
 +        out[i].next = &out[i + 1];
@@ -35713,7 +35717,7 @@ index 440683e..e7c8efd 100644
      b = ngx_calloc_buf(r->pool);
      if (b == NULL) {
          return NGX_ERROR;
-@@ -751,8 +1575,20 @@ ngx_http_send_special_response(ngx_http_request_t *r,
+@@ -751,8 +1579,20 @@ ngx_http_send_special_response(ngx_http_request_t *r,
      b->pos = ngx_http_error_pages[err].data;
      b->last = ngx_http_error_pages[err].data + ngx_http_error_pages[err].len;
  
@@ -35734,7 +35738,7 @@ index 440683e..e7c8efd 100644
  
      b = ngx_calloc_buf(r->pool);
      if (b == NULL) {
-@@ -764,8 +1600,13 @@ ngx_http_send_special_response(ngx_http_request_t *r,
+@@ -764,8 +1604,13 @@ ngx_http_send_special_response(ngx_http_request_t *r,
      b->pos = tail;
      b->last = tail + len;
  
@@ -35748,7 +35752,7 @@ index 440683e..e7c8efd 100644
  
      if (msie_padding) {
          b = ngx_calloc_buf(r->pool);
-@@ -777,9 +1618,16 @@ ngx_http_send_special_response(ngx_http_request_t *r,
+@@ -777,9 +1622,16 @@ ngx_http_send_special_response(ngx_http_request_t *r,
          b->pos = ngx_http_msie_padding;
          b->last = ngx_http_msie_padding + sizeof(ngx_http_msie_padding) - 1;
  
@@ -35765,7 +35769,7 @@ index 440683e..e7c8efd 100644
      }
  
      if (r == r->main) {
-@@ -863,3 +1711,100 @@ ngx_http_send_refresh(ngx_http_request_t *r)
+@@ -863,3 +1715,100 @@ ngx_http_send_refresh(ngx_http_request_t *r)
  
      return ngx_http_output_filter(r, &out);
  }

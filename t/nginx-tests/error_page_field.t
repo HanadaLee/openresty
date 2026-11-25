@@ -144,19 +144,18 @@ my $html = http(
 	. "X-Field: html&<>\r\n"
 	. "\r\n"
 );
-like(http_body($html), qr/<td>value<\/td>\r?\n<td>html&amp;&lt;&gt;<\/td>/,
+like(http_body($html), qr/<dt>value<\/dt><dd>html&amp;&lt;&gt;<\/dd>/,
 	'html field name and value are rendered');
-like(http_body($html), qr/<td>missing<\/td>\r?\n<td>-<\/td>/,
+like(http_body($html), qr/<dt>missing<\/dt><dd>-<\/dd>/,
 	'html missing variable uses a dash');
 unlike(http_body($html),
-	qr/<td>Date<\/td>|<td>Client IP<\/td>|<td>Server<\/td>|
-		<td>Request ID<\/td>/,
+	qr{<dt>(?:Date|Client IP|Server|Request ID)</dt>},
 	'html configured fields omit legacy fields');
 is(response_length($html), length(http_body($html)),
 	'html fields content length');
 
 my $html_empty = http_get('/html?missing=');
-like(http_body($html_empty), qr/<td>missing<\/td>\r?\n<td>-<\/td>/,
+like(http_body($html_empty), qr/<dt>missing<\/dt><dd>-<\/dd>/,
 	'html empty variable uses a dash');
 
 my $nested = http_get('/parent/child');
