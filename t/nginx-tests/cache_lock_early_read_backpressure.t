@@ -37,7 +37,7 @@ my $dir = $t->testdir();
 chmod 0755, $dir or die "chmod: $!";
 mkdir "$dir/cache" or die "mkdir: $!";
 chmod 0777, "$dir/cache" or die "chmod cache: $!";
-$t->write_file_expand('nginx.conf', <<'EOF');
+my $conf = <<'EOF';
 %%TEST_GLOBALS%%
 daemon off;
 worker_processes 2;
@@ -82,10 +82,9 @@ http {
     }
 }
 EOF
-my $conf = $t->read_file('nginx.conf');
 $conf =~ s/POOL/$pool/;
 $conf =~ s/THREAD_LOCATION/$thread_location/;
-$t->write_file('nginx.conf', $conf);
+$t->write_file_expand('nginx.conf', $conf);
 $t->run_daemon(\&origin, $dir);
 $t->waitforsocket('127.0.0.1:' . port(8081));
 $t->run();
@@ -105,10 +104,15 @@ SKIP: {
 				my $path = "/$location/$name";
 				my $origin = "$origin_prefix$name";
 				my $extra = "X-Key: $name\r\n";
-				my $writer = headers(send_req(socket_for(), $path, $extra));
-				is($writer->{h}{'x-cache'}, 'MISS', 'publisher cache miss');
-				my $first = read_body($writer, 8192);
-				my $pid = $writer->{h}{'x-pid'};
+				my $publisher_socket = socket_for();
+				my $pid = read_body(headers(send_req($publisher_socket, '/pid')));
+				my $writer = send_req($publisher_socket, $path, $extra);
+
+				# The buffered publisher need not send a response while the
+				# origin is paused.  Wait for the cached prefix instead.
+				my $temp = "$dir/cache/" . md5_hex($name);
+				wait_for(sub { grep { -s $_ >= 32768 } glob("$temp.*") },
+					'publisher has written the cache prefix');
 
 				my $socket = small_socket($pid);
 				my $slow = headers(send_req($socket, $path, $extra));
@@ -155,7 +159,9 @@ SKIP: {
 				pass('minimum reader cleanup completed');
 
 				release_fill($t, $origin);
-				my $publisher = $first . read_body($writer, undef, $failed);
+				headers($writer);
+				is($writer->{h}{'x-cache'}, 'MISS', 'publisher cache miss');
+				my $publisher = read_body($writer, undef, $failed);
 				setsockopt($slow->{socket}, SOL_SOCKET, SO_RCVBUF,
 					pack('i', 131072))
 					or die "SO_RCVBUF enlarge: $!";
