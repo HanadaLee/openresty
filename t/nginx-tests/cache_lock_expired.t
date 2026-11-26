@@ -474,9 +474,17 @@ for my $uri ('/stale/304', '/background/304') {
 	warm($uri);
 	my $a = begin($uri);
 	wait_for(sub { @{hits($uri)} == 2 }, 'reload original owner');
-	my %old = map { $_ => 1 } $t->read_file('error.log') =~ /start worker process (\d+)/g;
+	my $log = $t->read_file('error.log');
+	my %old = map { $_ => 1 } $log =~ /start worker process (\d+)/g;
+	my ($manager) = $log =~ /start cache manager process (\d+)/;
+	die 'cache manager pid not found' if $purge && !$manager;
 	$t->reload();
-	wait_for(sub { !$old{get('/pid')->{body}} }, 'replacement worker');
+	wait_for(sub {
+		my $pid = get('/pid')->{body};
+		$pid =~ /^\d+$/ && !$old{$pid};
+	}, 'replacement worker');
+	# The shared ready flag can still belong to the retiring manager.
+	wait_for(sub { !kill(0, $manager) }, 'old cache manager exit', 10) if $purge;
 	wait_for(sub { decode_json(get('/ops/capabilities')->{body})->{ready} },
 		'purge manager after reload', 10) if $purge;
 	my $b = begin($uri);
