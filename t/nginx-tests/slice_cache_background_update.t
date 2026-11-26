@@ -59,7 +59,7 @@ $extra .= <<'EOF' if $expr;
             proxy_pass http://127.0.0.1:8081;
         }
 EOF
-$t->write_file_expand('nginx.conf', <<'EOF');
+my $conf = <<'EOF';
 %%TEST_GLOBALS%%
 worker_processes 2;
 events {
@@ -102,9 +102,8 @@ http {
     }
 }
 EOF
-my $conf = $t->read_file('nginx.conf');
 $conf =~ s/EXTRA/$extra/;
-$t->write_file('nginx.conf', $conf);
+$t->write_file_expand('nginx.conf', $conf);
 $t->write_file('version', '1');
 $t->run_daemon(\&origin, $t->testdir());
 $t->waitforsocket('127.0.0.1:' . port(8081));
