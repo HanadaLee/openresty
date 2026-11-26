@@ -15,7 +15,6 @@ ARG RESTY_LUAROCKS_VERSION="3.13.0"
 ARG RESTY_LUA_RESTY_BALANCER_VERSION="0.05"
 ARG RESTY_LUA_RESTY_MLCACHE_VERSION="2.7.1"
 ARG RESTY_LUA_RESTY_COOKIE_VERSION="0.5.0"
-ARG RESTY_JSONSCHEMA_VERSION="0.9.13"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.14.1"
 ARG RESTY_OPENSSL_VERSION="3.5.9"
 ARG RESTY_OPENSSL_PATCH_VERSION="3.5.5"
@@ -43,6 +42,7 @@ ARG RESTY_LUA_FFI_ZLIB_VERSION="0.6-0"
 ARG RESTY_LUA_RESTY_OPENSSL_VERSION="1.10.0-1"
 ARG RESTY_LUA_RESTY_HTTP_VERSION="0.18.0-0"
 ARG RESTY_LUA_RESTY_HMAC_FFI_VERSION="0.06-1"
+ARG RESTY_LUA_RESTY_LJSONSCHEMA_VERSION="1.2.0-2"
 ARG RESTY_LUA_RESTY_JWT_VERSION="0.4.0-1"
 ARG RESTY_LUA_RESTY_SESSION_VERSION="4.2.0-1"
 ARG RESTY_LUA_RESTY_OPENIDC_VERSION="1.9.3-1"
@@ -187,7 +187,6 @@ ARG RESTY_LUAROCKS_VERSION
 ARG RESTY_LUA_RESTY_BALANCER_VERSION
 ARG RESTY_LUA_RESTY_MLCACHE_VERSION
 ARG RESTY_LUA_RESTY_COOKIE_VERSION
-ARG RESTY_JSONSCHEMA_VERSION
 ARG RESTY_LIBMAXMINDDB_VERSION
 ARG RESTY_OPENSSL_VERSION
 ARG RESTY_OPENSSL_PATCH_VERSION
@@ -236,6 +235,7 @@ ARG RESTY_LUA_FFI_ZLIB_VERSION
 ARG RESTY_LUA_RESTY_OPENSSL_VERSION
 ARG RESTY_LUA_RESTY_HTTP_VERSION
 ARG RESTY_LUA_RESTY_HMAC_FFI_VERSION
+ARG RESTY_LUA_RESTY_LJSONSCHEMA_VERSION
 ARG RESTY_LUA_RESTY_JWT_VERSION
 ARG RESTY_LUA_RESTY_SESSION_VERSION
 ARG RESTY_LUA_RESTY_OPENIDC_VERSION
@@ -592,7 +592,6 @@ RUN mkdir -p /build/modules \
 RUN mkdir -p /build/lualib \
     && cd /build/lualib \
     && git clone --depth=1 --branch v${RESTY_LUA_RESTY_BALANCER_VERSION} https://${RESTY_GIT_MIRROR}/openresty/lua-resty-balancer.git lua-resty-balancer \
-    && git clone --depth=1 --branch v${RESTY_JSONSCHEMA_VERSION} https://${RESTY_GIT_MIRROR}/api7/jsonschema.git jsonschema \
     && git clone --depth=1 --branch ${RESTY_LUA_RESTY_MLCACHE_VERSION} https://${RESTY_GIT_REPO}/hanada/lua-resty-mlcache.git lua-resty-mlcache \
     && git clone --depth=1 --branch "${RESTY_LUA_RESTY_COOKIE_VERSION}" https://${RESTY_GIT_REPO}/hanada/lua-resty-cookie.git lua-resty-cookie
 
@@ -819,7 +818,6 @@ RUN mkdir -p /usr/local/openresty/share \
     && cd /build/lualib \
     && cp -r lua-resty-balancer/lib/* /usr/local/openresty/lualib/ \
     && install -m 755 lua-resty-balancer/librestychash.so /usr/local/openresty/lualib/ \
-    && cp -r jsonschema/lib/* /usr/local/openresty/lualib/ \
     && cp -r lua-resty-mlcache/lib/* /usr/local/openresty/lualib/
 
 # Install LuaRocks packages and runtime data.
@@ -838,6 +836,7 @@ RUN /usr/local/openresty/luajit/bin/luarocks install lua-lolhtml "${RESTY_LUA_LO
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-openssl "${RESTY_LUA_RESTY_OPENSSL_VERSION}" \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-http "${RESTY_LUA_RESTY_HTTP_VERSION}" \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-hmac-ffi "${RESTY_LUA_RESTY_HMAC_FFI_VERSION}" \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-ljsonschema "${RESTY_LUA_RESTY_LJSONSCHEMA_VERSION}" \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-jwt "${RESTY_LUA_RESTY_JWT_VERSION}" \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-session "${RESTY_LUA_RESTY_SESSION_VERSION}" \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-openidc "${RESTY_LUA_RESTY_OPENIDC_VERSION}" \

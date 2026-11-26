@@ -221,7 +221,6 @@ See [Module Overview](#module-overview) for the additional nginx modules and the
 * [luarocks](https://luarocks.org/)
 * [lua-resty-multipart-parser](https://github.com/agentzh/lua-resty-multipart-parser)
 * [lua-resty-balancer](https://github.com/OpenResty/lua-resty-balancer)
-* [jsonschema](https://github.com/api7/jsonschema)
 * [lua-resty-mlcache](https://git.hanada.info/hanada/lua-resty-mlcache)
 * [lua-lolhtml](https://git.hanada.info/hanada/lua-lolhtml)
 
@@ -239,6 +238,7 @@ See [Module Overview](#module-overview) for the additional nginx modules and the
 * lua-resty-openssl
 * lua-resty-http
 * lua-resty-hmac-ffi
+* lua-resty-ljsonschema
 * lua-resty-jwt
 * lua-resty-session
 * lua-resty-openidc
