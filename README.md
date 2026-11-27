@@ -1301,9 +1301,11 @@ Prevents Set-Cookie headers from being passed when the response is served from c
 
 ### proxy_cache_lock_early_read
 
-**Syntax:** `proxy_cache_lock_early_read on | off;`\
-**Default:** `proxy_cache_lock_early_read off;`\
-**Context:** `http`, `server`, `location`, `when`
+* **Syntax:** `proxy_cache_lock_early_read on | off;`
+
+* **Default:** `proxy_cache_lock_early_read off;`
+
+* **Context:** `http`, `server`, `location`, `when`
 
 Allows a request waiting for [proxy_cache_lock](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_lock) to read a response while its cache file is being written, including across workers. Requires proxy buffering and `use_temp_path=off` on a local file system. The lock timeout applies until the reader joins the fill.
 
@@ -1315,9 +1317,11 @@ Early reads with cache purge require support for in-flight invalidation. A URL o
 
 ### proxy_cache_lock_expired
 
-**Syntax:** `proxy_cache_lock_expired on | off;`\
-**Default:** `proxy_cache_lock_expired off;`\
-**Context:** `http`, `server`, `location`, `when`
+* **Syntax:** `proxy_cache_lock_expired on | off;`
+
+* **Default:** `proxy_cache_lock_expired off;`
+
+* **Context:** `http`, `server`, `location`, `when`
 
 Extends [proxy_cache_lock](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_lock) to expired responses. Requests that cannot use the stale response wait for the first request to refresh it. A request that times out is passed upstream without writing its response to the cache.
 
@@ -1325,9 +1329,11 @@ Based on a [patch by Elliot Thomas](https://mailman.nginx.org/pipermail/nginx-de
 
 ### proxy_cache_lock_poll_interval
 
-**Syntax:** `proxy_cache_lock_poll_interval time;`\
-**Default:** `proxy_cache_lock_poll_interval 500ms;`\
-**Context:** `http`, `server`, `location`, `when`
+* **Syntax:** `proxy_cache_lock_poll_interval time;`
+
+* **Default:** `proxy_cache_lock_poll_interval 500ms;`
+
+* **Context:** `http`, `server`, `location`, `when`
 
 Sets the maximum interval between checks of a cache lock or an in-progress cache file. The interval must be greater than zero. When early readers share a timer, the shortest interval applies.
 
@@ -1355,13 +1361,13 @@ the same parameter. Shared-memory persistence is ported from [Angie’s shared-z
 
 ### Enhancement of upstream cache control
 
-Refer to [proxy_cache_valid](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_valid), [proxy_cache_use_stale](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_use_stale), and [proxy_ignore_headers](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_ignore_headers) for the original cache behavior.
+This bundle extends nginx’s upstream caching behavior as follows:
 
-This bundle changes upstream Cache-Control handling as follows:
-
-* `no-cache`, `max-age=0`, and `s-maxage=0` responses can be stored as immediately stale cache entries instead of being treated as uncacheable.
-* `no-cache`, `s-maxage`, `must-revalidate`, and `proxy-revalidate` require revalidation before an expired cached response can be reused.
-* `no-store` and `private` responses remain uncacheable unless the corresponding Cache-Control field is ignored.
+* `CDN-Cache-Control` accepts the same directives as `Cache-Control`. When nonempty, it takes precedence over `Cache-Control`, `Expires`, and `Pragma`.
+* `Pragma: no-cache` is treated as `Cache-Control: no-cache`.
+* Responses with `no-cache`, `max-age=0`, or `s-maxage=0` can be stored but are immediately stale.
+* `no-cache`, `s-maxage`, `must-revalidate`, and `proxy-revalidate` require revalidation before a stale response can be reused.
+* `no-store` and `private` prevent storage unless the corresponding directive is ignored.
 
 * **Syntax:** *proxy_ignore_cache_control field ...;*
 
@@ -1369,19 +1375,21 @@ This bundle changes upstream Cache-Control handling as follows:
 
 * **Context:** *http, server, location, when*
 
-Disables processing of certain fields of Cache-Control header in the response from upstream. The following directives can be ignored:
-
-* no-cache
-* no-store
-* private
-* max-age
-* s-maxage
-* stale-while-revalidate
-* stale-if-error
-* must-revalidate
-* proxy-revalidate
+Ignores the specified directives in `CDN-Cache-Control` or `Cache-Control`: `no-cache`, `no-store`, `private`, `max-age`, `s-maxage`, `stale-while-revalidate`, `stale-if-error`, `must-revalidate`, or `proxy-revalidate`. To ignore an entire header, use `proxy_ignore_headers`.
 
 > fastcgi_ignore_cache_control, scgi_ignore_cache_control and uwsgi_ignore_cache_control directives are also available.
+
+* **Syntax:** *proxy_ignore_headers field ...;*
+
+* **Default:** *-*
+
+* **Context:** *http, server, location, when*
+
+Refer to [proxy_ignore_headers](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_ignore_headers) for the original directive behavior.
+
+The directive also accepts `CDN-Cache-Control` and `Pragma`.
+
+> fastcgi_ignore_headers, scgi_ignore_headers and uwsgi_ignore_headers directives are also available.
 
 * **Syntax:** *proxy_cache_min_age time;*
 
@@ -1389,7 +1397,7 @@ Disables processing of certain fields of Cache-Control header in the response fr
 
 * **Context:** *http, server, location*
 
-If the received max-age/s-maxage of Cache-Control header from upstream is less than the specified minimum age, the max-age/s-maxage value is set to the configured minimum age value. For example, if the max-age/s-maxage value in the received HTTP header is 100s and the configured minimum age value is 200s, the effective cache time will be 200s. This directive does not rewrite the Cache-Control header. The value of this directive supports variables.
+Sets the minimum lifetime for a positive `max-age` or `s-maxage` in `CDN-Cache-Control` or `Cache-Control`. The response header is passed unchanged. The `time` parameter can contain variables.
 
 > fastcgi_cache_min_age, scgi_cache_min_age and uwsgi_cache_min_age directives are also available.
 
@@ -1399,7 +1407,7 @@ If the received max-age/s-maxage of Cache-Control header from upstream is less t
 
 * **Context:** *http, server, location*
 
-The stale-if-error extension of the Cache-Control header field permits using a stale cached response in case of an error. When stale-if-error is missing from Cache-Control header, this directive will take effect instead of the stale-if-error extension of the Cache-Control header. This directive has lower priority than using the directive parameters of proxy_cache_use_stale. The value of this directive supports variables.
+Sets the default `stale-if-error` interval. During this interval a stale response may be served on error. The parameters of [proxy_cache_use_stale](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_use_stale) take precedence. The `time` parameter can contain variables.
 
 > fastcgi_cache_stale_if_error, scgi_cache_stale_if_error and uwsgi_cache_stale_if_error directives are also available.
 
@@ -1409,7 +1417,7 @@ The stale-if-error extension of the Cache-Control header field permits using a s
 
 * **Context:** *http, server, location*
 
-The stale-while-revalidate extension of the Cache-Control header field permits using a stale cached response if it is currently being updated. When stale-while-revalidate is missing from Cache-Control header, this directive will take effect instead of the stale-while-revalidate extension of the Cache-Control header. This directive has lower priority than using the directive parameters of proxy_cache_use_stale. The value of this directive supports variables.
+Sets the default `stale-while-revalidate` interval. During this interval a stale response may be served while it is being updated. The parameters of [proxy_cache_use_stale](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_use_stale) take precedence. The `time` parameter can contain variables.
 
 > fastcgi_cache_stale_while_revalidate, scgi_cache_stale_while_revalidate and uwsgi_cache_stale_while_revalidate directives are also available.
 
@@ -1429,7 +1437,9 @@ Enables upstream cache with the specified MIME types in addition to “text/html
 
 * **Context:** *http, server, location*
 
-Refer to [proxy_cache_valid](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_valid) for the original directive behavior. The `time` parameter can contain variables.
+Refer to [proxy_cache_valid](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_valid) for the original directive behavior.
+
+The `time` parameter can contain variables.
 
 * **Syntax:** *proxy_cache_vary on | off | string;*
 
