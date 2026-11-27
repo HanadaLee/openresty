@@ -30,9 +30,11 @@ my %types = (
 	png => 'image/png',
 	text => 'text/plain',
 	missing => undef,
-	nostore => 'application/json'
+	nostore => 'application/json',
+	cdn_store => 'application/json',
+	cdn_deny => 'application/json'
 );
-my @types = qw/html json json_charset png text missing nostore/;
+my @types = qw/html json json_charset png text missing nostore cdn_store cdn_deny/;
 
 # Path, effective type restriction (undef means inherit http), virtual server.
 my @cases = (
@@ -147,9 +149,9 @@ EOF
 			my ($path, $policy, $host) = @$case;
 			$policy //= $phase eq 'default' ? '*' : 'json';
 			for my $type (@types) {
-				my $allowed = $type ne 'nostore' && ($policy eq '*'
+				my $allowed = $type ne 'nostore' && $type ne 'cdn_deny' && ($policy eq '*'
 					|| $type eq 'html' || $policy eq $type
-					|| ($policy eq 'json' && $type eq 'json_charset'));
+					|| ($policy eq 'json' && ($type eq 'json_charset' || $type eq 'cdn_store')));
 				for my $request (1, 2) {
 					my $status = $request == 2 && $allowed ? 'HIT' : 'MISS';
 					my $label = "$phase $module $host $path $type $request";
@@ -252,7 +254,9 @@ sub backend {
 			my $body = "cache body\n";
 			my $response = $module eq 'proxy' ? "HTTP/1.1 200 OK\r\n" : "Status: 200 OK\r\n";
 			$response .= "Content-Type: $types{$type}\r\n" if defined $types{$type};
-			$response .= "Cache-Control: no-store\r\n" if $type eq 'nostore';
+			$response .= "Cache-Control: no-store\r\n" if $type eq 'nostore' || $type eq 'cdn_store';
+			$response .= "CDN-Cache-Control: max-age=60\r\n" if $type eq 'cdn_store';
+			$response .= "CDN-Cache-Control: no-store\r\n" if $type eq 'cdn_deny';
 			$response .= 'Content-Length: ' . length($body) . "\r\n\r\n$body";
 			if ($module eq 'fastcgi') {
 				$response = fcgi_record(6, $id, $response) . fcgi_record(6, $id, '')
