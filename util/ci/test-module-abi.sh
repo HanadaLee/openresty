@@ -9,6 +9,7 @@ fixtures="${2:-$script_dir/../../t/module-abi}"
 source_dir="$(cd "$source_dir" && pwd)"
 fixtures="$(cd "$fixtures" && pwd)"
 nginx="$source_dir/objs/nginx"
+expected_revision=6
 test_root="$(mktemp -d /tmp/ext-abi.XXXXXX)"
 nginx_pid=""
 
@@ -70,7 +71,7 @@ for compat in 0 1; do
                                 "NGX_HTTP_GRPC_FILTER=$grpc_filter"
                             expected="$legacy"
                             if [[ "$ext" == 1 ]]; then
-                                expected+=",ext,5,$expr${ssl}1$client"
+                                expected+=",ext,$expected_revision,$expr${ssl}1$client"
                             fi
                             actual="$("$test_root/signature")"
                             [[ "$actual" == "$expected" ]] || \
@@ -132,7 +133,7 @@ for variant in legacy no-ext expr http-ssl client no-shm revision; do
         legacy) flags='-DEXT_ABI_TEST_LEGACY=1' ;;
         no-ext) settings=(NGX_EXT=0) ;;
         no-shm) flags='-DEXT_ABI_TEST_NO_SHM=1' ;;
-        revision) flags='-DEXT_ABI_TEST_REVISION=1' ;;
+        revision) flags="-DEXT_ABI_TEST_REVISION=$((expected_revision - 1))" ;;
         *)
             case "$variant" in
                 expr) macro=NGX_EXPR ;;
