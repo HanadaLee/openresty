@@ -1,7 +1,7 @@
 # Derived from upstream util/ver and the optional nginx overlay.
 ARG RESTY_VERSION
 ARG RESTY_NGINX_OVERRIDE="1.31.10"
-ARG RESTY_RELEASE="400"
+ARG RESTY_RELEASE="401"
 ARG RESTY_COMMIT="fd029bbd07cd4bcf0a152c002063a631db4dfeb7"
 ARG RESTY_J="4"
 ARG RESTY_IMAGE_BASE="debian"
